@@ -36,6 +36,28 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+// Recebe o push de verdade (mandado pela Edge Function enviar-push) e exibe a notificação com som/vibração
+self.addEventListener("push", (event) => {
+  let dados = {};
+  try { dados = event.data ? event.data.json() : {}; } catch { dados = { title: "Condor · Alerta de Validade", body: event.data ? event.data.text() : "" }; }
+  const titulo = dados.title || "Condor · Alerta de Validade";
+  const opcoes = {
+    body: dados.body,
+    icon: dados.icon || "/icon-192.png",
+    badge: "/icon-192.png",
+    image: dados.image,
+    tag: dados.tag,
+    renotify: true,
+    vibrate: [100, 50, 100, 50, 200],
+    data: dados.data || {},
+    actions: [
+      { action: "ver", title: "Ver produto" },
+      { action: "fechar", title: "Dispensar" }
+    ]
+  };
+  event.waitUntil(self.registration.showNotification(titulo, opcoes));
+});
+
 // Clique na notificação (ou em uma das ações "Ver produto" / "Dispensar"): foca ou abre o app
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
