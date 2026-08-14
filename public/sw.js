@@ -48,7 +48,8 @@ self.addEventListener("push", (event) => {
     image: dados.image,
     tag: dados.tag,
     renotify: true,
-    vibrate: [100, 50, 100, 50, 200],
+    requireInteraction: !!dados.requireInteraction,
+    vibrate: dados.requireInteraction ? [150, 60, 150, 60, 150, 60, 250] : [100, 50, 100, 50, 200],
     data: dados.data || {},
     actions: [
       { action: "ver", title: "Ver produto" },
