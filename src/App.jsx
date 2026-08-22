@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./supabaseClient";
-import {
+import { 
   HomeIcon, Squares2X2Icon, FireIcon, SignalIcon, ClockIcon, Cog6ToothIcon,
   CameraIcon, PlusIcon, ShieldExclamationIcon, ShieldCheckIcon, QuestionMarkCircleIcon,
   ChevronRightIcon, BellIcon, BellSlashIcon, SunIcon, MoonIcon, ArrowLeftIcon,
