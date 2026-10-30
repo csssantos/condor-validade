@@ -2605,8 +2605,8 @@ function AvisoModal({ T, aviso, onFechar }) {
 // ============ Banner "Nova versão disponível" — aparece na hora, sem precisar fechar o app ============
 function NovaVersaoBanner({ T, onAtualizar, onFechar }) {
   return (
-    <motion.div initial={{ y: -60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -60, opacity: 0 }}
-      className="fixed top-0 left-0 right-0 z-[70] px-3 pt-3">
+    <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+      className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] lg:bottom-6 left-0 right-0 lg:left-64 z-[70] px-3">
       <div style={{ background: BLUE_DARK }} className="max-w-md mx-auto rounded-2xl px-4 py-3 flex items-center gap-3 shadow-lg shadow-black/20">
         <Sparkles size={18} color="#fff" className="shrink-0" />
         <p className="text-white text-xs font-medium flex-1">Tem uma versão nova do app. Atualizar agora?</p>
