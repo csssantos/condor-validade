@@ -31,7 +31,7 @@ let modelosCache: { lista: string[]; em: number } | null = null;
 async function modelosDisponiveis(): Promise<string[]> {
   if (modelosCache && Date.now() - modelosCache.em < 6 * 3600000) return modelosCache.lista;
   const key = Deno.env.get("GEMINI_API_KEY");
-  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": key! } });
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": key! }, signal: AbortSignal.timeout(6000) });
   const j = await r.json().catch(() => ({}));
   const nomes: string[] = (j?.models || [])
     .filter((m: any) => (m.supportedGenerationMethods || []).includes("generateContent"))
@@ -46,7 +46,11 @@ async function modelosDisponiveis(): Promise<string[]> {
 }
 let modeloBom = ""; // último modelo que respondeu bem nesta instância
 const sobrecarregados = new Map<string, number>(); // modelo -> até quando evitar (ms)
-async function escolherModelos(): Promise<string[]> {
+async function escolherModelos(sb?: any): Promise<string[]> {
+  if (!modeloBom && sb) {
+    const { data } = await sb.rpc("ia_modelo_preferido").then((x: any) => x, () => ({ data: null }));
+    if (typeof data === "string" && data) modeloBom = data;
+  }
   const disp = await modelosDisponiveis().catch(() => [] as string[]);
   const ordem = [...new Set([MODELO_FIXO, modeloBom, "gemini-flash-latest", ...disp, "gemini-flash-lite-latest"].filter(Boolean))];
   const agora = Date.now();
@@ -240,31 +244,38 @@ async function gemini(modelo: string, contents: any[], comFerramentas = true, li
   } finally { clearTimeout(t); }
 }
 
-async function chamarComReserva(modelos: string[], contents: any[], comFerramentas: boolean, limiteMs = 20000) {
-  let ultimo: any = { status: 0, corpo: {} };
+async function chamarComReserva(modelos: string[], contents: any[], comFerramentas: boolean, limiteMs = 20000, prazoFinal = Date.now() + 50000, sb?: any) {
+  let ultimo: any = { status: 408, corpo: { error: { message: "tempo esgotado" } } };
   const tentativas: any[] = [];
-  for (const m of modelos.slice(0, 5)) {
-    const r = await gemini(m, contents, comFerramentas, limiteMs);
+  for (const m of modelos.slice(0, 3)) {
+    const resta = prazoFinal - Date.now();
+    if (resta < 4000) break;
+    const r = await gemini(m, contents, comFerramentas, Math.min(limiteMs, resta));
     tentativas.push({ modelo: m, status: r.status, ms: r.ms });
     if ([404, 408, 500, 503, 599].includes(r.status)) {
       sobrecarregados.set(m, Date.now() + (r.status === 404 ? 6 * 3600000 : 5 * 60000));
       ultimo = { ...r, modelo: m, tentativas }; continue;
     }
-    if (r.status === 200) modeloBom = m;
+    if (r.status === 200) { if (modeloBom !== m && sb) sb.rpc("ia_salvar_modelo", { p_modelo: m }).then(() => {}, () => {}); modeloBom = m; }
     return { ...r, modelo: m, tentativas };
   }
   return ultimo;
 }
 
 async function conversar(contents: any[], c: Ctx) {
-  let modelos = await escolherModelos();
+  // orçamento total da resposta: a função nunca pode ficar presa (o app espera no máximo ~75 s)
+  const prazoFinal = Date.now() + 50000;
+  let modelos = await escolherModelos(c.sb);
   let modelo = modelos[0];
   for (let rodada = 0; rodada < MAX_RODADAS; rodada++) {
-    const res = await chamarComReserva(modelos, contents, rodada < MAX_RODADAS - 1);
+    if (prazoFinal - Date.now() < 5000) throw Object.assign(new Error("A IA está demorando demais agora (serviço gratuito do Google sobrecarregado). Tente de novo em instantes."), { codigo: "tempo" });
+    const ultimaRodada = rodada === MAX_RODADAS - 1 || prazoFinal - Date.now() < 15000;
+    const res = await chamarComReserva(modelos, contents, !ultimaRodada, 20000, prazoFinal, c.sb);
     const { status, corpo } = res;
     if (res.modelo) { modelo = res.modelo; modelos = [modelo, ...modelos.filter((x) => x !== modelo)]; }
     if (status === 429) throw Object.assign(new Error("O limite gratuito do Gemini foi atingido por agora. Tente de novo em alguns minutos."), { codigo: "limite_api" });
     if (status === 400 && /API key/i.test(JSON.stringify(corpo))) throw Object.assign(new Error("A chave do Gemini (GEMINI_API_KEY) é inválida."), { codigo: "chave_invalida" });
+    if (status === 408 || status === 503 || status === 500 || status === 599) throw Object.assign(new Error("O serviço de IA do Google está sobrecarregado agora. Tente de novo em instantes."), { codigo: "sobrecarga" });
     if (status !== 200) throw Object.assign(new Error(`Gemini respondeu ${status}: ${corpo?.error?.message || "erro desconhecido"}`), { codigo: "api" });
     const cand = corpo?.candidates?.[0];
     const partes = cand?.content?.parts || [];
@@ -298,14 +309,14 @@ Deno.serve(async (req) => {
   // diagnóstico: confirma que a chave está configurada e que a API responde (sem dados da loja)
   if (body?.acao === "modelos") {
     if (!Deno.env.get("GEMINI_API_KEY")) return json({ ok: false, configurado: false });
-    return json({ ok: true, candidatos: (await escolherModelos()).slice(0, 10) });
+    return json({ ok: true, candidatos: (await escolherModelos(sb)).slice(0, 10) });
   }
   if (body?.acao === "status") {
     if (!Deno.env.get("GEMINI_API_KEY")) return json({ ok: false, configurado: false, mensagem: "Configure o secret GEMINI_API_KEY nas Edge Functions." });
     const { data: cota } = await sb.rpc("ia_cota_diagnostico");
     if (cota && cota.ok === false) return json({ ok: false, configurado: true, mensagem: "Limite de testes de diagnóstico do dia atingido." }, 429);
-    const modelos = await escolherModelos();
-    const r = await chamarComReserva(modelos, [{ role: "user", parts: [{ text: "Responda apenas: OK" }] }], false, 15000);
+    const modelos = await escolherModelos(sb);
+    const r = await chamarComReserva(modelos, [{ role: "user", parts: [{ text: "Responda apenas: OK" }] }], false, 15000, Date.now() + 45000, sb);
     return json({ ok: r.status === 200, configurado: true, modelo: r.modelo, candidatos: modelos.slice(0, 6), tentativas: r.tentativas, status_api: r.status,
       resposta: r.corpo?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("").trim() || r.corpo?.error?.message });
   }
@@ -367,6 +378,6 @@ Deno.serve(async (req) => {
     const msg = e?.name === "AbortError" ? "A IA demorou demais para responder. Tente de novo." : (e?.message || "Erro ao consultar a IA.");
     console.error("assistente-ia:", e);
     await sb.from("ia_mensagens").insert({ conversa_id: conversaId, usuario_id: u.user.id, papel: "erro", conteudo: msg });
-    return json({ erro: msg, codigo: e?.codigo || "erro", conversa_id: conversaId }, e?.codigo === "limite_api" ? 429 : 502);
+    return json({ erro: msg, codigo: e?.codigo || "erro", conversa_id: conversaId }, e?.codigo === "limite_api" ? 429 : e?.codigo === "sobrecarga" || e?.codigo === "tempo" ? 503 : 502);
   }
 });

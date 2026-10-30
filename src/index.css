@@ -6,3 +6,12 @@ html, body, #root { height: 100%; }
 body { margin: 0; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* iPhone: campos de data/hora têm largura mínima própria e estouravam a tela */
+input[type="date"], input[type="datetime-local"], input[type="time"] {
+  min-width: 0;
+  max-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="date"]::-webkit-date-and-time-value, input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; }

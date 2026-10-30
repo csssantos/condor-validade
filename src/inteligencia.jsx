@@ -94,9 +94,11 @@ function Cartao({ T, titulo, sub, direita, children, className = "" }) {
   );
 }
 function Kpi({ T, label, valor, sub, cor = T.text }) {
+  const tam = String(valor ?? "").length;
+  const fonte = tam > 12 ? "text-base lg:text-lg" : tam > 8 ? "text-lg lg:text-xl" : "text-2xl";
   return (
-    <div style={{ background: T.card }} className="rounded-2xl shadow-lg shadow-black/5 p-3.5">
-      <p style={{ color: cor }} className="text-2xl font-extrabold tabular-nums leading-tight">{valor}</p>
+    <div style={{ background: T.card }} className="rounded-2xl shadow-lg shadow-black/5 p-3.5 min-w-0 overflow-hidden">
+      <p style={{ color: cor }} className={`${fonte} font-extrabold tabular-nums leading-tight whitespace-nowrap overflow-hidden text-ellipsis`} title={String(valor ?? "")}>{valor}</p>
       <p style={{ color: T.subtext }} className="text-[11px] font-medium mt-0.5">{label}</p>
       {sub && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5">{sub}</p>}
     </div>
@@ -121,7 +123,7 @@ function Folha({ T, titulo, sub, onClose, children }) {
     <div className="fixed inset-0 z-[70] flex items-end lg:items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/45" />
       <div onClick={(e) => e.stopPropagation()} style={{ background: T.bg, color: T.text }}
-        className="relative w-full lg:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl lg:rounded-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+20px)]">
+        className="relative w-full lg:max-w-lg max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-t-3xl lg:rounded-3xl p-5 pb-[calc(env(safe-area-inset-bottom)+20px)]">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div><p className="text-base font-bold">{titulo}</p>{sub && <p style={{ color: T.subtext }} className="text-xs mt-0.5">{sub}</p>}</div>
           <button onClick={onClose} style={{ background: T.chipBg }} className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"><X size={16} /></button>
@@ -235,7 +237,7 @@ export function NovaTarefaSheet({ T, perfil, lojaAtiva, inicial, showToast, onCl
             <option value="">Selecione…</option>{candidatos.map((u) => <option key={u.id} value={u.id}>{u.nome}{u.setor ? ` · ${u.setor}` : ""}</option>)}
           </select>
         </Campo>
-        <Campo T={T} label="Prazo"><input type="datetime-local" value={prazo} onChange={(e) => setPrazo(e.target.value)} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none" /></Campo>
+        <Campo T={T} label="Prazo"><input type="datetime-local" value={prazo} onChange={(e) => setPrazo(e.target.value)} style={{ ...campo, WebkitAppearance: "none", appearance: "none", minWidth: 0, maxWidth: "100%" }} className="block w-full min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none" /></Campo>
         <button onClick={criar} disabled={ocupado || !descricao.trim() || !responsavel || !setor} style={{ background: descricao.trim() && responsavel ? VERDE : "#C7CEDA", color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
           {ocupado ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Confirmar e criar tarefa
         </button>
@@ -366,7 +368,7 @@ export function RegistrarPerdaSheet({ T, perfil, lojaAtiva, catalog, showToast, 
                 <option value="">Selecione…</option>{setoresCatalogo.map((s) => <option key={s}>{s}</option>)}
               </select>}
         </Campo>
-        <div className="grid grid-cols-[1fr_auto] gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <Campo T={T} label="Quantidade"><input value={qtd} onChange={(e) => setQtd(e.target.value.replace(/[^\d,.]/g, ""))} inputMode="decimal" style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none" /></Campo>
           <Campo T={T} label="Unidade"><select value={unidade} onChange={(e) => setUnidade(e.target.value)} style={campo} className="border rounded-xl px-3 py-2.5 text-sm outline-none">{UNIDADES.map((u) => <option key={u}>{u}</option>)}</select></Campo>
         </div>
@@ -375,7 +377,7 @@ export function RegistrarPerdaSheet({ T, perfil, lojaAtiva, catalog, showToast, 
             <button key={m.id} onClick={() => setMotivo(m.id)} style={motivo === m.id ? { background: RED, color: "#fff" } : { background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2 text-xs font-semibold">{m.label}</button>
           ))}</div>
         </Campo>
-        <Campo T={T} label="Data"><input type="date" value={data} max={hojeISO()} onChange={(e) => setData(e.target.value)} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none" /></Campo>
+        <Campo T={T} label="Data"><input type="date" value={data} max={hojeISO()} onChange={(e) => setData(e.target.value)} style={{ ...campo, WebkitAppearance: "none", appearance: "none", minWidth: 0, maxWidth: "100%" }} className="block w-full min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none" /></Campo>
         <Campo T={T} label="Foto (opcional)">
           <input ref={arquivo} type="file" accept="image/*" capture="environment" className="hidden" onChange={escolherFoto} />
           {foto ? (
@@ -613,7 +615,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
           </div>
           {erro ? <Cartao T={T}><Vazio T={T} texto={erro} /></Cartao> : !d ? <Carregando T={T} /> : (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-2">
                 <Kpi T={T} label={`Ocorrências (${d.periodo_dias}d)`} valor={d.total_registros} />
                 <Kpi T={T} label="Valor perdido" valor={moeda(d.valor_total)} cor={RED_DARK} />
                 <Kpi T={T} label="Irregularidades em rondas" valor={d.irregularidades_rondas} />
@@ -805,6 +807,7 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
   const [tarefa, setTarefa] = useState(null);
   const [acao, setAcao] = useState(null);
   const [historico, setHistorico] = useState(false);
+  const [qtdSugestoes, setQtdSugestoes] = useState(3);
   const fim = useRef(null);
 
   const carregarConversas = useCallback(async () => {
@@ -812,7 +815,7 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
     setConversas(data || []);
   }, []);
   useEffect(() => { carregarConversas(); }, [carregarConversas]);
-  useEffect(() => { fim.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs, pensando]);
+  useEffect(() => { fim.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [msgs, pensando]);
 
   async function abrirConversa(id) {
     setHistorico(false); setConversaId(id); setMsgs([]);
@@ -827,11 +830,17 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
     setTexto(""); setAviso(null);
     setMsgs((m) => [...m, { id: "u" + Date.now(), papel: "usuario", conteudo: pergunta }]);
     setPensando(true);
-    const { data, error } = await supabase.functions.invoke("assistente-ia", { body: { pergunta, conversa_id: conversaId, loja_id: lojaAtiva?.id || null } });
+    // nunca fica girando para sempre: depois de 75 s o app desiste e avisa
+    const limite = new Promise((resolve) => setTimeout(() => resolve({ data: null, error: { message: "tempo_limite" } }), 75000));
+    const { data, error } = await Promise.race([
+      supabase.functions.invoke("assistente-ia", { body: { pergunta, conversa_id: conversaId, loja_id: lojaAtiva?.id || null } }),
+      limite,
+    ]);
     setPensando(false);
     if (error) {
       let corpo = null; try { corpo = await error.context?.json?.(); } catch {}
-      const msg = corpo?.erro || (String(error.message || "").includes("Failed to send") ? "Sem conexão com o servidor da IA." : "Não foi possível falar com o assistente agora.");
+      const msg = corpo?.erro || (error.message === "tempo_limite" ? "A IA demorou demais para responder (o serviço gratuito do Google pode estar sobrecarregado). Tente de novo em instantes."
+        : String(error.message || "").includes("Failed to send") ? "Sem conexão com o servidor da IA." : "Não foi possível falar com o assistente agora.");
       if (corpo?.conversa_id) setConversaId(corpo.conversa_id);
       setMsgs((m) => [...m, { id: "e" + Date.now(), papel: "erro", conteudo: msg }]);
       if (corpo?.codigo === "sem_chave") setAviso("sem_chave");
@@ -868,12 +877,12 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
       </div>
 
       <div className="flex flex-col gap-3 min-w-0">
-        <div style={{ background: `linear-gradient(135deg, ${BLUE_DARK} 0%, #1d1240 100%)` }} className="rounded-3xl p-5 text-white">
+        <div style={{ background: `linear-gradient(135deg, ${BLUE_DARK} 0%, #1d1240 100%)` }} className="rounded-3xl p-4 lg:p-5 text-white">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-bold tracking-[0.16em] text-white/70 flex items-center gap-1.5"><Sparkles size={14} /> ASSISTENTE IA — INTELIGÊNCIA OPERACIONAL</p>
-              <p className="text-lg font-bold mt-1">Pergunte sobre a operação da loja</p>
-              <p className="text-[11.5px] text-white/70 mt-1">Responde só com os dados que você tem permissão de ver. Nada é criado sem a sua confirmação.</p>
+              <p className="text-base lg:text-lg font-bold mt-1">Pergunte sobre a operação da loja</p>
+              <p className="hidden lg:block text-[11.5px] text-white/70 mt-1">Responde só com os dados que você tem permissão de ver. Nada é criado sem a sua confirmação.</p>
             </div>
             <button onClick={() => setHistorico((h) => !h)} className="lg:hidden bg-white/15 rounded-xl px-2.5 py-2 text-[11px] font-semibold flex items-center gap-1 shrink-0"><History size={14} /> Conversas</button>
           </div>
@@ -882,13 +891,17 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
           <div style={{ background: LARANJA_SOFT, color: LARANJA }} className="rounded-2xl p-3 text-[12px] font-semibold">O assistente ainda não foi ativado no servidor: falta o secret GEMINI_API_KEY nas Edge Functions do Supabase.</div>
         )}
 
-        <div style={{ background: T.card }} className="rounded-3xl shadow-lg shadow-black/5 p-3 lg:p-5 flex flex-col gap-3 min-h-[45vh]">
+        <div style={{ background: T.card }} className="rounded-3xl shadow-lg shadow-black/5 flex flex-col overflow-hidden h-[calc(100dvh-300px)] min-h-[400px] lg:h-[calc(100vh-250px)]">
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 lg:p-5 flex flex-col gap-3">
           {msgs.length === 0 && !pensando && (
             <div className="flex flex-col gap-2">
               <p style={{ color: T.subtext }} className="text-xs font-semibold flex items-center gap-1.5"><MessageSquare size={13} /> Sugestões de perguntas</p>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5">{SUGESTOES.map((s) => (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1.5">{SUGESTOES.slice(0, qtdSugestoes).map((s) => (
                 <button key={s} onClick={() => perguntar(s)} style={{ background: T.chipBg }} className="text-left rounded-xl px-3 py-2.5 text-[12.5px] font-medium">{s}</button>
               ))}</div>
+              {qtdSugestoes < SUGESTOES.length && (
+                <button onClick={() => setQtdSugestoes((n) => Math.min(SUGESTOES.length, n + 3))} style={{ color: BLUE }} className="self-start text-[12px] font-bold flex items-center gap-1 px-1 py-1"><Plus size={13} /> Sugerir mais</button>
+              )}
             </div>
           )}
           {msgs.map((m) => (
@@ -920,14 +933,14 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
               )}
             </div>
           ))}
-          {pensando && <div style={{ color: T.subtext }} className="flex items-center gap-2 text-[12.5px]"><Loader2 size={15} className="animate-spin" /> Consultando os dados da loja…</div>}
+          {pensando && <div style={{ color: T.subtext }} className="flex items-center gap-2 text-[12.5px]"><Loader2 size={15} className="animate-spin" /> Consultando os dados da loja… (pode levar até 1 minuto)</div>}
           <div ref={fim} />
         </div>
-
-        <div style={{ background: T.card }} className="rounded-2xl shadow-lg shadow-black/5 p-2 flex items-end gap-2 sticky bottom-24 lg:bottom-4">
+        <div style={{ borderTop: `1px solid ${T.chipBg}` }} className="p-2 flex items-end gap-2 shrink-0">
           <textarea value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); perguntar(); } }}
-            rows={1} maxLength={1500} placeholder="Pergunte sobre perdas, setores, rondas, tarefas…" style={{ color: T.text }} className="flex-1 bg-transparent outline-none text-sm resize-none px-2 py-2 max-h-32" />
+            rows={1} maxLength={1500} placeholder="Pergunte sobre perdas, setores, rondas, tarefas…" style={{ color: T.text, background: T.inputBg }} className="flex-1 rounded-xl outline-none text-sm resize-none px-3 py-2.5 max-h-32" />
           <button onClick={() => perguntar()} disabled={!texto.trim() || pensando} style={{ background: texto.trim() && !pensando ? BLUE : "#C7CEDA", color: "#fff" }} className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"><Send size={16} /></button>
+        </div>
         </div>
       </div>
 
