@@ -27,6 +27,7 @@ import {
   Carrot, Beef, Croissant, Milk, Wine, Snowflake, SprayCan, ShoppingBasket, Warehouse, Boxes, LogOut, Megaphone, Building2, Wrench, Ticket, Copy, Link2, LayoutDashboard, Pencil, Mail
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
 // Logo oficial da Condor (PNG em base64, embutida direto no bundle — sem depender de asset externo)
@@ -2154,6 +2155,11 @@ function AppInner() {
 
   // Ronda: criar é sempre pela aba Rondas (validação de cargo/setor no banco). Os botões de setor só abrem a tela já com o setor escolhido.
   function iniciarRonda(setor) { setRondaIntent({ novaSetor: setor ? setorPrincipal(setor) : null }); setSetorAtivo(null); setFlow(null); setTab("rondas"); }
+  // abre "Nova ronda" já preenchida (vinda da Previsão, Prevenção de Perdas ou do Assistente IA) — o encarregado revisa e confirma
+  function abrirRondaInteligente(cfg) {
+    setRondaIntent({ novaSetor: cfg?.setor ? setorPrincipal(cfg.setor) : null, modo: cfg?.modo, quantidade: cfg?.quantidade, barcodes: cfg?.barcodes, acaoId: cfg?.acaoId, nome: cfg?.nome, obs: cfg?.obs });
+    setSetorAtivo(null); setFlow(null); setTab("rondas");
+  }
 
   async function compartilharItem(item) {
     const st = getStatus(item);
@@ -2317,6 +2323,11 @@ function AppInner() {
         {flow === "convites" && ehEncarregado && <ConvitesPromotorView T={T} showToast={showToast} lojaAtiva={lojaAtiva} />}
         {flow === "gestao" && ehDev && <GestaoAplicativoView T={T} showToast={showToast} lojaAtiva={lojaAtiva} lojas={todasLojas} onRecarregarLojas={recarregarLojas} nivelUsuario={perfil?.cargos?.nivel} onTrocarLoja={(l) => { setLojaAtivaOverride(l); showToast(`Trocado pra loja ${l.numero_loja}.`); }} />}
         {flow === "relatorios" && <RelatoriosView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} onOpenDetail={setDetalheItem} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
+        {/* Inteligência operacional (módulos novos, em src/inteligencia.jsx) */}
+        {flow === "previsao" && ehEncarregado && <PrevisaoOperacionalView T={T} perfil={perfil} lojaAtiva={lojaAtiva} showToast={showToast} onCriarRonda={abrirRondaInteligente} />}
+        {flow === "prevencao" && ehEncarregado && <PrevencaoPerdasView T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} showToast={showToast} onCriarRonda={abrirRondaInteligente} ScanView={ScanView} />}
+        {flow === "assistente" && ehEncarregado && <AssistenteIAView T={T} perfil={perfil} lojaAtiva={lojaAtiva} showToast={showToast} onCriarRonda={abrirRondaInteligente} />}
+        {flow === "perda" && <RegistrarPerdaSheet T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} showToast={showToast} ScanView={ScanView} onClose={resetFlow} onFeito={resetFlow} />}
 
         {flow === null && tab === "home" && telaLarga && (
           <DashboardView T={T} items={items} historico={historico} rondas={rondas} auditoria={auditoria} nome={perfil?.nome} lojaNumero={lojaAtiva?.numero_loja}
@@ -2367,7 +2378,7 @@ function AppInner() {
             onSalvarConfigBalanca={(cfg) => { setConfigBalanca(cfg); supaSalvarConfigBalanca(perfil?.lojas?.numero_loja, cfg); }}
             ocultarValoresFuncionarios={ocultarValoresFuncionarios}
             onSalvarOcultarValores={(v) => { setOcultarValoresFuncionarios(v); supaSalvarOcultarValores(perfil?.lojas?.numero_loja, v); showToast(v ? "Modo de camadas ativado." : "Modo de camadas desligado."); }}
-            ehDev={ehDev} onAbrirGestao={() => setFlow("gestao")} perfil={perfil} onAbrirConvites={() => setFlow("convites")} />
+            ehDev={ehDev} onAbrirGestao={() => setFlow("gestao")} perfil={perfil} onAbrirConvites={() => setFlow("convites")} onAbrirModulo={(f) => setFlow(f)} />
         )}
       </main>
 
@@ -2553,6 +2564,14 @@ function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar })
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-10-30-inteligencia", data: "30/10/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Registrar perda: avaria, quebra, embalagem danificada, produto impróprio ou vencimento, com quantidade, foto e observações. Não mexe no estoque." },
+    { tipo: "adicionado", ate: 7, texto: "Na ronda, cada produto mostra um indicador de RISCO (calculado pelo histórico) e os de maior risco aparecem primeiro." },
+    { tipo: "adicionado", ate: 5, texto: "Ronda inteligente: conferência completa, priorizada por risco, por amostragem ou só com os produtos que você escolher." },
+    { tipo: "adicionado", ate: 5, texto: "Prevenção de Perdas: painel com perdas por setor, motivo e período, produtos que mais perdem, planos de ação e resultado antes x depois." },
+    { tipo: "adicionado", ate: 5, texto: "Previsão Operacional: aponta setores e produtos com risco de problema, com tendência, justificativa e nível de confiança. Sem histórico suficiente, ela avisa." },
+    { tipo: "adicionado", ate: 5, texto: "Assistente IA: pergunte sobre perdas, setores, rondas e tarefas. Ele responde só com dados reais que você tem permissão de ver e nada é criado sem a sua confirmação." },
+  ] },
   { id: "2026-10-30-ronda", data: "30/10/2026", itens: [
     { tipo: "adicionado", ate: 7, texto: "Ronda nova: você recebe a ronda designada pelo encarregado na hora, confere produto por produto (bipando ou digitando o código) e acompanha o progresso." },
     { tipo: "adicionado", ate: 7, texto: "Se a internet cair durante a conferência, o app guarda o que você fez e envia sozinho quando a conexão voltar." },
@@ -2720,7 +2739,8 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
     home: "Alerta de Validade", scan: "Bipar produto", confirm: "Dados do produto",
     expiry: "Data de validade", historico: "Histórico de baixas", ajustes: "Ajustes", auditoria: "Auditoria",
     prioridade: "Prioridade de Perda",
-    setores: "Setores", torre: "Torre de Controle", rondas: "Rondas", relatorios: "Relatórios", rede: "Painel da Rede", gestao: "Gestão do Aplicativo", convites: "Convites de promotor"
+    setores: "Setores", torre: "Torre de Controle", rondas: "Rondas", relatorios: "Relatórios", rede: "Painel da Rede", gestao: "Gestão do Aplicativo", convites: "Convites de promotor",
+    previsao: "Previsão Operacional", prevencao: "Prevenção de Perdas", assistente: "Assistente IA", perda: "Registrar perda"
   };
   const title = flow ? titles[flow] : (telaLarga && tab === "home" ? "Dashboard" : titles[tab]);
   if (telaLarga) {
@@ -3488,7 +3508,7 @@ function useRondaAoVivo(rondaId) {
     if (!rondaId) return;
     const [r, i] = await Promise.all([
       supabase.from("rondas").select("*, ronda_participantes(usuario_id, nome)").eq("id", rondaId).maybeSingle(),
-      supabase.from("ronda_itens").select("*").eq("ronda_id", rondaId).order("nome"),
+      supabase.from("ronda_itens").select("*").eq("ronda_id", rondaId).order("ordem", { ascending: true, nullsFirst: false }).order("nome"),
     ]);
     if (!r.error && r.data) setRonda(r.data);
     if (!i.error && i.data) {
@@ -3877,7 +3897,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
                 <Thumb foto={x.foto} size={44} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold truncate">{x.nome}</p>
-                  <p style={{ color: T.subtext }} className="text-[11px] truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}</p>
+                  <p style={{ color: T.subtext }} className="text-[11px] truncate flex items-center gap-1.5"><SeloRisco risco={x.risco} nivel={x.risco_nivel} /><span className="truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}</span></p>
                 </div>
                 <DashBadge bg={r.bg} color={r.color}>{x._pendente ? "enviando…" : r.label}</DashBadge>
               </button>
@@ -4062,7 +4082,7 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
 }
 
 // ---------- NOVA RONDA ----------
-function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preSetor, onClose, onCriada }) {
+function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preSetor, preConfig, onClose, onCriada }) {
   const nivel = perfil?.cargos?.nivel ?? 99;
   const meuSetor = (perfil?.setor || "").toLowerCase();
   // setores = os que têm produtos cadastrados no banco (nada de lista fixa)
@@ -4080,12 +4100,33 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
     const ks = Object.keys(m); return ks.length > 1 || (ks.length === 1 && ks[0] !== "(sem subsetor)") ? ks.sort().map((k) => [k, m[k]]) : [];
   }, [catalog, setores.join("|")]);
   useEffect(() => { setSubSel([]); }, [setores.join("|")]);
-  const [nome, setNome] = useState("");
+  const [nome, setNome] = useState(preConfig?.nome || "");
   const [sel, setSel] = useState([]);
+  // Ronda inteligente: modo de conferência + risco por produto (calculado no banco a partir do histórico)
+  const [modo, setModo] = useState(preConfig?.modo || "completa");
+  const [quantidade, setQuantidade] = useState(String(preConfig?.quantidade || 10));
+  const [escolhidos, setEscolhidos] = useState(preConfig?.barcodes || []);
+  const [buscaProd, setBuscaProd] = useState("");
+  const [riscos, setRiscos] = useState({});
+  useEffect(() => {
+    if (setores.length !== 1 || !lojaAtiva?.id) { setRiscos({}); return; }
+    let vivo = true;
+    supabase.rpc("analise_risco_produtos", { p_loja: lojaAtiva.id, p_setor: setores[0] }).then(({ data }) => {
+      if (vivo) setRiscos(Object.fromEntries((data || []).map((r) => [r.barcode, r])));
+    });
+    return () => { vivo = false; };
+  }, [setores.join("|"), lojaAtiva?.id]);
+  const produtosDoSetor = useMemo(() => {
+    if (setores.length !== 1) return [];
+    return Object.entries(catalog || {}).map(([cod, p]) => ({ ...p, barcode: p?.barcode || cod })).filter((p) => p?.setor && setorPrincipal(p.setor) === setores[0]
+      && (!subSel.length || subSel.includes(subsetorEfetivo(p.setor, p.subsetor) || "(sem subsetor)")))
+      .map((p) => ({ barcode: p.barcode, nome: p.nome, risco: riscos[p.barcode]?.score ?? null, nivel: riscos[p.barcode]?.nivel }))
+      .sort((a, b) => (b.risco ?? -1) - (a.risco ?? -1) || a.nome.localeCompare(b.nome));
+  }, [catalog, setores.join("|"), subSel.join("|"), riscos]);
   const [outrosSetores, setOutrosSetores] = useState(false);
   const [inicio, setInicio] = useState(paraInputDataHora(new Date()));
   const [prazo, setPrazo] = useState("");
-  const [obs, setObs] = useState("");
+  const [obs, setObs] = useState(preConfig?.obs || "");
   const [ocupado, setOcupado] = useState(false);
   const setoresLower = setores.map((s) => s.toLowerCase());
   const candidatos = (equipe || []).filter((u) => (nivel <= 4 && outrosSetores) || setoresLower.includes((u.setor || "").toLowerCase()));
@@ -4094,17 +4135,28 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
   const campo = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
   async function criar() {
     setOcupado(true);
-    const { error } = await supabase.rpc("criar_ronda", {
-      p_setores: setores, p_nome: nome.trim() || null, p_participantes: sel, p_inicio: new Date(inicio).toISOString(),
-      p_prazo: prazo ? new Date(prazo).toISOString() : null, p_obs: obs.trim() || null, p_loja: lojaAtiva?.id || null,
-      p_subsetores: subSel.length ? subSel : null,
-    });
+    // um setor → ronda inteligente (modos completa/priorizada/amostragem/manual, com risco por item);
+    // vários setores (gerência) → fluxo original, uma ronda completa por setor
+    const { error } = setores.length === 1
+      ? await supabase.rpc("criar_ronda_inteligente", {
+          p_setor: setores[0], p_nome: nome.trim() || null, p_participantes: sel, p_inicio: new Date(inicio).toISOString(),
+          p_prazo: prazo ? new Date(prazo).toISOString() : null, p_obs: obs.trim() || null, p_loja: lojaAtiva?.id || null,
+          p_subsetores: subSel.length ? subSel : null, p_modo: modo,
+          p_quantidade: modo === "amostragem" ? Math.max(1, parseInt(quantidade, 10) || 0) : null,
+          p_barcodes: modo === "manual" ? escolhidos : null, p_acao: preConfig?.acaoId || null,
+        })
+      : await supabase.rpc("criar_ronda", {
+          p_setores: setores, p_nome: nome.trim() || null, p_participantes: sel, p_inicio: new Date(inicio).toISOString(),
+          p_prazo: prazo ? new Date(prazo).toISOString() : null, p_obs: obs.trim() || null, p_loja: lojaAtiva?.id || null,
+          p_subsetores: subSel.length ? subSel : null,
+        });
     setOcupado(false);
     if (error) { showToast(erroRonda(error), "warn"); return; }
     showToast(setores.length > 1 ? `${setores.length} rondas criadas.` : "Ronda criada. Os funcionários já foram avisados.");
     onCriada();
   }
-  const pronto = setores.length > 0 && sel.length > 0 && !!inicio;
+  const modoOk = setores.length !== 1 || modo === "completa" || modo === "priorizada" || (modo === "amostragem" && parseInt(quantidade, 10) > 0) || (modo === "manual" && escolhidos.length > 0);
+  const pronto = setores.length > 0 && sel.length > 0 && !!inicio && modoOk;
   return (
     <GestaoSheet T={T} title="Iniciar nova ronda" subtitle={`Loja ${lojaAtiva?.numero_loja ?? "—"} · a lista de produtos é congelada agora`} onClose={onClose}>
       <div className="flex flex-col gap-3.5">
@@ -4131,6 +4183,36 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
             </div>
           </GestaoCampo>
         )}
+        {setores.length === 1 && (
+          <GestaoCampo T={T} label="Tipo de conferência" hint="O risco de cada produto vem do histórico (vencimentos, irregularidades, perdas, lote atual e tempo sem conferir). Risco alto não quer dizer que está vencido.">
+            <div className="grid grid-cols-2 gap-2">
+              {MODOS_RONDA.map((m) => (
+                <button key={m.id} onClick={() => setModo(m.id)} style={modo === m.id ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2 text-left">
+                  <p className="text-xs font-bold">{m.label}</p><p className="text-[10.5px] opacity-75 leading-tight">{m.desc}</p>
+                </button>
+              ))}
+            </div>
+            {modo === "amostragem" && (
+              <div className="mt-2 flex items-center gap-2 text-xs"><span>Quantos produtos?</span>
+                <input value={quantidade} onChange={(e) => setQuantidade(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" style={campo} className="w-20 border rounded-xl px-2.5 py-2 text-sm outline-none" />
+                <span style={{ color: T.subtext }}>de {produtosDoSetor.length}</span></div>
+            )}
+            {modo === "manual" && (
+              <div className="mt-2 flex flex-col gap-1.5">
+                <input value={buscaProd} onChange={(e) => setBuscaProd(e.target.value)} placeholder="Buscar produto" style={campo} className="w-full border rounded-xl px-3 py-2 text-sm outline-none" />
+                <p style={{ color: T.subtext }} className="text-[10.5px]">{escolhidos.length} selecionado(s) · ordenados do maior para o menor risco</p>
+                <div className="max-h-56 overflow-y-auto flex flex-col gap-1">
+                  {produtosDoSetor.filter((p) => !buscaProd.trim() || p.nome.toLowerCase().includes(buscaProd.toLowerCase()) || (p.barcode || "").includes(buscaProd.trim())).slice(0, 150).map((p) => {
+                    const on = escolhidos.includes(p.barcode);
+                    return <label key={p.barcode} style={{ background: on ? BLUE_SOFT : T.chipBg }} className="rounded-xl px-3 py-2 flex items-center gap-2 text-[12.5px] cursor-pointer">
+                      <input type="checkbox" checked={on} onChange={() => setEscolhidos((x) => (on ? x.filter((b) => b !== p.barcode) : [...x, p.barcode]))} />
+                      <span className="flex-1 min-w-0 truncate">{p.nome}</span><SeloRisco risco={p.risco} nivel={p.nivel} /></label>;
+                  })}
+                </div>
+              </div>
+            )}
+          </GestaoCampo>
+        )}
         <GestaoCampo T={T} label="Nome da ronda (opcional)"><input value={nome} onChange={(e) => setNome(e.target.value)} placeholder={setores[0] ? `Conferência de ${setores[0]}` : "Ex.: Conferência de validade"} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none" /></GestaoCampo>
         <GestaoCampo T={T} label="Quem vai executar" hint={setores.length ? `Só aparecem funcionários vinculados ao setor${setores.length > 1 ? "s escolhidos" : ""}.` : "Escolha o setor primeiro."}>
           <div className="flex flex-col gap-1.5">
@@ -4148,7 +4230,7 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
           <GestaoCampo T={T} label="Prazo (opcional)"><input type="datetime-local" value={prazo} onChange={(e) => setPrazo(e.target.value)} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none" /></GestaoCampo>
         </div>
         <GestaoCampo T={T} label="Instruções (opcional)"><textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} maxLength={300} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" /></GestaoCampo>
-        {setores.length > 0 && <p style={{ color: T.subtext }} className="text-[11.5px]">{totalProdutos} produto(s) cadastrado(s) serão carregados{setores.length > 1 ? " (somando os setores)" : ""}. Produtos cadastrados depois não entram nesta ronda.</p>}
+        {setores.length > 0 && <p style={{ color: T.subtext }} className="text-[11.5px]">{setores.length === 1 && modo === "amostragem" ? `${Math.min(parseInt(quantidade, 10) || 0, totalProdutos)} de ${totalProdutos} produto(s) entram na amostra` : setores.length === 1 && modo === "manual" ? `${escolhidos.length} produto(s) escolhido(s)` : `${totalProdutos} produto(s) cadastrado(s) serão carregados${setores.length > 1 ? " (somando os setores)" : ""}`}{setores.length === 1 && modo !== "completa" ? " — os de maior risco aparecem primeiro para o funcionário" : ""}. Produtos cadastrados depois não entram nesta ronda.</p>}
         <button onClick={criar} disabled={!pronto || ocupado} style={{ background: pronto ? "#1F9D55" : "#C7CEDA", color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
           {ocupado ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Criar ronda
         </button>
@@ -4489,7 +4571,7 @@ function RondasView({ T, perfil, lojaAtiva, catalog, showToast, intent, onIntent
     return () => { clearTimeout(t); supabase.removeChannel(canal); document.removeEventListener("visibilitychange", vis); window.removeEventListener("online", vis); };
   }, [lojaId, carregar]);
   useEffect(() => { if (gestor && lojaId) carregarEquipeLoja(lojaId).then(setEquipe); }, [gestor, lojaId]);
-  useEffect(() => { if (intent?.novaSetor && gestor) { setNova({ setor: intent.novaSetor }); onIntentUsada?.(); } }, [intent]);
+  useEffect(() => { if (intent?.novaSetor && gestor) { setNova({ setor: intent.novaSetor, modo: intent.modo, quantidade: intent.quantidade, barcodes: intent.barcodes, acaoId: intent.acaoId, nome: intent.nome, obs: intent.obs }); onIntentUsada?.(); } }, [intent]);
 
   function abrir(r) {
     const souPart = (r.ronda_participantes || []).some((p) => p.usuario_id === perfil?.id);
@@ -4547,7 +4629,7 @@ function RondasView({ T, perfil, lojaAtiva, catalog, showToast, intent, onIntent
       {aba === "tarefas" && <MinhasTarefas T={T} perfil={perfil} lojaAtiva={lojaAtiva} equipe={equipe} showToast={showToast} />}
       {aba === "relatorios" && gestor && <RelatoriosRonda T={T} lojaAtiva={lojaAtiva} rondasLista={lista} />}
 
-      {nova && <NovaRondaSheet T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} equipe={equipe} showToast={showToast} preSetor={nova.setor} onClose={() => setNova(null)} onCriada={() => { setNova(null); carregar(); }} />}
+      {nova && <NovaRondaSheet T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} equipe={equipe} showToast={showToast} preSetor={nova.setor} preConfig={nova} onClose={() => setNova(null)} onCriada={() => { setNova(null); carregar(); }} />}
       {aberta?.modo === "painel" && <RondaPainel T={T} rondaId={aberta.id} perfil={perfil} showToast={showToast} onFechar={() => { setAberta(null); carregar(); }} onExecutar={() => setAberta({ id: aberta.id, modo: "exec" })} />}
       {aberta?.modo === "exec" && <RondaExecucao T={T} rondaId={aberta.id} perfil={perfil} catalog={catalog} showToast={showToast} onFechar={() => { setAberta(null); carregar(); }} />}
     </div>
@@ -6363,6 +6445,14 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
       ] : []),
       { flow: "historico", label: "Histórico de baixas", Icon: History },
       { flow: "auditoria", label: "Auditoria", Icon: ListChecks },
+    ] },
+    { titulo: "Inteligência", itens: [
+      ...(ehEncarregado ? [
+        { flow: "assistente", label: "Assistente IA", Icon: Sparkles },
+        { flow: "previsao", label: "Previsão operacional", Icon: Radar },
+        { flow: "prevencao", label: "Prevenção de perdas", Icon: Flame },
+      ] : []),
+      { flow: "perda", label: "Registrar perda", Icon: PackageX },
     ] },
     { titulo: "Gestão", itens: [
       ...(ehEncarregado ? [{ flow: "convites", label: "Convites de promotor", Icon: Ticket }] : []),
@@ -10077,7 +10167,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
 }
 
 // ============ Ajustes ============
-function AjustesView({ T, dark, setDark, som, setSom, notifPermission, onToggleNotif, items, historico, catalog, pin, onDefinirPin, onRestaurarBackup, showToast, usuario, onTrocarUsuario, onSair, onAbrirAuditoria, onAbrirHistorico, onAbrirPrioridade, onAbrirTorre, onAbrirRelatorios, ehCorporativo, onAbrirRede, ehEncarregado, configBalanca, onSalvarConfigBalanca, ocultarValoresFuncionarios, onSalvarOcultarValores, ehDev, onAbrirGestao, perfil, onAbrirConvites, secao }) {
+function AjustesView({ T, dark, setDark, som, setSom, notifPermission, onToggleNotif, items, historico, catalog, pin, onDefinirPin, onRestaurarBackup, showToast, usuario, onTrocarUsuario, onSair, onAbrirAuditoria, onAbrirHistorico, onAbrirPrioridade, onAbrirTorre, onAbrirRelatorios, ehCorporativo, onAbrirRede, ehEncarregado, configBalanca, onSalvarConfigBalanca, ocultarValoresFuncionarios, onSalvarOcultarValores, ehDev, onAbrirGestao, perfil, onAbrirConvites, onAbrirModulo, secao }) {
   const podeVerValores = useValoresVisiveis();
   const telaLarga = useTelaLarga();
   // No computador cada seção de Configurações tem seu item na sidebar; aqui só aparece a escolhida.
@@ -10202,6 +10292,23 @@ function AjustesView({ T, dark, setDark, som, setSom, notifPermission, onToggleN
       {telaLarga && TITULOS_SECAO[secao] && (
         <div className="lg:col-span-2"><DashPageHeader T={T} title={TITULOS_SECAO[secao][0]} subtitle={TITULOS_SECAO[secao][1]} /></div>
       )}
+      <Section title="Inteligência operacional" oculto={telaLarga}>
+        {ehEncarregado && (
+          <Row icon={Sparkles} iconBg={"#EDE7FA"} iconColor={"#5B3FB0"} title="Assistente IA" desc="Pergunte sobre perdas, setores, rondas e tarefas"
+            right={<button onClick={() => onAbrirModulo?.("assistente")} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
+        )}
+        {ehEncarregado && (
+          <Row icon={Radar} iconBg={BLUE_SOFT} iconColor={BLUE} title="Previsão Operacional" desc="Riscos que podem acontecer, com base no histórico"
+            right={<button onClick={() => onAbrirModulo?.("previsao")} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
+        )}
+        {ehEncarregado && (
+          <Row icon={Flame} iconBg={RED_SOFT} iconColor={RED_DARK} title="Prevenção de Perdas" desc="Painel de perdas, ações preventivas e resultados"
+            right={<button onClick={() => onAbrirModulo?.("prevencao")} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
+        )}
+        <Row icon={PackageX} iconBg={RED_SOFT} iconColor={RED_DARK} title="Registrar perda" desc="Avaria, quebra, embalagem danificada, vencimento…"
+          right={<button onClick={() => onAbrirModulo?.("perda")} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
+      </Section>
+
       <Section title="Navegação" oculto={telaLarga}>
         {ehDev && (
           <Row icon={Wrench} iconBg={"#2A2F3A"} iconColor={"#fff"} title="Gestão do Aplicativo" desc="Funcionários, lojas, produtos e notificações"
