@@ -4800,7 +4800,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
       </div>
 
       <div className="flex items-center gap-2.5 mb-3 flex-wrap">
-        <DashTabs T={T} value={subaba} onChange={setSubaba} options={[{ id: "ativos", label: `Contas (${ativos?.length ?? 0})` }, { id: "pendentes", label: `Aguardando (${pendentes?.length ?? 0})` }, { id: "promotores", label: `Promotores (${convites?.length ?? 0})` }, { id: "pedidos", label: `Aprovações${pedidos?.length ? ` (${pedidos.length})` : ""}` }]} />
+        <div className="max-w-full min-w-0 w-full lg:w-auto"><DashTabs T={T} value={subaba} onChange={setSubaba} options={[{ id: "ativos", label: `Contas (${ativos?.length ?? 0})` }, { id: "pendentes", label: `Aguardando (${pendentes?.length ?? 0})` }, { id: "promotores", label: `Promotores (${convites?.length ?? 0})` }, { id: "pedidos", label: `Aprovações${pedidos?.length ? ` (${pedidos.length})` : ""}` }]} /></div>
         <div style={{ background: T.inputBg, borderColor: T.inputBorder }} className="flex items-center gap-2 border rounded-xl px-3 py-2 flex-1 min-w-[10rem] lg:max-w-xs lg:ml-auto">
           <Search size={14} style={{ color: T.subtext }} />
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome ou matrícula" style={{ color: T.text }} className="bg-transparent outline-none text-sm flex-1 min-w-0" />
@@ -5279,11 +5279,11 @@ function DashPageHeader({ T, title, subtitle, right }) {
 
 function DashTabs({ T, value, onChange, options }) {
   return (
-    <div style={{ background: T.chipBg }} className="inline-flex rounded-xl p-1 gap-0.5">
+    <div style={{ background: T.chipBg, scrollbarWidth: "none" }} className="inline-flex max-w-full overflow-x-auto rounded-xl p-1 gap-0.5">
       {options.map((o) => (
         <button key={o.id} onClick={() => onChange(o.id)}
           style={value === o.id ? { background: T.card, color: o.color || RED_DARK, boxShadow: "0 1px 2px rgba(0,0,0,.08)" } : { color: T.subtext }}
-          className="text-xs font-semibold px-3.5 py-1.5 rounded-lg transition whitespace-nowrap">{o.label}</button>
+          className="text-xs font-semibold px-3.5 py-1.5 rounded-lg transition whitespace-nowrap shrink-0">{o.label}</button>
       ))}
     </div>
   );
