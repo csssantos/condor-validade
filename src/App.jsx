@@ -1328,11 +1328,13 @@ function AppInner() {
   // conforme os níveis reais da tabela "cargos" da rede. Assumi aqui que nível <= 3 é corporativo.
   const ehCorporativo = (perfil?.cargos?.nivel != null && perfil.cargos.nivel <= 3);
   // DESENVOLVEDOR (nivel 1) enxerga a "Gestão do Aplicativo" e pode trocar de loja livremente
-  const ehDev = (perfil?.cargos?.nivel === 1);
+  // Gestão do Aplicativo (lojas, pré-cadastro em qualquer loja): DESENVOLVEDOR (1) e DIRETOR (2)
+  const ehDev = (perfil?.cargos?.nivel != null && perfil.cargos.nivel <= 2);
   const [lojaAtivaOverride, setLojaAtivaOverride] = useState(null); // { id, numero_loja } — só usado por dev/central trocando de loja
   const lojaAtiva = lojaAtivaOverride || { id: perfil?.loja_id, numero_loja: perfil?.lojas?.numero_loja };
   const [todasLojas, setTodasLojas] = useState([]);
-  useEffect(() => { if (ehDev) supabase.from("lojas").select("*").order("numero_loja").then(({ data }) => setTodasLojas(data || [])); }, [ehDev]);
+  const recarregarLojas = async () => { const { data } = await supabase.from("lojas").select("*").order("numero_loja"); setTodasLojas(data || []); };
+  useEffect(() => { if (ehDev) recarregarLojas(); }, [ehDev]);
   // Toda leitura/escrita da camada de dados (supaFetch*/supaUpsert*) filtra pela loja aqui — é a
   // fundação real do multiloja: antes disso, todo mundo lia os dados da loja 79 igual.
   useEffect(() => { setLojaIdAtiva(lojaAtiva?.id); }, [lojaAtiva?.id]);
@@ -2439,7 +2441,7 @@ function AppInner() {
         {flow === "torre" && <TorreControleView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
         {flow === "rede" && ehCorporativo && <RedeView T={T} showToast={showToast} />}
         {flow === "convites" && ehEncarregado && <ConvitesPromotorView T={T} showToast={showToast} lojaAtiva={lojaAtiva} />}
-        {flow === "gestao" && ehDev && <GestaoAplicativoView T={T} showToast={showToast} lojaAtiva={lojaAtiva} lojas={todasLojas} onTrocarLoja={(l) => { setLojaAtivaOverride(l); showToast(`Trocado pra loja ${l.numero_loja}.`); }} />}
+        {flow === "gestao" && ehDev && <GestaoAplicativoView T={T} showToast={showToast} lojaAtiva={lojaAtiva} lojas={todasLojas} onRecarregarLojas={recarregarLojas} nivelUsuario={perfil?.cargos?.nivel} onTrocarLoja={(l) => { setLojaAtivaOverride(l); showToast(`Trocado pra loja ${l.numero_loja}.`); }} />}
         {flow === "relatorios" && <RelatoriosView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} onOpenDetail={setDetalheItem} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
 
         {flow === null && tab === "home" && telaLarga && (
@@ -4395,127 +4397,242 @@ async function gerarRelatorioAtividadePDF({ usuario, showToast, lojaNumero, porU
 // ============ Gestão do Aplicativo (item: painel de dev) ============
 // Só quem tem cargo DESENVOLVEDOR (nivel 1) enxerga essa tela. Ponto único pra gerenciar funcionários,
 // e (próximos passos) produtos e notificações de todas as lojas.
-function GestaoAplicativoView({ T, showToast, lojaAtiva, lojas, onTrocarLoja }) {
-  const [aba, setAba] = useState("funcionarios");
-  const ABAS = [
-    { id: "funcionarios", label: "Funcionários" },
-    { id: "lojas", label: "Lojas" },
-    { id: "produtos", label: "Produtos" },
-    { id: "notificacoes", label: "Notificações" },
-  ];
-
+function GestaoSheet({ T, title, subtitle, onClose, children }) {
   return (
-    <>
-    <div className="hidden lg:block">
-      <DashPageHeader T={T} title="Gestão do aplicativo" subtitle={`Loja ativa: ${lojaAtiva?.numero_loja || "—"} · área do desenvolvedor`}
-        right={<DashTabs T={T} value={aba} onChange={setAba} options={ABAS} />} />
-      {aba === "funcionarios" && <GestaoFuncionarios T={T} showToast={showToast} lojaAtiva={lojaAtiva} />}
-      {aba === "lojas" && <GestaoLojas T={T} lojas={lojas} lojaAtiva={lojaAtiva} onTrocarLoja={onTrocarLoja} />}
-      {(aba === "produtos" || aba === "notificacoes") && (
-        <DashCard T={T} title={aba === "produtos" ? "Gestão de produtos em construção" : "Central de notificações em construção"}>
-          <p style={{ color: T.subtext }} className="text-sm">{aba === "produtos" ? "Por enquanto, produtos são gerenciados pelo fluxo normal de cadastro." : "Por enquanto, avisos são enviados pelo botão \"Enviar aviso pro app\" em Ajustes."}</p>
-        </DashCard>
-      )}
-    </div>
-    <div className="px-4 pt-4 pb-4 lg:hidden">
-      <div style={{ background: `linear-gradient(160deg, #1F2430 0%, #0B0D12 100%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5 mb-4">
-        <p className="text-white/60 text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5">
-          <Wrench size={13} /> Gestão do Aplicativo
-        </p>
-        <p className="text-white text-sm font-semibold mt-1">Loja ativa: {lojaAtiva?.numero_loja || "—"}</p>
-      </div>
-
-      <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4 no-scrollbar">
-        {ABAS.map((a) => (
-          <button key={a.id} onClick={() => setAba(a.id)}
-            style={aba === a.id ? { background: T.card, color: T.text } : { background: T.chipBg, color: T.subtext }}
-            className="text-xs font-semibold px-4 py-2.5 rounded-xl whitespace-nowrap shrink-0 transition shadow-sm">
-            {a.label}
-          </button>
-        ))}
-      </div>
-
-      {aba === "funcionarios" && <GestaoFuncionarios T={T} showToast={showToast} lojaAtiva={lojaAtiva} />}
-      {aba === "lojas" && <GestaoLojas T={T} lojas={lojas} lojaAtiva={lojaAtiva} onTrocarLoja={onTrocarLoja} />}
-      {aba === "produtos" && (
-        <div className="text-center py-14 px-6">
-          <div style={{ background: T.chipBg }} className="h-16 w-16 rounded-2xl mx-auto flex items-center justify-center mb-3"><Boxes className="w-6 h-6" style={{ color: T.subtext }} /></div>
-          <p className="font-semibold text-sm">Gestão de Produtos em construção</p>
-          <p style={{ color: T.subtext }} className="text-xs mt-1">Por enquanto, produtos ainda são gerenciados pelo fluxo normal de cadastro (Setores → + Cadastrar).</p>
-        </div>
-      )}
-      {aba === "notificacoes" && (
-        <div className="text-center py-14 px-6">
-          <div style={{ background: T.chipBg }} className="h-16 w-16 rounded-2xl mx-auto flex items-center justify-center mb-3"><Megaphone className="w-6 h-6" style={{ color: T.subtext }} /></div>
-          <p className="font-semibold text-sm">Central de notificações em construção</p>
-          <p style={{ color: T.subtext }} className="text-xs mt-1">Por enquanto, avisos ainda são enviados pelo botão "Enviar aviso pro app" em Ajustes.</p>
-        </div>
-      )}
-    </div>
-    </>
-  );
-}
-
-function GestaoLojas({ T, lojas, lojaAtiva, onTrocarLoja }) {
-  return (
-    <div className="flex flex-col gap-2 lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start">
-      <p style={{ color: T.subtext }} className="text-[11px] px-1 mb-1 lg:col-span-3 lg:text-sm">Como DESENVOLVEDOR, você pode ver os dados de qualquer loja da rede. As telas do app (Setores, Rondas, Relatórios...) passam a mostrar a loja escolhida aqui.</p>
-      {(lojas || []).map((l) => (
-        <button key={l.id} onClick={() => onTrocarLoja(l)}
-          style={lojaAtiva?.id === l.id ? { background: BLUE_SOFT, borderColor: BLUE } : { background: T.card, borderColor: T.border }}
-          className="w-full text-left rounded-2xl p-3.5 border flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold">Loja {l.numero_loja}</p>
-            <p style={{ color: T.subtext }} className="text-[11px]">{[l.bairro, l.cidade].filter(Boolean).join(", ")}</p>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center">
+      <div onClick={onClose} className="absolute inset-0 bg-black/55" />
+      <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} style={{ background: T.card }}
+        className="relative w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] overflow-y-auto shadow-2xl lg:ring-1 lg:ring-black/10">
+        <div className="sticky top-0 z-10 px-5 pt-3 pb-3" style={{ background: T.card }}>
+          <div style={{ background: T.border }} className="h-1 w-10 rounded-full mx-auto mb-3 sm:hidden" />
+          <div className="flex items-start justify-between gap-3">
+            <div><h3 className="text-base font-extrabold">{title}</h3>{subtitle && <p style={{ color: T.subtext }} className="text-xs mt-0.5">{subtitle}</p>}</div>
+            <button onClick={onClose} style={{ background: T.chipBg, color: T.subtext }} className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"><X size={15} /></button>
           </div>
-          {lojaAtiva?.id === l.id && <Check size={16} color={BLUE} />}
-        </button>
-      ))}
+        </div>
+        <div className="px-5 pb-6 pt-1">{children}</div>
+      </motion.div>
     </div>
   );
 }
 
-function GestaoFuncionarios({ T, showToast, lojaAtiva }) {
-  const [subaba, setSubaba] = useState("ativos"); // ativos | pendentes
+function GestaoCampo({ T, label, children, hint }) {
+  return (
+    <label className="block">
+      <span style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide">{label}</span>
+      <div className="mt-1">{children}</div>
+      {hint && <span style={{ color: T.subtext }} className="text-[10.5px] mt-1 block">{hint}</span>}
+    </label>
+  );
+}
+
+function GestaoStat({ T, label, value, Icon, color }) {
+  return (
+    <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3 min-w-0">
+      <div className="flex items-center justify-between">
+        <p className="text-2xl font-extrabold leading-none tabular-nums">{value}</p>
+        <div style={{ background: `${color}1F`, color }} className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"><Icon size={15} /></div>
+      </div>
+      <p style={{ color: T.subtext }} className="text-[10.5px] mt-2 leading-tight font-medium">{label}</p>
+    </div>
+  );
+}
+
+function GestaoAplicativoView({ T, showToast, lojaAtiva, lojas, onTrocarLoja, onRecarregarLojas, nivelUsuario }) {
+  const [aba, setAba] = useState("lojas");
+  const ABAS = [{ id: "lojas", label: "Lojas" }, { id: "funcionarios", label: "Funcionários" }];
+  const ativas = (lojas || []).filter((l) => l.ativo !== false).length;
+  const lojaEmUso = (lojas || []).find((l) => l.id === lojaAtiva?.id);
+  return (
+    <div className="px-4 pt-4 pb-6 lg:px-0 lg:pt-0">
+      <div className="hidden lg:block">
+        <DashPageHeader T={T} title="Gestão do aplicativo" subtitle={`Loja em uso: ${lojaAtiva?.numero_loja || "—"} · área de desenvolvedor e diretoria`}
+          right={<DashTabs T={T} value={aba} onChange={setAba} options={ABAS} />} />
+      </div>
+      <div className="lg:hidden">
+        <div style={{ background: "linear-gradient(150deg, #1B2233 0%, #0B0D12 100%)" }} className="rounded-3xl p-5 mb-4 relative overflow-hidden shadow-lg">
+          <Wrench size={110} className="absolute -right-5 -bottom-6 text-white/5" />
+          <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5"><Wrench size={12} /> Gestão do aplicativo</p>
+          <p className="text-white text-xl font-extrabold mt-2">{lojaAtiva?.numero_loja ? `Loja ${lojaAtiva.numero_loja}` : "Nenhuma loja em uso"}</p>
+          <p className="text-white/60 text-xs mt-0.5">{lojaEmUso ? [lojaEmUso.bairro, lojaEmUso.cidade].filter(Boolean).join(" · ") : "Escolha uma loja na aba Lojas"}</p>
+          <div className="flex gap-2 mt-4">
+            <span className="bg-white/10 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full">{(lojas || []).length} loja(s)</span>
+            <span className="bg-white/10 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full">{ativas} ativa(s)</span>
+          </div>
+        </div>
+        <div style={{ background: T.chipBg }} className="flex rounded-2xl p-1 mb-4">
+          {ABAS.map((a) => (
+            <button key={a.id} onClick={() => setAba(a.id)} style={aba === a.id ? { background: T.card, color: RED_DARK, boxShadow: "0 1px 3px rgba(0,0,0,.1)" } : { color: T.subtext }}
+              className="flex-1 text-sm font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
+              {a.id === "lojas" ? <Building2 size={15} /> : <Users2 size={15} />} {a.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {aba === "lojas" && <GestaoLojas T={T} lojas={lojas} lojaAtiva={lojaAtiva} onTrocarLoja={onTrocarLoja} onRecarregarLojas={onRecarregarLojas} showToast={showToast} />}
+      {aba === "funcionarios" && <GestaoFuncionarios T={T} showToast={showToast} lojas={lojas || []} lojaAtiva={lojaAtiva} nivelUsuario={nivelUsuario} />}
+    </div>
+  );
+}
+
+function LojaFormSheet({ T, loja, onClose, onSalvo, showToast }) {
+  const editando = !!loja;
+  const [f, setF] = useState({
+    numero_loja: loja?.numero_loja ?? "", rua: loja?.rua || "", numero: loja?.numero || "", complemento: loja?.complemento || "",
+    bairro: loja?.bairro || "", cidade: loja?.cidade || "", estado: loja?.estado || "", ativo: loja?.ativo !== false,
+  });
+  const [salvando, setSalvando] = useState(false);
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const inp = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
+  const cls = "w-full border rounded-xl px-3 py-2.5 text-sm outline-none";
+  async function salvar() {
+    const n = parseInt(f.numero_loja, 10);
+    if (!Number.isInteger(n) || n < 1 || n > 1000) { showToast("O número da loja precisa ser entre 1 e 1000.", "warn"); return; }
+    const dados = {
+      numero_loja: n, rua: f.rua.trim() || null, numero: f.numero.trim() || null, complemento: f.complemento.trim() || null,
+      bairro: f.bairro.trim() || null, cidade: f.cidade.trim() || null, estado: f.estado.trim().toUpperCase().slice(0, 2) || null, ativo: f.ativo,
+    };
+    setSalvando(true);
+    const { data, error } = editando
+      ? await supabase.from("lojas").update({ ...dados, updated_at: new Date().toISOString() }).eq("id", loja.id).select().single()
+      : await supabase.from("lojas").insert(dados).select().single();
+    setSalvando(false);
+    if (error) {
+      console.error(error);
+      showToast(error.code === "23505" ? `Já existe a loja ${n}.` :
+        error.code === "42501" ? "Sem permissão pra criar/editar lojas. Rode o SQL supabase-gestao-lojas.sql no Supabase." :
+        "Não foi possível salvar a loja.", "warn");
+      return;
+    }
+    showToast(editando ? `Loja ${n} atualizada.` : `Loja ${n} criada.`);
+    onSalvo(data);
+  }
+  return (
+    <GestaoSheet T={T} title={editando ? `Editar loja ${loja.numero_loja}` : "Nova loja"} subtitle="Dados da unidade" onClose={onClose}>
+      <div className="flex flex-col gap-3.5">
+        <GestaoCampo T={T} label="Número da loja" hint="Entre 1 e 1000. Não pode repetir."><input value={f.numero_loja} onChange={(e) => setF((p) => ({ ...p, numero_loja: e.target.value.replace(/\D/g, "") }))} inputMode="numeric" placeholder="Ex.: 79" style={inp} className={cls} /></GestaoCampo>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2"><GestaoCampo T={T} label="Rua"><input value={f.rua} onChange={set("rua")} style={inp} className={cls} /></GestaoCampo></div>
+          <GestaoCampo T={T} label="Nº"><input value={f.numero} onChange={set("numero")} style={inp} className={cls} /></GestaoCampo>
+        </div>
+        <GestaoCampo T={T} label="Complemento"><input value={f.complemento} onChange={set("complemento")} style={inp} className={cls} /></GestaoCampo>
+        <GestaoCampo T={T} label="Bairro"><input value={f.bairro} onChange={set("bairro")} style={inp} className={cls} /></GestaoCampo>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2"><GestaoCampo T={T} label="Cidade"><input value={f.cidade} onChange={set("cidade")} style={inp} className={cls} /></GestaoCampo></div>
+          <GestaoCampo T={T} label="UF"><input value={f.estado} onChange={set("estado")} maxLength={2} placeholder="SC" style={inp} className={`${cls} uppercase`} /></GestaoCampo>
+        </div>
+        {editando && (
+          <button onClick={() => setF((p) => ({ ...p, ativo: !p.ativo }))} style={{ background: T.chipBg }} className="flex items-center justify-between rounded-xl px-3.5 py-3">
+            <span className="text-sm font-semibold">Loja ativa</span>
+            <span style={{ background: f.ativo ? "#1F9D55" : T.border }} className="w-11 h-6 rounded-full relative transition"><span style={{ left: f.ativo ? 22 : 3 }} className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all shadow" /></span>
+          </button>
+        )}
+        <button onClick={salvar} disabled={salvando} style={{ background: BLUE }} className="text-white font-bold text-sm py-3 rounded-2xl mt-1 flex items-center justify-center gap-2 disabled:opacity-60">
+          {salvando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} {editando ? "Salvar alterações" : "Criar loja"}
+        </button>
+      </div>
+    </GestaoSheet>
+  );
+}
+
+function GestaoLojas({ T, lojas, lojaAtiva, onTrocarLoja, onRecarregarLojas, showToast }) {
+  const [form, setForm] = useState(null); // null | "nova" | loja
+  const lista = lojas || [];
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div><h2 className="text-base font-extrabold lg:text-lg">Lojas da rede</h2><p style={{ color: T.subtext }} className="text-xs mt-0.5">Toque em "Usar esta loja" para ver os dados dela no app.</p></div>
+        <button onClick={() => setForm("nova")} style={{ background: BLUE }} className="text-white text-sm font-bold px-4 py-2.5 rounded-2xl flex items-center gap-1.5 shrink-0 shadow-md"><Plus size={16} /> Nova loja</button>
+      </div>
+      {lista.length === 0 ? (
+        <div style={{ background: T.card, borderColor: T.border }} className="rounded-3xl border p-8 text-center">
+          <div style={{ background: BLUE_SOFT }} className="h-14 w-14 rounded-2xl mx-auto flex items-center justify-center mb-3"><Building2 size={24} color={BLUE} /></div>
+          <p className="font-bold text-sm">Nenhuma loja cadastrada</p>
+          <p style={{ color: T.subtext }} className="text-xs mt-1">Crie a primeira loja para começar.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {lista.map((l) => {
+            const emUso = lojaAtiva?.id === l.id;
+            const endereco = [l.rua, l.numero].filter(Boolean).join(", ");
+            return (
+              <div key={l.id} style={{ background: T.card, borderColor: emUso ? BLUE : T.border }} className={`rounded-3xl border p-4 flex flex-col gap-3 ${emUso ? "ring-2 ring-[#0B4F9E]/30" : ""}`}>
+                <div className="flex items-start gap-3">
+                  <div style={{ background: emUso ? BLUE : BLUE_SOFT, color: emUso ? "#fff" : BLUE_DARK }} className="h-14 w-14 rounded-2xl flex flex-col items-center justify-center shrink-0">
+                    <span className="text-[8px] font-bold uppercase leading-none opacity-70">Loja</span><span className="text-xl font-extrabold leading-tight tabular-nums">{l.numero_loja}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold truncate">{l.bairro || "Sem bairro"}</p>
+                    <p style={{ color: T.subtext }} className="text-xs truncate">{[l.cidade, l.estado].filter(Boolean).join(" - ") || "Cidade não informada"}</p>
+                    {endereco && <p style={{ color: T.subtext }} className="text-[11px] truncate mt-0.5">{endereco}</p>}
+                  </div>
+                </div>
+                <div className="flex gap-1.5 flex-wrap">
+                  {emUso && <DashBadge bg={BLUE_SOFT} color={BLUE_DARK}>Em uso agora</DashBadge>}
+                  <DashBadge bg={l.ativo !== false ? "#E4F7EC" : "#EEF0F3"} color={l.ativo !== false ? "#1F9D55" : "#4B5563"}>{l.ativo !== false ? "Ativa" : "Inativa"}</DashBadge>
+                </div>
+                <div className="flex gap-2 mt-auto">
+                  <button onClick={() => onTrocarLoja(l)} disabled={emUso} style={emUso ? { background: T.chipBg, color: T.subtext } : { background: BLUE, color: "#fff" }} className="flex-1 text-xs font-bold py-2.5 rounded-xl disabled:opacity-70">{emUso ? "Loja em uso" : "Usar esta loja"}</button>
+                  <button onClick={() => setForm(l)} style={{ background: T.chipBg, color: T.text }} className="px-3.5 rounded-xl flex items-center justify-center"><Edit2 size={14} /></button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {form && <LojaFormSheet T={T} loja={form === "nova" ? null : form} showToast={showToast} onClose={() => setForm(null)}
+        onSalvo={async (nova) => { setForm(null); await onRecarregarLojas?.(); if (form === "nova" && nova && !lojaAtiva?.id) onTrocarLoja(nova); }} />}
+    </div>
+  );
+}
+
+function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
+  const [subaba, setSubaba] = useState("ativos");
+  const [lojaSel, setLojaSel] = useState(lojaAtiva?.id || null);
   const [ativos, setAtivos] = useState(null);
   const [pendentes, setPendentes] = useState(null);
   const [cargos, setCargos] = useState([]);
+  const [busca, setBusca] = useState("");
   const [novoAberto, setNovoAberto] = useState(false);
-  const [novoNome, setNovoNome] = useState("");
-  const [novaMatricula, setNovaMatricula] = useState("");
-  const [novoCargoLoja, setNovoCargoLoja] = useState("");
-  const [novoCargoId, setNovoCargoId] = useState("");
-  const [novoSetor, setNovoSetor] = useState("");
+  const [f, setF] = useState({ nome: "", matricula: "", cargoLoja: "", cargoId: "", setor: "" });
+  const [salvando, setSalvando] = useState(false);
+
+  // Sem loja escolhida (ex.: dev sem loja própria) => assume a primeira da lista, pra nunca travar o pré-cadastro.
+  useEffect(() => { if (!lojaSel && lojas.length) setLojaSel(lojaAtiva?.id || lojas[0].id); }, [lojas, lojaAtiva?.id]);
+  const lojaObj = lojas.find((l) => l.id === lojaSel);
 
   async function carregar() {
-    const lojaId = lojaAtiva?.id;
-    if (!lojaId) return;
+    if (!lojaSel) { setAtivos([]); setPendentes([]); return; }
+    setAtivos(null); setPendentes(null);
     const [{ data: u, error: eu }, { data: p, error: ep }, { data: c }] = await Promise.all([
-      supabase.from("usuarios").select("id, nome, matricula, cargo_nome_loja, ativo, setor, cargos(nome, nivel)").eq("loja_id", lojaId).eq("promotor", false).order("nome"),
-      supabase.from("funcionarios_pendentes").select("*").eq("loja_id", lojaId).eq("usado", false).order("criado_em", { ascending: false }),
+      supabase.from("usuarios").select("id, nome, matricula, cargo_nome_loja, ativo, setor, cargos(nome, nivel)").eq("loja_id", lojaSel).eq("promotor", false).order("nome"),
+      supabase.from("funcionarios_pendentes").select("*").eq("loja_id", lojaSel).eq("usado", false).order("criado_em", { ascending: false }),
       supabase.from("cargos").select("*").order("nivel"),
     ]);
     if (eu || ep) { console.error(eu || ep); showToast("Não foi possível carregar a equipe. Tente de novo.", "warn"); }
-    setAtivos(u || []); setPendentes(p || []); setCargos((c || []).filter((x) => x.nome !== "PROMOTOR"));
+    setAtivos(u || []); setPendentes(p || []);
+    setCargos((c || []).filter((x) => x.nome !== "PROMOTOR" && (nivelUsuario === 1 || x.nivel > (nivelUsuario ?? 99))));
   }
-  useEffect(() => { carregar(); }, [lojaAtiva?.id]);
+  useEffect(() => { carregar(); }, [lojaSel]);
 
   async function criarPendente() {
-    const mat = novaMatricula.replace(/\D/g, "");
-    if (!novoNome.trim() || !mat || !novoCargoId) { showToast("Preencha nome, matrícula (só números) e cargo no app.", "warn"); return; }
-    if (!lojaAtiva?.id) { showToast("Nenhuma loja selecionada.", "warn"); return; }
+    const mat = f.matricula.replace(/\D/g, "");
+    if (!lojaSel) { showToast("Escolha a loja do funcionário.", "warn"); return; }
+    if (!f.nome.trim() || !mat || !f.cargoId) { showToast("Preencha nome, matrícula (só números) e cargo no app.", "warn"); return; }
+    setSalvando(true);
     const { error } = await supabase.from("funcionarios_pendentes").insert({
-      matricula: mat, nome: novoNome.trim(), cargo_nome_loja: novoCargoLoja.trim() || null,
-      cargo_id: Number(novoCargoId), setor: novoSetor.trim() || null, loja_id: lojaAtiva.id, criado_por: "gestao-app"
+      matricula: mat, nome: f.nome.trim(), cargo_nome_loja: f.cargoLoja.trim() || null, cargo_id: Number(f.cargoId),
+      setor: f.setor.trim() || null, loja_id: lojaSel, criado_por: "gestao-app",
     });
+    setSalvando(false);
     if (error) {
       console.error(error);
       showToast(error.code === "23505" ? "Já existe alguém com essa matrícula." :
-        error.code === "42501" ? "Você não tem permissão pra esse cargo." : "Erro ao pré-cadastrar.", "warn");
+        error.code === "42501" ? "Sem permissão pra cadastrar nessa loja/cargo. Rode o SQL supabase-gestao-lojas.sql." : "Erro ao pré-cadastrar.", "warn");
       return;
     }
-    showToast(`${novoNome} pré-cadastrado(a). Ele(a) já pode bipar o crachá pra criar a conta.`);
-    setNovoNome(""); setNovaMatricula(""); setNovoCargoLoja(""); setNovoCargoId(""); setNovoSetor(""); setNovoAberto(false);
+    showToast(`${f.nome} pré-cadastrado(a) na loja ${lojaObj?.numero_loja}. Já pode bipar o crachá pra criar a conta.`);
+    setF({ nome: "", matricula: "", cargoLoja: "", cargoId: "", setor: "" }); setNovoAberto(false); setSubaba("pendentes");
     carregar();
   }
   async function removerPendente(matricula) {
@@ -4535,96 +4652,109 @@ function GestaoFuncionarios({ T, showToast, lojaAtiva }) {
     setAtivos((prev) => prev.map((u) => (u.id === id ? { ...u, ativo: !ativo } : u)));
   }
 
-  return (
-    <>
-    <div className="hidden lg:grid grid-cols-3 gap-4 items-start">
-      <DashCard T={T} title="Pré-cadastrar funcionário" subtitle="A pessoa já entra no primeiro login">
-        <div className="flex flex-col gap-2.5">
-          <input value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome completo" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-          <input value={novaMatricula} onChange={(e) => setNovaMatricula(e.target.value.replace(/\D/g, ""))} placeholder="Matrícula (número do crachá)" inputMode="numeric" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-          <input value={novoCargoLoja} onChange={(e) => setNovoCargoLoja(e.target.value)} placeholder="Cargo na loja (ex: CPD, Repositor)" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-          <select value={novoCargoId} onChange={(e) => setNovoCargoId(e.target.value)} style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none">
-            <option value="">Cargo no app (nível de acesso)...</option>
-            {cargos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select>
-          <input value={novoSetor} onChange={(e) => setNovoSetor(e.target.value)} placeholder="Setor (opcional)" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-          <button onClick={criarPendente} style={{ background: "#1F9D55", color: "#fff" }} className="text-sm font-semibold py-2.5 rounded-xl mt-1 flex items-center justify-center gap-1.5"><Plus size={16} /> Pré-cadastrar</button>
-        </div>
-      </DashCard>
-      <DashCard T={T} title="Equipe" subtitle={`${(ativos || []).length} conta(s) ativa(s) · ${(pendentes || []).length} aguardando 1º acesso`} className="col-span-2"
-        right={<DashTabs T={T} value={subaba} onChange={setSubaba} options={[{ id: "ativos", label: "Contas ativas" }, { id: "pendentes", label: "Aguardando 1º acesso" }]} />}>
-        {subaba === "ativos" ? (
-          <DashTable T={T} rows={(ativos || []).map((u) => ({ ...u, id: u.id }))} empty="Nenhuma conta ativa." cols={[
-            { key: "nome", label: "Nome", render: (u) => <span className="font-semibold">{u.nome}</span> },
-            { key: "matricula", label: "Matrícula", render: (u) => <span className="font-mono text-xs">{u.matricula || "—"}</span> },
-            { key: "cargo", label: "Cargo na loja", render: (u) => <span style={{ color: T.subtext }}>{u.cargo_nome_loja || "—"}</span> },
-            { key: "nivel", label: "Nível no app", render: (u) => <DashBadge bg={BLUE_SOFT} color={BLUE_DARK}>{u.cargos?.nome || "sem cargo"}</DashBadge> },
-            { key: "ativo", label: "Acesso", align: "right", render: (u) => <button onClick={() => alternarAtivo(u.id, u.ativo)} style={u.ativo ? { background: "#E6F7ED", color: "#1F9D55" } : { background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-bold px-3 py-1 rounded-full">{u.ativo ? "Ativo" : "Bloqueado"}</button> },
-          ]} />
-        ) : (
-          <DashTable T={T} rows={(pendentes || []).map((p) => ({ ...p, id: p.matricula }))} empty="Ninguém aguardando." cols={[
-            { key: "nome", label: "Nome", render: (p) => <span className="font-semibold">{p.nome}</span> },
-            { key: "matricula", label: "Matrícula", render: (p) => <span className="font-mono text-xs">{p.matricula}</span> },
-            { key: "cargo", label: "Cargo na loja", render: (p) => <span style={{ color: T.subtext }}>{p.cargo_nome_loja || "—"}</span> },
-            { key: "rm", label: "", align: "right", render: (p) => <button onClick={() => removerPendente(p.matricula)} style={{ color: RED_DARK }} className="text-[11px] font-semibold">Remover</button> },
-          ]} />
-        )}
-      </DashCard>
-    </div>
-    <div className="flex flex-col gap-3 lg:hidden">
-      <button onClick={() => setNovoAberto((v) => !v)} style={{ background: BLUE, color: "#fff" }}
-        className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold py-3 rounded-2xl">
-        <Plus size={16} /> Pré-cadastrar funcionário
-      </button>
+  const termo = busca.trim().toLowerCase();
+  const filtra = (x) => !termo || (x.nome || "").toLowerCase().includes(termo) || (x.matricula || "").includes(termo);
+  const listaAtivos = (ativos || []).filter(filtra), listaPend = (pendentes || []).filter(filtra);
+  const bloqueados = (ativos || []).filter((u) => !u.ativo).length;
+  const inp = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
+  const cls = "w-full border rounded-xl px-3 py-2.5 text-sm outline-none";
+  const iniciais = (n) => (n || "?").split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 
-      {novoAberto && (
-        <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-3.5 border flex flex-col gap-2">
-          <input value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome completo"
-            style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-          <input value={novaMatricula} onChange={(e) => setNovaMatricula(e.target.value.replace(/\D/g, ""))} placeholder="Matrícula (número do crachá)" inputMode="numeric"
-            style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-          <input value={novoCargoLoja} onChange={(e) => setNovoCargoLoja(e.target.value)} placeholder="Cargo na loja (ex: CPD, Repositor)"
-            style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-          <select value={novoCargoId} onChange={(e) => setNovoCargoId(e.target.value)}
-            style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none">
-            <option value="">Cargo no app (nível de acesso)...</option>
-            {cargos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+  if (lojas.length === 0) return (
+    <div style={{ background: T.card, borderColor: T.border }} className="rounded-3xl border p-8 text-center">
+      <div style={{ background: BLUE_SOFT }} className="h-14 w-14 rounded-2xl mx-auto flex items-center justify-center mb-3"><Building2 size={24} color={BLUE} /></div>
+      <p className="font-bold text-sm">Crie uma loja primeiro</p>
+      <p style={{ color: T.subtext }} className="text-xs mt-1">Vá na aba Lojas e toque em "Nova loja". Depois você pré-cadastra os funcionários nela.</p>
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ background: T.card, borderColor: T.border }} className="rounded-3xl border p-4 mb-4 flex items-center gap-3 flex-wrap">
+        <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0"><Building2 size={20} /></div>
+        <div className="flex-1 min-w-[10rem]">
+          <p style={{ color: T.subtext }} className="text-[10px] font-bold uppercase tracking-wide">Loja dos funcionários</p>
+          <select value={lojaSel || ""} onChange={(e) => setLojaSel(Number(e.target.value))} style={inp} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm font-semibold outline-none">
+            {lojas.map((l) => <option key={l.id} value={l.id}>Loja {l.numero_loja}{l.bairro ? ` — ${l.bairro}` : ""}{l.ativo === false ? " (inativa)" : ""}</option>)}
           </select>
-          <input value={novoSetor} onChange={(e) => setNovoSetor(e.target.value)} placeholder="Setor (opcional)"
-            style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-          <button onClick={criarPendente} style={{ background: "#1F9D55", color: "#fff" }} className="text-sm font-semibold py-2.5 rounded-xl mt-1">Pré-cadastrar</button>
+        </div>
+        <button onClick={() => setNovoAberto(true)} style={{ background: "#1F9D55" }} className="text-white text-sm font-bold px-4 py-2.5 rounded-2xl flex items-center gap-1.5 shadow-md w-full sm:w-auto justify-center"><Plus size={16} /> Pré-cadastrar</button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2.5 mb-4">
+        <GestaoStat T={T} label="Contas ativas" value={ativos ? ativos.length - bloqueados : "…"} Icon={Users2} color="#1F9D55" />
+        <GestaoStat T={T} label="Bloqueadas" value={ativos ? bloqueados : "…"} Icon={X} color={RED_DARK} />
+        <GestaoStat T={T} label="Aguardando 1º acesso" value={pendentes ? pendentes.length : "…"} Icon={ClockIcon} color="#C98A0C" />
+      </div>
+
+      <div className="flex items-center gap-2.5 mb-3 flex-wrap">
+        <DashTabs T={T} value={subaba} onChange={setSubaba} options={[{ id: "ativos", label: `Contas (${ativos?.length ?? 0})` }, { id: "pendentes", label: `Aguardando (${pendentes?.length ?? 0})` }]} />
+        <div style={{ background: T.inputBg, borderColor: T.inputBorder }} className="flex items-center gap-2 border rounded-xl px-3 py-2 flex-1 min-w-[10rem] lg:max-w-xs lg:ml-auto">
+          <Search size={14} style={{ color: T.subtext }} />
+          <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome ou matrícula" style={{ color: T.text }} className="bg-transparent outline-none text-sm flex-1 min-w-0" />
+        </div>
+      </div>
+
+      {(subaba === "ativos" ? ativos : pendentes) === null ? (
+        <div className="text-center py-12"><Loader2 size={22} className="animate-spin mx-auto" color={T.subtext} /></div>
+      ) : (subaba === "ativos" ? listaAtivos : listaPend).length === 0 ? (
+        <div style={{ background: T.card, borderColor: T.border }} className="rounded-3xl border p-8 text-center">
+          <p className="font-bold text-sm">{subaba === "ativos" ? "Nenhuma conta nessa loja ainda" : "Ninguém aguardando o primeiro acesso"}</p>
+          <p style={{ color: T.subtext }} className="text-xs mt-1">Use "Pré-cadastrar" para liberar o crachá de um funcionário.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
+          {subaba === "ativos" && listaAtivos.map((u) => (
+            <div key={u.id} style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3.5 flex items-center gap-3">
+              <div style={{ background: u.ativo ? BLUE_SOFT : "#EEF0F3", color: u.ativo ? BLUE_DARK : "#6B7280" }} className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-extrabold shrink-0">{iniciais(u.nome)}</div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold truncate">{u.nome}</p>
+                <p style={{ color: T.subtext }} className="text-[11px] truncate">{u.matricula ? `Mat. ${u.matricula} · ` : ""}{u.cargo_nome_loja || "—"}</p>
+                <p className="mt-1"><DashBadge bg={BLUE_SOFT} color={BLUE_DARK}>{u.cargos?.nome || "sem cargo"}</DashBadge></p>
+              </div>
+              <button onClick={() => alternarAtivo(u.id, u.ativo)} style={u.ativo ? { background: "#E6F7ED", color: "#1F9D55" } : { background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-bold px-3 py-1.5 rounded-full shrink-0">{u.ativo ? "Ativo" : "Bloqueado"}</button>
+            </div>
+          ))}
+          {subaba === "pendentes" && listaPend.map((p) => (
+            <div key={p.matricula} style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3.5 flex items-center gap-3">
+              <div style={{ background: "#FCF0DD", color: "#C2760C" }} className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-extrabold shrink-0">{iniciais(p.nome)}</div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold truncate">{p.nome}</p>
+                <p style={{ color: T.subtext }} className="text-[11px] truncate">Mat. {p.matricula} · {p.cargo_nome_loja || "—"}</p>
+                <p style={{ color: "#C2760C" }} className="text-[10.5px] font-semibold mt-0.5">Aguardando 1º acesso</p>
+              </div>
+              <button onClick={() => removerPendente(p.matricula)} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-bold px-3 py-1.5 rounded-full shrink-0">Remover</button>
+            </div>
+          ))}
         </div>
       )}
 
-      <div style={{ background: T.chipBg }} className="flex rounded-2xl p-1">
-        <button onClick={() => setSubaba("ativos")} style={subaba === "ativos" ? { background: T.card, color: T.text } : { color: T.subtext }} className="flex-1 text-xs font-semibold py-2 rounded-xl">Contas ativas ({ativos?.length ?? "…"})</button>
-        <button onClick={() => setSubaba("pendentes")} style={subaba === "pendentes" ? { background: T.card, color: T.text } : { color: T.subtext }} className="flex-1 text-xs font-semibold py-2 rounded-xl">Aguardando 1º login ({pendentes?.length ?? "…"})</button>
-      </div>
-
-      {subaba === "ativos" && (ativos || []).map((u) => (
-        <div key={u.id} style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-sm flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold truncate">{u.nome}</p>
-            <p style={{ color: T.subtext }} className="text-[11px]">{u.matricula ? `Mat. ${u.matricula} · ` : ""}{u.cargo_nome_loja || "—"} · {u.cargos?.nome || "sem cargo"}</p>
+      {novoAberto && (
+        <GestaoSheet T={T} title="Pré-cadastrar funcionário" subtitle={`Loja ${lojaObj?.numero_loja ?? "—"}${lojaObj?.bairro ? ` — ${lojaObj.bairro}` : ""}`} onClose={() => setNovoAberto(false)}>
+          <div className="flex flex-col gap-3.5">
+            <GestaoCampo T={T} label="Loja">
+              <select value={lojaSel || ""} onChange={(e) => setLojaSel(Number(e.target.value))} style={inp} className={cls}>
+                {lojas.map((l) => <option key={l.id} value={l.id}>Loja {l.numero_loja}{l.bairro ? ` — ${l.bairro}` : ""}</option>)}
+              </select>
+            </GestaoCampo>
+            <GestaoCampo T={T} label="Nome completo"><input value={f.nome} onChange={(e) => setF((p) => ({ ...p, nome: e.target.value }))} style={inp} className={cls} /></GestaoCampo>
+            <GestaoCampo T={T} label="Matrícula (crachá)" hint="Só números."><input value={f.matricula} onChange={(e) => setF((p) => ({ ...p, matricula: e.target.value.replace(/\D/g, "") }))} inputMode="numeric" style={inp} className={cls} /></GestaoCampo>
+            <GestaoCampo T={T} label="Cargo no app (nível de acesso)">
+              <select value={f.cargoId} onChange={(e) => setF((p) => ({ ...p, cargoId: e.target.value }))} style={inp} className={cls}>
+                <option value="">Selecione…</option>{cargos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </GestaoCampo>
+            <GestaoCampo T={T} label="Cargo na loja (opcional)"><input value={f.cargoLoja} onChange={(e) => setF((p) => ({ ...p, cargoLoja: e.target.value }))} placeholder="Ex.: CPD, Repositor" style={inp} className={cls} /></GestaoCampo>
+            <GestaoCampo T={T} label="Setor (opcional)"><input value={f.setor} onChange={(e) => setF((p) => ({ ...p, setor: e.target.value }))} style={inp} className={cls} /></GestaoCampo>
+            <button onClick={criarPendente} disabled={salvando} style={{ background: "#1F9D55" }} className="text-white font-bold text-sm py-3 rounded-2xl mt-1 flex items-center justify-center gap-2 disabled:opacity-60">
+              {salvando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Pré-cadastrar
+            </button>
           </div>
-          <button onClick={() => alternarAtivo(u.id, u.ativo)} style={u.ativo ? { background: "#E6F7ED", color: "#1F9D55" } : { background: RED_SOFT, color: RED_DARK }}
-            className="text-[11px] font-bold px-3 py-1.5 rounded-full shrink-0">{u.ativo ? "Ativo" : "Bloqueado"}</button>
-        </div>
-      ))}
-      {subaba === "pendentes" && (pendentes || []).map((p) => (
-        <div key={p.matricula} style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-sm flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold truncate">{p.nome}</p>
-            <p style={{ color: T.subtext }} className="text-[11px]">Mat. {p.matricula} · {p.cargo_nome_loja || "—"}</p>
-          </div>
-          <button onClick={() => removerPendente(p.matricula)} style={{ color: RED_DARK }} className="text-[11px] font-semibold shrink-0">Remover</button>
-        </div>
-      ))}
+        </GestaoSheet>
+      )}
     </div>
-    </>
   );
 }
-
 
 // ============ Convites de promotor ============
 // Encarregado+ gera um link com nome, marca e validade. Quem abre o link entra direto (sessão anônima)
