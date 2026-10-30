@@ -1641,10 +1641,12 @@ function AppInner() {
   const [progressoAtualizacao, setProgressoAtualizacao] = useState(0);
   const [erroAtualizacao, setErroAtualizacao] = useState(false);
   useEffect(() => {
-    if (sessionStorage.getItem("avdc_acabou_de_atualizar") === "1") {
-      sessionStorage.removeItem("avdc_acabou_de_atualizar");
-      setMostrarAtualizacao(true);
-    }
+    // Depois de atualizar (ou ao abrir com uma versão que a pessoa ainda não viu), mostra a lista de novidades.
+    const veioDeAtualizacao = sessionStorage.getItem("avdc_acabou_de_atualizar") === "1";
+    sessionStorage.removeItem("avdc_acabou_de_atualizar");
+    const vista = lerNovidadeVista();
+    if (veioDeAtualizacao || (vista && vista !== NOVIDADES[0].id)) setMostrarAtualizacao(true);
+    else if (!vista) gravarNovidadeVista(NOVIDADES[0].id); // primeira vez no aparelho: nada a mostrar
     // Checagem "em tempo real": ao abrir, ao voltar pro app/aba, ao reconectar e a cada 20 s com o app aberto.
     let ativo = true;
     async function checar() {
@@ -1672,6 +1674,8 @@ function AppInner() {
       setEstadoAtualizacao("idle"); setErroAtualizacao(true);
     }
   }
+  const novidadesDoCargo = useMemo(() => (mostrarAtualizacao ? novidadesParaCargo(perfil?.cargos?.nivel, lerNovidadeVista()) : []), [mostrarAtualizacao, perfil?.cargos?.nivel]);
+  useEffect(() => { if (mostrarAtualizacao && perfil && novidadesDoCargo.length === 0) { gravarNovidadeVista(NOVIDADES[0].id); setMostrarAtualizacao(false); } }, [mostrarAtualizacao, perfil, novidadesDoCargo.length]);
   const mostrarBannerVersao = !!novaVersao && (estadoAtualizacao === "baixando" || versaoDispensada !== novaVersao.assinatura);
 
   // ---------- Deep link: abrir o app direto no produto quando vem de uma notificação ----------
@@ -2588,7 +2592,7 @@ function AppInner() {
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
         {avisoAtual && <AvisoModal T={T} aviso={avisoAtual} onFechar={() => marcarAvisoVisto(avisoAtual.id)} />}
-        {!avisoAtual && mostrarAtualizacao && <AtualizacaoModal T={T} onFechar={() => setMostrarAtualizacao(false)} />}
+        {!avisoAtual && mostrarAtualizacao && novidadesDoCargo.length > 0 && <AtualizacaoModal T={T} novidades={novidadesDoCargo} cargoNome={perfil?.cargos?.nome} onFechar={() => { gravarNovidadeVista(NOVIDADES[0].id); setMostrarAtualizacao(false); }} />}
       </AnimatePresence>
     </div>
     </PermissoesContext.Provider>
@@ -2706,27 +2710,85 @@ function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar })
   );
 }
 
-// ============ Modal "App atualizado" ============
-function AtualizacaoModal({ T, onFechar }) {
+// ============ Novidades do app (lista mostrada depois de "Atualizar") ============
+// A cada publicação nova: adicione uma entrada NO TOPO de NOVIDADES (a primeira é a versão atual).
+//  - tipo: "adicionado" | "melhorado" | "removido" | "corrigido"
+//  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
+// Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
+const NOVIDADES = [
+  { id: "2026-10-30", data: "30/10/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Aviso de versão nova em tempo real, com barra de progresso. O app só atualiza depois que você tocar em “Atualizar”." },
+    { tipo: "melhorado", ate: 7, texto: "Rondas, auditoria, setores e catálogo agora atualizam sozinhos na tela quando alguém muda algo." },
+    { tipo: "melhorado", ate: 7, texto: "No computador, todas as páginas ganharam o visual de painel, com cards e gráficos." },
+    { tipo: "removido", ate: 7, texto: "Localização de produto (corredor, módulo, prateleira, vão) e escolha Loja/Depósito." },
+    { tipo: "adicionado", ate: 5, texto: "Em Funcionários: aba Promotores, com pausar, retomar, bloquear e excluir convite." },
+    { tipo: "adicionado", ate: 5, texto: "Menu de ações em cada funcionário para bloquear e desbloquear (com confirmação em dois toques)." },
+    { tipo: "adicionado", ate: 5, texto: "Pedido de exclusão de funcionário, enviado para aprovação da gerência, diretoria ou dev." },
+    { tipo: "adicionado", ate: 4, texto: "Aba Aprovações: aprovar ou recusar pedidos de exclusão feitos por encarregados." },
+    { tipo: "adicionado", ate: 2, texto: "Editar dados, enviar redefinição de senha e excluir funcionário direto." },
+    { tipo: "melhorado", ate: 2, texto: "Gestão do Aplicativo refeita: criar e editar lojas, escolher a loja ao pré-cadastrar funcionários." },
+    { tipo: "corrigido", ate: 5, texto: "As abas de Funcionários agora cabem na tela do celular." },
+  ] },
+];
+const NOVIDADES_CHAVE = "avdc_novidade_vista";
+function rotuloPublico(ate) {
+  return ate >= 7 ? "Para todos" : ate === 5 ? "Encarregados e acima" : ate === 4 ? "Gerência e acima" : ate === 2 ? "Diretoria e Dev" : ate === 1 ? "Só Dev" : "Cargos superiores";
+}
+// Novidades que o usuário ainda não viu e que valem para o cargo dele (nível menor = cargo mais alto).
+function novidadesParaCargo(nivel, vista) {
+  const n = nivel == null ? 7 : nivel;
+  const i = NOVIDADES.findIndex((v) => v.id === vista);
+  const pendentes = i === -1 ? NOVIDADES.slice(0, 1) : NOVIDADES.slice(0, i);
+  return pendentes
+    .map((v) => ({ ...v, itens: v.itens.filter((it) => n <= it.ate) }))
+    .filter((v) => v.itens.length > 0);
+}
+function lerNovidadeVista() { try { return localStorage.getItem(NOVIDADES_CHAVE); } catch { return null; } }
+function gravarNovidadeVista(id) { try { localStorage.setItem(NOVIDADES_CHAVE, id); } catch {} }
+
+// ============ Modal "App atualizado" + lista de novidades ============
+const TIPOS_NOVIDADE = {
+  adicionado: { rotulo: "Adicionado", cor: "#1F9D55", bg: "#E6F7ED" },
+  melhorado: { rotulo: "Melhorado", cor: BLUE_DARK, bg: BLUE_SOFT },
+  removido: { rotulo: "Removido", cor: RED_DARK, bg: RED_SOFT },
+  corrigido: { rotulo: "Corrigido", cor: "#C2760C", bg: "#FCF0DD" },
+};
+function AtualizacaoModal({ T, novidades, cargoNome, onFechar }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[60] flex items-end sm:items-center sm:justify-center" style={{ background: "rgba(0,0,0,0.45)" }}>
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-        style={{ background: T.card }} className="w-full sm:max-w-sm lg:max-w-md lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl sm:rounded-2xl p-5 pb-7 sm:pb-5">
-        <div style={{ background: BLUE_SOFT }} className="h-12 w-12 rounded-2xl flex items-center justify-center mb-3">
-          <Sparkles size={22} color={BLUE} />
+        style={{ background: T.card }} className="w-full sm:max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[88vh] flex flex-col">
+        <div className="p-5 pb-3 flex items-start gap-3">
+          <div style={{ background: BLUE_SOFT }} className="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0"><Sparkles size={22} color={BLUE} /></div>
+          <div className="min-w-0">
+            <p className="text-base font-bold">App atualizado!</p>
+            <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">Veja o que mudou{cargoNome ? ` para o seu cargo (${cargoNome})` : ""}.</p>
+          </div>
         </div>
-        <p className="text-base font-bold">App atualizado!</p>
-        <p style={{ color: T.subtext }} className="text-[12.5px] mt-1">
-          O Alerta de Validade recebeu melhorias novas. Dá uma olhada no que mudou.
-        </p>
-        <div className="flex gap-2 mt-4">
-          <button onClick={onFechar} style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-2.5 rounded-2xl border">
-            Fechar
-          </button>
-          <button onClick={onFechar} style={{ background: BLUE, color: "#fff" }} className="flex-[2] text-sm font-semibold py-2.5 rounded-2xl">
-            Confira as novas atualizações
-          </button>
+        <div className="overflow-y-auto px-5 pb-3 flex flex-col gap-4">
+          {novidades.map((v) => (
+            <div key={v.id}>
+              <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide mb-2">Versão de {v.data}</p>
+              <div className="flex flex-col gap-2">
+                {v.itens.map((it, i) => {
+                  const t = TIPOS_NOVIDADE[it.tipo] || TIPOS_NOVIDADE.melhorado;
+                  return (
+                    <div key={i} style={{ background: T.chipBg }} className="rounded-xl p-3">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                        <DashBadge bg={t.bg} color={t.color}>{t.rotulo}</DashBadge>
+                        <span style={{ color: T.subtext }} className="text-[10px] font-semibold">{rotuloPublico(it.ate)}</span>
+                      </div>
+                      <p className="text-[12.5px] leading-snug">{it.texto}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="p-5 pt-3 pb-7 sm:pb-5">
+          <button onClick={onFechar} style={{ background: BLUE, color: "#fff" }} className="w-full text-sm font-semibold py-3 rounded-2xl">Entendi</button>
         </div>
       </motion.div>
     </motion.div>
