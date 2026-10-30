@@ -10329,15 +10329,15 @@ function AjustesView({ T, dark, setDark, som, setSom, notifPermission, onToggleN
             aparecem pra todo mundo igual sempre apareceu. */}
         {podeVerValores && (
           <>
-            <Row icon={SignalIconSolid} iconBg={BLUE_SOFT} iconColor={BLUE} title="Torre de Controle" desc="Visão geral de risco pra liderança"
+            <Row icon={Radar} iconBg={BLUE_SOFT} iconColor={BLUE} title="Torre de Controle" desc="Visão geral de risco pra liderança"
               right={<button onClick={onAbrirTorre} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
             <Row icon={FileText} iconBg={BLUE_SOFT} iconColor={BLUE} title="Relatórios" desc="Resumo geral, setores e itens — com PDF"
               right={<button onClick={onAbrirRelatorios} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
           </>
         )}
-        <Row icon={FireIconSolid} iconBg={RED_SOFT} iconColor={RED_DARK} title="Prioridade de Perda" desc="Produtos que exigem ação imediata"
+        <Row icon={Flame} iconBg={RED_SOFT} iconColor={RED_DARK} title="Prioridade de Perda" desc="Produtos que exigem ação imediata"
           right={<button onClick={onAbrirPrioridade} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-        <Row icon={ClockIcon} iconBg={BLUE_SOFT} iconColor={BLUE} title="Histórico de baixas" desc={`${historico.length} baixa(s) registradas`}
+        <Row icon={History} iconBg={BLUE_SOFT} iconColor={BLUE} title="Histórico de baixas" desc={`${historico.length} baixa(s) registradas`}
           right={<button onClick={onAbrirHistorico} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
         <Row icon={ListChecks} iconBg={BLUE_SOFT} iconColor={BLUE} title="Auditoria" desc="Quem fez o quê, com data e hora"
           right={<button onClick={onAbrirAuditoria} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
