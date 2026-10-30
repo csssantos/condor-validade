@@ -53,6 +53,12 @@ function setorPrincipal(s) {
   const achado = SETORES.filter((c) => c !== "Outro").sort((x, y) => y.length - x.length).find((c) => t === c.toLowerCase() || t.startsWith(c.toLowerCase() + " "));
   return achado || s;
 }
+// Subsetor do produto: coluna subsetor, ou o que sobra no nome do setor ("Mercearia leve" -> "leve"). Igual à função subsetor_efetivo do banco.
+function subsetorEfetivo(setor, subsetor) {
+  const s = String(subsetor || "").trim(); if (s) return s;
+  const sp = setorPrincipal(setor); const t = String(setor || "").trim();
+  return t !== sp ? t.slice(sp.length).trim() || null : null;
+}
 // Item 2: perecíveis nunca se misturam com os outros setores nos filtros/telas
 const SETORES_PERECIVEIS = ["Hortifruti", "Açougue", "Padaria", "Frios e Laticínios", "Congelados"];
 function ehPerecivel(setor) { return SETORES_PERECIVEIS.includes(setor) || SETORES_PERECIVEIS_EXTRA.includes(setor); }
@@ -3423,7 +3429,8 @@ function erroRonda(error) {
     ["prazo_obrigatorio", "Defina o prazo."],
     ["prazo_invalido", "O prazo precisa ser depois do início."],
     ["varios_setores_so_gerencia", "Só a gerência pode criar ronda de vários setores."],
-    ["setor_sem_produtos", "Esse setor não tem produtos cadastrados."],
+    ["setor_sem_produtos", "Esse setor (ou os subsetores escolhidos) não tem produtos cadastrados."],
+    ["subsetor_so_um_setor", "Escolha subsetores só quando for criar a ronda de um único setor."],
     ["setor_obrigatorio", "Escolha o setor."],
     ["ronda_encerrada", "Essa ronda já foi encerrada. Nada mais pode ser registrado nela."],
     ["ronda_ainda_nao_comecou", "Essa ronda ainda não chegou no horário de início."],
@@ -4065,6 +4072,14 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
     return Object.entries(cont).sort((a, b) => a[0].localeCompare(b[0])).filter(([s]) => nivel <= 4 || s.toLowerCase() === meuSetor);
   }, [catalog, nivel, meuSetor]);
   const [setores, setSetores] = useState(preSetor && setoresDoBanco.some(([s]) => s === preSetor) ? [preSetor] : (setoresDoBanco.length === 1 ? [setoresDoBanco[0][0]] : []));
+  const [subSel, setSubSel] = useState([]); // vazio = todos os subsetores
+  const subsetoresDoSetor = useMemo(() => {
+    if (setores.length !== 1) return [];
+    const m = {};
+    Object.values(catalog || {}).forEach((p) => { if (p?.setor && setorPrincipal(p.setor) === setores[0]) { const k = subsetorEfetivo(p.setor, p.subsetor) || "(sem subsetor)"; m[k] = (m[k] || 0) + 1; } });
+    const ks = Object.keys(m); return ks.length > 1 || (ks.length === 1 && ks[0] !== "(sem subsetor)") ? ks.sort().map((k) => [k, m[k]]) : [];
+  }, [catalog, setores.join("|")]);
+  useEffect(() => { setSubSel([]); }, [setores.join("|")]);
   const [nome, setNome] = useState("");
   const [sel, setSel] = useState([]);
   const [outrosSetores, setOutrosSetores] = useState(false);
@@ -4075,13 +4090,14 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
   const setoresLower = setores.map((s) => s.toLowerCase());
   const candidatos = (equipe || []).filter((u) => (nivel <= 4 && outrosSetores) || setoresLower.includes((u.setor || "").toLowerCase()));
   useEffect(() => { setSel((p) => p.filter((id) => candidatos.some((u) => u.id === id))); }, [setores.join("|"), outrosSetores]);
-  const totalProdutos = setores.reduce((a, s) => a + (setoresDoBanco.find(([x]) => x === s)?.[1] || 0), 0);
+  const totalProdutos = subSel.length ? subsetoresDoSetor.filter(([k]) => subSel.includes(k)).reduce((a, [, n]) => a + n, 0) : setores.reduce((a, s) => a + (setoresDoBanco.find(([x]) => x === s)?.[1] || 0), 0);
   const campo = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
   async function criar() {
     setOcupado(true);
     const { error } = await supabase.rpc("criar_ronda", {
       p_setores: setores, p_nome: nome.trim() || null, p_participantes: sel, p_inicio: new Date(inicio).toISOString(),
       p_prazo: prazo ? new Date(prazo).toISOString() : null, p_obs: obs.trim() || null, p_loja: lojaAtiva?.id || null,
+      p_subsetores: subSel.length ? subSel : null,
     });
     setOcupado(false);
     if (error) { showToast(erroRonda(error), "warn"); return; }
@@ -4100,6 +4116,17 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
               {setoresDoBanco.map(([s, n]) => {
                 const on = setores.includes(s);
                 return <button key={s} onClick={() => setSetores((p) => (nivel <= 4 ? (on ? p.filter((x) => x !== s) : [...p, s]) : [s]))} style={on ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2 text-xs font-semibold">{s} <span className="opacity-70">· {n}</span></button>;
+              })}
+            </div>
+          </GestaoCampo>
+        )}
+        {subsetoresDoSetor.length > 0 && (
+          <GestaoCampo T={T} label={`Subsetores de ${setores[0]}`} hint="Toque para escolher quais entram na ronda. Sem escolher nenhum, entram todos.">
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setSubSel([])} style={subSel.length === 0 ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2 text-xs font-semibold">Todos</button>
+              {subsetoresDoSetor.map(([k, n]) => {
+                const on = subSel.includes(k);
+                return <button key={k} onClick={() => setSubSel((p) => (on ? p.filter((x) => x !== k) : [...p, k]))} style={on ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2 text-xs font-semibold">{k} <span className="opacity-70">· {n}</span></button>;
               })}
             </div>
           </GestaoCampo>
