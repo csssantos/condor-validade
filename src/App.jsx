@@ -2523,7 +2523,7 @@ function AppInner() {
       {escolhaAberta && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
           <div onClick={() => { setEscolhaAberta(false); resetFlow(); }} className="absolute inset-0 bg-black/55" />
-          <div style={{ background: T.card }} className="relative w-full max-w-md rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
+          <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
             <div style={{ background: BLUE_SOFT }} className="h-11 w-11 rounded-2xl flex items-center justify-center mb-3"><Barcode size={20} color={BLUE} /></div>
             <h2 className="font-bold text-base">Produto novo — {pendingBarcode}</h2>
             <p style={{ color: T.subtext }} className="text-xs mt-1 mb-4">Esse código ainda não está cadastrado. O que você quer fazer?</p>
@@ -2585,7 +2585,7 @@ function AvisoModal({ T, aviso, onFechar }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[60] flex items-end sm:items-center sm:justify-center" style={{ background: "rgba(0,0,0,0.45)" }}>
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-        style={{ background: T.card }} className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl p-5 pb-7 sm:pb-5">
+        style={{ background: T.card }} className="w-full sm:max-w-sm lg:max-w-md lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl sm:rounded-2xl p-5 pb-7 sm:pb-5">
         <div style={{ background: e.bg }} className="h-12 w-12 rounded-2xl flex items-center justify-center mb-3">
           <Icone size={22} color={e.icone} />
         </div>
@@ -2621,7 +2621,7 @@ function AtualizacaoModal({ T, onFechar }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[60] flex items-end sm:items-center sm:justify-center" style={{ background: "rgba(0,0,0,0.45)" }}>
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-        style={{ background: T.card }} className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl p-5 pb-7 sm:pb-5">
+        style={{ background: T.card }} className="w-full sm:max-w-sm lg:max-w-md lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl sm:rounded-2xl p-5 pb-7 sm:pb-5">
         <div style={{ background: BLUE_SOFT }} className="h-12 w-12 rounded-2xl flex items-center justify-center mb-3">
           <Sparkles size={22} color={BLUE} />
         </div>
@@ -2689,7 +2689,7 @@ function UserNameModal({ T, usuarioAtual, onSave, onClose, validando }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/55" onClick={onClose} />
-      <div style={{ background: T.card }} className="relative w-full max-w-md rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
+      <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
         <div style={{ background: BLUE_SOFT }} className="h-11 w-11 rounded-2xl flex items-center justify-center mb-3"><Users2 size={20} color={BLUE} /></div>
         <h2 className="font-bold text-base">Quem está usando o app?</h2>
         <p style={{ color: T.subtext }} className="text-xs mt-1 mb-4">
@@ -2985,7 +2985,7 @@ function ExcluirProdutoSheet({ T, item, onCancel, onConfirmar }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div onClick={onCancel} className="absolute inset-0 bg-black/60" />
-      <div style={{ background: T.card }} className="relative w-full max-w-md rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
+      <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
         <div className="flex items-center gap-2.5 mb-3">
           <div style={{ background: RED_SOFT }} className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"><Trash2 size={18} color={RED_DARK} /></div>
           <div className="min-w-0">
@@ -3537,7 +3537,7 @@ function RondaView({ T, ronda, onMarcar, onConcluir, onCancelar, onFinalizar, on
   const marcados = ronda.itens.filter((x) => x.statusRonda);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col lg:max-w-3xl lg:mx-auto lg:border-x lg:shadow-2xl" style={{ background: T.bg }}>
+    <div className="fixed inset-0 z-50 flex flex-col lg:inset-y-8 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:w-[60rem] lg:max-w-[calc(100vw-4rem)] lg:rounded-2xl lg:overflow-hidden lg:ring-1 lg:ring-black/10 lg:shadow-[0_0_0_100vmax_rgba(0,0,0,0.5)]" style={{ background: T.bg }}>
       <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 pt-[calc(env(safe-area-inset-top)+20px)]">
         <div className="flex items-center justify-between mb-3">
           <div className="min-w-0 flex-1">
@@ -3845,7 +3845,7 @@ function RondasView({ T, rondas, usuario, lojaNumero, onIniciarRonda, onRetomarR
       {/* Detalhe da ronda: fotos dos itens + tag de conferido/não conferido */}
       <AnimatePresence>
         {rondaSelecionada && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex flex-col lg:max-w-3xl lg:mx-auto lg:border-x lg:shadow-2xl" style={{ background: T.bg }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex flex-col lg:inset-y-8 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:w-[60rem] lg:max-w-[calc(100vw-4rem)] lg:rounded-2xl lg:overflow-hidden lg:ring-1 lg:ring-black/10 lg:shadow-[0_0_0_100vmax_rgba(0,0,0,0.5)]" style={{ background: T.bg }}>
             <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 flex items-center gap-3 pt-[calc(env(safe-area-inset-top)+20px)]">
               <button onClick={() => { setRondaSelecionada(null); setItensRonda(null); }} className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center shrink-0">
                 <ArrowLeft size={16} color="#fff" />
@@ -4490,32 +4490,48 @@ function GestaoFuncionarios({ T, showToast, lojaAtiva }) {
   async function carregar() {
     const lojaId = lojaAtiva?.id;
     if (!lojaId) return;
-    const [{ data: u }, { data: p }, { data: c }] = await Promise.all([
-      supabase.from("usuarios").select("id, nome, matricula, cargo_nome_loja, ativo, setor, cargos(nome, nivel)").eq("loja_id", lojaId).order("nome"),
+    const [{ data: u, error: eu }, { data: p, error: ep }, { data: c }] = await Promise.all([
+      supabase.from("usuarios").select("id, nome, matricula, cargo_nome_loja, ativo, setor, cargos(nome, nivel)").eq("loja_id", lojaId).eq("promotor", false).order("nome"),
       supabase.from("funcionarios_pendentes").select("*").eq("loja_id", lojaId).eq("usado", false).order("criado_em", { ascending: false }),
       supabase.from("cargos").select("*").order("nivel"),
     ]);
-    setAtivos(u || []); setPendentes(p || []); setCargos(c || []);
+    if (eu || ep) { console.error(eu || ep); showToast("Não foi possível carregar a equipe. Tente de novo.", "warn"); }
+    setAtivos(u || []); setPendentes(p || []); setCargos((c || []).filter((x) => x.nome !== "PROMOTOR"));
   }
   useEffect(() => { carregar(); }, [lojaAtiva?.id]);
 
   async function criarPendente() {
-    if (!novoNome.trim() || !novaMatricula.trim() || !novoCargoId) { showToast("Preencha nome, matrícula e cargo no app.", "warn"); return; }
+    const mat = novaMatricula.replace(/\D/g, "");
+    if (!novoNome.trim() || !mat || !novoCargoId) { showToast("Preencha nome, matrícula (só números) e cargo no app.", "warn"); return; }
+    if (!lojaAtiva?.id) { showToast("Nenhuma loja selecionada.", "warn"); return; }
     const { error } = await supabase.from("funcionarios_pendentes").insert({
-      matricula: novaMatricula.trim(), nome: novoNome.trim(), cargo_nome_loja: novoCargoLoja.trim() || null,
+      matricula: mat, nome: novoNome.trim(), cargo_nome_loja: novoCargoLoja.trim() || null,
       cargo_id: Number(novoCargoId), setor: novoSetor.trim() || null, loja_id: lojaAtiva.id, criado_por: "gestao-app"
     });
-    if (error) { showToast(error.code === "23505" ? "Já existe alguém com essa matrícula." : "Erro ao pré-cadastrar.", "warn"); return; }
+    if (error) {
+      console.error(error);
+      showToast(error.code === "23505" ? "Já existe alguém com essa matrícula." :
+        error.code === "42501" ? "Você não tem permissão pra esse cargo." : "Erro ao pré-cadastrar.", "warn");
+      return;
+    }
     showToast(`${novoNome} pré-cadastrado(a). Ele(a) já pode bipar o crachá pra criar a conta.`);
     setNovoNome(""); setNovaMatricula(""); setNovoCargoLoja(""); setNovoCargoId(""); setNovoSetor(""); setNovoAberto(false);
     carregar();
   }
   async function removerPendente(matricula) {
-    await supabase.from("funcionarios_pendentes").delete().eq("matricula", matricula);
+    const { error } = await supabase.from("funcionarios_pendentes").delete().eq("matricula", matricula);
+    if (error) { console.error(error); showToast("Não foi possível remover.", "warn"); return; }
     setPendentes((prev) => prev.filter((p) => p.matricula !== matricula));
   }
   async function alternarAtivo(id, ativo) {
-    await supabase.from("usuarios").update({ ativo: !ativo }).eq("id", id);
+    const { error } = await supabase.rpc("alternar_acesso_usuario", { p_id: id, p_ativo: !ativo });
+    if (error) {
+      console.error(error);
+      const m = error.message || "";
+      showToast(m.includes("nao_pode_si_mesmo") ? "Você não pode bloquear a própria conta." :
+        m.includes("sem_permissao") ? "Você não tem permissão pra alterar essa conta." : "Não foi possível alterar o acesso.", "warn");
+      return;
+    }
     setAtivos((prev) => prev.map((u) => (u.id === id ? { ...u, ativo: !ativo } : u)));
   }
 
@@ -6256,7 +6272,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
       {filtrosAbertos && (
         <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
           <div onClick={() => setFiltrosAbertos(false)} className="absolute inset-0 bg-black/50" />
-          <div style={{ background: T.card }} className="relative w-full max-w-md rounded-t-2xl p-5 pb-7 max-h-[85vh] overflow-y-auto sm:rounded-2xl">
+          <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 max-h-[85vh] overflow-y-auto sm:rounded-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-base">Filtros</h3>
               <button onClick={() => setFiltrosAbertos(false)} style={{ background: T.chipBg }} className="h-8 w-8 rounded-full flex items-center justify-center"><CloseIcon size={15} color={T.text} /></button>
@@ -6529,7 +6545,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
     <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
       <div onClick={onClose} className="absolute inset-0 bg-black/50" />
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 380, damping: 38 }}
-        style={{ background: T.card }} className="relative w-full max-w-md rounded-t-[28px] overflow-hidden max-h-[88vh] overflow-y-auto sm:rounded-[28px]">
+        style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-xl lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[28px] overflow-hidden max-h-[88vh] overflow-y-auto sm:rounded-[28px]">
         <div className="relative">
           {item.foto ? <img src={item.foto} alt="" className="w-full h-44 object-cover" /> : (
             <div style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 100%)` }} className="w-full h-36 flex items-center justify-center"><Package size={40} color="#fff" className="opacity-80" /></div>
@@ -6731,7 +6747,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
     {confirmandoBaixa && (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
         <div onClick={() => { setConfirmandoBaixa(false); setSubEtapa(null); }} className="absolute inset-0 bg-black/60" />
-        <div style={{ background: T.card }} className="relative w-full max-w-md rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
+        <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
           <div className="flex items-center gap-2.5 mb-4">
             <div style={{ background: RED_SOFT }} className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"><PackageX size={18} color={RED_DARK} /></div>
             <div className="min-w-0">
@@ -8538,7 +8554,7 @@ function SelecionarSecoesRelatorioSheet({ T, secoesDisponiveis, selecionadas, on
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
       <div onClick={onFechar} className="absolute inset-0 bg-black/60" />
-      <div style={{ background: T.card }} className="relative w-full max-w-md rounded-t-2xl p-5 pb-7 max-h-[85vh] overflow-y-auto sm:rounded-2xl">
+      <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 max-h-[85vh] overflow-y-auto sm:rounded-2xl">
         <h3 className="font-bold text-sm mb-1">O que entra no relatório?</h3>
         <p style={{ color: T.subtext }} className="text-[11px] mb-3">O resumo geral (KPIs e perdas do mês) sempre entra. Escolha as seções extras:</p>
 
@@ -9253,9 +9269,10 @@ function AjustesView({ T, dark, setDark, som, setSom, notifPermission, onToggleN
     if (oculto) return null;
     const arr = React.Children.toArray(children).filter(Boolean);
     return (
-      <div className="mb-5">
-        {title && <p style={{ color: T.subtext }} className="text-[11px] font-bold mb-2 px-1 uppercase tracking-wide">{title}</p>}
-        <div style={{ background: T.card }} className="rounded-2xl shadow-lg shadow-black/5 overflow-hidden">
+      <div className="mb-5 lg:mb-6">
+        {title && <p style={{ color: T.subtext }} className="text-[11px] font-bold mb-2 px-1 uppercase tracking-wide lg:hidden">{title}</p>}
+        <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl shadow-lg shadow-black/5 overflow-hidden lg:border lg:shadow-sm">
+          {title && <p style={{ color: T.text, borderColor: T.border }} className="hidden lg:block text-sm font-bold px-5 py-3.5 border-b">{title}</p>}
           {arr.map((child, i) => (
             <div key={i} style={i < arr.length - 1 ? { borderBottom: `1px solid ${T.chipBg}` } : undefined}>{child}</div>
           ))}
@@ -9264,7 +9281,7 @@ function AjustesView({ T, dark, setDark, som, setSom, notifPermission, onToggleN
     );
   };
   const Row = ({ icon: Icon, iconBg, iconColor, title, desc, right, children }) => (
-    <div className="p-3.5">
+    <div className="p-3.5 lg:px-5 lg:py-4">
       <div className="flex items-center gap-3">
         <div style={{ background: iconBg || BLUE_SOFT }} className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"><Icon size={16} color={iconColor || BLUE} /></div>
         <div className="flex-1 min-w-0">
@@ -9282,8 +9299,17 @@ function AjustesView({ T, dark, setDark, som, setSom, notifPermission, onToggleN
     </button>
   );
 
+  const TITULOS_SECAO = {
+    preferencias: ["Preferências", "Aparência, som, notificações e conta"],
+    seguranca: ["Segurança", "PIN de acesso e proteção do aparelho"],
+    loja: ["Loja e equipe", "Avisos, informação em camadas, equipe e balança"],
+    dados: ["Dados e backup", "Exportação de relatórios e cópia de segurança"],
+  };
   return (
-    <div className="px-4 pt-4 lg:px-0 lg:pt-6 lg:grid lg:grid-cols-2 lg:gap-x-6 lg:items-start">
+    <div className="px-4 pt-4 lg:px-0 lg:pt-0 lg:grid lg:grid-cols-2 lg:gap-x-6 lg:items-start">
+      {telaLarga && TITULOS_SECAO[secao] && (
+        <div className="lg:col-span-2"><DashPageHeader T={T} title={TITULOS_SECAO[secao][0]} subtitle={TITULOS_SECAO[secao][1]} /></div>
+      )}
       <Section title="Navegação" oculto={telaLarga}>
         {ehDev && (
           <Row icon={Wrench} iconBg={"#2A2F3A"} iconColor={"#fff"} title="Gestão do Aplicativo" desc="Funcionários, lojas, produtos e notificações"
@@ -9526,7 +9552,7 @@ function EnviarAvisoModal({ T, usuario, showToast, onFechar, perfil }) {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto" style={{ background: "rgba(0,0,0,0.45)" }}>
         <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-          style={{ background: T.card }} className="w-full sm:max-w-sm rounded-2xl p-5 pb-7 mt-14 sm:mt-24 mx-3">
+          style={{ background: T.card }} className="w-full sm:max-w-sm lg:max-w-md lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-2xl p-5 pb-7 mt-14 sm:mt-24 mx-3">
           <div style={{ background: BLUE_SOFT }} className="h-12 w-12 rounded-2xl flex items-center justify-center mb-3">
             <Lock size={22} color={BLUE} />
           </div>
