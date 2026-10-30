@@ -24,7 +24,7 @@ import {
   Lock, Unlock, Flashlight, FlashlightOff, Percent, Upload, RotateCcw,
   TrendingDown, FileSpreadsheet, RefreshCw, SwitchCamera, ShieldAlert,
   Flame, Repeat, Sparkles, WifiOff, Cloud, Target, Radar, TrendingUp, ListChecks,
-  Carrot, Beef, Croissant, Milk, Wine, Snowflake, SprayCan, ShoppingBasket, Warehouse, Boxes, LogOut, Megaphone, Building2, Wrench, Ticket, Copy, Link2, LayoutDashboard
+  Carrot, Beef, Croissant, Milk, Wine, Snowflake, SprayCan, ShoppingBasket, Warehouse, Boxes, LogOut, Megaphone, Building2, Wrench, Ticket, Copy, Link2, LayoutDashboard, Pencil, Mail
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
@@ -1433,6 +1433,7 @@ function AppInner() {
         setConviteStatus({ erro:
           m.includes("convite_expirado") ? "Este convite expirou. Peça um novo link pra loja." :
           m.includes("convite_revogado") ? "Este convite foi cancelado pela loja." :
+          m.includes("convite_pausado") ? "Este convite está pausado pela loja. Fale com quem enviou o link." :
           m.includes("convite_invalido") ? "Link de convite inválido. Confira se copiou o link inteiro." :
           "Não foi possível abrir o convite. Tente de novo." });
         await supabase.auth.signOut();
@@ -4683,6 +4684,12 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
   const [novoAberto, setNovoAberto] = useState(false);
   const [f, setF] = useState({ nome: "", matricula: "", cargoLoja: "", cargoId: "", setor: "" });
   const [salvando, setSalvando] = useState(false);
+  const [convites, setConvites] = useState(null);
+  const [pedidos, setPedidos] = useState(null);
+  const [meuId, setMeuId] = useState(null);
+  const [acaoUsuario, setAcaoUsuario] = useState(null); // funcionário aberto no menu de ações
+  const [acaoConvite, setAcaoConvite] = useState(null); // convite aberto no menu de ações
+  useEffect(() => { supabase.auth.getUser().then(({ data }) => setMeuId(data?.user?.id || null)); }, []);
 
   // Sem loja escolhida (ex.: dev sem loja própria) => assume a primeira da lista, pra nunca travar o pré-cadastro.
   useEffect(() => { if (!lojaSel && lojas.length) setLojaSel(lojaAtiva?.id || lojas[0].id); }, [lojas, lojaAtiva?.id]);
@@ -4690,9 +4697,10 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
 
   async function carregar() {
     if (!lojaSel) { setAtivos([]); setPendentes([]); return; }
-    setAtivos(null); setPendentes(null);
+    setAtivos(null); setPendentes(null); setConvites(null); setPedidos(null);
+    carregarExtras();
     const [{ data: u, error: eu }, { data: p, error: ep }, { data: c }] = await Promise.all([
-      supabase.from("usuarios").select("id, nome, matricula, cargo_nome_loja, ativo, setor, cargos(nome, nivel)").eq("loja_id", lojaSel).eq("promotor", false).order("nome"),
+      supabase.from("usuarios").select("id, nome, email, telefone, matricula, cargo_id, cargo_nome_loja, ativo, setor, cargos(nome, nivel)").eq("loja_id", lojaSel).eq("promotor", false).order("nome"),
       supabase.from("funcionarios_pendentes").select("*").eq("loja_id", lojaSel).eq("usado", false).order("criado_em", { ascending: false }),
       supabase.from("cargos").select("*").order("nivel"),
     ]);
@@ -4700,7 +4708,29 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
     setAtivos(u || []); setPendentes(p || []);
     setCargos((c || []).filter((x) => x.nome !== "PROMOTOR" && (nivelUsuario === 1 || x.nivel > (nivelUsuario ?? 99))));
   }
+  async function carregarExtras() {
+    if (!lojaSel) { setConvites([]); setPedidos([]); return; }
+    const [{ data: cv }, { data: pr }, { data: pd }] = await Promise.all([
+      supabase.from("convites_promotor").select("id, token, nome, marca, expira_em, criado_em, revogado, pausado, usos, ultimo_uso").eq("loja_id", lojaSel).order("criado_em", { ascending: false }).limit(100),
+      supabase.from("usuarios").select("id, convite_id, ativo").eq("loja_id", lojaSel).eq("promotor", true),
+      supabase.from("solicitacoes_exclusao").select("*").eq("loja_id", lojaSel).eq("status", "pendente").order("criado_em", { ascending: false }),
+    ]);
+    setConvites((cv || []).map((c) => ({ ...c, pessoas: (pr || []).filter((x) => x.convite_id === c.id).length })));
+    setPedidos(pd || []);
+  }
   useEffect(() => { carregar(); }, [lojaSel]);
+  // tempo real: mudanças de outros gestores aparecem sem recarregar
+  useEffect(() => {
+    if (!lojaSel) return;
+    let t; const r = () => { clearTimeout(t); t = setTimeout(() => carregar(), 500); };
+    const ch = supabase.channel(`gestao-func-${lojaSel}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "usuarios" }, r)
+      .on("postgres_changes", { event: "*", schema: "public", table: "convites_promotor" }, r)
+      .on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes_exclusao" }, r)
+      .on("postgres_changes", { event: "*", schema: "public", table: "funcionarios_pendentes" }, r)
+      .subscribe();
+    return () => { clearTimeout(t); supabase.removeChannel(ch); };
+  }, [lojaSel]);
 
   async function criarPendente() {
     const mat = f.matricula.replace(/\D/g, "");
@@ -4727,16 +4757,11 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
     if (error) { console.error(error); showToast("Não foi possível remover.", "warn"); return; }
     setPendentes((prev) => prev.filter((p) => p.matricula !== matricula));
   }
-  async function alternarAtivo(id, ativo) {
-    const { error } = await supabase.rpc("alternar_acesso_usuario", { p_id: id, p_ativo: !ativo });
-    if (error) {
-      console.error(error);
-      const m = error.message || "";
-      showToast(m.includes("nao_pode_si_mesmo") ? "Você não pode bloquear a própria conta." :
-        m.includes("sem_permissao") ? "Você não tem permissão pra alterar essa conta." : "Não foi possível alterar o acesso.", "warn");
-      return;
-    }
-    setAtivos((prev) => prev.map((u) => (u.id === id ? { ...u, ativo: !ativo } : u)));
+  async function resolverPedido(pd, aprovar) {
+    const { error } = await supabase.rpc("resolver_exclusao", { p_id: pd.id, p_aprovar: aprovar });
+    if (error) { console.error(error); showToast(erroAcao(error), "warn"); return; }
+    showToast(aprovar ? `${pd.nome} foi excluído(a).` : "Pedido recusado.");
+    carregar();
   }
 
   const termo = busca.trim().toLowerCase();
@@ -4775,14 +4800,18 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
       </div>
 
       <div className="flex items-center gap-2.5 mb-3 flex-wrap">
-        <DashTabs T={T} value={subaba} onChange={setSubaba} options={[{ id: "ativos", label: `Contas (${ativos?.length ?? 0})` }, { id: "pendentes", label: `Aguardando (${pendentes?.length ?? 0})` }]} />
+        <DashTabs T={T} value={subaba} onChange={setSubaba} options={[{ id: "ativos", label: `Contas (${ativos?.length ?? 0})` }, { id: "pendentes", label: `Aguardando (${pendentes?.length ?? 0})` }, { id: "promotores", label: `Promotores (${convites?.length ?? 0})` }, { id: "pedidos", label: `Aprovações${pedidos?.length ? ` (${pedidos.length})` : ""}` }]} />
         <div style={{ background: T.inputBg, borderColor: T.inputBorder }} className="flex items-center gap-2 border rounded-xl px-3 py-2 flex-1 min-w-[10rem] lg:max-w-xs lg:ml-auto">
           <Search size={14} style={{ color: T.subtext }} />
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome ou matrícula" style={{ color: T.text }} className="bg-transparent outline-none text-sm flex-1 min-w-0" />
         </div>
       </div>
 
-      {(subaba === "ativos" ? ativos : pendentes) === null ? (
+      {subaba === "promotores" ? (
+        <PromotoresLista T={T} convites={convites} termo={termo} onAbrir={setAcaoConvite} showToast={showToast} />
+      ) : subaba === "pedidos" ? (
+        <PedidosExclusaoLista T={T} pedidos={pedidos} meuId={meuId} nivelUsuario={nivelUsuario} onResolver={resolverPedido} />
+      ) : (subaba === "ativos" ? ativos : pendentes) === null ? (
         <div className="text-center py-12"><Loader2 size={22} className="animate-spin mx-auto" color={T.subtext} /></div>
       ) : (subaba === "ativos" ? listaAtivos : listaPend).length === 0 ? (
         <div style={{ background: T.card, borderColor: T.border }} className="rounded-3xl border p-8 text-center">
@@ -4799,7 +4828,10 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
                 <p style={{ color: T.subtext }} className="text-[11px] truncate">{u.matricula ? `Mat. ${u.matricula} · ` : ""}{u.cargo_nome_loja || "—"}</p>
                 <p className="mt-1"><DashBadge bg={BLUE_SOFT} color={BLUE_DARK}>{u.cargos?.nome || "sem cargo"}</DashBadge></p>
               </div>
-              <button onClick={() => alternarAtivo(u.id, u.ativo)} style={u.ativo ? { background: "#E6F7ED", color: "#1F9D55" } : { background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-bold px-3 py-1.5 rounded-full shrink-0">{u.ativo ? "Ativo" : "Bloqueado"}</button>
+              <DashBadge bg={u.ativo ? "#E6F7ED" : RED_SOFT} color={u.ativo ? "#1F9D55" : RED_DARK}>{u.ativo ? "Ativo" : "Bloqueado"}</DashBadge>
+              {u.id !== meuId && (nivelUsuario === 1 || (u.cargos?.nivel ?? 99) > (nivelUsuario ?? 0)) && (
+                <button onClick={() => setAcaoUsuario(u)} aria-label={`Ações de ${u.nome}`} style={{ background: T.chipBg, color: T.text }} className="h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-lg font-bold leading-none">⋯</button>
+              )}
             </div>
           ))}
           {subaba === "pendentes" && listaPend.map((p) => (
@@ -4816,6 +4848,8 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
         </div>
       )}
 
+      {acaoUsuario && <AcoesFuncionarioSheet T={T} u={acaoUsuario} nivelUsuario={nivelUsuario} cargos={cargos} showToast={showToast} onClose={() => setAcaoUsuario(null)} onFeito={() => { setAcaoUsuario(null); carregar(); }} />}
+      {acaoConvite && <AcoesConviteSheet T={T} c={acaoConvite} showToast={showToast} onClose={() => setAcaoConvite(null)} onFeito={() => { setAcaoConvite(null); carregar(); }} />}
       {novoAberto && (
         <GestaoSheet T={T} title="Pré-cadastrar funcionário" subtitle={`Loja ${lojaObj?.numero_loja ?? "—"}${lojaObj?.bairro ? ` — ${lojaObj.bairro}` : ""}`} onClose={() => setNovoAberto(false)}>
           <div className="flex flex-col gap-3.5">
@@ -4839,6 +4873,202 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
           </div>
         </GestaoSheet>
       )}
+    </div>
+  );
+}
+
+function erroAcao(error) {
+  const m = error?.message || "";
+  return m.includes("nao_pode_si_mesmo") ? "Você não pode fazer isso com a sua própria conta." :
+    m.includes("sem_permissao") ? "Você não tem permissão pra essa ação." :
+    m.includes("ja_solicitado") ? "Já existe um pedido de exclusão pendente pra essa pessoa." :
+    m.includes("pedido_invalido") ? "Esse pedido já foi resolvido." :
+    m.includes("nome_vazio") ? "O nome não pode ficar vazio." :
+    m.includes("function") && m.includes("does not exist") ? "Falta rodar o SQL supabase-funcionarios-acoes.sql no Supabase." :
+    "Não foi possível concluir. Tente de novo.";
+}
+
+// Botão de ação com confirmação em dois toques (evita bloquear/excluir sem querer)
+function BotaoAcao({ T, Icon, titulo, desc, cor, bg, onConfirmar, confirmaTexto, ocupado }) {
+  const [armado, setArmado] = useState(false);
+  useEffect(() => { if (!armado) return; const t = setTimeout(() => setArmado(false), 5000); return () => clearTimeout(t); }, [armado]);
+  return (
+    <button disabled={ocupado} onClick={() => (armado ? (setArmado(false), onConfirmar()) : (confirmaTexto ? setArmado(true) : onConfirmar()))}
+      style={{ background: armado ? cor : bg, color: armado ? "#fff" : cor }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left disabled:opacity-60 transition-colors">
+      <Icon size={18} className="shrink-0" />
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-bold">{armado ? confirmaTexto : titulo}</span>
+        {!armado && desc && <span className="block text-[11px] opacity-80 mt-0.5">{desc}</span>}
+      </span>
+    </button>
+  );
+}
+
+function AcoesFuncionarioSheet({ T, u, nivelUsuario, cargos, showToast, onClose, onFeito }) {
+  const [modo, setModo] = useState("menu"); // menu | editar
+  const [ocupado, setOcupado] = useState(false);
+  const [f, setF] = useState({ nome: u.nome || "", cargoId: String(u.cargo_id || ""), cargoLoja: u.cargo_nome_loja || "", setor: u.setor || "", telefone: u.telefone || "" });
+  const admin = nivelUsuario != null && nivelUsuario <= 2;
+  const inp = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
+  const cls = "w-full border rounded-xl px-3 py-2.5 text-sm outline-none";
+
+  async function executar(fn, msgOk) {
+    setOcupado(true);
+    const { error } = await fn();
+    setOcupado(false);
+    if (error) { console.error(error); showToast(erroAcao(error), "warn"); return; }
+    showToast(msgOk); onFeito();
+  }
+  const alternar = () => executar(() => supabase.rpc("alternar_acesso_usuario", { p_id: u.id, p_ativo: !u.ativo }), u.ativo ? `${u.nome} foi bloqueado(a).` : `${u.nome} foi desbloqueado(a).`);
+  const excluir = () => executar(() => supabase.rpc("excluir_usuario", { p_id: u.id }), `${u.nome} foi excluído(a).`);
+  const pedirExclusao = () => executar(() => supabase.rpc("solicitar_exclusao", { p_id: u.id }), "Pedido enviado. Um gerente, a diretoria ou o dev precisa aprovar.");
+  const redefinir = () => {
+    if (!u.email) { showToast("Essa conta não tem e-mail cadastrado.", "warn"); return Promise.resolve(); }
+    return executar(() => supabase.auth.resetPasswordForEmail(u.email, { redirectTo: SITE_URL }), `Link de nova senha enviado para ${u.email}.`);
+  };
+  const salvar = () => {
+    if (!f.nome.trim() || !f.cargoId) { showToast("Preencha nome e cargo.", "warn"); return Promise.resolve(); }
+    return executar(() => supabase.rpc("editar_usuario", { p_id: u.id, p_nome: f.nome, p_cargo_id: Number(f.cargoId), p_cargo_nome_loja: f.cargoLoja, p_setor: f.setor, p_telefone: f.telefone }), "Dados atualizados.");
+  };
+
+  return (
+    <GestaoSheet T={T} title={modo === "editar" ? "Editar funcionário" : u.nome} subtitle={modo === "editar" ? `Mat. ${u.matricula || "—"}` : `${u.cargos?.nome || "sem cargo"}${u.matricula ? ` · Mat. ${u.matricula}` : ""}`} onClose={onClose}>
+      {modo === "menu" ? (
+        <div className="flex flex-col gap-2.5">
+          <BotaoAcao T={T} ocupado={ocupado} Icon={u.ativo ? Lock : Check} titulo={u.ativo ? "Bloquear acesso" : "Desbloquear acesso"} desc={u.ativo ? "A pessoa perde o acesso ao app na hora." : "Devolve o acesso ao app."}
+            cor={u.ativo ? "#C98A0C" : "#1F9D55"} bg={u.ativo ? "#FCF0DD" : "#E6F7ED"} confirmaTexto={u.ativo ? "Toque de novo para bloquear" : "Toque de novo para desbloquear"} onConfirmar={alternar} />
+          {admin && (
+            <>
+              <button onClick={() => setModo("editar")} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
+                <Pencil size={18} className="shrink-0" /><span><span className="block text-sm font-bold">Editar dados</span><span className="block text-[11px] opacity-80 mt-0.5">Nome, cargo, setor e telefone.</span></span>
+              </button>
+              <BotaoAcao T={T} ocupado={ocupado} Icon={Mail} titulo="Enviar redefinição de senha" desc={u.email ? `Manda o link para ${u.email}.` : "Sem e-mail cadastrado."} cor={BLUE_DARK} bg={BLUE_SOFT} confirmaTexto="Toque de novo para enviar o e-mail" onConfirmar={redefinir} />
+              <BotaoAcao T={T} ocupado={ocupado} Icon={Trash2} titulo="Excluir funcionário" desc="Apaga a conta de vez. Não dá pra desfazer." cor={RED_DARK} bg={RED_SOFT} confirmaTexto="Toque de novo para EXCLUIR" onConfirmar={excluir} />
+            </>
+          )}
+          {!admin && (
+            <BotaoAcao T={T} ocupado={ocupado} Icon={Trash2} titulo="Pedir exclusão" desc="Vai para aprovação de gerente, diretoria ou dev." cor={RED_DARK} bg={RED_SOFT} confirmaTexto="Toque de novo para enviar o pedido" onConfirmar={pedirExclusao} />
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3.5">
+          <GestaoCampo T={T} label="Nome completo"><input value={f.nome} onChange={(e) => setF((p) => ({ ...p, nome: e.target.value }))} style={inp} className={cls} /></GestaoCampo>
+          <GestaoCampo T={T} label="Cargo no app (nível de acesso)">
+            <select value={f.cargoId} onChange={(e) => setF((p) => ({ ...p, cargoId: e.target.value }))} style={inp} className={cls}>
+              {cargos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              {!cargos.some((c) => String(c.id) === f.cargoId) && <option value={f.cargoId}>{u.cargos?.nome || "atual"}</option>}
+            </select>
+          </GestaoCampo>
+          <GestaoCampo T={T} label="Cargo na loja"><input value={f.cargoLoja} onChange={(e) => setF((p) => ({ ...p, cargoLoja: e.target.value }))} style={inp} className={cls} /></GestaoCampo>
+          <GestaoCampo T={T} label="Setor"><input value={f.setor} onChange={(e) => setF((p) => ({ ...p, setor: e.target.value }))} style={inp} className={cls} /></GestaoCampo>
+          <GestaoCampo T={T} label="Telefone"><input value={f.telefone} onChange={(e) => setF((p) => ({ ...p, telefone: e.target.value }))} inputMode="tel" style={inp} className={cls} /></GestaoCampo>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            <button onClick={() => setModo("menu")} style={{ background: T.chipBg, color: T.text }} className="py-3 rounded-2xl text-sm font-bold">Voltar</button>
+            <button onClick={salvar} disabled={ocupado} style={{ background: BLUE, color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2">{ocupado && <Loader2 size={15} className="animate-spin" />} Salvar</button>
+          </div>
+        </div>
+      )}
+    </GestaoSheet>
+  );
+}
+
+const statusConvite = (c, T) =>
+  c.revogado ? { id: "cancelado", label: "Cancelado", bg: RED_SOFT, color: RED_DARK } :
+  c.pausado ? { id: "pausado", label: "Pausado", bg: "#FCF0DD", color: "#C2760C" } :
+  new Date(c.expira_em) <= new Date() ? { id: "expirado", label: "Expirado", bg: T.chipBg, color: T.subtext } :
+  { id: "ativo", label: "Ativo", bg: "#E6F7ED", color: "#1F9D55" };
+
+function PromotoresLista({ T, convites, termo, onAbrir }) {
+  if (convites === null) return <div className="text-center py-12"><Loader2 size={22} className="animate-spin mx-auto" color={T.subtext} /></div>;
+  const lista = convites.filter((c) => !termo || (c.nome || "").toLowerCase().includes(termo) || (c.marca || "").toLowerCase().includes(termo));
+  if (lista.length === 0) return (
+    <div style={{ background: T.card, borderColor: T.border }} className="rounded-3xl border p-8 text-center">
+      <p className="font-bold text-sm">Nenhum promotor nessa loja</p>
+      <p style={{ color: T.subtext }} className="text-xs mt-1">Gere um link no menu "Convites de promotor". Eles aparecem aqui pra você pausar, bloquear ou excluir.</p>
+    </div>
+  );
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
+      {lista.map((c) => {
+        const st = statusConvite(c, T);
+        return (
+          <div key={c.id} style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3.5 flex items-center gap-3">
+            <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-11 w-11 rounded-full flex items-center justify-center shrink-0"><Ticket size={18} /></div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold truncate">{c.nome}</p>
+              <p style={{ color: T.subtext }} className="text-[11px] truncate">{c.marca} · {st.id === "expirado" ? "venceu" : "vale até"} {formatarDataHoraExtenso(c.expira_em)}</p>
+              <p style={{ color: T.subtext }} className="text-[10.5px] mt-0.5">{c.usos ? `${c.usos} abertura(s) · ${tempoDesde(c.ultimo_uso)}` : "ainda não aberto"}</p>
+            </div>
+            <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>
+            <button onClick={() => onAbrir(c)} aria-label={`Ações de ${c.nome}`} style={{ background: T.chipBg, color: T.text }} className="h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-lg font-bold leading-none">⋯</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AcoesConviteSheet({ T, c, showToast, onClose, onFeito }) {
+  const [ocupado, setOcupado] = useState(false);
+  const st = statusConvite(c, T);
+  async function executar(fn, msgOk) {
+    setOcupado(true); const { error } = await fn(); setOcupado(false);
+    if (error) { console.error(error); showToast(erroAcao(error), "warn"); return; }
+    showToast(msgOk); onFeito();
+  }
+  async function copiar() {
+    try { await navigator.clipboard.writeText(linkDoConvite(c.token)); showToast("Link copiado."); } catch { showToast("Não deu pra copiar.", "warn"); }
+  }
+  return (
+    <GestaoSheet T={T} title={c.nome} subtitle={`${c.marca} · ${st.label}`} onClose={onClose}>
+      <div className="flex flex-col gap-2.5">
+        {st.id === "ativo" && (
+          <button onClick={copiar} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left"><Copy size={18} /><span className="text-sm font-bold">Copiar link do convite</span></button>
+        )}
+        {!c.revogado && (
+          <BotaoAcao T={T} ocupado={ocupado} Icon={c.pausado ? Check : Clock} titulo={c.pausado ? "Retomar convite" : "Pausar convite"}
+            desc={c.pausado ? "Devolve o acesso ao promotor." : "Suspende o acesso por enquanto. Dá pra retomar depois."} cor={c.pausado ? "#1F9D55" : "#C2760C"} bg={c.pausado ? "#E6F7ED" : "#FCF0DD"}
+            confirmaTexto={c.pausado ? "Toque de novo para retomar" : "Toque de novo para pausar"} onConfirmar={() => executar(() => supabase.rpc("pausar_convite", { p_id: c.id, p_pausar: !c.pausado }), c.pausado ? "Convite retomado." : "Convite pausado.")} />
+        )}
+        {!c.revogado && (
+          <BotaoAcao T={T} ocupado={ocupado} Icon={Lock} titulo="Bloquear de vez" desc="Cancela o link e derruba quem entrou por ele. Não volta." cor="#C98A0C" bg="#FCF0DD"
+            confirmaTexto="Toque de novo para bloquear" onConfirmar={() => executar(() => supabase.rpc("revogar_convite", { p_id: c.id }), "Convite bloqueado.")} />
+        )}
+        <BotaoAcao T={T} ocupado={ocupado} Icon={Trash2} titulo="Excluir convite" desc="Apaga o convite e o acesso do promotor." cor={RED_DARK} bg={RED_SOFT}
+          confirmaTexto="Toque de novo para EXCLUIR" onConfirmar={() => executar(() => supabase.rpc("excluir_convite", { p_id: c.id }), "Convite excluído.")} />
+      </div>
+    </GestaoSheet>
+  );
+}
+
+function PedidosExclusaoLista({ T, pedidos, meuId, nivelUsuario, onResolver }) {
+  if (pedidos === null) return <div className="text-center py-12"><Loader2 size={22} className="animate-spin mx-auto" color={T.subtext} /></div>;
+  if (pedidos.length === 0) return (
+    <div style={{ background: T.card, borderColor: T.border }} className="rounded-3xl border p-8 text-center">
+      <p className="font-bold text-sm">Nenhum pedido de exclusão pendente</p>
+      <p style={{ color: T.subtext }} className="text-xs mt-1">Quando um encarregado pedir pra excluir alguém, o pedido aparece aqui pra gerente, diretoria ou dev aprovar.</p>
+    </div>
+  );
+  const podeAprovar = nivelUsuario != null && nivelUsuario <= 4;
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+      {pedidos.map((pd) => (
+        <div key={pd.id} style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3.5 flex flex-col gap-2.5">
+          <div>
+            <p className="text-sm font-bold">Excluir {pd.nome}</p>
+            <p style={{ color: T.subtext }} className="text-[11px]">{pd.matricula ? `Mat. ${pd.matricula} · ` : ""}{pd.cargo_nome || "—"}</p>
+            <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">Pedido por {pd.solicitante_nome || "—"} · {tempoDesde(pd.criado_em)}</p>
+          </div>
+          {podeAprovar && pd.solicitante_id !== meuId ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => onResolver(pd, false)} style={{ background: T.chipBg, color: T.text }} className="py-2.5 rounded-xl text-xs font-bold">Recusar</button>
+              <BotaoAcao T={T} Icon={Trash2} titulo="Aprovar" cor={RED_DARK} bg={RED_SOFT} confirmaTexto="Confirmar exclusão" onConfirmar={() => onResolver(pd, true)} />
+            </div>
+          ) : (
+            <p style={{ color: "#C2760C" }} className="text-[11px] font-semibold">{pd.solicitante_id === meuId ? "Aguardando um gerente, a diretoria ou o dev aprovar." : "Só gerente, diretoria ou dev aprovam."}</p>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -4868,7 +5098,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
   async function carregar() {
     if (!lojaAtiva?.id) return;
     const { data, error } = await supabase.from("convites_promotor")
-      .select("id, token, nome, marca, expira_em, criado_em, revogado, usos, ultimo_uso")
+      .select("id, token, nome, marca, expira_em, criado_em, revogado, pausado, usos, ultimo_uso")
       .eq("loja_id", lojaAtiva.id).order("criado_em", { ascending: false }).limit(100);
     if (error) { console.error(error); showToast("Erro ao carregar convites.", "warn"); setConvites([]); return; }
     setConvites(data || []);
@@ -4914,6 +5144,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
 
   const statusDe = (c) =>
     c.revogado ? { label: "Cancelado", bg: RED_SOFT, color: RED_DARK } :
+    c.pausado ? { label: "Pausado", bg: "#FCF0DD", color: "#C2760C" } :
     new Date(c.expira_em) <= new Date() ? { label: "Expirado", bg: T.chipBg, color: T.subtext } :
     { label: "Ativo", bg: "#E6F7ED", color: "#1F9D55" };
   const inputCls = "border rounded-xl px-3 py-2.5 text-sm outline-none w-full";
