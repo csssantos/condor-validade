@@ -404,66 +404,17 @@ function registrarAuditoria(usuario, acao, detalhe, barcode) {
     .then(({ error }) => { if (error) console.error("Erro ao registrar auditoria:", error); });
 }
 
-// Item 44: ronda de validade
+// Rondas (modelo novo: ver supabase-ronda.sql). Mantém o formato antigo para os painéis/relatórios que já leem `rondas`.
 async function supaFetchRondas() {
-  const { data, error } = await supabase.from("rondas").select("*").eq("loja_id", LOJA_ID_ATIVA).order("iniciado_em", { ascending: false }).limit(200);
+  const { data, error } = await supabase.from("rondas").select("*").eq("loja_id", LOJA_ID_ATIVA).neq("status", "cancelada").order("criado_em", { ascending: false }).limit(200);
   if (error) { console.error(error); return []; }
+  const mapaStatus = { finalizada: "concluida", encerrada_antecipada: "parcial", agendada: "pendente", aguardando_inicio: "pendente" };
   return (data || []).map((r) => ({
-    id: r.id, setor: r.setor, titulo: r.titulo || `Verificação de Validade — ${r.setor}`, status: r.status || "concluida",
-    iniciadoEm: r.iniciado_em, finalizadoEm: r.finalizado_em, usuario: r.usuario, finalizadoPor: r.finalizado_por,
-    totalVerificado: r.total_verificado, okCount: r.ok_count, proximoCount: r.proximo_count,
+    id: r.id, setor: r.setor, titulo: r.titulo || `Ronda — ${r.setor}`, status: mapaStatus[r.status] || r.status || "concluida",
+    iniciadoEm: r.iniciado_em || r.criado_em, finalizadoEm: r.finalizado_em, usuario: r.criado_por_nome || r.usuario, finalizadoPor: r.encerrada_por_nome || r.finalizado_por || r.criado_por_nome,
+    totalVerificado: r.total_itens || r.total_verificado || 0, okCount: r.ok_count, proximoCount: r.proximo_count,
     vencidoCount: r.vencido_count, naoEncontradoCount: r.nao_encontrado_count
   }));
-}
-// Cria a ronda já no início (status em_andamento), pra ter um id estável desde o começo — permite retomar depois.
-async function supaCriarRonda(ronda) {
-  const { data, error } = await supabase.from("rondas").insert({
-    setor: ronda.setor, loja_id: LOJA_ID_ATIVA, titulo: ronda.titulo || null, status: "em_andamento", iniciado_em: ronda.iniciadoEm, usuario: ronda.usuario,
-    total_verificado: 0, ok_count: 0, proximo_count: 0, vencido_count: 0, nao_encontrado_count: 0
-  }).select("id").single();
-  if (error) { console.error("Erro ao criar ronda:", error); return null; }
-  return data?.id || null;
-}
-async function supaAtualizarRonda(rondaId, patch) {
-  if (!rondaId) return;
-  const { error } = await supabase.from("rondas").update({
-    titulo: patch.titulo, status: patch.status, finalizado_em: patch.finalizadoEm, finalizado_por: patch.finalizadoPor,
-    total_verificado: patch.totalVerificado, ok_count: patch.okCount, proximo_count: patch.proximoCount,
-    vencido_count: patch.vencidoCount, nao_encontrado_count: patch.naoEncontradoCount
-  }).eq("id", rondaId);
-  if (error) console.error("Erro ao atualizar ronda:", error);
-}
-// Upsert: permite marcar/atualizar itens sem duplicar linha quando a ronda é retomada depois
-async function supaSalvarRondaItens(rondaId, itens, usuarioAtual) {
-  if (!rondaId || !itens?.length) return;
-  const linhas = itens.map((x) => ({
-    ronda_id: rondaId, produto_id: x.item.id, barcode: x.item.barcode, nome: x.item.nome,
-    foto: x.item.foto || null, validade: x.item.validade || null, status_ronda: x.statusRonda || null,
-    conferido_por: x.statusRonda ? (x.conferidoPor || usuarioAtual || null) : null, acao: x.acao || null
-  }));
-  const { error } = await supabase.from("ronda_itens").upsert(linhas, { onConflict: "ronda_id,produto_id" });
-  if (error) console.error("Erro ao salvar itens da ronda:", error);
-}
-async function supaFetchRondaItens(rondaId) {
-  const { data, error } = await supabase.from("ronda_itens").select("*").eq("ronda_id", rondaId).order("criado_em", { ascending: true });
-  if (error) { console.error(error); return []; }
-  return (data || []).map((r) => ({
-    id: r.id, produtoId: r.produto_id, nome: r.nome, foto: r.foto, validade: r.validade,
-    statusRonda: r.status_ronda, barcode: r.barcode, conferidoPor: r.conferido_por, acao: r.acao
-  }));
-}
-// Designação de ronda: encarregado libera uma nova ronda no mesmo dia, pro setor, pra um funcionário específico
-async function supaFetchDesignacoesHoje() {
-  const hoje = new Date().toISOString().slice(0, 10);
-  const { data, error } = await supabase.from("designacoes_ronda").select("*").eq("data", hoje).eq("loja_id", LOJA_ID_ATIVA);
-  if (error) { console.error(error); return []; }
-  return (data || []).map((r) => ({ id: r.id, setor: r.setor, usuarioDesignado: r.usuario_designado, criadoPor: r.criado_por }));
-}
-async function supaCriarDesignacao(setor, usuarioDesignado, criadoPor) {
-  const { error } = await supabase.from("designacoes_ronda").insert({
-    setor, usuario_designado: usuarioDesignado, criado_por: criadoPor, loja_id: LOJA_ID_ATIVA, data: new Date().toISOString().slice(0, 10)
-  });
-  if (error) console.error("Erro ao criar designação:", error);
 }
 async function supaFetchConfigLoja(lojaNumero) {
   if (!lojaNumero) return null;
@@ -1357,10 +1308,7 @@ function AppInner() {
   const [auditoria, setAuditoria] = useState([]);
   const [setoresExtra, setSetoresExtra] = useState([]);
   const [subsetoresExtra, setSubsetoresExtra] = useState([]);
-  const [rondaAtiva, setRondaAtiva] = useState(null);
-  const [confirmarRondaParcial, setConfirmarRondaParcial] = useState(false);
-  const [criandoRonda, setCriandoRonda] = useState(false);
-  const [designacoesHoje, setDesignacoesHoje] = useState([]);
+  const [rondaIntent, setRondaIntent] = useState(null);
   const [notifPermission, setNotifPermission] = useState(
     typeof Notification !== "undefined" ? Notification.permission : "unsupported"
   );
@@ -1535,7 +1483,6 @@ function AppInner() {
       }
       setCatalog(cat); setItems(its); setHistorico(hist);
       supaFetchRondas().then(setRondas);
-      supaFetchDesignacoesHoje().then(setDesignacoesHoje);
       supaFetchAuditoria().then(setAuditoria);
       supaFetchSetoresCustomizados().then(setSetoresExtra);
       supaFetchSubsetoresCustomizados().then(setSubsetoresExtra);
@@ -1739,7 +1686,6 @@ function AppInner() {
     const recarregar = (chave, fn) => { clearTimeout(temporizadores[chave]); temporizadores[chave] = setTimeout(() => { fn(); }, 600); };
     const alvos = [
       ["rondas", () => supaFetchRondas().then(setRondas)],
-      ["designacoes_ronda", () => supaFetchDesignacoesHoje().then(setDesignacoesHoje)],
       ["auditoria", () => supaFetchAuditoria().then(setAuditoria)],
       ["setores_customizados", () => supaFetchSetoresCustomizados().then(setSetoresExtra)],
       ["subsetores_customizados", () => supaFetchSubsetoresCustomizados().then(setSubsetoresExtra)],
@@ -2194,117 +2140,8 @@ function AppInner() {
     showToast("Produto excluído.", "warn");
   }
 
-  // Item 44: ronda de validade — cria a ronda já no início (status em_andamento), com id estável,
-  // pra permitir retomar depois caso fique parcial.
-  async function iniciarRonda(setor, itensDoSetor, tituloBase) {
-    setCriandoRonda(true);
-    const iniciadoEm = new Date().toISOString();
-    const titulo = tituloBase || `Verificação de Validade — ${setor}`;
-    // Cria a ronda no banco ANTES de abrir a tela — evita a corrida em que o usuário conferia tudo
-    // e concluía rápido demais, sem o id da ronda ainda ter chegado (aí nada era salvo de verdade
-    // e a ronda voltava "não conferida" ao reabrir).
-    const rondaId = await supaCriarRonda({ setor, titulo, iniciadoEm, usuario });
-    const itensIniciais = itensDoSetor.map((it) => ({ item: it, statusRonda: null }));
-    setRondaAtiva({
-      setor, titulo, iniciadoEm, itens: itensIniciais,
-      totalItens: itensDoSetor.length, contagemBase: { ok: 0, proximo: 0, vencido: 0, nao_encontrado: 0 },
-      usuarioIniciou: usuario, rondaId, resultado: null
-    });
-    if (rondaId) {
-      await supaSalvarRondaItens(rondaId, itensIniciais, usuario);
-      setRondas((prev) => [{ id: rondaId, setor, titulo, status: "em_andamento", iniciadoEm, usuario, finalizadoEm: null, finalizadoPor: null, totalVerificado: 0, okCount: 0, proximoCount: 0, vencidoCount: 0, naoEncontradoCount: 0 }, ...prev]);
-    } else {
-      showToast("Não deu pra criar a ronda agora — verifique a conexão e tente de novo.", "erro");
-    }
-    setCriandoRonda(false);
-  }
-  // Retomar uma ronda parcial no mesmo dia — carrega só os itens que ainda faltam conferir
-  async function retomarRonda(rondaOriginal) {
-    const todosItens = await supaFetchRondaItens(rondaOriginal.id);
-    const pendentes = todosItens.filter((x) => !x.statusRonda);
-    if (pendentes.length === 0) { showToast("Todos os itens dessa ronda já foram conferidos.", "ok"); return; }
-    const contagemBase = { ok: 0, proximo: 0, vencido: 0, nao_encontrado: 0 };
-    todosItens.forEach((x) => { if (x.statusRonda) contagemBase[x.statusRonda]++; });
-    setRondaAtiva({
-      setor: rondaOriginal.setor, titulo: rondaOriginal.titulo, iniciadoEm: rondaOriginal.iniciadoEm,
-      itens: pendentes.map((x) => ({ item: { id: x.produtoId, nome: x.nome, foto: x.foto, validade: x.validade, barcode: x.barcode }, statusRonda: null })),
-      totalItens: todosItens.length, contagemBase, usuarioIniciou: rondaOriginal.usuario, rondaId: rondaOriginal.id, resultado: null, retomando: true
-    });
-  }
-  function renomearRondaAtiva(titulo) {
-    setRondaAtiva((prev) => prev && { ...prev, titulo });
-  }
-  function marcarItemRonda(itemId, statusRonda, extra) {
-    setRondaAtiva((prev) => prev && { ...prev, itens: prev.itens.map((x) => (x.item.id === itemId ? { ...x, statusRonda, ...(extra || {}) } : x)) });
-  }
-  // Durante a ronda: atualiza a validade (e opcionalmente a ação) de um item específico, refletindo no produto real também.
-  function atualizarValidadeItemNaRonda(itemId, novaValidade, acao) {
-    if (itemId && !String(itemId).startsWith("catalogo-")) {
-      setItems((prev) => prev.map((it) => {
-        if (it.id !== itemId) return it;
-        const atualizado = { ...it, validade: novaValidade, atualizadoPor: usuario || null };
-        gravarProduto(atualizado);
-        if (it.validade && novaValidade && it.validade !== novaValidade) {
-          supaRegistrarAlteracaoValidade({ barcode: it.barcode, nome: it.nome, setor: it.setor, validadeAnterior: it.validade, validadeNova: novaValidade, usuario });
-        }
-        return atualizado;
-      }));
-    }
-    setRondaAtiva((prev) => prev && {
-      ...prev,
-      itens: prev.itens.map((x) => (x.item.id === itemId ? { ...x, item: { ...x.item, validade: novaValidade }, acao: acao || x.acao } : x))
-    });
-  }
-  async function concluirRonda(forcarParcial) {
-    if (!rondaAtiva) return;
-    const pendentesSessao = rondaAtiva.itens.filter((x) => !x.statusRonda).length;
-    if (pendentesSessao > 0 && !forcarParcial) {
-      setConfirmarRondaParcial(true);
-      return;
-    }
-    setConfirmarRondaParcial(false);
-    const contagemSessao = { ok: 0, proximo: 0, vencido: 0, nao_encontrado: 0 };
-    rondaAtiva.itens.forEach((x) => { if (x.statusRonda) contagemSessao[x.statusRonda]++; });
-    const base = rondaAtiva.contagemBase || { ok: 0, proximo: 0, vencido: 0, nao_encontrado: 0 };
-    const contagemTotal = {
-      ok: base.ok + contagemSessao.ok, proximo: base.proximo + contagemSessao.proximo,
-      vencido: base.vencido + contagemSessao.vencido, nao_encontrado: base.nao_encontrado + contagemSessao.nao_encontrado
-    };
-    const totalConferido = contagemTotal.ok + contagemTotal.proximo + contagemTotal.vencido + contagemTotal.nao_encontrado;
-    const totalItens = rondaAtiva.totalItens || rondaAtiva.itens.length;
-    const status = totalConferido < totalItens ? "parcial" : "concluida";
-    const finalizadoEm = new Date().toISOString();
-    const patch = {
-      titulo: rondaAtiva.titulo, status, finalizadoEm, finalizadoPor: usuario || null,
-      totalVerificado: totalItens, okCount: contagemTotal.ok, proximoCount: contagemTotal.proximo,
-      vencidoCount: contagemTotal.vencido, naoEncontradoCount: contagemTotal.nao_encontrado
-    };
-    if (rondaAtiva.rondaId) {
-      await supaAtualizarRonda(rondaAtiva.rondaId, patch);
-      await supaSalvarRondaItens(rondaAtiva.rondaId, rondaAtiva.itens, usuario);
-    }
-    setRondas((prev) => {
-      const outros = prev.filter((r) => r.id !== rondaAtiva.rondaId);
-      return [{ id: rondaAtiva.rondaId || `temp-${Date.now()}`, setor: rondaAtiva.setor, usuario: rondaAtiva.usuarioIniciou, iniciadoEm: rondaAtiva.iniciadoEm, ...patch }, ...outros];
-    });
-    logAuditoria(usuario, status === "parcial" ? "concluiu ronda parcial" : "concluiu ronda", `${rondaAtiva.setor} — ${totalConferido} de ${totalItens} verificados`);
-    setRondaAtiva((prev) => prev && { ...prev, resultado: contagemTotal, statusFinal: status });
-  }
-  // Encarregado designa uma nova ronda no mesmo dia pro setor, liberada só pro funcionário indicado
-  async function designarNovaRonda(setor, usuarioDesignado, matriculaDesignada) {
-    await supaCriarDesignacao(setor, usuarioDesignado, usuario);
-    setDesignacoesHoje((prev) => [...prev, { id: `temp-${Date.now()}`, setor, usuarioDesignado, criadoPor: usuario }]);
-    logAuditoria(usuario, "designou nova ronda", `${setor} — pra ${usuarioDesignado}`);
-    // Notifica só a pessoa designada (não a loja toda) — usa a matrícula como alvo, já que o nome
-    // pode ter variação de acento/maiúscula.
-    if (matriculaDesignada) {
-      supaEnviarAviso({
-        titulo: "Nova ronda pra você", mensagem: `Você foi designado(a) pra fazer a ronda de ${setor} hoje.`,
-        tipo: "info", criadoPor: usuario, alvoTipo: "usuarios", alvoUsuarios: [matriculaDesignada]
-      });
-    }
-    showToast(`Nova ronda liberada pra ${usuarioDesignado} em ${setor} hoje.`, "ok");
-  }
+  // Ronda: criar é sempre pela aba Rondas (validação de cargo/setor no banco). Os botões de setor só abrem a tela já com o setor escolhido.
+  function iniciarRonda(setor) { setRondaIntent({ novaSetor: setor || null }); setSetorAtivo(null); setFlow(null); setTab("rondas"); }
 
   async function compartilharItem(item) {
     const st = getStatus(item);
@@ -2487,21 +2324,20 @@ function AppInner() {
             onVerPrioridades={() => setFlow("prioridade")} />
         )}
         {flow === null && tab === "setores" && !setorAtivo && (
-          <SetoresView T={T} items={items} catalog={catalog} rondas={rondas} onIniciarRonda={iniciarRonda}
+          <SetoresView T={T} items={items} catalog={catalog} rondas={rondas}
             onOpenDetail={setDetalheItem} onLancarValidade={ehDesktop ? null : lancarValidadeDoCadastro} onAbrirSetor={setSetorAtivo} />
         )}
         {flow === null && tab === "setores" && setorAtivo && (
           <SetorDetalheView T={T} setor={setorAtivo} items={items} catalog={catalog} rondas={rondas}
-            onVoltar={() => setSetorAtivo(null)} onIniciarRonda={iniciarRonda} onRetomarRonda={retomarRonda} onOpenDetail={setDetalheItem}
+            onVoltar={() => setSetorAtivo(null)} onIniciarRonda={iniciarRonda} onOpenDetail={setDetalheItem}
             onLancarValidade={ehDesktop ? null : lancarValidadeDoCadastro} onCadastrarNoSetor={ehDesktop ? null : (s) => abrirCadastroDireto(s)}
-            onExcluir={excluirProduto} usuario={usuario} ehEncarregado={ehEncarregado}
-            designacoesHoje={designacoesHoje} onDesignarRonda={designarNovaRonda} perfil={perfil} />
+            onExcluir={excluirProduto} usuario={usuario} ehEncarregado={ehEncarregado} perfil={perfil} />
         )}
         {flow === "prioridade" && (
           <PrioridadeInteligenteView T={T} items={items} historico={historico} onOpenDetail={setDetalheItem} />
         )}
         {flow === null && tab === "rondas" && (
-          <RondasView T={T} rondas={rondas} usuario={usuario} lojaNumero={perfil?.lojas?.numero_loja} onIniciarRonda={iniciarRonda} onRetomarRonda={retomarRonda} items={items} catalog={catalog} />
+          <RondasView T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} showToast={showToast} intent={rondaIntent} onIntentUsada={() => setRondaIntent(null)} />
         )}
         {flow === "historico" && <HistoricoView T={T} historico={historico} items={items} usuario={usuario} />}
         {flow === null && (tab === "ajustes" || tab.startsWith("cfg-")) && (
@@ -2532,18 +2368,7 @@ function AppInner() {
           onAplicarPromocao={aplicarPromocao} onExcluir={excluirProduto} />
       )}
 
-      {criandoRonda && !rondaAtiva && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3" style={{ background: "rgba(0,0,0,0.35)" }}>
-          <Loader2 size={28} className="animate-spin" color="#fff" />
-          <p className="text-white text-sm font-medium">Criando ronda…</p>
-        </div>
-      )}
-      {rondaAtiva && (
-        <RondaView T={T} ronda={rondaAtiva} onMarcar={marcarItemRonda} onConcluir={concluirRonda}
-          onCancelar={() => { setRondaAtiva(null); setConfirmarRondaParcial(false); }} onFinalizar={() => setRondaAtiva(null)}
-          onRenomear={renomearRondaAtiva} confirmarParcial={confirmarRondaParcial} onFecharConfirmacao={() => setConfirmarRondaParcial(false)}
-          onAtualizarValidade={atualizarValidadeItemNaRonda} />
-      )}
+      {perfil?.id && <RondaAvisosHost T={T} usuarioId={perfil.id} showToast={showToast} onIrParaRondas={() => { setFlow(null); setSetorAtivo(null); setTab("rondas"); }} />}
 
       {pedirUsuario && <UserNameModal T={T} usuarioAtual={usuario} onSave={definirUsuario} onClose={() => usuario && setPedirUsuario(false)} validando={validandoUsuario} />}
 
@@ -2716,6 +2541,18 @@ function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar })
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-10-30-ronda", data: "30/10/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Ronda nova: você recebe a ronda designada pelo encarregado na hora, confere produto por produto (bipando ou digitando o código) e acompanha o progresso." },
+    { tipo: "adicionado", ate: 7, texto: "Se a internet cair durante a conferência, o app guarda o que você fez e envia sozinho quando a conexão voltar." },
+    { tipo: "adicionado", ate: 7, texto: "Minhas tarefas: ocorrências designadas a você, com iniciar, concluir com foto e acompanhamento da aprovação." },
+    { tipo: "adicionado", ate: 7, texto: "Se a ronda for finalizada ou cancelada pelo encarregado, aparece um aviso imediato na sua tela." },
+    { tipo: "adicionado", ate: 5, texto: "Criar ronda por setor, escolhendo os funcionários do setor, início, prazo e instruções. A lista de produtos é congelada na criação." },
+    { tipo: "adicionado", ate: 5, texto: "Painel da ronda em tempo real (progresso, OK/Atenção/Irregular, último produto) e botão FINALIZAR RONDA com motivo." },
+    { tipo: "adicionado", ate: 5, texto: "Ocorrências com prioridade, prazo e responsável; aprovar ou reprovar tarefas concluídas, com histórico completo." },
+    { tipo: "melhorado", ate: 5, texto: "Encarregado só cria rondas e designa tarefas para o próprio setor; a regra é validada no banco de dados." },
+    { tipo: "adicionado", ate: 4, texto: "Criar rondas para vários setores de uma vez e relatórios de ocorrências por setor, funcionário, categoria e semana." },
+    { tipo: "removido", ate: 7, texto: "Ronda antiga (feita direto pelo celular, sem designação) e o botão de designar nova ronda do dia." },
+  ] },
   { id: "2026-10-30", data: "30/10/2026", itens: [
     { tipo: "adicionado", ate: 7, texto: "Aviso de versão nova em tempo real, com barra de progresso. O app só atualiza depois que você tocar em “Atualizar”." },
     { tipo: "melhorado", ate: 7, texto: "Rondas, auditoria, setores e catálogo agora atualizam sozinhos na tela quando alguém muda algo." },
@@ -3277,7 +3114,7 @@ function SetorDetalheDashboard({ T, setor, itensDoSetor, filtrados, contagens, u
     <div className="hidden lg:block">
       <button onClick={onVoltar} style={{ color: BLUE }} className="flex items-center gap-1.5 text-sm font-semibold mb-3"><ArrowLeft size={15} /> Todos os setores</button>
       <DashPageHeader T={T} title={setor} subtitle={`${itensDoSetor.length} produto(s) · ${estadoRonda.t.toLowerCase()}${ultimaRonda ? ` · última ronda ${tempoDesde(ultimaRonda)}` : ""}`}
-        right={ehEncarregado && concluidaHoje && !parcialHoje ? <button onClick={onDesignar} style={{ background: T.card, borderColor: T.border, color: BLUE }} className="text-xs font-semibold px-3.5 py-2 rounded-xl border flex items-center gap-1.5"><Users2 size={13} /> Designar nova ronda</button> : null} />
+        right={ehEncarregado ? <button onClick={onDesignar} style={{ background: T.card, borderColor: T.border, color: BLUE }} className="text-xs font-semibold px-3.5 py-2 rounded-xl border flex items-center gap-1.5"><ShieldCheck size={13} /> Criar ronda deste setor</button> : null} />
       <div className="grid grid-cols-4 gap-4 mb-5">
         <DashKpi T={T} label="Vencidos" value={contagens.vencido} sub="retirar da área de venda" Icon={AlertTriangle} accent={RED_DARK} />
         <DashKpi T={T} label="Em alerta" value={contagens.alerta} sub="agir antes de vencer" Icon={ClockIcon} accent={RED} />
@@ -3322,21 +3159,13 @@ function SetorDetalheDashboard({ T, setor, itensDoSetor, filtrados, contagens, u
   );
 }
 
-function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onIniciarRonda, onRetomarRonda, onOpenDetail, onLancarValidade, onCadastrarNoSetor, onExcluir, usuario, ehEncarregado, designacoesHoje, onDesignarRonda, perfil }) {
+function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onIniciarRonda, onOpenDetail, onLancarValidade, onCadastrarNoSetor, onExcluir, usuario, ehEncarregado, perfil }) {
   const podeVerValores = useValoresVisiveis();
   const [itemParaExcluir, setItemParaExcluir] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFiltro, setStatusFiltro] = useState("todos"); // todos | alerta | vencido
   const [subsetorFiltro, setSubsetorFiltro] = useState("todos");
   const [ordenarPor, setOrdenarPor] = useState("urgencia"); // urgencia | nome | valor
-  const [designarAberto, setDesignarAberto] = useState(false);
-  const [funcionarioDesignado, setFuncionarioDesignado] = useState(null);
-  const [funcionariosLoja, setFuncionariosLoja] = useState(null);
-  useEffect(() => {
-    if (!designarAberto) return;
-    supaFetchFuncionariosVisiveis(perfil).then((data) => setFuncionariosLoja(data || []));
-  }, [designarAberto]);
-  const [confirmarInicioRonda, setConfirmarInicioRonda] = useState(false);
   const barcodesComItemAtivo = new Set(items.filter((i) => i.setor === setor).map((it) => it.barcode));
 
   const itensDoSetor = useMemo(() => {
@@ -3362,9 +3191,6 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onInicia
   const rondasHoje = rondasDoSetor.filter((r) => isSameDay(r.iniciadoEm, hoje));
   const parcialHoje = rondasHoje.find((r) => r.status === "parcial");
   const concluidaHoje = rondasHoje.find((r) => r.status === "concluida");
-  const designacaoParaMim = (designacoesHoje || []).find((d) => d.setor === setor && d.usuarioDesignado === usuario);
-  // Bloqueia nova ronda só se já teve uma CONCLUÍDA hoje nesse setor — libera de novo se o encarregado designar pra alguém
-  const rondaBloqueada = !!concluidaHoje && !designacaoParaMim && !ehEncarregado;
 
   let filtrados = itensDoSetor.filter((i) => {
     const matchBusca = i.nome.toLowerCase().includes(search.toLowerCase()) || i.barcode.includes(search);
@@ -3398,7 +3224,7 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onInicia
       <SetorDetalheDashboard T={T} setor={setor} itensDoSetor={itensDoSetor} filtrados={filtrados} contagens={contagens} ultimaRonda={ultimaRonda} rondasHoje={rondasHoje}
         parcialHoje={parcialHoje} concluidaHoje={concluidaHoje} search={search} setSearch={setSearch} statusFiltro={statusFiltro} setStatusFiltro={setStatusFiltro}
         subsetorFiltro={subsetorFiltro} setSubsetorFiltro={setSubsetorFiltro} subsetoresDisponiveis={subsetoresDisponiveis} ordenarPor={ordenarPor} setOrdenarPor={setOrdenarPor}
-        onVoltar={onVoltar} onOpenDetail={onOpenDetail} ehEncarregado={ehEncarregado} onDesignar={() => setDesignarAberto(true)} />
+        onVoltar={onVoltar} onOpenDetail={onOpenDetail} ehEncarregado={ehEncarregado} onDesignar={() => onIniciarRonda(setor)} />
       <button onClick={onVoltar} style={{ color: BLUE }} className="flex items-center gap-1.5 text-sm font-medium mb-3 lg:hidden">
         <ArrowLeft size={16} /> Todos os setores
       </button>
@@ -3467,30 +3293,11 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onInicia
         );
       })()}
 
-      {itensDoSetor.some((i) => !i.semValidade) && (
-        <>
-          {parcialHoje ? (
-            <button onClick={() => onRetomarRonda(parcialHoje)} style={{ background: "#FCF0DD", color: "#C2760C" }}
-              className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold py-3 rounded-2xl mb-4">
-              <ShieldCheck size={16} /> Continuar ronda de hoje (parcial)
-            </button>
-          ) : rondaBloqueada ? (
-            <div style={{ background: T.chipBg }} className="rounded-2xl p-3.5 mb-4">
-              <p style={{ color: T.text }} className="text-xs font-semibold mb-1">Ronda já concluída hoje neste setor</p>
-              <p style={{ color: T.subtext }} className="text-[11px] mb-2">Só um encarregado pode liberar uma nova ronda hoje pra um funcionário específico.</p>
-            </div>
-          ) : (
-            <button onClick={() => setConfirmarInicioRonda(true)} style={{ background: BLUE_SOFT, color: BLUE_DARK }}
-              className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold py-3 rounded-2xl mb-4">
-              <ShieldCheck size={16} /> Iniciar ronda deste setor
-            </button>
-          )}
-          {ehEncarregado && concluidaHoje && !parcialHoje && (
-            <button onClick={() => setDesignarAberto(true)} style={{ color: BLUE }} className="w-full text-xs font-semibold -mt-2.5 mb-4 flex items-center justify-center gap-1.5">
-              <Users2 size={13} /> Designar nova ronda pra um funcionário hoje
-            </button>
-          )}
-        </>
+      {ehEncarregado && itensDoSetor.length > 0 && (
+        <button onClick={() => onIniciarRonda(setor)} style={{ background: BLUE_SOFT, color: BLUE_DARK }}
+          className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold py-3 rounded-2xl mb-4">
+          <ShieldCheck size={16} /> Criar ronda deste setor
+        </button>
       )}
 
       </aside>
@@ -3549,523 +3356,1172 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onInicia
         <ExcluirProdutoSheet T={T} item={itemParaExcluir} onCancel={() => setItemParaExcluir(null)}
           onConfirmar={(motivo) => { onExcluir(itemParaExcluir, motivo); setItemParaExcluir(null); }} />
       )}
-
-      {/* Confirmação antes de iniciar a ronda */}
-      <AnimatePresence>
-        {confirmarInicioRonda && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-black/50 flex items-end sm:items-center justify-center p-4">
-            <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
-              style={{ background: T.card }} className="w-full max-w-sm rounded-[26px] p-5">
-              <div style={{ background: BLUE_SOFT }} className="h-12 w-12 rounded-2xl flex items-center justify-center mb-3">
-                <ShieldCheck size={22} style={{ color: BLUE }} />
-              </div>
-              <h3 className="font-bold text-base mb-1.5">Iniciar ronda em {setor}?</h3>
-              <p style={{ color: T.subtext }} className="text-xs mb-5">
-                Você vai conferir {itensDoSetor.filter((i) => !i.semValidade).length} produto(s) desse setor, um por um. Pode pausar e retomar depois se precisar.
-              </p>
-              <div className="flex gap-2">
-                <button onClick={() => setConfirmarInicioRonda(false)} style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-3 rounded-2xl border">
-                  Cancelar
-                </button>
-                <button onClick={() => { setConfirmarInicioRonda(false); onIniciarRonda(setor, itensDoSetor.filter((i) => !i.semValidade)); }}
-                  style={{ background: BLUE }} className="flex-1 text-sm font-semibold py-3 rounded-2xl text-white">
-                  Iniciar ronda
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Encarregado libera uma nova ronda hoje pra um funcionário específico */}
-      <AnimatePresence>
-        {designarAberto && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-black/50 flex items-end sm:items-center justify-center p-4">
-            <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
-              style={{ background: T.card }} className="w-full max-w-sm rounded-[26px] p-5 max-h-[80vh] overflow-y-auto">
-              <h3 className="font-bold text-base mb-1.5">Designar nova ronda</h3>
-              <p style={{ color: T.subtext }} className="text-xs mb-3">Setor <strong>{setor}</strong> já teve ronda concluída hoje. Escolha pra quem liberar uma nova — a pessoa recebe um aviso na hora.</p>
-              {funcionariosLoja === null ? (
-                <p style={{ color: T.subtext }} className="text-xs py-3 text-center">Carregando equipe...</p>
-              ) : funcionariosLoja.length === 0 ? (
-                <p style={{ color: T.subtext }} className="text-xs py-3 text-center">Nenhum funcionário ativo encontrado nessa loja.</p>
-              ) : (
-                <div className="flex flex-col gap-1.5 mb-4">
-                  {funcionariosLoja.map((f) => (
-                    <button key={f.id} onClick={() => setFuncionarioDesignado(f)}
-                      style={funcionarioDesignado?.id === f.id ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }}
-                      className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium flex items-center justify-between">
-                      {f.nome}
-                      {funcionarioDesignado?.id === f.id && <Check size={15} />}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button onClick={() => { setDesignarAberto(false); setFuncionarioDesignado(null); }} style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-3 rounded-2xl border">
-                  Cancelar
-                </button>
-                <button disabled={!funcionarioDesignado} onClick={() => { onDesignarRonda(setor, funcionarioDesignado.nome, funcionarioDesignado.matricula); setDesignarAberto(false); setFuncionarioDesignado(null); }}
-                  style={{ background: funcionarioDesignado ? BLUE : "#C7CEDA" }} className="flex-1 text-sm font-semibold py-3 rounded-2xl text-white">
-                  Liberar ronda
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
 
-// ============ Ronda de validade (item 44) ============
-function RondaView({ T, ronda, onMarcar, onConcluir, onCancelar, onFinalizar, onRenomear, confirmarParcial, onFecharConfirmacao, onAtualizarValidade }) {
-  const verificados = ronda.itens.filter((x) => x.statusRonda).length;
-  const progresso = ronda.itens.length ? Math.round((verificados / ronda.itens.length) * 100) : 0;
-  const [editandoTitulo, setEditandoTitulo] = useState(false);
-  const [itemExpandido, setItemExpandido] = useState(null);
-  const [rascunhoValidade, setRascunhoValidade] = useState("");
-  const [rascunhoAcao, setRascunhoAcao] = useState("");
-  const ACOES = ["Redução de preço", "Remanejamento", "Retirar do estoque", "Aguardar troca com fornecedor", "Outro"];
-  const OPCOES = [
-    { valor: "ok", label: "OK", emoji: "🟢", cor: "#1F9D55", bg: "#E6F7ED" },
-    { valor: "proximo", label: "Próximo", emoji: "🟡", cor: "#C2760C", bg: "#FCF0DD" },
-    { valor: "vencido", label: "Vencido", emoji: "🔴", cor: RED_DARK, bg: RED_SOFT },
-    { valor: "nao_encontrado", label: "Não achei", emoji: "⚫", cor: "#4B5563", bg: "#EEF0F3" }
+// ============================================================================
+// RONDA OPERACIONAL + RONDA INTELIGENTE
+// Tudo que muda dados passa por funções do banco (supabase-ronda.sql), que validam cargo, setor e estado da ronda.
+// A tela só mostra e pede; quem decide é o servidor.
+// ============================================================================
+const RONDA_STATUS = {
+  agendada: { label: "Agendada", bg: "#EAF1FB", color: BLUE },
+  aguardando_inicio: { label: "Aguardando início", bg: "#FCF0DD", color: "#C2760C" },
+  em_andamento: { label: "Em andamento", bg: "#E6F0FF", color: "#1F5FBF" },
+  finalizada: { label: "Finalizada", bg: "#E6F7ED", color: "#1F9D55" },
+  encerrada_antecipada: { label: "Encerrada antecipadamente", bg: RED_SOFT, color: RED_DARK },
+  cancelada: { label: "Cancelada", bg: "#EEF0F3", color: "#4B5563" },
+};
+const RONDA_RESULTADO = {
+  pendente: { label: "Não conferido", bg: "#EEF0F3", color: "#4B5563", emoji: "⚪" },
+  ok: { label: "OK", bg: "#E6F7ED", color: "#1F9D55", emoji: "🟢" },
+  atencao: { label: "Atenção", bg: "#FCF0DD", color: "#C2760C", emoji: "🟡" },
+  irregular: { label: "Irregular", bg: RED_SOFT, color: RED_DARK, emoji: "🔴" },
+};
+const MOTIVOS_ENCERRAMENTO = ["Necessidade operacional", "Troca de funcionário", "Erro na definição da ronda", "Interrupção da atividade", "Solicitação da gerência", "Outros"];
+const CATEGORIAS_OCORRENCIA = [
+  { id: "validade", label: "Validade" }, { id: "precificacao", label: "Precificação" }, { id: "abastecimento", label: "Abastecimento" },
+  { id: "organizacao", label: "Organização" }, { id: "limpeza", label: "Limpeza" }, { id: "ruptura", label: "Ruptura" },
+  { id: "exposicao", label: "Exposição" }, { id: "outros", label: "Outros" },
+];
+const PRIORIDADES = [
+  { id: "baixa", label: "Baixa", color: "#4B5563", bg: "#EEF0F3" }, { id: "media", label: "Média", color: "#1F5FBF", bg: "#E6F0FF" },
+  { id: "alta", label: "Alta", color: "#C2760C", bg: "#FCF0DD" }, { id: "urgente", label: "Urgente", color: RED_DARK, bg: RED_SOFT },
+];
+const OCORRENCIA_STATUS = {
+  rascunho: { label: "Rascunho", bg: "#EEF0F3", color: "#4B5563" },
+  pendente: { label: "Pendente", bg: "#EEF0F3", color: "#4B5563" },
+  em_andamento: { label: "Em andamento", bg: "#E6F0FF", color: "#1F5FBF" },
+  aguardando_aprovacao: { label: "Aguardando aprovação", bg: "#F1E9FB", color: "#6B3FB0" },
+  concluida: { label: "Concluída", bg: "#E6F7ED", color: "#1F9D55" },
+  reprovada: { label: "Reprovada · corrigir", bg: RED_SOFT, color: RED_DARK },
+};
+const EVENTO_TEXTO = {
+  criada: "Criada", designada: "Designada", prazo_alterado: "Prazo alterado", status: "Status alterado",
+  concluida_pelo_funcionario: "Concluída pelo funcionário", aprovada: "Aprovada", reprovada: "Reprovada",
+};
+
+function erroRonda(error) {
+  const m = (error?.message || "").toString();
+  const mapa = [
+    ["sem_permissao", "Você não tem permissão para isso."],
+    ["setor_nao_permitido", "Você só pode agir no setor pelo qual é responsável."],
+    ["participante_fora_do_setor", "Esse funcionário não é do seu setor."],
+    ["participante_invalido", "Funcionário inválido ou inativo."],
+    ["participante_obrigatorio", "Escolha pelo menos um funcionário."],
+    ["responsavel_fora_do_setor", "Esse funcionário não é do setor da ocorrência."],
+    ["responsavel_invalido", "Responsável inválido ou inativo."],
+    ["responsavel_obrigatorio", "Escolha o funcionário responsável."],
+    ["responsavel_e_prazo_obrigatorios", "Escolha o responsável e o prazo."],
+    ["prazo_obrigatorio", "Defina o prazo."],
+    ["prazo_invalido", "O prazo precisa ser depois do início."],
+    ["varios_setores_so_gerencia", "Só a gerência pode criar ronda de vários setores."],
+    ["setor_sem_produtos", "Esse setor não tem produtos cadastrados."],
+    ["setor_obrigatorio", "Escolha o setor."],
+    ["ronda_encerrada", "Essa ronda já foi encerrada. Nada mais pode ser registrado nela."],
+    ["ronda_ainda_nao_comecou", "Essa ronda ainda não chegou no horário de início."],
+    ["ronda_ja_iniciada", "Essa ronda já começou, então não dá pra cancelar. Use Finalizar."],
+    ["ronda_nao_esta_em_andamento", "Essa ronda não está em andamento."],
+    ["ja_conferido", "Esse produto já foi conferido."],
+    ["item_fora_da_ronda", "Esse produto não faz parte desta ronda."],
+    ["validade_obrigatoria", "Informe a validade encontrada."],
+    ["validade_incompativel", "A validade informada já venceu. Marque como Irregular."],
+    ["irregular_exige_obs", "Para marcar como irregular, escreva uma observação ou anexe uma foto."],
+    ["motivo_obrigatorio", "Informe o motivo."],
+    ["justificativa_obrigatoria", "Escreva a justificativa da reprovação."],
+    ["nao_pode_aprovar_propria", "Você não pode aprovar a própria tarefa."],
+    ["tarefa_ja_concluida", "Essa tarefa já foi concluída."],
+    ["status_invalido", "A tarefa não está num estado que permita isso."],
+    ["foto_grande", "A foto ficou grande demais. Tente de novo."],
+    ["descricao_obrigatoria", "Escreva a descrição."],
   ];
-  const hojeISO = new Date().toISOString().slice(0, 10);
-  const amanhaISO = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  for (const [k, v] of mapa) if (m.includes(k)) return v;
+  if (m.includes("does not exist") || m.includes("Could not find the function")) return "Falta rodar o SQL supabase-ronda.sql no Supabase.";
+  return "Não foi possível concluir. Tente de novo.";
+}
+const ehErroDeRede = (error) => !!error && (!navigator.onLine || /failed to fetch|networkerror|load failed|network request failed/i.test(error.message || ""));
 
-  function abrirEditor(x) {
-    setItemExpandido(x.item.id);
-    setRascunhoValidade(x.item.validade || "");
-    setRascunhoAcao(x.acao || "");
-  }
-  function marcarComEditor(item, valor) {
-    onMarcar(item.id, valor);
-    if (valor === "vencido" || valor === "proximo") abrirEditor({ item, acao: "" });
-    else if (itemExpandido === item.id) setItemExpandido(null);
-  }
-  function salvarEditor(itemId) {
-    if (rascunhoValidade) onAtualizarValidade(itemId, rascunhoValidade, rascunhoAcao || null);
-    setItemExpandido(null);
-  }
+const fmtDuracao = (ms) => {
+  if (!ms || ms < 0) return "0min";
+  const min = Math.floor(ms / 60000), h = Math.floor(min / 60);
+  return h > 0 ? `${h}h${String(min % 60).padStart(2, "0")}` : `${min}min`;
+};
+const pctDe = (conf, tot) => (tot ? Math.round((conf * 100) / tot) : 0);
+const paraInputDataHora = (d) => { const x = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return x.toISOString().slice(0, 16); };
+const statusOcorrenciaEfetivo = (o) => {
+  const aberta = ["pendente", "em_andamento", "reprovada"].includes(o.status);
+  if (aberta && o.prazo && new Date(o.prazo) < new Date()) return { chave: "atrasada", label: "Atrasada", bg: RED_SOFT, color: RED_DARK };
+  if (aberta && o.prazo && new Date(o.prazo) - Date.now() < 3 * 3600000) return { chave: o.status, label: OCORRENCIA_STATUS[o.status].label + " · vence logo", bg: "#FEF3E0", color: "#C98A0C" };
+  return { chave: o.status, ...OCORRENCIA_STATUS[o.status] };
+};
 
-  if (ronda.resultado) {
-    const r = ronda.resultado;
-    const parcial = ronda.statusFinal === "parcial";
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6" style={{ background: T.bg }}>
-        <div style={{ background: parcial ? "#E0921C" : "#1F9D55" }} className="h-16 w-16 rounded-full flex items-center justify-center mb-4">
-          {parcial ? <ExclamationTriangleIcon className="w-7 h-7 text-white" /> : <Check size={30} color="#fff" />}
-        </div>
-        <h2 className="font-bold text-lg text-center">{ronda.titulo || `Ronda de ${ronda.setor}`} {parcial ? "concluída parcialmente" : "concluída"}</h2>
-        <p style={{ color: T.subtext }} className="text-xs text-center mt-1 mb-6">
-          {parcial ? `${verificados} de ${ronda.itens.length} produto(s) verificados` : `${ronda.itens.length} produto(s) verificados`}
-        </p>
-        <div className="grid grid-cols-2 gap-2.5 w-full max-w-xs mb-8">
-          <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3 text-center">
-            <p className="text-xl font-extrabold">🟢 {r.ok}</p><p style={{ color: T.subtext }} className="text-[10px]">OK</p>
-          </div>
-          <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3 text-center">
-            <p className="text-xl font-extrabold">🟡 {r.proximo}</p><p style={{ color: T.subtext }} className="text-[10px]">Próximos</p>
-          </div>
-          <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3 text-center">
-            <p className="text-xl font-extrabold">🔴 {r.vencido}</p><p style={{ color: T.subtext }} className="text-[10px]">Vencidos</p>
-          </div>
-          <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3 text-center">
-            <p className="text-xl font-extrabold">⚫ {r.nao_encontrado}</p><p style={{ color: T.subtext }} className="text-[10px]">Não achados</p>
-          </div>
-        </div>
-        <button onClick={onFinalizar} style={{ background: BLUE, color: "#fff" }} className="w-full max-w-xs py-3.5 rounded-2xl text-sm font-semibold">Voltar aos setores</button>
-      </div>
-    );
+// ---------- carga da equipe do setor (para escolher participantes/responsáveis) ----------
+async function carregarEquipeLoja(lojaId) {
+  if (!lojaId) return [];
+  const { data, error } = await supabase.from("usuarios").select("id, nome, setor, cargo_nome_loja, cargos(nome, nivel)")
+    .eq("loja_id", lojaId).eq("ativo", true).eq("promotor", false).order("nome");
+  if (error) { console.error(error); return []; }
+  return data || [];
+}
+
+// ---------- hook: uma ronda ao vivo (dados + realtime + reconexão) ----------
+function useRondaAoVivo(rondaId) {
+  const [ronda, setRonda] = useState(null);
+  const [itens, setItens] = useState(null);
+  const [conectado, setConectado] = useState(true);
+  const [atualizadoEm, setAtualizadoEm] = useState(null);
+  const carregar = useCallback(async () => {
+    if (!rondaId) return;
+    const [r, i] = await Promise.all([
+      supabase.from("rondas").select("*, ronda_participantes(usuario_id, nome)").eq("id", rondaId).maybeSingle(),
+      supabase.from("ronda_itens").select("*").eq("ronda_id", rondaId).order("nome"),
+    ]);
+    if (!r.error && r.data) setRonda(r.data);
+    if (!i.error && i.data) {
+      // não deixa um recarregamento apagar uma conferência que ainda está na fila de envio
+      setItens((prev) => i.data.map((x) => { const p = prev?.find((y) => y.id === x.id); return p?._pendente && x.resultado === "pendente" ? p : x; }));
+    }
+    setAtualizadoEm(new Date().toISOString());
+  }, [rondaId]);
+  useEffect(() => {
+    if (!rondaId) return;
+    setRonda(null); setItens(null);
+    carregar();
+    const canal = supabase.channel(`ronda-${rondaId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rondas", filter: `id=eq.${rondaId}` },
+        (p) => { setRonda((prev) => ({ ...(prev || {}), ...p.new })); setAtualizadoEm(new Date().toISOString()); })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "ronda_itens", filter: `ronda_id=eq.${rondaId}` },
+        (p) => { setItens((prev) => (prev ? prev.map((x) => (x.id === p.new.id && (p.new.versao ?? 0) >= (x.versao ?? 0) ? { ...x, ...p.new, _pendente: false } : x)) : prev)); setAtualizadoEm(new Date().toISOString()); })
+      .subscribe((st) => {
+        if (st === "SUBSCRIBED") { setConectado(true); carregar(); }
+        else if (st === "CHANNEL_ERROR" || st === "TIMED_OUT" || st === "CLOSED") setConectado(false);
+      });
+    const recarregar = () => { if (document.visibilityState !== "hidden") carregar(); };
+    window.addEventListener("online", recarregar);
+    document.addEventListener("visibilitychange", recarregar);
+    const t = setInterval(recarregar, 60000); // rede de segurança, além do tempo real
+    return () => { supabase.removeChannel(canal); window.removeEventListener("online", recarregar); document.removeEventListener("visibilitychange", recarregar); clearInterval(t); };
+  }, [rondaId, carregar]);
+  return { ronda, itens, setItens, conectado, atualizadoEm, recarregar: carregar };
+}
+
+// ---------- fila de conferências feitas sem internet (sincroniza sozinha, sem duplicar) ----------
+const FILA_CHAVE = "avdc_ronda_fila";
+const lerFilaRonda = () => { try { return JSON.parse(localStorage.getItem(FILA_CHAVE) || "[]"); } catch { return []; } };
+const gravarFilaRonda = (f) => { try { localStorage.setItem(FILA_CHAVE, JSON.stringify(f)); } catch {} };
+const novoOp = () => (crypto.randomUUID ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => { const r = (Math.random() * 16) | 0; return (c === "x" ? r : (r & 3) | 8).toString(16); }));
+async function enviarConferencia(a) {
+  return supabase.rpc("registrar_conferencia", {
+    p_ronda: a.ronda, p_item: a.item, p_resultado: a.resultado, p_validade: a.validade || null, p_obs: a.obs || null,
+    p_foto: a.foto || null, p_lotes: a.lotes && a.lotes.length ? a.lotes : null, p_corrigir: !!a.corrigir, p_op: a.op,
+  });
+}
+// devolve { enviadas, rejeitadas:[{op,motivo}] }
+async function sincronizarFila(rondaId) {
+  const fila = lerFilaRonda();
+  const resto = [], rejeitadas = []; let enviadas = 0;
+  for (const a of fila) {
+    if (rondaId && a.ronda !== rondaId) { resto.push(a); continue; }
+    const { error } = await enviarConferencia(a);
+    if (!error) { enviadas++; continue; }
+    if (ehErroDeRede(error)) { resto.push(a); continue; }
+    const m = error.message || "";
+    if (m.includes("ja_conferido")) { enviadas++; continue; } // já está no servidor
+    rejeitadas.push({ op: a.op, nome: a.nome, motivo: erroRonda(error) });
   }
+  gravarFilaRonda(resto);
+  return { enviadas, rejeitadas, restantes: resto.length };
+}
 
-  const pendentes = ronda.itens.filter((x) => !x.statusRonda);
-  const marcados = ronda.itens.filter((x) => x.statusRonda);
+// ---------- avisos em tempo real (ronda encerrada, ronda/tarefa designada...) — ficam ativos no app inteiro ----------
+function RondaAvisosHost({ T, usuarioId, onIrParaRondas, showToast }) {
+  const [fila, setFila] = useState([]);
+  const vistos = useRef(new Set());
+  const empilhar = useCallback((a) => {
+    if (!a || vistos.current.has(a.id)) return;
+    vistos.current.add(a.id);
+    if (a.tipo === "encerrada" || a.tipo === "cancelada" || a.tipo === "tarefa_reprovada") setFila((f) => [...f, a]);
+    else {
+      const d = a.dados || {};
+      const msg = a.tipo === "designada" ? `Nova ronda para você: ${d.nome || d.setor}` :
+        a.tipo === "tarefa" ? `Nova tarefa: ${d.descricao || ""}` :
+        a.tipo === "tarefa_aprovada" ? "Sua tarefa foi aprovada." :
+        a.tipo === "tarefa_concluida" ? `${d.por || "Um funcionário"} concluiu uma tarefa para aprovar.` : null;
+      if (msg) showToast(msg);
+      supabase.rpc("marcar_aviso_lido", { p_id: a.id });
+    }
+  }, [showToast]);
+  useEffect(() => {
+    if (!usuarioId) return;
+    let ativo = true;
+    const buscar = async () => {
+      const { data } = await supabase.from("ronda_avisos").select("*").eq("usuario_id", usuarioId).is("lido_em", null).order("criado_em");
+      if (ativo) (data || []).forEach(empilhar);
+    };
+    buscar(); // avisos que chegaram com o app fechado
+    const canal = supabase.channel(`avisos-ronda-${usuarioId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ronda_avisos", filter: `usuario_id=eq.${usuarioId}` }, (p) => empilhar(p.new))
+      .subscribe((st) => { if (st === "SUBSCRIBED") buscar(); });
+    const rec = () => { if (document.visibilityState !== "hidden") buscar(); };
+    window.addEventListener("online", rec); document.addEventListener("visibilitychange", rec);
+    return () => { ativo = false; supabase.removeChannel(canal); window.removeEventListener("online", rec); document.removeEventListener("visibilitychange", rec); };
+  }, [usuarioId, empilhar]);
 
+  const atual = fila[0];
+  if (!atual) return null;
+  const d = atual.dados || {};
+  function confirmar() {
+    supabase.rpc("marcar_aviso_lido", { p_id: atual.id });
+    setFila((f) => f.slice(1));
+    onIrParaRondas();
+  }
+  const encerrada = atual.tipo === "encerrada";
+  const linhas = encerrada ? [
+    ["Ronda", d.nome], ["Setor", d.setor], ["Finalizada por", d.por], ["Cargo", d.cargo], ["Horário", d.quando ? formatarHora(d.quando) : null],
+    ["Progresso no encerramento", d.pct != null ? `${d.pct}%` : null], ["Produtos conferidos", d.total != null ? `${d.conferidos} de ${d.total}` : null], ["Produtos pendentes", d.pendentes],
+  ] : atual.tipo === "cancelada" ? [["Ronda", d.nome], ["Setor", d.setor], ["Cancelada por", d.por]] : [["Tarefa", d.descricao], ["Setor", d.setor], ["Reprovada por", d.por]];
+  const titulo = encerrada ? (d.antecipada === false ? "RONDA FINALIZADA" : "RONDA FINALIZADA") : atual.tipo === "cancelada" ? "RONDA CANCELADA" : "TAREFA REPROVADA";
+  const subtitulo = encerrada ? (d.antecipada === false ? "A ronda foi finalizada pelo responsável." : "Esta ronda foi encerrada pelo encarregado.") :
+    atual.tipo === "cancelada" ? "Esta ronda foi cancelada antes de ser executada." : "O encarregado pediu uma correção.";
+  const motivo = atual.tipo === "tarefa_reprovada" ? d.justificativa : d.motivo;
   return (
-    <div className="fixed inset-0 z-50 flex flex-col lg:inset-y-8 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:w-[60rem] lg:max-w-[calc(100vw-4rem)] lg:rounded-2xl lg:overflow-hidden lg:ring-1 lg:ring-black/10 lg:shadow-[0_0_0_100vmax_rgba(0,0,0,0.5)]" style={{ background: T.bg }}>
-      <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 pt-[calc(env(safe-area-inset-top)+20px)]">
-        <div className="flex items-center justify-between mb-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-white/70 text-[11px] font-medium">RONDA EM ANDAMENTO · {ronda.setor}</p>
-            {editandoTitulo ? (
-              <input autoFocus value={ronda.titulo || ""} onChange={(e) => onRenomear && onRenomear(e.target.value)}
-                onBlur={() => setEditandoTitulo(false)} onKeyDown={(e) => e.key === "Enter" && setEditandoTitulo(false)}
-                className="bg-white/15 text-white font-bold text-lg rounded-lg px-2 py-0.5 -ml-2 w-full outline-none" />
-            ) : (
-              <button onClick={() => onRenomear && setEditandoTitulo(true)} className="text-left">
-                <h2 className="text-white font-bold text-lg truncate">{ronda.titulo || `Verificação de Validade — ${ronda.setor}`}</h2>
-              </button>
-            )}
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }}>
+      <motion.div initial={{ scale: 0.94, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ background: T.card, color: T.text }} className="w-full max-w-md rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div style={{ background: encerrada ? RED_DARK : "#C2760C" }} className="px-5 py-4 rounded-t-3xl flex items-center gap-3">
+          <AlertTriangle size={22} color="#fff" />
+          <div><p className="text-white font-extrabold text-base tracking-wide">{titulo}</p><p className="text-white/85 text-[12px]">{subtitulo}</p></div>
+        </div>
+        <div className="p-5">
+          <div className="flex flex-col gap-1.5">
+            {linhas.filter(([, v]) => v != null && v !== "").map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-3 text-[13px]"><span style={{ color: T.subtext }}>{k}</span><span className="font-semibold text-right">{String(v)}</span></div>
+            ))}
           </div>
-          <button onClick={onCancelar} className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center shrink-0 ml-2"><CloseIcon size={16} color="#fff" /></button>
-        </div>
-        <div className="bg-white/15 rounded-full h-2.5 overflow-hidden">
-          <div style={{ width: `${progresso}%`, background: "#fff" }} className="h-full rounded-full transition-all" />
-        </div>
-        <div className="flex items-center justify-between mt-1.5">
-          <p className="text-white/80 text-[11px]">{verificados} de {ronda.itens.length} verificados ({progresso}%)</p>
-          {pendentes.length > 0 && (
-            <button onClick={() => pendentes.forEach((x) => onMarcar(x.item.id, "ok"))} className="text-white text-[11px] font-semibold underline">
-              Marcar restantes como OK
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2.5 pb-24">
-        {[...pendentes, ...marcados].map((x) => {
-          const { item, statusRonda, acao } = x;
-          const expandido = itemExpandido === item.id;
-          const opSelecionada = OPCOES.find((o) => o.valor === statusRonda);
-          return (
-            <div key={item.id} style={{ background: T.card, borderColor: opSelecionada ? opSelecionada.cor : T.border, borderWidth: opSelecionada ? 1.5 : 1 }}
-              className="rounded-2xl overflow-hidden border shadow-lg shadow-black/5 transition-colors">
-              <button onClick={() => (expandido ? setItemExpandido(null) : abrirEditor(x))} className="flex items-center gap-3 w-full text-left p-3">
-                <div className="relative shrink-0">
-                  <Thumb foto={item.foto} size={46} />
-                  {opSelecionada && (
-                    <span style={{ background: opSelecionada.cor }} className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full flex items-center justify-center text-[9px] shadow">
-                      {opSelecionada.emoji}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{item.nome}</p>
-                  <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">Validade {formatarData(item.validade)}</p>
-                  {acao && <p style={{ color: "#C2760C" }} className="text-[10px] font-semibold mt-0.5">Ação: {acao}</p>}
-                </div>
-                {opSelecionada ? (
-                  <span style={{ background: opSelecionada.bg, color: opSelecionada.cor }} className="text-[9.5px] font-bold px-2 py-1 rounded-full shrink-0">{opSelecionada.label}</span>
-                ) : (
-                  <ChevronRight size={16} style={{ color: T.subtext }} className="shrink-0" />
-                )}
-              </button>
-              <div style={{ borderColor: T.border }} className="grid grid-cols-4 gap-1.5 px-3 pb-3 border-t pt-2.5">
-                {OPCOES.map((o) => {
-                  const selecionado = statusRonda === o.valor;
-                  return (
-                    <button key={o.valor} onClick={() => marcarComEditor(item, o.valor)}
-                      style={selecionado ? { background: o.cor, color: "#fff", borderColor: o.cor } : { background: T.chipBg, color: T.text, borderColor: "transparent" }}
-                      className="text-[10px] font-semibold py-2 rounded-xl flex flex-col items-center gap-0.5 border transition-colors">
-                      <span className="text-sm leading-none">{o.emoji}</span>{o.label}
-                    </button>
-                  );
-                })}
-              </div>
-              {expandido && (
-                <div style={{ borderColor: T.border, background: T.chipBg }} className="px-3 py-3 border-t flex flex-col gap-2">
-                  <div>
-                    <label style={{ color: T.subtext }} className="text-[10px] font-semibold mb-1 block">Lançar/corrigir validade</label>
-                    <input type="date" value={rascunhoValidade} onChange={(e) => setRascunhoValidade(e.target.value)}
-                      max={statusRonda === "vencido" ? hojeISO : undefined} min={statusRonda === "proximo" ? amanhaISO : undefined}
-                      style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2 text-sm outline-none" />
-                    {statusRonda === "vencido" && <p style={{ color: T.subtext }} className="text-[10px] mt-1">Só datas até hoje.</p>}
-                    {statusRonda === "proximo" && <p style={{ color: T.subtext }} className="text-[10px] mt-1">Só datas a partir de amanhã.</p>}
-                  </div>
-                  {(statusRonda === "vencido" || statusRonda === "proximo") && (
-                    <div>
-                      <label style={{ color: T.subtext }} className="text-[10px] font-semibold mb-1 block">Ação</label>
-                      <select value={rascunhoAcao} onChange={(e) => setRascunhoAcao(e.target.value)}
-                        style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2 text-sm outline-none">
-                        <option value="">Selecionar ação</option>
-                        {ACOES.map((a) => <option key={a} value={a}>{a}</option>)}
-                      </select>
-                    </div>
-                  )}
-                  <button onClick={() => salvarEditor(item.id)} disabled={!rascunhoValidade} style={{ background: rascunhoValidade ? BLUE : "#C7CEDA" }}
-                    className="w-full text-white text-xs font-semibold py-2.5 rounded-xl">Salvar</button>
-                </div>
-              )}
+          {motivo && (
+            <div style={{ background: T.chipBg }} className="rounded-2xl p-3 mt-4">
+              <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide mb-1">{atual.tipo === "tarefa_reprovada" ? "Justificativa" : "Motivo do encerramento"}</p>
+              <p className="text-sm font-semibold">{motivo}</p>
+              {d.obs && <p style={{ color: T.subtext }} className="text-[12px] mt-1">{d.obs}</p>}
             </div>
-          );
-        })}
-      </div>
-
-      <div style={{ background: T.card, borderColor: T.border }} className="border-t p-4 shrink-0">
-        <button onClick={() => onConcluir(false)} disabled={verificados === 0}
-          style={{ background: verificados > 0 ? BLUE : "#C7CEDA" }} className="w-full text-white text-sm font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2">
-          <Check size={16} /> Concluir ronda
-        </button>
-      </div>
-
-      <AnimatePresence>
-        {confirmarParcial && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-black/50 flex items-end sm:items-center justify-center p-4">
-            <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
-              style={{ background: T.card }} className="w-full max-w-sm rounded-[26px] p-5">
-              <div style={{ background: "#FCF0DD" }} className="h-12 w-12 rounded-2xl flex items-center justify-center mb-3">
-                <ExclamationTriangleIcon className="w-6 h-6" style={{ color: "#C2760C" }} />
-              </div>
-              <h3 className="font-bold text-base mb-1.5">Nem todos os itens foram conferidos</h3>
-              <p style={{ color: T.subtext }} className="text-xs mb-5">
-                Faltam {ronda.itens.length - verificados} de {ronda.itens.length} produto(s). Se concluir agora, a ronda ficará registrada como <strong>parcial</strong>. Deseja continuar mesmo assim?
-              </p>
-              <div className="flex gap-2">
-                <button onClick={onFecharConfirmacao} style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-3 rounded-2xl border">
-                  Voltar e conferir
-                </button>
-                <button onClick={() => onConcluir(true)} style={{ background: "#E0921C" }} className="flex-1 text-sm font-semibold py-3 rounded-2xl text-white">
-                  Concluir parcial
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ============ Rondas (aba própria: Minhas Rondas / Todas as Rondas) ============
-// ============ Rondas — versão dashboard (PC) ============
-function RondasDashboard({ T, rondas, lista, subaba, setSubaba, STATUS_STYLE, abrirRonda, lojaNumero }) {
-  const cont = (st) => rondas.filter((r) => r.status === st).length;
-  const hojeStr = new Date().toDateString();
-  const hoje = rondas.filter((r) => r.iniciadoEm && new Date(r.iniciadoEm).toDateString() === hojeStr).length;
-  const dias = Array.from({ length: 14 }, (_, k) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (13 - k)); return d; });
-  const serie = dias.map((d) => ({ label: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
-    parts: [
-      { value: rondas.filter((r) => r.status === "concluida" && r.iniciadoEm && new Date(r.iniciadoEm).toDateString() === d.toDateString()).length, color: "#1F9D55" },
-      { value: rondas.filter((r) => r.status !== "concluida" && r.iniciadoEm && new Date(r.iniciadoEm).toDateString() === d.toDateString()).length, color: "#E0921C" }] }));
-  const porSetor = {};
-  rondas.forEach((r) => { porSetor[r.setor] = (porSetor[r.setor] || 0) + 1; });
-  const topSetores = Object.entries(porSetor).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([label, value]) => ({ label, value, color: BLUE }));
-  const cols = [
-    { key: "titulo", label: "Ronda", render: (r) => { const Icone = iconeDoSetor(r.setor); const st = STATUS_STYLE[r.status] || STATUS_STYLE.concluida;
-      return <div className="flex items-center gap-3"><div style={{ background: st.bg }} className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"><Icone size={16} color={st.color} /></div>
-        <div><p className="font-semibold">{r.titulo || `Verificação de Validade — ${r.setor}`}</p><p style={{ color: T.subtext }} className="text-[11px]">Setor {r.setor}</p></div></div>; } },
-    { key: "usuario", label: "Responsável", render: (r) => <span style={{ color: T.subtext }}>{r.usuario || "—"}{r.finalizadoPor && r.finalizadoPor !== r.usuario ? ` → ${r.finalizadoPor}` : ""}</span> },
-    { key: "inicio", label: "Início", render: (r) => <span className="text-xs tabular-nums">{formatarDataHoraExtenso(r.iniciadoEm)}</span> },
-    { key: "res", label: "Resultado", render: (r) => (r.status === "concluida" || r.status === "parcial") ? (
-      <div className="flex gap-1.5"><DashBadge bg="#E6F7ED" color="#1F9D55">OK {r.okCount ?? 0}</DashBadge><DashBadge bg="#FCF0DD" color="#C2760C">Próx. {r.proximoCount ?? 0}</DashBadge><DashBadge bg={RED_SOFT} color={RED_DARK}>Venc. {r.vencidoCount ?? 0}</DashBadge><DashBadge bg="#EEF0F3" color="#4B5563">N/A {r.naoEncontradoCount ?? 0}</DashBadge></div>) : <span style={{ color: T.subtext }}>—</span> },
-    { key: "status", label: "Status", align: "right", render: (r) => { const st = STATUS_STYLE[r.status] || STATUS_STYLE.concluida; return <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>; } },
-  ];
-  return (
-    <div className="hidden lg:block">
-      <DashPageHeader T={T} title="Rondas" subtitle={`Loja ${lojaNumero || "—"} · histórico de verificações de validade`} />
-      <div className="grid grid-cols-4 gap-4 mb-5">
-        <DashKpi T={T} label="Total de rondas" value={rondas.length} sub="registradas" Icon={ClockIcon} accent={BLUE} />
-        <DashKpi T={T} label="Concluídas" value={cont("concluida")} sub="todos os itens conferidos" Icon={ShieldCheck} accent="#1F9D55" />
-        <DashKpi T={T} label="Parciais" value={cont("parcial")} sub="itens sem conferir" Icon={AlertTriangle} accent="#C98A0C" />
-        <DashKpi T={T} label="Rondas hoje" value={hoje} sub="iniciadas hoje" Icon={Boxes} accent={RED} />
-      </div>
-      <div className="grid grid-cols-3 gap-4 mb-5">
-        <DashCard T={T} title="Rondas nos últimos 14 dias" subtitle="Concluídas × parciais/em andamento" className="col-span-2"><DashBars T={T} data={serie} /></DashCard>
-        <DashCard T={T} title="Rondas por setor" subtitle="Setores mais verificados">
-          {topSetores.length ? <DashHBars T={T} data={topSetores} /> : <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Sem rondas ainda.</p>}
-        </DashCard>
-      </div>
-      <DashCard T={T} title="Lista de rondas" subtitle={`${lista.length} ronda(s) — clique para ver os itens`}
-        right={<DashTabs T={T} value={subaba} onChange={setSubaba} options={[{ id: "minhas", label: "Minhas rondas" }, { id: "todas", label: "Todas as rondas" }]} />}>
-        <DashTable T={T} cols={cols} rows={lista} onRow={abrirRonda} empty="Nenhuma ronda registrada." />
-      </DashCard>
-    </div>
-  );
-}
-
-function RondasView({ T, rondas, usuario, lojaNumero, onIniciarRonda, onRetomarRonda, items, catalog }) {
-  const [subaba, setSubaba] = useState("minhas"); // minhas | todas
-  const [rondaSelecionada, setRondaSelecionada] = useState(null);
-  const [itensRonda, setItensRonda] = useState(null);
-  const [carregandoItens, setCarregandoItens] = useState(false);
-  const [filtroDetalhe, setFiltroDetalhe] = useState("conferidos"); // conferidos | pendentes | todos
-
-  const lista = useMemo(() => {
-    const base = subaba === "minhas" ? rondas.filter((r) => r.usuario === usuario || r.finalizadoPor === usuario) : rondas;
-    return [...base].sort((a, b) => new Date(b.iniciadoEm || b.finalizadoEm) - new Date(a.iniciadoEm || a.finalizadoEm));
-  }, [rondas, subaba, usuario]);
-
-  const STATUS_STYLE = {
-    concluida: { bg: "#E6F7ED", color: "#1F9D55", label: "Concluída" },
-    parcial: { bg: "#FCF0DD", color: "#C2760C", label: "Parcial" },
-    em_andamento: { bg: "#FEF3E0", color: "#C98A0C", label: "Em andamento" },
-    pendente: { bg: "#EAF1FB", color: BLUE, label: "Pendente" },
-  };
-
-  async function abrirRonda(r) {
-    setRondaSelecionada(r);
-    setCarregandoItens(true);
-    setFiltroDetalhe("conferidos");
-    const itens = await supaFetchRondaItens(r.id);
-    setItensRonda(itens);
-    setCarregandoItens(false);
-  }
-
-  const TAG_STATUS = {
-    ok: { label: "OK", bg: "#1F9D55" },
-    proximo: { label: "Próximo", bg: "#C98A0C" },
-    vencido: { label: "Vencido", bg: "#A81419" },
-    nao_encontrado: { label: "Não achado", bg: "#4B5563" },
-  };
-
-  return (
-    <div className="px-4 pt-4 pb-4 lg:px-0 lg:pt-0 lg:pb-0">
-      <RondasDashboard T={T} rondas={rondas} lista={lista} subaba={subaba} setSubaba={setSubaba} STATUS_STYLE={STATUS_STYLE} abrirRonda={abrirRonda} lojaNumero={lojaNumero} />
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 75%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5 mb-4 lg:hidden">
-        <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-2">
-          <ClockIconSolid className="w-3.5 h-3.5" /> Rondas · Loja {lojaNumero || "—"}
-        </p>
-        <div className="grid grid-cols-3 divide-x divide-white/15">
-          <div className="text-center">
-            <p className="text-white text-lg font-extrabold leading-none">{rondas.length}</p>
-            <p className="text-white/60 text-[10px] mt-1">Total</p>
-          </div>
-          <div className="text-center">
-            <p className="text-white text-lg font-extrabold leading-none">{rondas.filter((r) => r.status === "concluida").length}</p>
-            <p className="text-white/60 text-[10px] mt-1">Concluídas</p>
-          </div>
-          <div className="text-center">
-            <p className="text-white text-lg font-extrabold leading-none">{rondas.filter((r) => r.status === "parcial").length}</p>
-            <p className="text-white/60 text-[10px] mt-1">Parciais</p>
-          </div>
+          )}
+          <button onClick={confirmar} style={{ background: BLUE, color: "#fff" }} className="w-full mt-5 py-3 rounded-2xl text-sm font-bold">ENTENDI</button>
         </div>
       </motion.div>
+    </div>
+  );
+}
 
-      <div style={{ background: T.chipBg }} className="flex rounded-2xl p-1 mb-4 lg:hidden">
-        <button onClick={() => setSubaba("minhas")} style={subaba === "minhas" ? { background: T.card, color: RED_DARK } : { color: T.subtext }}
-          className="flex-1 text-xs font-semibold py-2 rounded-xl transition">Minhas Rondas</button>
-        <button onClick={() => setSubaba("todas")} style={subaba === "todas" ? { background: T.card, color: RED_DARK } : { color: T.subtext }}
-          className="flex-1 text-xs font-semibold py-2 rounded-xl transition">Todas as Rondas</button>
+
+// ---------- barra de progresso e cartões de contagem reutilizados ----------
+function BarraProgressoRonda({ T, conf, total, cor = BLUE }) {
+  const pct = pctDe(conf, total);
+  return (
+    <div>
+      <div style={{ background: T.chipBg }} className="h-2.5 rounded-full overflow-hidden">
+        <div style={{ background: cor, width: `${pct}%`, transition: "width .5s" }} className="h-full rounded-full" />
+      </div>
+      <p style={{ color: T.subtext }} className="text-[11px] mt-1 tabular-nums">{conf} de {total} conferidos · {pct}%</p>
+    </div>
+  );
+}
+function ContagemRonda({ T, itens }) {
+  const c = { ok: 0, atencao: 0, irregular: 0, pendente: 0 };
+  (itens || []).forEach((x) => { c[x.resultado] = (c[x.resultado] || 0) + 1; });
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {["ok", "atencao", "irregular", "pendente"].map((k) => (
+        <div key={k} style={{ background: RONDA_RESULTADO[k].bg, color: RONDA_RESULTADO[k].color }} className="rounded-xl py-2 text-center">
+          <p className="text-lg font-extrabold leading-none tabular-nums">{c[k]}</p>
+          <p className="text-[9.5px] font-bold mt-1">{RONDA_RESULTADO[k].label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+const casca = "fixed inset-0 z-50 flex flex-col lg:inset-y-8 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:w-[60rem] lg:max-w-[calc(100vw-4rem)] lg:rounded-2xl lg:overflow-hidden lg:shadow-[0_0_0_100vmax_rgba(0,0,0,0.5)]";
+
+// ---------- sheet de conferência de UM produto (a leitura do código nunca aprova sozinha) ----------
+function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
+  const [lotes, setLotes] = useState([{ validade: item.validade_encontrada || "" }]);
+  const [resultado, setResultado] = useState(item.resultado !== "pendente" ? item.resultado : "");
+  const [obs, setObs] = useState(item.observacao || "");
+  const [foto, setFoto] = useState(null);
+  const [enviando, setEnviando] = useState(false);
+  const validades = lotes.map((l) => l.validade).filter(Boolean);
+  const menor = validades.length ? [...validades].sort()[0] : "";
+  const hoje = new Date().toISOString().slice(0, 10);
+  const vencida = !!menor && menor < hoje;
+  const podeOk = !!menor && !vencida;
+  const obsOuFoto = obs.trim().length > 0 || !!foto;
+  const pronto = resultado === "irregular" ? obsOuFoto : (resultado === "ok" || resultado === "atencao") ? podeOk : false;
+  async function pegarFoto(e) {
+    const f = e.target.files?.[0]; if (!f) return;
+    try { setFoto(await compressImage(f, 640, 0.6)); } catch { /* ignora */ }
+  }
+  async function confirmar() {
+    setEnviando(true);
+    await onConfirmar({ resultado, validade: menor || null, lotes: validades.length > 1 ? validades.map((v) => ({ validade: v })) : null, obs: obs.trim() || null, foto, corrigir });
+    setEnviando(false);
+  }
+  const campo = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
+  return (
+    <GestaoSheet T={T} title={item.nome} subtitle={`${item.barcode || "sem código"}${item.subsetor ? ` · ${item.subsetor}` : ""}`} onClose={onClose}>
+      <div className="flex flex-col gap-3.5">
+        <div className="flex items-center gap-3">
+          <Thumb foto={item.foto} size={52} />
+          <div className="text-[12px]" style={{ color: T.subtext }}>
+            <p>Validade no cadastro: <b style={{ color: T.text }}>{item.validade_cadastrada ? formatarData(item.validade_cadastrada) : "não informada"}</b></p>
+            {corrigir && <p style={{ color: "#C2760C" }} className="font-semibold mt-0.5">Correção: a conferência anterior fica guardada no histórico.</p>}
+          </div>
+        </div>
+        <GestaoCampo T={T} label="Validade encontrada" hint="Confira a embalagem e informe a data. Lotes com datas diferentes: adicione mais de uma.">
+          <div className="flex flex-col gap-2">
+            {lotes.map((l, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input type="date" value={l.validade} onChange={(e) => setLotes((p) => p.map((x, j) => (j === i ? { validade: e.target.value } : x)))} style={campo} className="flex-1 border rounded-xl px-3 py-2.5 text-sm outline-none" />
+                {lotes.length > 1 && <button onClick={() => setLotes((p) => p.filter((_, j) => j !== i))} style={{ background: T.chipBg, color: T.subtext }} className="h-10 w-10 rounded-xl flex items-center justify-center"><X size={15} /></button>}
+              </div>
+            ))}
+            {lotes.length < 5 && <button onClick={() => setLotes((p) => [...p, { validade: "" }])} style={{ color: BLUE }} className="text-xs font-semibold text-left">+ outro lote / outra data</button>}
+          </div>
+          {vencida && <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">Essa data já passou: esse produto só pode ser marcado como Irregular.</p>}
+        </GestaoCampo>
+        <GestaoCampo T={T} label="Resultado da conferência">
+          <div className="grid grid-cols-3 gap-2">
+            {["ok", "atencao", "irregular"].map((k) => {
+              const r = RONDA_RESULTADO[k]; const desab = (k !== "irregular") && !podeOk; const sel = resultado === k;
+              return (
+                <button key={k} disabled={desab} onClick={() => setResultado(k)} style={sel ? { background: r.color, color: "#fff" } : { background: r.bg, color: r.color }}
+                  className="rounded-xl py-3 text-[12.5px] font-bold disabled:opacity-40">{r.emoji} {r.label}</button>
+              );
+            })}
+          </div>
+          <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5">OK = validade conferida e dentro do padrão · Atenção = perto de vencer · Irregular = vencido ou com problema.</p>
+        </GestaoCampo>
+        <GestaoCampo T={T} label={resultado === "irregular" ? "Observação (obrigatória se não houver foto)" : "Observação (opcional)"}>
+          <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} maxLength={300} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" />
+        </GestaoCampo>
+        <div className="flex items-center gap-3">
+          <label style={{ background: T.chipBg, color: T.text }} className="rounded-xl px-3.5 py-2.5 text-xs font-semibold flex items-center gap-2 cursor-pointer">
+            <Camera size={15} /> {foto ? "Trocar foto" : "Anexar foto"}
+            <input type="file" accept="image/*" capture="environment" onChange={pegarFoto} className="hidden" />
+          </label>
+          {foto && <img src={foto} alt="" className="h-12 w-12 rounded-lg object-cover" />}
+        </div>
+        <button onClick={confirmar} disabled={!pronto || enviando} style={{ background: pronto ? BLUE : "#C7CEDA", color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
+          {enviando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Confirmar conferência
+        </button>
+      </div>
+    </GestaoSheet>
+  );
+}
+
+// ---------- EXECUÇÃO (funcionário designado) ----------
+function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
+  const { ronda, itens, setItens, conectado, recarregar } = useRondaAoVivo(rondaId);
+  const [busca, setBusca] = useState("");
+  const [aba, setAba] = useState("pendentes");
+  const [scan, setScan] = useState(false);
+  const [aberto, setAberto] = useState(null); // { item, corrigir }
+  const [aviso, setAviso] = useState(null); // resposta de leitura (não pertence / já conferido)
+  const [naFila, setNaFila] = useState(() => lerFilaRonda().filter((a) => a.ronda === rondaId).length);
+  const [iniciando, setIniciando] = useState(false);
+  const aberta = ronda && ["agendada", "aguardando_inicio", "em_andamento"].includes(ronda.status);
+  const encerrada = ronda && !aberta;
+
+  // sincroniza o que ficou salvo no aparelho quando a internet volta
+  useEffect(() => {
+    let vivo = true;
+    const sync = async () => {
+      if (!navigator.onLine || !lerFilaRonda().some((a) => a.ronda === rondaId)) return;
+      const r = await sincronizarFila(rondaId);
+      if (!vivo) return;
+      setNaFila(lerFilaRonda().filter((a) => a.ronda === rondaId).length);
+      if (r.enviadas) { showToast(`${r.enviadas} conferência(s) enviada(s).`); recarregar(); }
+      if (r.rejeitadas.length) showToast(`${r.rejeitadas.length} conferência(s) não foram aceitas: ${r.rejeitadas[0].motivo}`, "warn");
+    };
+    sync();
+    window.addEventListener("online", sync);
+    const t = setInterval(sync, 20000);
+    return () => { vivo = false; window.removeEventListener("online", sync); clearInterval(t); };
+  }, [rondaId]);
+
+  async function iniciar() {
+    setIniciando(true);
+    const { error } = await supabase.rpc("iniciar_ronda", { p_id: rondaId });
+    setIniciando(false);
+    if (error) { showToast(erroRonda(error), "warn"); return; }
+    recarregar();
+  }
+  async function conferir(item, dados) {
+    if (encerrada) { showToast("Essa ronda já foi encerrada.", "warn"); return false; }
+    const args = { ronda: rondaId, item: item.id, ...dados, op: novoOp(), nome: item.nome };
+    const antes = item;
+    setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, resultado: dados.resultado, validade_encontrada: dados.validade, observacao: dados.obs, conferido_por: perfil?.nome, conferido_em: new Date().toISOString(), _pendente: true } : x)));
+    const { error } = await enviarConferencia(args);
+    if (!error) { setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, _pendente: false } : x))); setAberto(null); return true; }
+    if (ehErroDeRede(error)) {
+      gravarFilaRonda([...lerFilaRonda(), args]); setNaFila((n) => n + 1);
+      showToast("Sem internet: conferência guardada no aparelho. Ela é enviada sozinha quando a conexão voltar.");
+      setAberto(null); return true;
+    }
+    setItens((prev) => prev.map((x) => (x.id === item.id ? antes : x)));
+    showToast(erroRonda(error), "warn"); recarregar();
+    if ((error.message || "").includes("ronda_encerrada")) setAberto(null);
+    return false;
+  }
+  function aoLerCodigo(codigo) {
+    setScan(false);
+    const c = String(codigo || "").trim(); if (!c) return;
+    const sem0 = (s) => String(s || "").replace(/^0+/, "");
+    const item = (itens || []).find((x) => x.barcode === c || sem0(x.barcode) === sem0(c));
+    if (!item) {
+      const outro = catalog?.[c] || Object.values(catalog || {}).find((p) => sem0(p.barcode) === sem0(c));
+      setAviso({ tipo: "fora", texto: outro ? `${outro.nome} não faz parte desta conferência (é do setor ${outro.setor}).` : `O código ${c} não está nesta ronda nem no cadastro.` });
+      return;
+    }
+    if (item.resultado !== "pendente") { setAviso({ tipo: "ja", item }); return; }
+    setAviso(null); setAberto({ item, corrigir: false });
+  }
+
+  if (!ronda || !itens) return <div className={casca} style={{ background: T.bg }}><div className="m-auto"><Loader2 className="animate-spin" color={T.subtext} /></div></div>;
+  const total = itens.length, conf = itens.filter((x) => x.resultado !== "pendente").length;
+  const termo = busca.trim().toLowerCase();
+  const lista = itens.filter((x) => (aba === "pendentes" ? x.resultado === "pendente" : aba === "conferidos" ? x.resultado !== "pendente" : true)
+    && (!termo || x.nome.toLowerCase().includes(termo) || (x.barcode || "").includes(termo)));
+  const podeComecar = ["agendada", "aguardando_inicio"].includes(ronda.status) && !(ronda.inicio_previsto && new Date(ronda.inicio_previsto) > new Date());
+
+  return (
+    <div className={casca} style={{ background: T.bg, color: T.text }}>
+      <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 pt-[calc(env(safe-area-inset-top)+16px)]">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-white/70 text-[11px] font-medium">CONFERÊNCIA · {ronda.setor}</p>
+            <h2 className="text-white font-bold text-lg leading-tight">{ronda.titulo}</h2>
+            <p className="text-white/70 text-[11px] mt-0.5">Encarregado: {ronda.criado_por_nome || "—"}{ronda.prazo ? ` · prazo ${formatarDataHoraExtenso(ronda.prazo)}` : ""}</p>
+          </div>
+          <button onClick={onFechar} className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center shrink-0"><X size={18} color="#fff" /></button>
+        </div>
+        <div className="mt-3 rounded-2xl bg-white/12 p-3">
+          <div className="flex items-end justify-between text-white">
+            <p className="text-3xl font-extrabold leading-none tabular-nums">{pctDe(conf, total)}%</p>
+            <p className="text-[11px] text-white/80 text-right tabular-nums">{total} produtos · {conf} conferidos · {total - conf} pendentes</p>
+          </div>
+          <div className="h-2.5 rounded-full bg-white/20 overflow-hidden mt-2"><div style={{ background: "#fff", width: `${pctDe(conf, total)}%`, transition: "width .5s" }} className="h-full rounded-full" /></div>
+        </div>
+        <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+          <span style={{ background: conectado ? "rgba(31,157,85,.25)" : "rgba(224,146,28,.35)" }} className="text-white text-[10.5px] font-bold px-2.5 py-1 rounded-full">{conectado ? "● Ao vivo" : "● Sem conexão — reconectando"}</span>
+          {naFila > 0 && <span className="text-white text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-white/20">{naFila} aguardando envio</span>}
+        </div>
       </div>
 
-      <div className="lg:hidden">
-      {lista.length === 0 ? (
-        <div className="text-center py-14 px-6">
-          <div style={{ background: BLUE_SOFT }} className="h-16 w-16 rounded-2xl mx-auto flex items-center justify-center mb-3"><ClockIcon className="w-6 h-6" style={{ color: BLUE }} /></div>
-          <p className="font-semibold text-sm">Nenhuma ronda registrada</p>
-          <p style={{ color: T.subtext }} className="text-xs mt-1">{subaba === "minhas" ? "As rondas que você fizer aparecem aqui." : "As rondas da loja aparecem aqui conforme forem feitas."}</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:items-start">
-          {lista.map((r) => {
-            const st = STATUS_STYLE[r.status] || STATUS_STYLE.concluida;
-            const Icone = iconeDoSetor(r.setor);
-            const totalConferido = (r.okCount ?? 0) + (r.proximoCount ?? 0) + (r.vencidoCount ?? 0) + (r.naoEncontradoCount ?? 0);
-            const pctConferido = r.totalVerificado ? Math.round((totalConferido / r.totalVerificado) * 100) : 0;
+      {encerrada && (
+        <div style={{ background: RED_SOFT, color: RED_DARK }} className="px-4 py-3 text-sm font-bold flex items-center gap-2"><AlertTriangle size={16} /> Ronda {RONDA_STATUS[ronda.status]?.label.toLowerCase()} — não é mais possível conferir.</div>
+      )}
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
+        {podeComecar && (
+          <button onClick={iniciar} disabled={iniciando} style={{ background: "#1F9D55", color: "#fff" }} className="w-full py-3 rounded-2xl text-sm font-bold mb-4 flex items-center justify-center gap-2">
+            {iniciando ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Iniciar conferência
+          </button>
+        )}
+        {["agendada", "aguardando_inicio"].includes(ronda.status) && !podeComecar && (
+          <div style={{ background: "#FCF0DD", color: "#C2760C" }} className="rounded-2xl p-3 text-xs font-semibold mb-4">Esta ronda começa em {formatarDataHoraExtenso(ronda.inicio_previsto)}.</div>
+        )}
+        {ronda.observacoes && <div style={{ background: T.chipBg }} className="rounded-2xl p-3 text-[12.5px] mb-4"><b>Instruções:</b> {ronda.observacoes}</div>}
+
+        {aberta && (
+          <div className="flex gap-2 mb-3">
+            <div style={{ background: T.inputBg, borderColor: T.inputBorder }} className="flex items-center gap-2 border rounded-xl px-3 flex-1">
+              <Barcode size={16} style={{ color: T.subtext }} />
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && busca.trim()) { aoLerCodigo(busca); setBusca(""); } }}
+                placeholder="Bipe, digite o código ou busque pelo nome" inputMode="search" style={{ color: T.text }} className="bg-transparent outline-none text-sm flex-1 min-w-0 py-2.5" />
+            </div>
+            <button onClick={() => setScan(true)} style={{ background: BLUE, color: "#fff" }} className="px-4 rounded-xl text-sm font-semibold flex items-center gap-1.5"><Camera size={16} /> Bipar</button>
+          </div>
+        )}
+        {aviso && (
+          <div style={{ background: aviso.tipo === "fora" ? RED_SOFT : "#FCF0DD", color: aviso.tipo === "fora" ? RED_DARK : "#C2760C" }} className="rounded-2xl p-3 text-[12.5px] font-semibold mb-3 flex items-start gap-2">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+            <div className="flex-1">
+              {aviso.tipo === "fora" ? aviso.texto : <>
+                {aviso.item.nome} já foi conferido: {RONDA_RESULTADO[aviso.item.resultado].label}{aviso.item.validade_encontrada ? ` · validade ${formatarData(aviso.item.validade_encontrada)}` : ""} por {aviso.item.conferido_por || "—"}.
+                {aberta && <button onClick={() => { setAberto({ item: aviso.item, corrigir: true }); setAviso(null); }} className="block underline mt-1">Corrigir conferência</button>}
+              </>}
+            </div>
+            <button onClick={() => setAviso(null)}><X size={14} /></button>
+          </div>
+        )}
+        <div className="mb-3"><DashTabs T={T} value={aba} onChange={setAba} options={[{ id: "pendentes", label: `Pendentes (${total - conf})` }, { id: "conferidos", label: `Conferidos (${conf})` }, { id: "todos", label: "Todos" }]} /></div>
+        <div className="flex flex-col gap-2">
+          {lista.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-8">{aba === "pendentes" ? "Nada pendente. Bom trabalho!" : "Nenhum produto aqui."}</p>}
+          {lista.map((x) => {
+            const r = RONDA_RESULTADO[x.resultado];
             return (
-              <motion.button key={r.id} whileTap={{ scale: 0.985 }} onClick={() => abrirRonda(r)} style={{ background: T.card }}
-                className="rounded-2xl shadow-lg shadow-black/5 text-left w-full overflow-hidden">
-                <div style={{ background: st.color }} className="h-1 w-full" />
-                <div className="p-3.5">
-                  <div className="flex items-start gap-3">
-                    <div style={{ background: st.bg }} className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"><Icone size={18} color={st.color} /></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold leading-tight">{r.titulo || `Verificação de Validade — ${r.setor}`}</p>
-                        <span style={{ background: st.bg, color: st.color }} className="text-[9.5px] font-bold px-2 py-1 rounded-full shrink-0">{st.label}</span>
-                      </div>
-                      <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">Loja {lojaNumero || "—"} · Setor {r.setor}</p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <span style={{ color: T.subtext }} className="text-[10.5px] flex items-center gap-1"><ClockIcon className="w-3 h-3" /> {formatarHora(r.iniciadoEm)}–{(r.status === "concluida" || r.status === "parcial") ? formatarHora(r.finalizadoEm) : "aberto"}</span>
-                        {r.usuario && <span style={{ color: T.subtext }} className="text-[10.5px] truncate">{r.usuario}{r.finalizadoPor && r.finalizadoPor !== r.usuario ? ` → ${r.finalizadoPor}` : ""}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  {(r.status === "concluida" || r.status === "parcial") && (
-                    <>
-                      <div style={{ background: T.chipBg }} className="h-1.5 rounded-full overflow-hidden mt-3">
-                        <div style={{ width: `${pctConferido}%`, background: st.color }} className="h-full rounded-full" />
-                      </div>
-                      <div className="flex items-center gap-2.5 mt-2.5 flex-wrap">
-                        <span style={{ background: "#E6F7ED", color: "#1F9D55" }} className="text-[10px] font-bold px-2 py-0.5 rounded-full">🟢 {r.okCount ?? 0}</span>
-                        <span style={{ background: "#FCF0DD", color: "#C2760C" }} className="text-[10px] font-bold px-2 py-0.5 rounded-full">🟡 {r.proximoCount ?? 0}</span>
-                        <span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[10px] font-bold px-2 py-0.5 rounded-full">🔴 {r.vencidoCount ?? 0}</span>
-                        <span style={{ background: "#EEF0F3", color: "#4B5563" }} className="text-[10px] font-bold px-2 py-0.5 rounded-full">⚫ {r.naoEncontradoCount ?? 0}</span>
-                        {r.status === "parcial" && r.totalVerificado > totalConferido && (
-                          <span style={{ color: "#C2760C" }} className="text-[10px] font-bold ml-auto">{r.totalVerificado - totalConferido} sem conferir</span>
-                        )}
-                      </div>
-                    </>
-                  )}
+              <button key={x.id} disabled={!aberta && x.resultado === "pendente"} onClick={() => aberta && setAberto({ item: x, corrigir: x.resultado !== "pendente" })}
+                style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-3 flex items-center gap-3 text-left">
+                <Thumb foto={x.foto} size={44} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">{x.nome}</p>
+                  <p style={{ color: T.subtext }} className="text-[11px] truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}</p>
                 </div>
-              </motion.button>
+                <DashBadge bg={r.bg} color={r.color}>{x._pendente ? "enviando…" : r.label}</DashBadge>
+              </button>
             );
           })}
         </div>
-      )}
-
       </div>
-
-      {/* Detalhe da ronda: fotos dos itens + tag de conferido/não conferido */}
-      <AnimatePresence>
-        {rondaSelecionada && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex flex-col lg:inset-y-8 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:w-[60rem] lg:max-w-[calc(100vw-4rem)] lg:rounded-2xl lg:overflow-hidden lg:ring-1 lg:ring-black/10 lg:shadow-[0_0_0_100vmax_rgba(0,0,0,0.5)]" style={{ background: T.bg }}>
-            <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 flex items-center gap-3 pt-[calc(env(safe-area-inset-top)+20px)]">
-              <button onClick={() => { setRondaSelecionada(null); setItensRonda(null); }} className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center shrink-0">
-                <ArrowLeft size={16} color="#fff" />
-              </button>
-              <div className="min-w-0">
-                <h2 className="text-white font-bold text-base truncate">{rondaSelecionada.titulo || `Verificação de Validade — ${rondaSelecionada.setor}`}</h2>
-                <p className="text-white/70 text-[11px]">Setor {rondaSelecionada.setor} · {formatarDataHoraExtenso(rondaSelecionada.iniciadoEm)}</p>
-              </div>
-            </div>
-            {rondaSelecionada.status === "parcial" && isSameDay(rondaSelecionada.iniciadoEm, new Date().toISOString()) && onRetomarRonda && (
-              <div className="px-4 py-3 shrink-0">
-                <button onClick={() => onRetomarRonda(rondaSelecionada)} style={{ background: "#E0921C" }} className="w-full text-white text-sm font-semibold py-3 rounded-2xl flex items-center justify-center gap-2">
-                  <ShieldCheck size={16} /> Continuar ronda (itens pendentes)
-                </button>
-              </div>
-            )}
-            <div className="flex-1 overflow-y-auto px-4 py-3 pb-8">
-              {carregandoItens ? (
-                <div className="flex justify-center py-10"><Loader2 size={22} className="animate-spin" color={BLUE} /></div>
-              ) : !itensRonda || itensRonda.length === 0 ? (
-                <p style={{ color: T.subtext }} className="text-xs text-center py-10">Sem detalhe de itens salvo pra essa ronda.</p>
-              ) : (() => {
-                const conferidos = itensRonda.filter((it) => it.statusRonda);
-                const pendentes = itensRonda.filter((it) => !it.statusRonda);
-                const listaFiltrada = filtroDetalhe === "conferidos" ? conferidos : filtroDetalhe === "pendentes" ? pendentes : itensRonda;
-                return (
-                  <>
-                    <div style={{ background: T.chipBg }} className="flex rounded-2xl p-1 mb-3.5">
-                      <button onClick={() => setFiltroDetalhe("conferidos")} style={filtroDetalhe === "conferidos" ? { background: T.card, color: "#1F9D55" } : { color: T.subtext }}
-                        className="flex-1 text-[11px] font-semibold py-2 rounded-xl transition">Conferidos ({conferidos.length})</button>
-                      <button onClick={() => setFiltroDetalhe("pendentes")} style={filtroDetalhe === "pendentes" ? { background: T.card, color: "#C2760C" } : { color: T.subtext }}
-                        className="flex-1 text-[11px] font-semibold py-2 rounded-xl transition">Pendentes ({pendentes.length})</button>
-                      <button onClick={() => setFiltroDetalhe("todos")} style={filtroDetalhe === "todos" ? { background: T.card, color: T.text } : { color: T.subtext }}
-                        className="flex-1 text-[11px] font-semibold py-2 rounded-xl transition">Todos ({itensRonda.length})</button>
-                    </div>
-                    {listaFiltrada.length === 0 ? (
-                      <p style={{ color: T.subtext }} className="text-xs text-center py-10">Nenhum item nessa categoria.</p>
-                    ) : (
-                      <div className="flex flex-col gap-2.5">
-                        {listaFiltrada.map((it) => {
-                          const tag = it.statusRonda ? TAG_STATUS[it.statusRonda] : null;
-                          return (
-                            <div key={it.id} style={{ background: T.card }} className="rounded-2xl p-3 shadow-lg shadow-black/5 flex items-center gap-3">
-                              <div className="relative shrink-0">
-                                <Thumb foto={it.foto} size={52} />
-                                <span style={{ background: tag ? tag.bg : "#9CA3AF" }} className="absolute -bottom-1 -right-1 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap shadow">
-                                  {tag ? tag.label : "Não conferido"}
-                                </span>
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium truncate">{it.nome}</p>
-                                {it.validade && <p style={{ color: T.subtext }} className="text-[11px]">Validade {formatarData(it.validade)}</p>}
-                                {it.acao && <p style={{ color: "#C2760C" }} className="text-[10px] font-semibold mt-0.5">Ação: {it.acao}</p>}
-                                {it.conferidoPor && <p style={{ color: T.subtext }} className="text-[10px]">Conferido por {it.conferidoPor}</p>}
-                                {it.barcode && <p style={{ color: T.subtext }} className="text-[10px] font-mono">{it.barcode}</p>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {scan && <ScanView T={T} onDetected={aoLerCodigo} onCancel={() => setScan(false)} />}
+      {aberto && <ConferenciaSheet T={T} item={aberto.item} corrigir={aberto.corrigir} onClose={() => setAberto(null)} onConfirmar={(d) => conferir(aberto.item, d)} />}
     </div>
   );
 }
+
+// ---------- modal de FINALIZAR RONDA (encerramento antecipado) ----------
+function FinalizarRondaModal({ T, ronda, itens, onClose, onFeito, showToast }) {
+  const [motivo, setMotivo] = useState("");
+  const [obs, setObs] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const conf = itens.filter((x) => x.resultado !== "pendente").length, total = itens.length;
+  async function confirmar() {
+    setOcupado(true);
+    const { error } = await supabase.rpc("finalizar_ronda", { p_id: ronda.id, p_motivo: motivo, p_obs: obs.trim() || null });
+    setOcupado(false);
+    if (error) { showToast(erroRonda(error), "warn"); return; }
+    showToast("Ronda finalizada. Os funcionários foram avisados na hora.");
+    onFeito();
+  }
+  const campo = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
+  return (
+    <GestaoSheet T={T} title="Finalizar ronda" subtitle={`${ronda.titulo} · ${conf} de ${total} conferidos (${pctDe(conf, total)}%)`} onClose={onClose}>
+      <div className="flex flex-col gap-3.5">
+        {total - conf > 0 && <div style={{ background: "#FCF0DD", color: "#C2760C" }} className="rounded-xl p-3 text-xs font-semibold">Ainda faltam {total - conf} produto(s). Eles ficam como “não conferidos” e os já conferidos são mantidos. Quem está executando verá um aviso na hora.</div>}
+        <GestaoCampo T={T} label="Motivo da finalização">
+          <select value={motivo} onChange={(e) => setMotivo(e.target.value)} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none">
+            <option value="">Selecione…</option>{MOTIVOS_ENCERRAMENTO.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </GestaoCampo>
+        <GestaoCampo T={T} label="Observação complementar (opcional)"><textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} maxLength={300} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" /></GestaoCampo>
+        <button onClick={confirmar} disabled={!motivo || ocupado} style={{ background: motivo ? RED_DARK : "#C7CEDA", color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
+          {ocupado && <Loader2 size={15} className="animate-spin" />} Confirmar finalização
+        </button>
+      </div>
+    </GestaoSheet>
+  );
+}
+
+// ---------- PAINEL do encarregado (tempo real) e relatório da ronda ----------
+function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
+  const { ronda, itens, conectado, atualizadoEm, recarregar } = useRondaAoVivo(rondaId);
+  const [, tic] = useState(0);
+  const [filtro, setFiltro] = useState("todos");
+  const [finalizar, setFinalizar] = useState(false);
+  const [cancelar, setCancelar] = useState(false);
+  const [motivoCancel, setMotivoCancel] = useState("");
+  const [item, setItem] = useState(null);
+  const [eventos, setEventos] = useState([]);
+  useEffect(() => { const t = setInterval(() => tic((n) => n + 1), 30000); return () => clearInterval(t); }, []);
+  useEffect(() => {
+    if (!ronda || ["agendada", "aguardando_inicio", "em_andamento"].includes(ronda.status)) return;
+    supabase.from("ronda_eventos").select("*").eq("ronda_id", rondaId).order("criado_em").then(({ data }) => setEventos(data || []));
+  }, [ronda?.status, rondaId]);
+  if (!ronda || !itens) return <div className={casca} style={{ background: T.bg }}><div className="m-auto"><Loader2 className="animate-spin" color={T.subtext} /></div></div>;
+
+  const total = itens.length, conf = itens.filter((x) => x.resultado !== "pendente").length;
+  const ativa = ronda.status === "em_andamento", naoComecou = ["agendada", "aguardando_inicio"].includes(ronda.status);
+  const st = RONDA_STATUS[ronda.status] || RONDA_STATUS.finalizada;
+  const sou = (ronda.ronda_participantes || []).some((p) => p.usuario_id === perfil?.id);
+  const recentes = itens.filter((x) => x.conferido_em).sort((a, b) => new Date(b.conferido_em) - new Date(a.conferido_em));
+  const ultimo = recentes[0];
+  const fim = ronda.finalizado_em ? new Date(ronda.finalizado_em) : new Date();
+  const decorrido = ronda.iniciado_em ? fim - new Date(ronda.iniciado_em) : 0;
+  const lista = itens.filter((x) => filtro === "todos" || x.resultado === filtro);
+  async function cancelarRonda() {
+    const { error } = await supabase.rpc("cancelar_ronda", { p_id: rondaId, p_motivo: motivoCancel });
+    if (error) { showToast(erroRonda(error), "warn"); return; }
+    showToast("Ronda cancelada."); setCancelar(false); recarregar();
+  }
+  return (
+    <div className={casca} style={{ background: T.bg, color: T.text }}>
+      <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 pt-[calc(env(safe-area-inset-top)+16px)]">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-white/70 text-[11px] font-medium">{ativa ? "RONDA ATIVA" : "RONDA"} · {ronda.setor}</p>
+            <h2 className="text-white font-bold text-lg leading-tight">{ronda.titulo}</h2>
+            <p className="text-white/75 text-[11.5px] mt-0.5">Responsável: {ronda.usuario || "—"}</p>
+          </div>
+          <button onClick={onFechar} className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center shrink-0"><X size={18} color="#fff" /></button>
+        </div>
+        <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+          <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>
+          {ativa && <span style={{ background: conectado ? "rgba(31,157,85,.3)" : "rgba(224,146,28,.4)" }} className="text-white text-[10.5px] font-bold px-2.5 py-1 rounded-full">{conectado ? "● Tempo real" : "● Reconectando…"}</span>}
+        </div>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 flex flex-col gap-4">
+        <div style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-4">
+          <div className="flex items-end justify-between mb-2.5">
+            <p className="text-4xl font-extrabold tabular-nums leading-none">{pctDe(conf, total)}%</p>
+            <p style={{ color: T.subtext }} className="text-xs text-right tabular-nums">{total} produtos no total<br />{conf} conferidos · {total - conf} pendentes</p>
+          </div>
+          <BarraProgressoRonda T={T} conf={conf} total={total} cor={ativa ? BLUE : st.color} />
+          <div className="mt-3"><ContagemRonda T={T} itens={itens} /></div>
+          <div style={{ color: T.subtext }} className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11.5px] mt-3">
+            <span>Início: <b style={{ color: T.text }}>{ronda.iniciado_em ? formatarHora(ronda.iniciado_em) : naoComecou ? `previsto ${formatarDataHoraExtenso(ronda.inicio_previsto)}` : "—"}</b></span>
+            <span>{ronda.finalizado_em ? "Duração" : "Tempo decorrido"}: <b style={{ color: T.text }}>{fmtDuracao(decorrido)}</b></span>
+            <span className="col-span-2">Último produto: <b style={{ color: T.text }}>{ultimo ? `${ultimo.nome} (${RONDA_RESULTADO[ultimo.resultado].label}, ${formatarHora(ultimo.conferido_em)})` : "nenhum ainda"}</b></span>
+            {ativa && <span className="col-span-2">Atualizado às {atualizadoEm ? formatarHora(atualizadoEm) : "—"}</span>}
+          </div>
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          {sou && (ativa || naoComecou) && <button onClick={onExecutar} style={{ background: BLUE, color: "#fff" }} className="flex-1 min-w-[10rem] py-3 rounded-2xl text-sm font-bold">Conferir itens</button>}
+          {ativa && <button onClick={() => setFinalizar(true)} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 min-w-[10rem] py-3 rounded-2xl text-sm font-bold">FINALIZAR RONDA</button>}
+          {naoComecou && <button onClick={() => setCancelar(true)} style={{ background: T.chipBg, color: RED_DARK }} className="flex-1 min-w-[10rem] py-3 rounded-2xl text-sm font-bold">Cancelar ronda</button>}
+        </div>
+
+        {!ativa && !naoComecou && (
+          <div style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-4">
+            <p className="text-sm font-bold mb-2">Relatório da ronda</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[12.5px]">
+              {[["Criada por", `${ronda.criado_por_nome || "—"}${ronda.criado_por_cargo ? ` (${ronda.criado_por_cargo})` : ""}`], ["Designados", (ronda.ronda_participantes || []).map((p) => p.nome).join(", ") || "—"],
+                ["Setor", ronda.setor], ["Início", ronda.iniciado_em ? formatarDataHoraExtenso(ronda.iniciado_em) : "não iniciada"], ["Encerramento", ronda.finalizado_em ? formatarDataHoraExtenso(ronda.finalizado_em) : "—"],
+                ["Tempo de execução", fmtDuracao(decorrido)], ["Total de produtos", total], ["Conferidos", conf], ["Pendentes", total - conf],
+                ["Conclusão", `${ronda.encerrada_pct ?? pctDe(conf, total)}%`],
+                ...(ronda.status === "encerrada_antecipada" ? [["Encerrada por", `${ronda.encerrada_por_nome || "—"}${ronda.encerrada_por_cargo ? ` (${ronda.encerrada_por_cargo})` : ""}`], ["Motivo", ronda.encerrada_motivo], ...(ronda.encerrada_obs ? [["Observação", ronda.encerrada_obs]] : [])] : []),
+                ...(ronda.status === "cancelada" ? [["Motivo do cancelamento", ronda.cancelada_motivo]] : [])]
+                .map(([k, v]) => <div key={k} className="flex justify-between gap-3"><span style={{ color: T.subtext }}>{k}</span><span className="font-semibold text-right">{String(v)}</span></div>)}
+            </div>
+            {eventos.length > 0 && (
+              <details className="mt-3"><summary style={{ color: BLUE }} className="text-xs font-semibold cursor-pointer">Histórico completo ({eventos.length} registros)</summary>
+                <div className="mt-2 flex flex-col gap-1 max-h-60 overflow-y-auto">
+                  {eventos.map((e) => <p key={e.id} style={{ color: T.subtext }} className="text-[11px]">{formatarDataHoraExtenso(e.criado_em)} · <b style={{ color: T.text }}>{e.usuario_nome || "—"}</b> · {e.tipo}{e.dados?.nome ? ` · ${e.dados.nome}` : ""}{e.dados?.resultado ? ` → ${e.dados.resultado}` : ""}{e.dados?.motivo ? ` · ${e.dados.motivo}` : ""}</p>)}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+
+        {recentes.length > 0 && (
+          <div style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-4">
+            <p className="text-sm font-bold mb-2">Atividade recente</p>
+            <div className="flex flex-col gap-1.5">
+              {recentes.slice(0, 8).map((x) => <p key={x.id} className="text-[12.5px]"><span style={{ color: T.subtext }} className="tabular-nums">{formatarHora(x.conferido_em)}</span> — {x.nome} — <b style={{ color: RONDA_RESULTADO[x.resultado].color }}>{RONDA_RESULTADO[x.resultado].label.toUpperCase()}</b>{x.conferido_por ? <span style={{ color: T.subtext }}> · {x.conferido_por}</span> : null}</p>)}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <div className="mb-2.5"><DashTabs T={T} value={filtro} onChange={setFiltro} options={[{ id: "todos", label: "Todos" }, { id: "ok", label: "OK" }, { id: "atencao", label: "Atenção" }, { id: "irregular", label: "Irregulares" }, { id: "pendente", label: "Pendentes" }]} /></div>
+          <div className="flex flex-col gap-2">
+            {lista.map((x) => { const r = RONDA_RESULTADO[x.resultado]; return (
+              <button key={x.id} onClick={() => setItem(x)} style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-3 flex items-center gap-3 text-left">
+                <Thumb foto={x.foto} size={40} />
+                <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate">{x.nome}</p><p style={{ color: T.subtext }} className="text-[11px] truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}</p></div>
+                <DashBadge bg={r.bg} color={r.color}>{r.label}</DashBadge>
+              </button>); })}
+            {lista.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-6">Nenhum produto nesse filtro.</p>}
+          </div>
+        </div>
+      </div>
+      {finalizar && <FinalizarRondaModal T={T} ronda={ronda} itens={itens} showToast={showToast} onClose={() => setFinalizar(false)} onFeito={() => { setFinalizar(false); recarregar(); }} />}
+      {cancelar && (
+        <GestaoSheet T={T} title="Cancelar ronda" subtitle="Só dá pra cancelar antes de começar." onClose={() => setCancelar(false)}>
+          <GestaoCampo T={T} label="Justificativa (obrigatória)"><textarea value={motivoCancel} onChange={(e) => setMotivoCancel(e.target.value)} rows={3} style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" /></GestaoCampo>
+          <button onClick={cancelarRonda} disabled={!motivoCancel.trim()} style={{ background: motivoCancel.trim() ? RED_DARK : "#C7CEDA", color: "#fff" }} className="w-full mt-4 py-3 rounded-2xl text-sm font-bold">Cancelar ronda</button>
+        </GestaoSheet>
+      )}
+      {item && (
+        <GestaoSheet T={T} title={item.nome} subtitle={item.barcode} onClose={() => setItem(null)}>
+          <div className="flex flex-col gap-2 text-[13px]">
+            <div className="flex items-center gap-3"><Thumb foto={item.foto} size={56} /><DashBadge bg={RONDA_RESULTADO[item.resultado].bg} color={RONDA_RESULTADO[item.resultado].color}>{RONDA_RESULTADO[item.resultado].label}</DashBadge></div>
+            <p>Validade no cadastro: <b>{item.validade_cadastrada ? formatarData(item.validade_cadastrada) : "—"}</b></p>
+            <p>Validade encontrada: <b>{item.validade_encontrada ? formatarData(item.validade_encontrada) : "—"}</b></p>
+            {Array.isArray(item.lotes) && item.lotes.length > 1 && <p>Lotes: <b>{item.lotes.map((l) => formatarData(l.validade)).join(" · ")}</b></p>}
+            {item.conferido_por && <p>Conferido por <b>{item.conferido_por}</b> às {formatarHora(item.conferido_em)}{item.versao > 1 ? ` · corrigido ${item.versao - 1}x` : ""}</p>}
+            {item.observacao && <p style={{ background: T.chipBg }} className="rounded-xl p-3">{item.observacao}</p>}
+            {item.foto_conferencia && <img src={item.foto_conferencia} alt="foto da conferência" className="rounded-xl max-h-64 object-contain" />}
+          </div>
+        </GestaoSheet>
+      )}
+    </div>
+  );
+}
+
+// ---------- NOVA RONDA ----------
+function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preSetor, onClose, onCriada }) {
+  const nivel = perfil?.cargos?.nivel ?? 99;
+  const meuSetor = (perfil?.setor || "").toLowerCase();
+  // setores = os que têm produtos cadastrados no banco (nada de lista fixa)
+  const setoresDoBanco = useMemo(() => {
+    const cont = {};
+    Object.values(catalog || {}).forEach((p) => { if (p?.setor) cont[p.setor] = (cont[p.setor] || 0) + 1; });
+    return Object.entries(cont).sort((a, b) => a[0].localeCompare(b[0])).filter(([s]) => nivel <= 4 || s.toLowerCase() === meuSetor);
+  }, [catalog, nivel, meuSetor]);
+  const [setores, setSetores] = useState(preSetor && setoresDoBanco.some(([s]) => s === preSetor) ? [preSetor] : (setoresDoBanco.length === 1 ? [setoresDoBanco[0][0]] : []));
+  const [nome, setNome] = useState("");
+  const [sel, setSel] = useState([]);
+  const [outrosSetores, setOutrosSetores] = useState(false);
+  const [inicio, setInicio] = useState(paraInputDataHora(new Date()));
+  const [prazo, setPrazo] = useState("");
+  const [obs, setObs] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const setoresLower = setores.map((s) => s.toLowerCase());
+  const candidatos = (equipe || []).filter((u) => (nivel <= 4 && outrosSetores) || setoresLower.includes((u.setor || "").toLowerCase()));
+  useEffect(() => { setSel((p) => p.filter((id) => candidatos.some((u) => u.id === id))); }, [setores.join("|"), outrosSetores]);
+  const totalProdutos = setores.reduce((a, s) => a + (setoresDoBanco.find(([x]) => x === s)?.[1] || 0), 0);
+  const campo = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
+  async function criar() {
+    setOcupado(true);
+    const { error } = await supabase.rpc("criar_ronda", {
+      p_setores: setores, p_nome: nome.trim() || null, p_participantes: sel, p_inicio: new Date(inicio).toISOString(),
+      p_prazo: prazo ? new Date(prazo).toISOString() : null, p_obs: obs.trim() || null, p_loja: lojaAtiva?.id || null,
+    });
+    setOcupado(false);
+    if (error) { showToast(erroRonda(error), "warn"); return; }
+    showToast(setores.length > 1 ? `${setores.length} rondas criadas.` : "Ronda criada. Os funcionários já foram avisados.");
+    onCriada();
+  }
+  const pronto = setores.length > 0 && sel.length > 0 && !!inicio;
+  return (
+    <GestaoSheet T={T} title="Iniciar nova ronda" subtitle={`Loja ${lojaAtiva?.numero_loja ?? "—"} · a lista de produtos é congelada agora`} onClose={onClose}>
+      <div className="flex flex-col gap-3.5">
+        {setoresDoBanco.length === 0 ? (
+          <div style={{ background: "#FCF0DD", color: "#C2760C" }} className="rounded-xl p-3 text-xs font-semibold">{nivel === 5 ? "Seu setor não tem produtos cadastrados (ou você não tem setor definido no cadastro)." : "Nenhum setor com produtos cadastrados nessa loja."}</div>
+        ) : (
+          <GestaoCampo T={T} label={nivel <= 4 ? "Setores fiscalizados" : "Setor"} hint={nivel <= 4 ? "Marque mais de um para criar uma ronda por setor." : "Você cria rondas só para o seu setor."}>
+            <div className="flex flex-wrap gap-2">
+              {setoresDoBanco.map(([s, n]) => {
+                const on = setores.includes(s);
+                return <button key={s} onClick={() => setSetores((p) => (nivel <= 4 ? (on ? p.filter((x) => x !== s) : [...p, s]) : [s]))} style={on ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2 text-xs font-semibold">{s} <span className="opacity-70">· {n}</span></button>;
+              })}
+            </div>
+          </GestaoCampo>
+        )}
+        <GestaoCampo T={T} label="Nome da ronda (opcional)"><input value={nome} onChange={(e) => setNome(e.target.value)} placeholder={setores[0] ? `Conferência de ${setores[0]}` : "Ex.: Conferência de validade"} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none" /></GestaoCampo>
+        <GestaoCampo T={T} label="Quem vai executar" hint={setores.length ? `Só aparecem funcionários vinculados ao setor${setores.length > 1 ? "s escolhidos" : ""}.` : "Escolha o setor primeiro."}>
+          <div className="flex flex-col gap-1.5">
+            {setores.length > 0 && candidatos.length > 0 && <button onClick={() => setSel(sel.length === candidatos.length ? [] : candidatos.map((u) => u.id))} style={{ color: BLUE }} className="text-xs font-semibold text-left">{sel.length === candidatos.length ? "Desmarcar todos" : "Selecionar equipe inteira"}</button>}
+            {candidatos.map((u) => {
+              const on = sel.includes(u.id);
+              return <label key={u.id} style={{ background: on ? BLUE_SOFT : T.chipBg }} className="rounded-xl px-3 py-2.5 flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" checked={on} onChange={() => setSel((p) => (on ? p.filter((x) => x !== u.id) : [...p, u.id]))} /><span className="flex-1 min-w-0 truncate font-medium">{u.nome}</span><span style={{ color: T.subtext }} className="text-[10.5px]">{u.setor || "sem setor"}</span></label>;
+            })}
+            {setores.length > 0 && candidatos.length === 0 && <p style={{ color: "#C2760C" }} className="text-xs font-semibold">Nenhum funcionário vinculado a esse setor. Defina o setor dele em Funcionários.</p>}
+            {nivel <= 4 && setores.length > 0 && <label className="text-[11px] flex items-center gap-2" style={{ color: T.subtext }}><input type="checkbox" checked={outrosSetores} onChange={(e) => setOutrosSetores(e.target.checked)} /> Mostrar funcionários de outros setores (gerência)</label>}
+          </div>
+        </GestaoCampo>
+        <div className="grid grid-cols-2 gap-3">
+          <GestaoCampo T={T} label="Início"><input type="datetime-local" value={inicio} onChange={(e) => setInicio(e.target.value)} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none" /></GestaoCampo>
+          <GestaoCampo T={T} label="Prazo (opcional)"><input type="datetime-local" value={prazo} onChange={(e) => setPrazo(e.target.value)} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none" /></GestaoCampo>
+        </div>
+        <GestaoCampo T={T} label="Instruções (opcional)"><textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} maxLength={300} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" /></GestaoCampo>
+        {setores.length > 0 && <p style={{ color: T.subtext }} className="text-[11.5px]">{totalProdutos} produto(s) cadastrado(s) serão carregados{setores.length > 1 ? " (somando os setores)" : ""}. Produtos cadastrados depois não entram nesta ronda.</p>}
+        <button onClick={criar} disabled={!pronto || ocupado} style={{ background: pronto ? "#1F9D55" : "#C7CEDA", color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
+          {ocupado ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Criar ronda
+        </button>
+      </div>
+    </GestaoSheet>
+  );
+}
+
+
+// ============================================================================
+// RONDA OPERACIONAL: ocorrências, tarefas, aprovação e relatórios
+// ============================================================================
+function usarOcorrencias(lojaId) {
+  const [lista, setLista] = useState(null);
+  const carregar = useCallback(async () => {
+    if (!lojaId) { setLista([]); return; }
+    const { data, error } = await supabase.from("ocorrencias").select("*").eq("loja_id", lojaId).order("criado_em", { ascending: false }).limit(1000);
+    if (!error) setLista(data || []); else setLista((p) => p || []);
+  }, [lojaId]);
+  useEffect(() => {
+    carregar();
+    let t = null;
+    const agenda = () => { clearTimeout(t); t = setTimeout(carregar, 400); };
+    const canal = supabase.channel(`ocorrencias-${lojaId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "ocorrencias" }, agenda)
+      .subscribe();
+    const vis = () => { if (document.visibilityState !== "hidden") carregar(); };
+    document.addEventListener("visibilitychange", vis); window.addEventListener("online", vis);
+    return () => { clearTimeout(t); supabase.removeChannel(canal); document.removeEventListener("visibilitychange", vis); window.removeEventListener("online", vis); };
+  }, [lojaId, carregar]);
+  return { lista, recarregar: carregar };
+}
+
+const PRIO = Object.fromEntries(PRIORIDADES.map((p) => [p.id, p]));
+const CAT = Object.fromEntries(CATEGORIAS_OCORRENCIA.map((c) => [c.id, c.label]));
+
+function BadgeOcorrencia({ o }) {
+  const ef = statusOcorrenciaEfetivo(o);
+  const s = ef === "atrasada" ? { label: "Atrasada", bg: RED_SOFT, color: RED_DARK } : ef === "vence_logo" ? { label: "Vence logo", bg: "#FCF0DD", color: "#C2760C" } : OCORRENCIA_STATUS[o.status];
+  return <DashBadge bg={s.bg} color={s.color}>{s.label}</DashBadge>;
+}
+
+function CartaoOcorrencia({ T, o, onClick }) {
+  const p = PRIO[o.prioridade];
+  const ef = statusOcorrenciaEfetivo(o);
+  return (
+    <button onClick={onClick} style={{ background: T.card, borderColor: ef === "atrasada" ? RED : T.border, borderLeftWidth: 4, borderLeftColor: p.color }} className="border rounded-2xl p-3 text-left w-full">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold leading-snug line-clamp-2">{o.descricao}</p>
+        <BadgeOcorrencia o={o} />
+      </div>
+      <div style={{ color: T.subtext }} className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] mt-1.5">
+        <span>{o.setor} · {CAT[o.categoria]}</span>
+        <span style={{ color: p.color }} className="font-bold">{p.label}</span>
+        <span>{o.responsavel_nome ? `👤 ${o.responsavel_nome}` : "sem responsável"}</span>
+        {o.prazo && <span>⏰ {formatarDataHoraExtenso(o.prazo)}</span>}
+      </div>
+    </button>
+  );
+}
+
+// ---------- NOVA OCORRÊNCIA ----------
+function NovaOcorrenciaSheet({ T, perfil, lojaAtiva, catalog, equipe, rondaId, showToast, onClose, onCriada }) {
+  const nivel = perfil?.cargos?.nivel ?? 99;
+  const meuSetor = (perfil?.setor || "").toLowerCase();
+  const setores = useMemo(() => [...new Set(Object.values(catalog || {}).map((p) => p?.setor).filter(Boolean))].sort().filter((s) => nivel <= 4 || s.toLowerCase() === meuSetor), [catalog, nivel, meuSetor]);
+  const [setor, setSetor] = useState(setores.length === 1 ? setores[0] : "");
+  const [categoria, setCategoria] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [prioridade, setPrioridade] = useState("media");
+  const [resp, setResp] = useState("");
+  const [prazo, setPrazo] = useState("");
+  const [foto, setFoto] = useState(null);
+  const [ocupado, setOcupado] = useState(false);
+  const candidatos = (equipe || []).filter((u) => (nivel <= 4) ? true : (u.setor || "").toLowerCase() === setor.toLowerCase()).filter((u) => nivel > 4 || !setor || (u.setor || "").toLowerCase() === setor.toLowerCase());
+  const campo = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
+  async function pegarFoto(e) { const f = e.target.files?.[0]; if (f) try { setFoto(await compressImage(f, 800, 0.6)); } catch { /* ignora */ } }
+  async function salvar(rascunho) {
+    setOcupado(true);
+    const { error } = await supabase.rpc("criar_ocorrencia", {
+      p_setor: setor, p_categoria: categoria, p_descricao: descricao, p_prioridade: prioridade, p_responsavel: resp || null,
+      p_prazo: prazo ? new Date(prazo).toISOString() : null, p_foto: foto, p_ronda: rondaId || null, p_rascunho: rascunho, p_loja: lojaAtiva?.id || null,
+    });
+    setOcupado(false);
+    if (error) { showToast(erroRonda(error), "warn"); return; }
+    showToast(rascunho ? "Rascunho salvo." : "Tarefa criada. O funcionário foi avisado.");
+    onCriada();
+  }
+  const base = !!setor && !!categoria && descricao.trim().length > 2;
+  const completo = base && !!resp && !!prazo;
+  return (
+    <GestaoSheet T={T} title="Nova ocorrência" subtitle="Registre o problema e designe quem resolve" onClose={onClose}>
+      <div className="flex flex-col gap-3.5">
+        <div className="grid grid-cols-2 gap-3">
+          <GestaoCampo T={T} label="Setor"><select value={setor} onChange={(e) => { setSetor(e.target.value); setResp(""); }} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none"><option value="">Selecione…</option>{setores.map((s) => <option key={s}>{s}</option>)}</select></GestaoCampo>
+          <GestaoCampo T={T} label="Categoria"><select value={categoria} onChange={(e) => setCategoria(e.target.value)} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none"><option value="">Selecione…</option>{CATEGORIAS_OCORRENCIA.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></GestaoCampo>
+        </div>
+        <GestaoCampo T={T} label="O que está acontecendo?"><textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={3} maxLength={500} placeholder="Ex.: Banana prata sem etiqueta de preço na gôndola central" style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" /></GestaoCampo>
+        <GestaoCampo T={T} label="Prioridade">
+          <div className="grid grid-cols-4 gap-2">{PRIORIDADES.map((p) => <button key={p.id} onClick={() => setPrioridade(p.id)} style={prioridade === p.id ? { background: p.color, color: "#fff" } : { background: p.bg, color: p.color }} className="rounded-xl py-2.5 text-xs font-bold">{p.label}</button>)}</div>
+        </GestaoCampo>
+        <GestaoCampo T={T} label="Responsável" hint={nivel === 5 ? "Você só pode designar funcionários do seu setor." : undefined}>
+          <select value={resp} onChange={(e) => setResp(e.target.value)} disabled={!setor} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none"><option value="">{setor ? "Selecione…" : "Escolha o setor primeiro"}</option>{candidatos.map((u) => <option key={u.id} value={u.id}>{u.nome}{u.setor ? ` · ${u.setor}` : ""}</option>)}</select>
+        </GestaoCampo>
+        <GestaoCampo T={T} label="Prazo"><input type="datetime-local" value={prazo} onChange={(e) => setPrazo(e.target.value)} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none" /></GestaoCampo>
+        <div className="flex items-center gap-3">
+          <label style={{ background: T.chipBg, color: T.text }} className="rounded-xl px-3.5 py-2.5 text-xs font-semibold flex items-center gap-2 cursor-pointer"><Camera size={15} /> {foto ? "Trocar foto" : "Anexar foto"}<input type="file" accept="image/*" capture="environment" onChange={pegarFoto} className="hidden" /></label>
+          {foto && <img src={foto} alt="" className="h-12 w-12 rounded-lg object-cover" />}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => salvar(true)} disabled={!base || ocupado} style={{ background: T.chipBg, color: T.text }} className="flex-1 py-3 rounded-2xl text-sm font-bold disabled:opacity-50">Salvar rascunho</button>
+          <button onClick={() => salvar(false)} disabled={!completo || ocupado} style={{ background: completo ? BLUE : "#C7CEDA", color: "#fff" }} className="flex-[1.4] py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">{ocupado && <Loader2 size={15} className="animate-spin" />} Criar e designar</button>
+        </div>
+      </div>
+    </GestaoSheet>
+  );
+}
+
+// ---------- DETALHE: histórico + ações ----------
+function OcorrenciaDetalhe({ T, id, perfil, equipe, showToast, onClose, onMudou }) {
+  const [o, setO] = useState(null);
+  const [eventos, setEventos] = useState([]);
+  const [modo, setModo] = useState(null); // concluir | reprovar | reatribuir
+  const [texto, setTexto] = useState(""); const [foto, setFoto] = useState(null);
+  const [novoResp, setNovoResp] = useState(""); const [novoPrazo, setNovoPrazo] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const carregar = useCallback(async () => {
+    const [a, b] = await Promise.all([supabase.from("ocorrencias").select("*").eq("id", id).maybeSingle(), supabase.from("ocorrencia_eventos").select("*").eq("ocorrencia_id", id).order("criado_em")]);
+    if (a.data) setO(a.data); setEventos(b.data || []);
+  }, [id]);
+  useEffect(() => {
+    carregar();
+    const c = supabase.channel(`oc-${id}`).on("postgres_changes", { event: "*", schema: "public", table: "ocorrencias", filter: `id=eq.${id}` }, carregar).subscribe();
+    return () => supabase.removeChannel(c);
+  }, [id, carregar]);
+  if (!o) return <GestaoSheet T={T} title="Ocorrência" onClose={onClose}><Loader2 className="animate-spin mx-auto" color={T.subtext} /></GestaoSheet>;
+  const nivel = perfil?.cargos?.nivel ?? 99;
+  const souResp = o.responsavel_id === perfil?.id;
+  const gestor = nivel <= 5;
+  const pode_aprovar = gestor && !souResp && o.status === "aguardando_aprovacao";
+  const campo = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
+  async function chamar(fn, args, ok) {
+    setOcupado(true);
+    const { error } = await supabase.rpc(fn, args);
+    setOcupado(false);
+    if (error) { showToast(erroRonda(error), "warn"); carregar(); return; }
+    showToast(ok); setModo(null); setTexto(""); setFoto(null); await carregar(); onMudou();
+  }
+  async function pegarFoto(e) { const f = e.target.files?.[0]; if (f) try { setFoto(await compressImage(f, 800, 0.6)); } catch { /* ignora */ } }
+  const candidatos = (equipe || []).filter((u) => nivel <= 4 || (u.setor || "").toLowerCase() === (o.setor || "").toLowerCase());
+  return (
+    <GestaoSheet T={T} title="Ocorrência" subtitle={`${o.setor} · ${CAT[o.categoria]}`} onClose={onClose}>
+      <div className="flex flex-col gap-3 text-[13px]">
+        <div className="flex gap-2 flex-wrap"><BadgeOcorrencia o={o} /><DashBadge bg={PRIO[o.prioridade].bg} color={PRIO[o.prioridade].color}>{PRIO[o.prioridade].label}</DashBadge></div>
+        <p className="text-sm font-semibold">{o.descricao}</p>
+        {o.foto && <img src={o.foto} alt="" className="rounded-xl max-h-56 object-contain" />}
+        <div style={{ color: T.subtext }} className="grid grid-cols-2 gap-y-1 text-[12px]">
+          <span>Responsável: <b style={{ color: T.text }}>{o.responsavel_nome || "—"}</b></span><span>Prazo: <b style={{ color: T.text }}>{o.prazo ? formatarDataHoraExtenso(o.prazo) : "—"}</b></span>
+          <span>Criada por: <b style={{ color: T.text }}>{o.criado_por_nome}</b></span><span>Reprovações: <b style={{ color: T.text }}>{o.reprovacoes}</b></span>
+        </div>
+        {o.obs_execucao && <div style={{ background: T.chipBg }} className="rounded-xl p-3"><b>Retorno do funcionário:</b> {o.obs_execucao}{o.foto_conclusao && <img src={o.foto_conclusao} alt="" className="rounded-lg mt-2 max-h-48 object-contain" />}</div>}
+        {o.justificativa_reprovacao && o.status === "reprovada" && <div style={{ background: RED_SOFT, color: RED_DARK }} className="rounded-xl p-3 font-semibold">Reprovada: {o.justificativa_reprovacao}</div>}
+
+        <div className="flex gap-2 flex-wrap">
+          {souResp && (o.status === "pendente" || o.status === "reprovada") && <button disabled={ocupado} onClick={() => chamar("iniciar_tarefa", { p_id: id }, "Tarefa iniciada.")} style={{ background: BLUE, color: "#fff" }} className="flex-1 min-w-[9rem] py-2.5 rounded-2xl text-sm font-bold">Iniciar tarefa</button>}
+          {souResp && (o.status === "em_andamento" || o.status === "pendente" || o.status === "reprovada") && <button onClick={() => setModo("concluir")} style={{ background: "#1F9D55", color: "#fff" }} className="flex-1 min-w-[9rem] py-2.5 rounded-2xl text-sm font-bold">Concluir tarefa</button>}
+          {pode_aprovar && <button disabled={ocupado} onClick={() => chamar("aprovar_tarefa", { p_id: id }, "Tarefa aprovada.")} style={{ background: "#1F9D55", color: "#fff" }} className="flex-1 min-w-[9rem] py-2.5 rounded-2xl text-sm font-bold">Aprovar</button>}
+          {pode_aprovar && <button onClick={() => setModo("reprovar")} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 min-w-[9rem] py-2.5 rounded-2xl text-sm font-bold">Reprovar</button>}
+          {gestor && o.status !== "concluida" && <button onClick={() => { setModo("reatribuir"); setNovoResp(o.responsavel_id || ""); setNovoPrazo(o.prazo ? paraInputDataHora(new Date(o.prazo)) : ""); }} style={{ background: T.chipBg, color: T.text }} className="flex-1 min-w-[9rem] py-2.5 rounded-2xl text-sm font-bold">{o.status === "rascunho" ? "Designar" : "Reatribuir / prazo"}</button>}
+        </div>
+
+        {modo === "concluir" && <div className="flex flex-col gap-2"><textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={2} placeholder="O que foi feito? (opcional)" style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" />
+          <div className="flex items-center gap-3"><label style={{ background: T.chipBg }} className="rounded-xl px-3 py-2 text-xs font-semibold flex items-center gap-2 cursor-pointer"><Camera size={14} /> Foto da solução<input type="file" accept="image/*" capture="environment" onChange={pegarFoto} className="hidden" /></label>{foto && <img src={foto} alt="" className="h-10 w-10 rounded object-cover" />}</div>
+          <button disabled={ocupado} onClick={() => chamar("concluir_tarefa", { p_id: id, p_obs: texto.trim() || null, p_foto: foto }, "Enviada para aprovação.")} style={{ background: "#1F9D55", color: "#fff" }} className="py-2.5 rounded-xl text-sm font-bold">Enviar para aprovação</button></div>}
+        {modo === "reprovar" && <div className="flex flex-col gap-2"><textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={2} placeholder="Justificativa (obrigatória)" style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" />
+          <button disabled={ocupado || !texto.trim()} onClick={() => chamar("reprovar_tarefa", { p_id: id, p_justificativa: texto }, "Tarefa devolvida para correção.")} style={{ background: texto.trim() ? RED_DARK : "#C7CEDA", color: "#fff" }} className="py-2.5 rounded-xl text-sm font-bold">Confirmar reprovação</button></div>}
+        {modo === "reatribuir" && <div className="flex flex-col gap-2">
+          <select value={novoResp} onChange={(e) => setNovoResp(e.target.value)} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none"><option value="">Selecione o responsável…</option>{candidatos.map((u) => <option key={u.id} value={u.id}>{u.nome}{u.setor ? ` · ${u.setor}` : ""}</option>)}</select>
+          <input type="datetime-local" value={novoPrazo} onChange={(e) => setNovoPrazo(e.target.value)} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none" />
+          <button disabled={ocupado || !novoResp || !novoPrazo} onClick={() => chamar("designar_ocorrencia", { p_id: id, p_responsavel: novoResp, p_prazo: new Date(novoPrazo).toISOString() }, "Designação salva.")} style={{ background: novoResp && novoPrazo ? BLUE : "#C7CEDA", color: "#fff" }} className="py-2.5 rounded-xl text-sm font-bold">Salvar</button></div>}
+
+        <div>
+          <p className="text-xs font-bold mb-2">Histórico</p>
+          <div style={{ borderColor: T.border }} className="border-l-2 pl-3 flex flex-col gap-2.5">
+            {eventos.map((e) => (
+              <div key={e.id} className="text-[12px]">
+                <p><b>{EVENTO_TEXTO[e.tipo] || e.tipo}</b>{e.dados?.responsavel ? ` → ${e.dados.responsavel}` : ""}{e.dados?.para ? ` → ${e.dados.para}` : ""}{e.dados?.justificativa ? `: ${e.dados.justificativa}` : ""}</p>
+                <p style={{ color: T.subtext }} className="text-[10.5px]">{e.usuario_nome || "—"} · {formatarDataHoraExtenso(e.criado_em)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </GestaoSheet>
+  );
+}
+
+// ---------- PAINEL DE OCORRÊNCIAS (gestor) ----------
+function OcorrenciasPainel({ T, perfil, lojaAtiva, catalog, equipe, showToast }) {
+  const { lista, recarregar } = usarOcorrencias(lojaAtiva?.id);
+  const [fSetor, setFSetor] = useState(""); const [fFunc, setFFunc] = useState(""); const [fStatus, setFStatus] = useState("");
+  const [fPrio, setFPrio] = useState(""); const [fPeriodo, setFPeriodo] = useState(""); const [busca, setBusca] = useState("");
+  const [nova, setNova] = useState(false); const [aberta, setAberta] = useState(null);
+  if (!lista) return <div className="py-10 flex justify-center"><Loader2 className="animate-spin" color={T.subtext} /></div>;
+  const ef = (o) => statusOcorrenciaEfetivo(o);
+  const dias = fPeriodo ? Number(fPeriodo) : null;
+  const filtrada = lista.filter((o) => (!fSetor || o.setor === fSetor) && (!fFunc || o.responsavel_id === fFunc)
+    && (!fStatus || (fStatus === "atrasada" ? ef(o) === "atrasada" : o.status === fStatus))
+    && (!fPrio || o.prioridade === fPrio) && (!dias || Date.now() - new Date(o.criado_em).getTime() <= dias * 86400000)
+    && (!busca || o.descricao.toLowerCase().includes(busca.toLowerCase()) || (o.responsavel_nome || "").toLowerCase().includes(busca.toLowerCase())));
+  const k = { pendente: 0, em_andamento: 0, aguardando_aprovacao: 0, concluida: 0, atrasada: 0 };
+  lista.forEach((o) => { if (o.status !== "rascunho") { k[o.status] = (k[o.status] || 0) + 1; if (ef(o) === "atrasada") k.atrasada++; } });
+  const setoresLista = [...new Set(lista.map((o) => o.setor))].sort();
+  const funcs = [...new Map(lista.filter((o) => o.responsavel_id).map((o) => [o.responsavel_id, o.responsavel_nome])).entries()];
+  const sel = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <DashKpi T={T} label="Total" value={lista.filter((o) => o.status !== "rascunho").length} accent={BLUE} />
+        <DashKpi T={T} label="Pendentes" value={k.pendente} accent="#4B5563" />
+        <DashKpi T={T} label="Em andamento" value={k.em_andamento} accent="#1F5FBF" />
+        <DashKpi T={T} label="Aguardando aprovação" value={k.aguardando_aprovacao} accent="#6B3FB0" />
+        <DashKpi T={T} label="Concluídas" value={k.concluida} accent="#1F9D55" />
+        <DashKpi T={T} label="Atrasadas" value={k.atrasada} accent={RED_DARK} />
+      </div>
+      <div className="flex gap-2 flex-wrap items-center">
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar descrição ou funcionário" style={sel} className="border rounded-xl px-3 py-2 text-xs outline-none flex-1 min-w-[10rem]" />
+        <select value={fSetor} onChange={(e) => setFSetor(e.target.value)} style={sel} className="border rounded-xl px-2 py-2 text-xs"><option value="">Setor</option>{setoresLista.map((s) => <option key={s}>{s}</option>)}</select>
+        <select value={fFunc} onChange={(e) => setFFunc(e.target.value)} style={sel} className="border rounded-xl px-2 py-2 text-xs"><option value="">Funcionário</option>{funcs.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
+        <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} style={sel} className="border rounded-xl px-2 py-2 text-xs"><option value="">Status</option>{Object.entries(OCORRENCIA_STATUS).map(([id, s]) => <option key={id} value={id}>{s.label}</option>)}<option value="atrasada">Atrasadas</option></select>
+        <select value={fPrio} onChange={(e) => setFPrio(e.target.value)} style={sel} className="border rounded-xl px-2 py-2 text-xs"><option value="">Prioridade</option>{PRIORIDADES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select>
+        <select value={fPeriodo} onChange={(e) => setFPeriodo(e.target.value)} style={sel} className="border rounded-xl px-2 py-2 text-xs"><option value="">Período</option><option value="1">Hoje</option><option value="7">7 dias</option><option value="30">30 dias</option></select>
+        <button onClick={() => setNova(true)} style={{ background: BLUE, color: "#fff" }} className="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"><Plus size={14} /> Nova ocorrência</button>
+      </div>
+      <div className="grid gap-2 lg:grid-cols-2">
+        {filtrada.map((o) => <CartaoOcorrencia key={o.id} T={T} o={o} onClick={() => setAberta(o.id)} />)}
+        {filtrada.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-10 col-span-full">Nenhuma ocorrência nesses filtros.</p>}
+      </div>
+      {nova && <NovaOcorrenciaSheet T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} equipe={equipe} showToast={showToast} onClose={() => setNova(false)} onCriada={() => { setNova(false); recarregar(); }} />}
+      {aberta && <OcorrenciaDetalhe T={T} id={aberta} perfil={perfil} equipe={equipe} showToast={showToast} onClose={() => setAberta(null)} onMudou={recarregar} />}
+    </div>
+  );
+}
+
+// ---------- MINHAS TAREFAS (funcionário) ----------
+function MinhasTarefas({ T, perfil, lojaAtiva, equipe, showToast }) {
+  const { lista, recarregar } = usarOcorrencias(lojaAtiva?.id);
+  const [aberta, setAberta] = useState(null);
+  const [aba, setAba] = useState("abertas");
+  if (!lista) return <div className="py-10 flex justify-center"><Loader2 className="animate-spin" color={T.subtext} /></div>;
+  const minhas = lista.filter((o) => o.responsavel_id === perfil?.id && o.status !== "rascunho");
+  const abertas = minhas.filter((o) => o.status !== "concluida"), feitas = minhas.filter((o) => o.status === "concluida");
+  const mostrar = aba === "abertas" ? abertas : feitas;
+  return (
+    <div className="flex flex-col gap-3">
+      <DashTabs T={T} value={aba} onChange={setAba} options={[{ id: "abertas", label: `Abertas (${abertas.length})` }, { id: "feitas", label: `Concluídas (${feitas.length})` }]} />
+      {mostrar.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-10">{aba === "abertas" ? "Nenhuma tarefa para você agora." : "Nada concluído ainda."}</p>}
+      <div className="grid gap-2 lg:grid-cols-2">{mostrar.map((o) => <CartaoOcorrencia key={o.id} T={T} o={o} onClick={() => setAberta(o.id)} />)}</div>
+      {aberta && <OcorrenciaDetalhe T={T} id={aberta} perfil={perfil} equipe={equipe} showToast={showToast} onClose={() => setAberta(null)} onMudou={recarregar} />}
+    </div>
+  );
+}
+
+// ---------- RELATÓRIOS ----------
+function RelatoriosRonda({ T, lojaAtiva, rondasLista }) {
+  const { lista } = usarOcorrencias(lojaAtiva?.id);
+  const [per, setPer] = useState("30");
+  if (!lista) return <div className="py-10 flex justify-center"><Loader2 className="animate-spin" color={T.subtext} /></div>;
+  const base = lista.filter((o) => o.status !== "rascunho" && Date.now() - new Date(o.criado_em).getTime() <= Number(per) * 86400000);
+  const conc = base.filter((o) => o.status === "concluida");
+  const atras = base.filter((o) => statusOcorrenciaEfetivo(o) === "atrasada");
+  const pctConc = pctDe(conc.length, base.length);
+  const tempos = conc.filter((o) => o.designado_em && o.concluido_em).map((o) => new Date(o.concluido_em) - new Date(o.designado_em));
+  const tempoMedio = tempos.length ? tempos.reduce((a, b) => a + b, 0) / tempos.length : 0;
+  const agrupa = (fn) => { const m = {}; base.forEach((o) => { const k2 = fn(o) || "—"; m[k2] = (m[k2] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]); };
+  const porSetor = agrupa((o) => o.setor), porCat = agrupa((o) => CAT[o.categoria]);
+  const porFunc = {}; base.forEach((o) => { const n = o.responsavel_nome || "—"; porFunc[n] = porFunc[n] || { t: 0, c: 0 }; porFunc[n].t++; if (o.status === "concluida") porFunc[n].c++; });
+  const semanas = {}; base.forEach((o) => { const d = new Date(o.criado_em); d.setDate(d.getDate() - d.getDay()); const key = d.toISOString().slice(0, 10); semanas[key] = (semanas[key] || 0) + 1; });
+  const evol = Object.entries(semanas).sort();
+  const rd = (rondasLista || []).filter((r) => Date.now() - new Date(r.criado_em).getTime() <= Number(per) * 86400000);
+  return (
+    <div className="flex flex-col gap-4">
+      <DashTabs T={T} value={per} onChange={setPer} options={[{ id: "7", label: "7 dias" }, { id: "30", label: "30 dias" }, { id: "90", label: "90 dias" }]} />
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5">
+        <DashKpi T={T} label="Ocorrências" value={base.length} accent={BLUE} />
+        <DashKpi T={T} label="Conclusão" value={`${pctConc}%`} accent="#1F9D55" />
+        <DashKpi T={T} label="Atrasadas" value={atras.length} accent={RED_DARK} />
+        <DashKpi T={T} label="Tempo médio" value={tempoMedio ? fmtDuracao(tempoMedio) : "—"} accent="#6B3FB0" />
+        <DashKpi T={T} label="Rondas" value={rd.length} sub={`${rd.filter((r) => r.status === "finalizada").length} finalizadas · ${rd.filter((r) => r.status === "encerrada_antecipada").length} antecipadas`} accent="#C98A0C" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <DashCard T={T} title="Ocorrências por setor"><DashHBars T={T} data={porSetor.map(([l, v]) => ({ label: l, value: v, color: BLUE, right: String(v) }))} /></DashCard>
+        <DashCard T={T} title="Ocorrências por categoria"><DashHBars T={T} data={porCat.map(([l, v]) => ({ label: l, value: v, color: "#6B3FB0", right: String(v) }))} /></DashCard>
+        <DashCard T={T} title="Por funcionário (concluídas / total)"><DashHBars T={T} data={Object.entries(porFunc).sort((a, b) => b[1].t - a[1].t).slice(0, 10).map(([l, v]) => ({ label: l, value: v.t, color: "#1F9D55", right: `${v.c}/${v.t}` }))} /></DashCard>
+        <DashCard T={T} title="Evolução semanal"><DashBars T={T} data={evol.map(([d, v]) => ({ label: d.slice(5).split("-").reverse().join("/"), parts: [{ value: v, color: BLUE }] }))} /></DashCard>
+      </div>
+      {base.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center">Sem ocorrências no período.</p>}
+    </div>
+  );
+}
+
+// ============================================================================
+// TELA PRINCIPAL DA ABA "RONDAS"
+// ============================================================================
+function RondasView({ T, perfil, lojaAtiva, catalog, showToast, intent, onIntentUsada }) {
+  const nivel = perfil?.cargos?.nivel ?? 99;
+  const gestor = nivel <= 5;
+  const [aba, setAba] = useState(gestor ? "rondas" : "minhas");
+  const [lista, setLista] = useState(null);
+  const [progresso, setProgresso] = useState({});
+  const [equipe, setEquipe] = useState([]);
+  const [nova, setNova] = useState(null); // null | { setor }
+  const [aberta, setAberta] = useState(null); // { id, modo: "painel" | "exec" }
+  const [filtro, setFiltro] = useState("todas");
+  const lojaId = lojaAtiva?.id;
+
+  const carregar = useCallback(async () => {
+    if (!lojaId) { setLista([]); return; }
+    const { data, error } = await supabase.from("rondas").select("*, ronda_participantes(usuario_id, nome)").eq("loja_id", lojaId).not("status", "in", "(concluida,parcial,pendente)").order("criado_em", { ascending: false }).limit(150);
+    if (error) { console.error(error); setLista((p) => p || []); return; }
+    setLista(data || []);
+    const ativas = (data || []).filter((r) => ["agendada", "aguardando_inicio", "em_andamento"].includes(r.status)).map((r) => r.id);
+    if (ativas.length) {
+      const { data: it } = await supabase.from("ronda_itens").select("ronda_id, resultado").in("ronda_id", ativas).limit(20000);
+      const p = {}; (it || []).forEach((x) => { p[x.ronda_id] = p[x.ronda_id] || { t: 0, c: 0 }; p[x.ronda_id].t++; if (x.resultado !== "pendente") p[x.ronda_id].c++; });
+      setProgresso(p);
+    }
+  }, [lojaId]);
+  useEffect(() => {
+    carregar();
+    let t = null; const agenda = () => { clearTimeout(t); t = setTimeout(carregar, 500); };
+    const canal = supabase.channel(`rondas-lista-${lojaId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rondas" }, agenda)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ronda_participantes" }, agenda)
+      .subscribe();
+    const vis = () => { if (document.visibilityState !== "hidden") carregar(); };
+    document.addEventListener("visibilitychange", vis); window.addEventListener("online", vis);
+    return () => { clearTimeout(t); supabase.removeChannel(canal); document.removeEventListener("visibilitychange", vis); window.removeEventListener("online", vis); };
+  }, [lojaId, carregar]);
+  useEffect(() => { if (gestor && lojaId) carregarEquipeLoja(lojaId).then(setEquipe); }, [gestor, lojaId]);
+  useEffect(() => { if (intent?.novaSetor && gestor) { setNova({ setor: intent.novaSetor }); onIntentUsada?.(); } }, [intent]);
+
+  function abrir(r) {
+    const souPart = (r.ronda_participantes || []).some((p) => p.usuario_id === perfil?.id);
+    const gerencia = r.criado_por === perfil?.id || gestor;
+    setAberta({ id: r.id, modo: gerencia ? "painel" : souPart ? "exec" : "painel" });
+  }
+  if (!lista) return <div className="py-16 flex justify-center"><Loader2 className="animate-spin" color={T.subtext} /></div>;
+
+  const emCurso = (r) => ["agendada", "aguardando_inicio", "em_andamento"].includes(r.status);
+  const minhasRondas = lista.filter((r) => (r.ronda_participantes || []).some((p) => p.usuario_id === perfil?.id));
+  const base = aba === "minhas" ? minhasRondas : lista;
+  const filtrada = base.filter((r) => filtro === "todas" || (filtro === "ativas" ? emCurso(r) : !emCurso(r)));
+  const abas = gestor ? [{ id: "rondas", label: "Rondas" }, { id: "minhas", label: "Minhas" }, { id: "ocorrencias", label: "Ocorrências" }, { id: "relatorios", label: "Relatórios" }]
+    : [{ id: "minhas", label: "Minhas rondas" }, { id: "tarefas", label: "Minhas tarefas" }];
+  return (
+    <div className="px-4 pt-4 pb-6 lg:px-0 lg:pt-0">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div><h2 className="text-lg font-extrabold">Ronda</h2><p style={{ color: T.subtext }} className="text-xs">Loja {lojaAtiva?.numero_loja ?? "—"}{gestor ? "" : " · só o que foi designado a você"}</p></div>
+        {gestor && <button onClick={() => setNova({ setor: null })} style={{ background: "#1F9D55", color: "#fff" }} className="px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5"><Plus size={14} /> Iniciar ronda</button>}
+      </div>
+      <div className="mb-4"><DashTabs T={T} value={aba} onChange={setAba} options={abas} /></div>
+
+      {(aba === "rondas" || aba === "minhas") && (
+        <>
+          <div className="mb-3"><DashTabs T={T} value={filtro} onChange={setFiltro} options={[{ id: "todas", label: "Todas" }, { id: "ativas", label: "Em curso" }, { id: "encerradas", label: "Encerradas" }]} /></div>
+          <div className="grid gap-2.5 lg:grid-cols-2">
+            {filtrada.map((r) => {
+              const st = RONDA_STATUS[r.status] || RONDA_STATUS.finalizada; const Icone = iconeDoSetor(r.setor);
+              const pr = progresso[r.id]; const conf = pr ? pr.c : (r.encerrada_conferidos ?? 0); const tot = pr ? pr.t : r.total_itens;
+              return (
+                <button key={r.id} onClick={() => abrir(r)} style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-3.5 text-left">
+                  <div className="flex items-start gap-3">
+                    <div style={{ background: st.bg }} className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"><Icone size={18} color={st.color} /></div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2"><p className="text-sm font-semibold leading-tight">{r.titulo}</p><DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge></div>
+                      <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">{r.setor} · por {r.criado_por_nome || r.usuario || "—"} · {formatarDataHoraExtenso(r.criado_em)}</p>
+                      <p style={{ color: T.subtext }} className="text-[11px]">👥 {(r.ronda_participantes || []).map((p) => p.nome).join(", ") || "—"}</p>
+                      <div className="mt-2"><BarraProgressoRonda T={T} conf={conf} total={tot} cor={st.color} /></div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+            {filtrada.length === 0 && (
+              <div className="text-center py-14 px-6 col-span-full">
+                <div style={{ background: BLUE_SOFT }} className="h-16 w-16 rounded-2xl mx-auto flex items-center justify-center mb-3"><ClockIcon className="w-6 h-6" style={{ color: BLUE }} /></div>
+                <p className="font-semibold text-sm">Nenhuma ronda por aqui</p>
+                <p style={{ color: T.subtext }} className="text-xs mt-1">{gestor ? "Toque em “Iniciar ronda” para criar a primeira." : "Quando um encarregado designar uma ronda para você, ela aparece aqui na hora."}</p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+      {aba === "ocorrencias" && gestor && <OcorrenciasPainel T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} equipe={equipe} showToast={showToast} />}
+      {aba === "tarefas" && <MinhasTarefas T={T} perfil={perfil} lojaAtiva={lojaAtiva} equipe={equipe} showToast={showToast} />}
+      {aba === "relatorios" && gestor && <RelatoriosRonda T={T} lojaAtiva={lojaAtiva} rondasLista={lista} />}
+
+      {nova && <NovaRondaSheet T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} equipe={equipe} showToast={showToast} preSetor={nova.setor} onClose={() => setNova(null)} onCriada={() => { setNova(null); carregar(); }} />}
+      {aberta?.modo === "painel" && <RondaPainel T={T} rondaId={aberta.id} perfil={perfil} showToast={showToast} onFechar={() => { setAberta(null); carregar(); }} onExecutar={() => setAberta({ id: aberta.id, modo: "exec" })} />}
+      {aberta?.modo === "exec" && <RondaExecucao T={T} rondaId={aberta.id} perfil={perfil} catalog={catalog} showToast={showToast} onFechar={() => { setAberta(null); carregar(); }} />}
+    </div>
+  );
+}
+
+
 
 // ============ Torre de Controle (itens 26, 30, 31, 32, 37) — tela pra liderança ============
 // Dados agregados usados pela Torre de Controle e pela aba Relatórios (resumo geral, setores, itens)
