@@ -23,7 +23,8 @@ Secrets (Supabase → Edge Functions → Secrets):
 |---|---|---|
 | `GEMINI_API_KEY` | sim (já configurado) | chave gratuita em https://aistudio.google.com/apikey |
 | `GEMINI_MODEL` | não | força um modelo. Vazio = escolhe sozinho um Flash disponível e pula modelos sobrecarregados |
-| `IA_LIMITE_DIARIO` | não | perguntas por usuário por dia (padrão 40) |
+| `IA_LIMITE_DIARIO` | não | perguntas por usuário por dia (padrão 500) |
+| `GEMINI_PREFERIR_PRO` | não | `nao` desliga o Pro. Padrão: tenta o Gemini Pro mais novo e, se a chave não tiver acesso ou estiver no limite, usa o Flash |
 
 Diagnóstico (sem dados da loja), com a chave anon:
 
@@ -55,3 +56,8 @@ Calculado por `analise_risco_produtos`, só com histórico real:
 | Tempo sem conferir: nunca/30+ dias 6 · 14+ dias 3 | até 6 |
 
 Alto ≥ 60 · Médio ≥ 30 · Baixo < 30. Risco alto **não** significa produto vencido.
+
+## Conversas
+
+As conversas com a IA **não são salvas**: ficam só na tela e recomeçam quando o app é reaberto (ou em "Nova conversa").
+As tabelas `ia_conversas`/`ia_mensagens` não são mais usadas.

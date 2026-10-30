@@ -13,7 +13,8 @@
 // Variáveis (Edge Functions > Secrets):
 //   GEMINI_API_KEY      obrigatória  (https://aistudio.google.com/apikey — gratuita)
 //   GEMINI_MODEL        opcional     (se vazio, usa o Flash mais novo disponível para a chave)
-//   IA_LIMITE_DIARIO    opcional     (padrão: 40 perguntas por usuário por dia)
+//   IA_LIMITE_DIARIO    opcional     (padrão: 500 perguntas por usuário por dia)
+//   GEMINI_PREFERIR_PRO opcional     ("nao" desliga o Pro; padrão: tenta o Pro primeiro e cai para o Flash)
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
@@ -36,7 +37,7 @@ async function modelosDisponiveis(): Promise<string[]> {
   const nomes: string[] = (j?.models || [])
     .filter((m: any) => (m.supportedGenerationMethods || []).includes("generateContent"))
     .map((m: any) => String(m.name || "").replace(/^models\//, ""))
-    .filter((n: string) => /flash/.test(n) && !/(image|tts|audio|live|embedding|thinking-exp|native|robotics|computer)/.test(n));
+    .filter((n: string) => /(flash|pro)/.test(n) && !/(image|tts|audio|live|embedding|thinking-exp|native|robotics|computer|vision)/.test(n));
   const versao = (n: string) => Number((n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
   const estavel = (n: string) => (/(preview|exp)/.test(n) ? 0 : 1);
   const lite = (n: string) => (/lite/.test(n) ? 0 : 1);
@@ -44,6 +45,10 @@ async function modelosDisponiveis(): Promise<string[]> {
   modelosCache = { lista: nomes, em: Date.now() };
   return nomes;
 }
+// Gemini Pro primeiro (respostas mais caprichadas); se a chave não tiver o Pro, ou ele estiver no limite
+// ou sobrecarregado, cai sozinho para o Flash — o usuário nunca fica sem resposta.
+const PREFERIR_PRO = (Deno.env.get("GEMINI_PREFERIR_PRO") || "sim") !== "nao";
+const ehPro = (m: string) => /pro/.test(m);
 let modeloBom = ""; // último modelo que respondeu bem nesta instância
 const sobrecarregados = new Map<string, number>(); // modelo -> até quando evitar (ms)
 async function escolherModelos(sb?: any): Promise<string[]> {
@@ -52,12 +57,18 @@ async function escolherModelos(sb?: any): Promise<string[]> {
     if (typeof data === "string" && data) modeloBom = data;
   }
   const disp = await modelosDisponiveis().catch(() => [] as string[]);
-  const ordem = [...new Set([MODELO_FIXO, modeloBom, "gemini-flash-latest", ...disp, "gemini-flash-lite-latest"].filter(Boolean))];
+  // Pro: o mais novo primeiro (mesmo em "preview"), pulando os que já falharam (aposentados/no limite)
+  const versaoPro = (n: string) => Number((n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+  const pros = disp.filter(ehPro).sort((a, b) => versaoPro(b) - versaoPro(a) || (/latest/.test(b) ? 1 : 0) - (/latest/.test(a) ? 1 : 0));
+  const flashes = disp.filter((m) => !ehPro(m));
+  const proVivo = pros.find((m) => (sobrecarregados.get(m) || 0) < Date.now());
+  const proPrimeiro = PREFERIR_PRO ? [proVivo || (pros.length ? "" : "gemini-pro-latest")].filter(Boolean) : [];
+  const ordem = [...new Set([MODELO_FIXO, ...proPrimeiro, modeloBom, "gemini-flash-latest", ...flashes, "gemini-flash-lite-latest"].filter(Boolean))];
   const agora = Date.now();
   const livres = ordem.filter((m) => (sobrecarregados.get(m) || 0) < agora);
   return livres.length ? [...livres, ...ordem.filter((m) => !livres.includes(m))] : ordem;
 }
-const LIMITE = Number(Deno.env.get("IA_LIMITE_DIARIO") || "40");
+const LIMITE = Number(Deno.env.get("IA_LIMITE_DIARIO") || "500");
 const MAX_RODADAS = 6;
 
 const SISTEMA = `Você é o assistente de Inteligência Operacional do aplicativo Condor Validade, usado por encarregados e gestores de supermercado.
@@ -233,7 +244,8 @@ async function gemini(modelo: string, contents: any[], comFerramentas = true, li
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SISTEMA }] }, contents,
         ...(comFerramentas ? { tools: [{ functionDeclarations: FERRAMENTAS }], toolConfig: { functionCallingConfig: { mode: "AUTO" } } } : {}),
-        generationConfig: { temperature: 0.25, maxOutputTokens: 2048 },
+        // o Pro "pensa" antes de responder e gasta tokens nisso: precisa de mais espaço
+        generationConfig: { temperature: 0.25, maxOutputTokens: ehPro(modelo) ? 8192 : 2048 },
       }),
     });
     const corpo = await r.json().catch(() => ({}));
@@ -250,10 +262,11 @@ async function chamarComReserva(modelos: string[], contents: any[], comFerrament
   for (const m of modelos.slice(0, 3)) {
     const resta = prazoFinal - Date.now();
     if (resta < 4000) break;
-    const r = await gemini(m, contents, comFerramentas, Math.min(limiteMs, resta));
+    const r = await gemini(m, contents, comFerramentas, Math.min(ehPro(m) ? Math.max(limiteMs, 40000) : limiteMs, resta));
     tentativas.push({ modelo: m, status: r.status, ms: r.ms });
-    if ([404, 408, 500, 503, 599].includes(r.status)) {
-      sobrecarregados.set(m, Date.now() + (r.status === 404 ? 6 * 3600000 : 5 * 60000));
+    if ([404, 408, 429, 500, 503, 599].includes(r.status) || (r.status === 400 && /not (found|supported)/i.test(JSON.stringify(r.corpo)))) {
+      // 404/400: modelo não existe para a chave · 429: limite daquele modelo (comum no Pro) → tenta o próximo
+      sobrecarregados.set(m, Date.now() + (r.status === 404 || r.status === 400 ? 6 * 3600000 : r.status === 429 ? 30 * 60000 : 5 * 60000));
       ultimo = { ...r, modelo: m, tentativas }; continue;
     }
     if (r.status === 200) { if (modeloBom !== m && sb) sb.rpc("ia_salvar_modelo", { p_modelo: m }).then(() => {}, () => {}); modeloBom = m; }
@@ -264,7 +277,7 @@ async function chamarComReserva(modelos: string[], contents: any[], comFerrament
 
 async function conversar(contents: any[], c: Ctx) {
   // orçamento total da resposta: a função nunca pode ficar presa (o app espera no máximo ~75 s)
-  const prazoFinal = Date.now() + 50000;
+  const prazoFinal = Date.now() + 85000;
   let modelos = await escolherModelos(c.sb);
   let modelo = modelos[0];
   for (let rodada = 0; rodada < MAX_RODADAS; rodada++) {
@@ -273,7 +286,10 @@ async function conversar(contents: any[], c: Ctx) {
     const res = await chamarComReserva(modelos, contents, !ultimaRodada, 20000, prazoFinal, c.sb);
     const { status, corpo } = res;
     if (res.modelo) { modelo = res.modelo; modelos = [modelo, ...modelos.filter((x) => x !== modelo)]; }
-    if (status === 429) throw Object.assign(new Error("O limite gratuito do Gemini foi atingido por agora. Tente de novo em alguns minutos."), { codigo: "limite_api" });
+    if (status === 429 || status === 404 || status === 400 && /not (found|supported)/i.test(JSON.stringify(corpo))) {
+      if (status !== 429) throw Object.assign(new Error("Nenhum modelo do Gemini disponível para esta chave agora."), { codigo: "api" });
+      throw Object.assign(new Error("O limite gratuito do Gemini foi atingido por agora. Tente de novo em alguns minutos."), { codigo: "limite_api" });
+    }
     if (status === 400 && /API key/i.test(JSON.stringify(corpo))) throw Object.assign(new Error("A chave do Gemini (GEMINI_API_KEY) é inválida."), { codigo: "chave_invalida" });
     if (status === 408 || status === 503 || status === 500 || status === 599) throw Object.assign(new Error("O serviço de IA do Google está sobrecarregado agora. Tente de novo em instantes."), { codigo: "sobrecarga" });
     if (status !== 200) throw Object.assign(new Error(`Gemini respondeu ${status}: ${corpo?.error?.message || "erro desconhecido"}`), { codigo: "api" });
@@ -348,22 +364,14 @@ Deno.serve(async (req) => {
   if (eCota) return json({ erro: "Não foi possível verificar seu limite de uso." }, 500);
   if (!cota?.ok) return json({ erro: `Você atingiu o limite de ${cota?.limite} perguntas por dia. Amanhã libera de novo.`, codigo: "cota" }, 429);
 
-  // conversa (cria se não existir) e histórico curto para contexto
-  let conversaId = body?.conversa_id || null;
-  if (conversaId) {
-    const { data: cv } = await sb.from("ia_conversas").select("id").eq("id", conversaId).maybeSingle();
-    if (!cv) conversaId = null;
-  }
-  if (!conversaId) {
-    const { data: nova, error } = await sb.from("ia_conversas").insert({ usuario_id: u.user.id, loja_id: loja, titulo: pergunta.slice(0, 80) }).select("id").single();
-    if (error) return json({ erro: "Não foi possível abrir a conversa." }, 500);
-    conversaId = nova.id;
-  }
-  const { data: hist } = await sb.from("ia_mensagens").select("papel, conteudo").eq("conversa_id", conversaId).order("criado_em", { ascending: false }).limit(10);
-  const contents: any[] = (hist || []).reverse().filter((m: any) => m.papel !== "erro")
+  // Conversa sem histórico salvo: o app manda as últimas mensagens da tela (só para dar contexto)
+  // e nada é gravado no banco. Fechou o app, a conversa recomeça do zero.
+  const anteriores = Array.isArray(body?.historico) ? body.historico.slice(-10) : [];
+  const contents: any[] = anteriores
+    .filter((m: any) => (m?.papel === "usuario" || m?.papel === "assistente") && typeof m?.conteudo === "string" && m.conteudo.trim())
     .map((m: any) => ({ role: m.papel === "usuario" ? "user" : "model", parts: [{ text: corta(m.conteudo, 4000) }] }));
+  while (contents.length && contents[0].role !== "user") contents.shift();
   contents.push({ role: "user", parts: [{ text: pergunta }] });
-  await sb.from("ia_mensagens").insert({ conversa_id: conversaId, usuario_id: u.user.id, papel: "usuario", conteudo: pergunta });
 
   const ctx: Ctx = { sb, loja, graficos: [], propostas: [], usadas: [] };
   try {
@@ -371,13 +379,10 @@ Deno.serve(async (req) => {
     const vistos = new Set<string>();
     const graficos = ctx.graficos.filter((g) => !vistos.has(g.titulo) && vistos.add(g.titulo)).slice(0, 3);
     const extras = { graficos, propostas: ctx.propostas.slice(0, 4), ferramentas: [...new Set(ctx.usadas)], modelo };
-    await sb.from("ia_mensagens").insert({ conversa_id: conversaId, usuario_id: u.user.id, papel: "assistente", conteudo: texto, extras });
-    await sb.from("ia_conversas").update({ atualizado_em: new Date().toISOString() }).eq("id", conversaId);
-    return json({ conversa_id: conversaId, resposta: texto, ...extras, cota });
+    return json({ resposta: texto, ...extras, cota });
   } catch (e: any) {
     const msg = e?.name === "AbortError" ? "A IA demorou demais para responder. Tente de novo." : (e?.message || "Erro ao consultar a IA.");
     console.error("assistente-ia:", e);
-    await sb.from("ia_mensagens").insert({ conversa_id: conversaId, usuario_id: u.user.id, papel: "erro", conteudo: msg });
-    return json({ erro: msg, codigo: e?.codigo || "erro", conversa_id: conversaId }, e?.codigo === "limite_api" ? 429 : e?.codigo === "sobrecarga" || e?.codigo === "tempo" ? 503 : 502);
+    return json({ erro: msg, codigo: e?.codigo || "erro" }, e?.codigo === "limite_api" ? 429 : e?.codigo === "sobrecarga" || e?.codigo === "tempo" ? 503 : 502);
   }
 });

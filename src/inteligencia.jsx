@@ -798,61 +798,47 @@ function TextoIA({ texto }) {
 }
 
 export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda }) {
-  const [conversas, setConversas] = useState([]);
-  const [conversaId, setConversaId] = useState(null);
   const [msgs, setMsgs] = useState([]);
   const [texto, setTexto] = useState("");
   const [pensando, setPensando] = useState(false);
   const [aviso, setAviso] = useState(null);
   const [tarefa, setTarefa] = useState(null);
   const [acao, setAcao] = useState(null);
-  const [historico, setHistorico] = useState(false);
   const [qtdSugestoes, setQtdSugestoes] = useState(3);
   const fim = useRef(null);
 
-  const carregarConversas = useCallback(async () => {
-    const { data } = await supabase.from("ia_conversas").select("id, titulo, atualizado_em").order("atualizado_em", { ascending: false }).limit(30);
-    setConversas(data || []);
-  }, []);
-  useEffect(() => { carregarConversas(); }, [carregarConversas]);
   useEffect(() => { fim.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [msgs, pensando]);
 
-  async function abrirConversa(id) {
-    setHistorico(false); setConversaId(id); setMsgs([]);
-    const { data } = await supabase.from("ia_mensagens").select("id, papel, conteudo, extras, criado_em").eq("conversa_id", id).order("criado_em");
-    setMsgs((data || []).map((m) => ({ ...m, ...(m.extras || {}) })));
-  }
-  function novaConversa() { setConversaId(null); setMsgs([]); setHistorico(false); setAviso(null); }
+  // a conversa vive só na tela: ao reabrir o app (ou tocar em "Nova conversa") recomeça do zero
+  function novaConversa() { if (pensando) return; setMsgs([]); setAviso(null); setQtdSugestoes(3); }
 
   async function perguntar(p) {
     const pergunta = (p ?? texto).trim();
     if (!pergunta || pensando) return;
     setTexto(""); setAviso(null);
     setMsgs((m) => [...m, { id: "u" + Date.now(), papel: "usuario", conteudo: pergunta }]);
+    const historico = msgs.filter((m) => m.papel === "usuario" || m.papel === "assistente").slice(-10).map((m) => ({ papel: m.papel, conteudo: m.conteudo }));
     setPensando(true);
-    // nunca fica girando para sempre: depois de 75 s o app desiste e avisa
-    const limite = new Promise((resolve) => setTimeout(() => resolve({ data: null, error: { message: "tempo_limite" } }), 75000));
+    // nunca fica girando para sempre: depois de 110 s o app desiste e avisa
+    const limite = new Promise((resolve) => setTimeout(() => resolve({ data: null, error: { message: "tempo_limite" } }), 110000));
     const { data, error } = await Promise.race([
-      supabase.functions.invoke("assistente-ia", { body: { pergunta, conversa_id: conversaId, loja_id: lojaAtiva?.id || null } }),
+      supabase.functions.invoke("assistente-ia", { body: { pergunta, historico, loja_id: lojaAtiva?.id || null } }),
       limite,
     ]);
     setPensando(false);
     if (error) {
       let corpo = null; try { corpo = await error.context?.json?.(); } catch {}
-      const msg = corpo?.erro || (error.message === "tempo_limite" ? "A IA demorou demais para responder (o serviço gratuito do Google pode estar sobrecarregado). Tente de novo em instantes."
+      const msg = corpo?.erro || (error.message === "tempo_limite" ? "A IA demorou demais para responder (o serviço do Google pode estar sobrecarregado). Tente de novo em instantes."
         : String(error.message || "").includes("Failed to send") ? "Sem conexão com o servidor da IA." : "Não foi possível falar com o assistente agora.");
-      if (corpo?.conversa_id) setConversaId(corpo.conversa_id);
       setMsgs((m) => [...m, { id: "e" + Date.now(), papel: "erro", conteudo: msg }]);
       if (corpo?.codigo === "sem_chave") setAviso("sem_chave");
       return;
     }
-    setConversaId(data.conversa_id);
-    setMsgs((m) => [...m, { id: "a" + Date.now(), papel: "assistente", conteudo: data.resposta, graficos: data.graficos, propostas: data.propostas, ferramentas: data.ferramentas }]);
-    carregarConversas();
+    setMsgs((m) => [...m, { id: "a" + Date.now(), papel: "assistente", conteudo: data.resposta, graficos: data.graficos, propostas: data.propostas, ferramentas: data.ferramentas, modelo: data.modelo }]);
   }
 
   async function registrar(tipo, dados, resultado) {
-    await supabase.rpc("ia_registrar_acao", { p_tipo: tipo, p_dados: dados, p_resultado: resultado, p_conversa: conversaId });
+    await supabase.rpc("ia_registrar_acao", { p_tipo: tipo, p_dados: dados, p_resultado: resultado, p_conversa: null });
   }
   function executarProposta(p) {
     if (p.tipo === "ronda") {
@@ -863,19 +849,7 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
   }
 
   return (
-    <div className="px-4 pt-4 lg:px-0 flex flex-col gap-3 lg:grid lg:grid-cols-[260px_1fr] lg:gap-5 lg:items-start">
-      {/* histórico de conversas (lateral no PC, gaveta no celular) */}
-      <div className={`${historico ? "flex" : "hidden"} lg:flex flex-col gap-2`}>
-        <button onClick={novaConversa} style={{ background: BLUE, color: "#fff" }} className="py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2"><Plus size={15} /> Nova conversa</button>
-        <div style={{ background: T.card }} className="rounded-2xl p-2 flex flex-col gap-0.5 max-h-[60vh] overflow-y-auto">
-          {conversas.length === 0 ? <Vazio T={T} texto="Nenhuma conversa ainda." /> : conversas.map((c) => (
-            <button key={c.id} onClick={() => abrirConversa(c.id)} style={c.id === conversaId ? { background: BLUE_SOFT, color: BLUE } : { color: T.text }} className="text-left rounded-xl px-3 py-2">
-              <p className="text-[12px] font-semibold truncate">{c.titulo || "Conversa"}</p><p style={{ color: T.subtext }} className="text-[10px]">{dataHoraBR(c.atualizado_em)}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
+    <div className="px-4 pt-4 lg:px-0 flex flex-col gap-3 lg:max-w-5xl lg:mx-auto lg:w-full">
       <div className="flex flex-col gap-3 min-w-0">
         <div style={{ background: `linear-gradient(135deg, ${BLUE_DARK} 0%, #1d1240 100%)` }} className="rounded-3xl p-4 lg:p-5 text-white">
           <div className="flex items-start justify-between gap-3">
@@ -884,7 +858,7 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
               <p className="text-base lg:text-lg font-bold mt-1">Pergunte sobre a operação da loja</p>
               <p className="hidden lg:block text-[11.5px] text-white/70 mt-1">Responde só com os dados que você tem permissão de ver. Nada é criado sem a sua confirmação.</p>
             </div>
-            <button onClick={() => setHistorico((h) => !h)} className="lg:hidden bg-white/15 rounded-xl px-2.5 py-2 text-[11px] font-semibold flex items-center gap-1 shrink-0"><History size={14} /> Conversas</button>
+            {msgs.length > 0 && <button onClick={novaConversa} disabled={pensando} className="bg-white/15 rounded-xl px-2.5 py-2 text-[11px] font-semibold flex items-center gap-1 shrink-0 disabled:opacity-50"><Plus size={14} /> Nova conversa</button>}
           </div>
         </div>
         {aviso === "sem_chave" && (
@@ -929,6 +903,7 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
                     ))}</div>
                   )}
                   {m.ferramentas?.length > 0 && <p style={{ color: T.subtext }} className="text-[10px]">Dados consultados: {m.ferramentas.join(", ").replace(/_/g, " ")}</p>}
+                  {m.modelo && <p style={{ color: T.subtext }} className="text-[10px]">Respondido por {/pro/.test(m.modelo) ? "Gemini Pro" : "Gemini Flash"} ({m.modelo})</p>}
                 </div>
               )}
             </div>
