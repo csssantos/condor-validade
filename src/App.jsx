@@ -47,6 +47,12 @@ const SETORES = [
   "Bebidas", "Congelados", "Limpeza", "Higiene e Perfumaria", "Bazar",
   "CPD / Depósito", "Outro"
 ];
+// "Mercearia leve", "Mercearia doce e salgado" etc. são subsetores: contam como o setor principal ("Mercearia").
+function setorPrincipal(s) {
+  const t = String(s || "").trim().toLowerCase();
+  const achado = SETORES.filter((c) => c !== "Outro").sort((x, y) => y.length - x.length).find((c) => t === c.toLowerCase() || t.startsWith(c.toLowerCase() + " "));
+  return achado || s;
+}
 // Item 2: perecíveis nunca se misturam com os outros setores nos filtros/telas
 const SETORES_PERECIVEIS = ["Hortifruti", "Açougue", "Padaria", "Frios e Laticínios", "Congelados"];
 function ehPerecivel(setor) { return SETORES_PERECIVEIS.includes(setor) || SETORES_PERECIVEIS_EXTRA.includes(setor); }
@@ -2141,7 +2147,7 @@ function AppInner() {
   }
 
   // Ronda: criar é sempre pela aba Rondas (validação de cargo/setor no banco). Os botões de setor só abrem a tela já com o setor escolhido.
-  function iniciarRonda(setor) { setRondaIntent({ novaSetor: setor || null }); setSetorAtivo(null); setFlow(null); setTab("rondas"); }
+  function iniciarRonda(setor) { setRondaIntent({ novaSetor: setor ? setorPrincipal(setor) : null }); setSetorAtivo(null); setFlow(null); setTab("rondas"); }
 
   async function compartilharItem(item) {
     const st = getStatus(item);
@@ -4055,7 +4061,7 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
   // setores = os que têm produtos cadastrados no banco (nada de lista fixa)
   const setoresDoBanco = useMemo(() => {
     const cont = {};
-    Object.values(catalog || {}).forEach((p) => { if (p?.setor) cont[p.setor] = (cont[p.setor] || 0) + 1; });
+    Object.values(catalog || {}).forEach((p) => { if (p?.setor) { const sp = setorPrincipal(p.setor); cont[sp] = (cont[sp] || 0) + 1; } });
     return Object.entries(cont).sort((a, b) => a[0].localeCompare(b[0])).filter(([s]) => nivel <= 4 || s.toLowerCase() === meuSetor);
   }, [catalog, nivel, meuSetor]);
   const [setores, setSetores] = useState(preSetor && setoresDoBanco.some(([s]) => s === preSetor) ? [preSetor] : (setoresDoBanco.length === 1 ? [setoresDoBanco[0][0]] : []));
@@ -4110,7 +4116,7 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
             {nivel <= 4 && setores.length > 0 && <label className="text-[11px] flex items-center gap-2" style={{ color: T.subtext }}><input type="checkbox" checked={outrosSetores} onChange={(e) => setOutrosSetores(e.target.checked)} /> Mostrar funcionários de outros setores (gerência)</label>}
           </div>
         </GestaoCampo>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <GestaoCampo T={T} label="Início"><input type="datetime-local" value={inicio} onChange={(e) => setInicio(e.target.value)} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none" /></GestaoCampo>
           <GestaoCampo T={T} label="Prazo (opcional)"><input type="datetime-local" value={prazo} onChange={(e) => setPrazo(e.target.value)} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none" /></GestaoCampo>
         </div>
@@ -4181,7 +4187,7 @@ function CartaoOcorrencia({ T, o, onClick }) {
 function NovaOcorrenciaSheet({ T, perfil, lojaAtiva, catalog, equipe, rondaId, showToast, onClose, onCriada }) {
   const nivel = perfil?.cargos?.nivel ?? 99;
   const meuSetor = (perfil?.setor || "").toLowerCase();
-  const setores = useMemo(() => [...new Set(Object.values(catalog || {}).map((p) => p?.setor).filter(Boolean))].sort().filter((s) => nivel <= 4 || s.toLowerCase() === meuSetor), [catalog, nivel, meuSetor]);
+  const setores = useMemo(() => [...new Set(Object.values(catalog || {}).map((p) => p?.setor && setorPrincipal(p.setor)).filter(Boolean))].sort().filter((s) => nivel <= 4 || s.toLowerCase() === meuSetor), [catalog, nivel, meuSetor]);
   const [setor, setSetor] = useState(setores.length === 1 ? setores[0] : "");
   const [categoria, setCategoria] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -5381,7 +5387,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
               </select>
             </GestaoCampo>
             <GestaoCampo T={T} label="Cargo na loja (opcional)"><input value={f.cargoLoja} onChange={(e) => setF((p) => ({ ...p, cargoLoja: e.target.value }))} placeholder="Ex.: CPD, Repositor" style={inp} className={cls} /></GestaoCampo>
-            <GestaoCampo T={T} label="Setor (opcional)"><input value={f.setor} onChange={(e) => setF((p) => ({ ...p, setor: e.target.value }))} style={inp} className={cls} /></GestaoCampo>
+            <GestaoCampo T={T} label="Setor (opcional)"><select value={f.setor} onChange={(e) => setF((p) => ({ ...p, setor: e.target.value }))} style={inp} className={cls}><option value="">Sem setor</option>{[...SETORES.filter((s) => s !== "Outro"), "Frente Caixa", ...(f.setor && !SETORES.includes(f.setor) && f.setor !== "Frente Caixa" ? [f.setor] : [])].map((s) => <option key={s} value={s}>{s}</option>)}</select></GestaoCampo>
             <button onClick={criarPendente} disabled={salvando} style={{ background: "#1F9D55" }} className="text-white font-bold text-sm py-3 rounded-2xl mt-1 flex items-center justify-center gap-2 disabled:opacity-60">
               {salvando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Pré-cadastrar
             </button>
@@ -5475,7 +5481,7 @@ function AcoesFuncionarioSheet({ T, u, nivelUsuario, cargos, showToast, onClose,
             </select>
           </GestaoCampo>
           <GestaoCampo T={T} label="Cargo na loja"><input value={f.cargoLoja} onChange={(e) => setF((p) => ({ ...p, cargoLoja: e.target.value }))} style={inp} className={cls} /></GestaoCampo>
-          <GestaoCampo T={T} label="Setor"><input value={f.setor} onChange={(e) => setF((p) => ({ ...p, setor: e.target.value }))} style={inp} className={cls} /></GestaoCampo>
+          <GestaoCampo T={T} label="Setor"><select value={f.setor} onChange={(e) => setF((p) => ({ ...p, setor: e.target.value }))} style={inp} className={cls}><option value="">Sem setor</option>{[...SETORES.filter((s) => s !== "Outro"), "Frente Caixa", ...(f.setor && !SETORES.includes(f.setor) && f.setor !== "Frente Caixa" ? [f.setor] : [])].map((s) => <option key={s} value={s}>{s}</option>)}</select></GestaoCampo>
           <GestaoCampo T={T} label="Telefone"><input value={f.telefone} onChange={(e) => setF((p) => ({ ...p, telefone: e.target.value }))} inputMode="tel" style={inp} className={cls} /></GestaoCampo>
           <div className="grid grid-cols-2 gap-2 mt-1">
             <button onClick={() => setModo("menu")} style={{ background: T.chipBg, color: T.text }} className="py-3 rounded-2xl text-sm font-bold">Voltar</button>
