@@ -2393,8 +2393,8 @@ function AppInner() {
   // Desktop (lg+): telas de formulário/ajustes ficam estreitas e legíveis; listas e painéis usam mais largura.
   const larguraMain =
     flow === null && tab.startsWith("cfg-") ? "max-w-md lg:max-w-5xl" :
-    (flow === null && tab === "ajustes") || ["scan", "confirm", "expiry", "prioridade"].includes(flow) ? "max-w-md lg:max-w-2xl" :
-    ["torre", "relatorios", "historico", "auditoria", "rede", "gestao", "convites"].includes(flow) ? "max-w-md lg:max-w-5xl" :
+    (flow === null && tab === "ajustes") || ["scan", "confirm", "expiry"].includes(flow) ? "max-w-md lg:max-w-2xl" :
+    ["torre", "relatorios", "historico", "auditoria", "rede", "gestao", "convites"].includes(flow) ? "max-w-md lg:max-w-[1600px]" :
     "max-w-md lg:max-w-[1600px]";
   const alertCount = items.filter((i) => ["alert", "expired"].includes(getStatus(i).level)).length;
 
@@ -2446,7 +2446,12 @@ function AppInner() {
           <DashboardView T={T} items={items} historico={historico} rondas={rondas} auditoria={auditoria} nome={perfil?.nome} lojaNumero={lojaAtiva?.numero_loja}
             onOpenDetail={setDetalheItem} onTab={(t) => { setSetorAtivo(null); setTab(t); }} onFlow={(f) => setFlow(f)} />
         )}
-        {flow === null && (tab === "produtos" || (tab === "home" && !telaLarga)) && (
+        {flow === null && tab === "produtos" && telaLarga && (
+          <ProdutosDashboard T={T} items={items} historico={historico} search={search} setSearch={setSearch}
+            filtroSetor={filtroSetor} setFiltroSetor={setFiltroSetor} ordenarPor={ordenarPor} setOrdenarPor={setOrdenarPor}
+            onOpenDetail={setDetalheItem} onVerPrioridades={() => setFlow("prioridade")} />
+        )}
+        {flow === null && ((tab === "produtos" && !telaLarga) || (tab === "home" && !telaLarga)) && (
           <HomeView T={T} items={items} historico={historico} search={search} setSearch={setSearch}
             filtroSetor={filtroSetor} setFiltroSetor={setFiltroSetor}
             ordenarPor={ordenarPor} setOrdenarPor={setOrdenarPor}
@@ -2803,6 +2808,62 @@ function tempoDesde(dataISO) {
   if (horas < 24) return `há ${horas}h`;
   return `há ${Math.floor(horas / 24)}d`;
 }
+// ============ Setores — versão dashboard (PC) ============
+function SetoresDashboard({ T, grupos, resumo, ultimaRondaPorSetor, onAbrirSetor }) {
+  const fmt = useFormatarMoedaComCamada();
+  const totalItens = grupos.reduce((a, [, g]) => a + g.total, 0);
+  const valorTotal = grupos.reduce((a, [, g]) => a + g.valor, 0);
+  const estado = (setor, g) => {
+    const ur = ultimaRondaPorSetor[setor];
+    const atrasada = !ur || Date.now() - new Date(ur).getTime() > 24 * 3600000;
+    if (g.vencido > 0) return { label: "Crítico", bg: RED_SOFT, fg: RED_DARK, bar: RED_DARK };
+    if (g.alerta > 0 || atrasada) return { label: g.alerta > 0 ? "Atenção" : "Ronda atrasada", bg: "#FCF0DD", fg: "#C2760C", bar: "#E0921C" };
+    return { label: "Controlado", bg: "#E4F7EC", fg: "#1F9D55", bar: "#1F9D55" };
+  };
+  const ranking = grupos.filter(([, g]) => g.valor > 0).slice(0, 8).map(([setor, g]) => ({ label: setor, value: g.valor, color: g.vencido > 0 ? RED_DARK : RED, right: fmt(g.valor) }));
+  return (
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Setores" subtitle={`${grupos.length} setores · ${totalItens} produtos`} />
+      <div className="grid grid-cols-4 gap-4 mb-5">
+        <DashKpi T={T} label="Setores críticos" value={resumo.criticos} sub="com produto vencido" Icon={AlertTriangle} accent={RED_DARK} />
+        <DashKpi T={T} label="Em atenção" value={resumo.atencao} sub="alerta ou ronda atrasada" Icon={ClockIcon} accent="#C98A0C" />
+        <DashKpi T={T} label="Controlados" value={resumo.controlados} sub="sem pendências" Icon={ShieldCheck} accent="#1F9D55" />
+        <DashKpi T={T} label="Valor em risco" value={fmt(valorTotal)} sub="todos os setores" Icon={TrendingDown} accent={RED} />
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <DashCard T={T} title="Valor em risco por setor" subtitle="Setores com maior exposição" className="col-span-1">
+          {ranking.length ? <DashHBars T={T} data={ranking} /> : <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Nada em risco agora.</p>}
+        </DashCard>
+        <DashCard T={T} title="Todos os setores" subtitle="Clique para abrir o setor" className="col-span-2">
+          <div className="grid grid-cols-3 gap-3">
+            {grupos.map(([setor, g]) => {
+              const e = estado(setor, g); const Icone = iconeDoSetor(setor);
+              const ok = Math.max(g.total - g.vencido - g.alerta - g.semValidadeCount, 0);
+              const pct = (n) => (g.total ? `${(n / g.total) * 100}%` : "0%");
+              return (
+                <button key={setor} onClick={() => onAbrirSetor(setor)} style={{ borderColor: T.border, background: T.card }} className="text-left rounded-xl border p-4 hover:shadow-md transition">
+                  <div className="flex items-center gap-2.5">
+                    <div style={{ background: e.bg }} className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"><Icone size={17} color={e.fg} /></div>
+                    <div className="min-w-0 flex-1"><p className="text-sm font-bold truncate">{setor}</p><p style={{ color: T.subtext }} className="text-[11px]">{g.total} produto(s)</p></div>
+                  </div>
+                  <div className="flex h-2 rounded-full overflow-hidden mt-3" style={{ background: T.chipBg }}>
+                    <div style={{ width: pct(g.vencido), background: RED_DARK }} /><div style={{ width: pct(g.alerta), background: RED }} /><div style={{ width: pct(ok), background: "#1F9D55" }} />
+                  </div>
+                  <div className="flex items-center justify-between mt-2.5">
+                    <DashBadge bg={e.bg} color={e.fg}>{e.label}</DashBadge>
+                    <span style={{ color: T.subtext }} className="text-[10.5px]">{ultimaRondaPorSetor[setor] ? `ronda ${tempoDesde(ultimaRondaPorSetor[setor])}` : "sem ronda"}</span>
+                  </div>
+                  {(g.vencido > 0 || g.alerta > 0) && <p style={{ color: T.subtext }} className="text-[11px] mt-2">{g.vencido} vencido(s) · {g.alerta} em alerta · {fmt(g.valor)}</p>}
+                </button>
+              );
+            })}
+          </div>
+        </DashCard>
+      </div>
+    </div>
+  );
+}
+
 function SetoresView({ T, items, catalog, rondas, onIniciarRonda, onOpenDetail, onLancarValidade, onAbrirSetor }) {
   const ehDesktop = useDesktop();
   const enriched = items.map((it) => ({ ...it, status: getStatus(it) }));
@@ -2860,7 +2921,9 @@ function SetoresView({ T, items, catalog, rondas, onIniciarRonda, onOpenDetail, 
   }
 
   return (
-    <div className="px-4 pt-4">
+    <>
+    <SetoresDashboard T={T} grupos={grupos} resumo={resumo} ultimaRondaPorSetor={ultimaRondaPorSetor} onAbrirSetor={onAbrirSetor} />
+    <div className="px-4 pt-4 lg:hidden">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
         style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="rounded-[28px] p-4 mb-4 shadow-lg shadow-black/5">
         <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide mb-2.5 flex items-center gap-1.5">
@@ -2910,6 +2973,7 @@ function SetoresView({ T, items, catalog, rondas, onIniciarRonda, onOpenDetail, 
         })}
       </div>
     </div>
+    </>
   );
 }
 
@@ -3046,6 +3110,69 @@ function ItemCardGridAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onO
   );
 }
 
+// ============ Setor detalhe — versão dashboard (PC) ============
+function SetorDetalheDashboard({ T, setor, itensDoSetor, filtrados, contagens, ultimaRonda, rondasHoje, parcialHoje, concluidaHoje, search, setSearch, statusFiltro, setStatusFiltro,
+  subsetorFiltro, setSubsetorFiltro, subsetoresDisponiveis, ordenarPor, setOrdenarPor, onVoltar, onOpenDetail, onExcluir, ehEncarregado, onDesignar }) {
+  const fmt = useFormatarMoedaComCamada();
+  const comValidade = itensDoSetor.filter((i) => !i.semValidade);
+  const semValidade = itensDoSetor.length - comValidade.length;
+  const valorEmRisco = comValidade.filter((i) => i.status.level === "expired" || i.status.level === "alert").reduce((a, i) => a + (Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0), 0);
+  const rondaAtrasada = !ultimaRonda || Date.now() - new Date(ultimaRonda).getTime() > 24 * 3600000;
+  const Icone = iconeDoSetor(setor);
+  const ok = comValidade.filter((i) => i.status.level === "ok" || i.status.level === "warning").length;
+  const donut = [{ label: "Vencidos", value: contagens.vencido, color: RED_DARK }, { label: "Em alerta", value: contagens.alerta, color: RED }, { label: "OK / atenção", value: ok, color: "#1F9D55" }];
+  const sel = { background: T.inputBg, borderColor: T.inputBorder, color: T.text };
+  const rowsProdutos = filtrados.filter((i) => !i.semValidade);
+  const estadoRonda = concluidaHoje ? { t: "Ronda concluída hoje", c: "#1F9D55" } : parcialHoje ? { t: "Ronda parcial hoje", c: "#C98A0C" } : rondaAtrasada ? { t: "Ronda atrasada", c: "#C98A0C" } : { t: "Ronda em dia", c: "#1F9D55" };
+  return (
+    <div className="hidden lg:block">
+      <button onClick={onVoltar} style={{ color: BLUE }} className="flex items-center gap-1.5 text-sm font-semibold mb-3"><ArrowLeft size={15} /> Todos os setores</button>
+      <DashPageHeader T={T} title={setor} subtitle={`${itensDoSetor.length} produto(s) · ${estadoRonda.t.toLowerCase()}${ultimaRonda ? ` · última ronda ${tempoDesde(ultimaRonda)}` : ""}`}
+        right={ehEncarregado && concluidaHoje && !parcialHoje ? <button onClick={onDesignar} style={{ background: T.card, borderColor: T.border, color: BLUE }} className="text-xs font-semibold px-3.5 py-2 rounded-xl border flex items-center gap-1.5"><Users2 size={13} /> Designar nova ronda</button> : null} />
+      <div className="grid grid-cols-4 gap-4 mb-5">
+        <DashKpi T={T} label="Vencidos" value={contagens.vencido} sub="retirar da área de venda" Icon={AlertTriangle} accent={RED_DARK} />
+        <DashKpi T={T} label="Em alerta" value={contagens.alerta} sub="agir antes de vencer" Icon={ClockIcon} accent={RED} />
+        <DashKpi T={T} label="Valor em risco" value={fmt(valorEmRisco)} sub="vencidos + em alerta" Icon={TrendingDown} accent="#C98A0C" />
+        <DashKpi T={T} label="Produtos no setor" value={itensDoSetor.length} sub={semValidade ? `${semValidade} sem validade lançada` : "todos com validade"} Icon={Icone} accent={BLUE} />
+      </div>
+      <div className="grid grid-cols-4 gap-4 items-start">
+        <div className="flex flex-col gap-4">
+          <DashCard T={T} title="Situação do setor">
+            <div className="flex flex-col items-center gap-4">
+              <DashDonut T={T} size={150} thickness={20} segments={donut} centerValue={comValidade.length} centerLabel="com validade" />
+              <div className="w-full flex flex-col gap-1.5 text-xs">
+                {donut.map((d) => <div key={d.label} className="flex items-center gap-2"><i style={{ background: d.color }} className="h-2 w-2 rounded-full" /><span style={{ color: T.subtext }}>{d.label}</span><b className="ml-auto tabular-nums">{d.value}</b></div>)}
+              </div>
+            </div>
+          </DashCard>
+          <DashCard T={T} title="Ronda do setor">
+            <p style={{ color: estadoRonda.c }} className="text-sm font-bold">{estadoRonda.t}</p>
+            <p style={{ color: T.subtext }} className="text-xs mt-1">{ultimaRonda ? `Última ronda finalizada ${tempoDesde(ultimaRonda)}` : "Nenhuma ronda finalizada ainda"}</p>
+            <p style={{ color: T.subtext }} className="text-xs mt-1">{rondasHoje.length} ronda(s) hoje. Rondas são feitas pelo celular, no corredor.</p>
+          </DashCard>
+        </div>
+        <DashCard T={T} title="Produtos do setor" subtitle={`${rowsProdutos.length} resultado(s)`} className="col-span-3"
+          right={<DashTabs T={T} value={statusFiltro} onChange={setStatusFiltro} options={[{ id: "todos", label: "Todos" }, { id: "alerta", label: "Em alerta" }, { id: "vencido", label: "Vencidos", color: RED_DARK }]} />}>
+          <DashFiltros T={T}>
+            <div style={{ background: T.inputBg, borderColor: T.inputBorder }} className="flex items-center gap-2 border rounded-xl px-3 py-2 flex-1 min-w-[14rem]">
+              <MagnifyingGlassIcon className="w-4 h-4" style={{ color: T.subtext }} />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome ou código…" style={{ color: T.text }} className="bg-transparent outline-none text-sm flex-1" />
+            </div>
+            {subsetoresDisponiveis.length > 0 && (
+              <select value={subsetorFiltro} onChange={(e) => setSubsetorFiltro(e.target.value)} style={sel} className="border rounded-xl px-3 py-2 text-sm outline-none">
+                <option value="todos">Todos os subsetores</option>{subsetoresDisponiveis.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>)}
+            <select value={ordenarPor} onChange={(e) => setOrdenarPor(e.target.value)} style={sel} className="border rounded-xl px-3 py-2 text-sm outline-none">
+              <option value="urgencia">Mais urgentes</option><option value="nome">Nome (A–Z)</option><option value="valor">Maior valor</option>
+            </select>
+          </DashFiltros>
+          <TabelaProdutos T={T} itens={rowsProdutos} onOpenDetail={onOpenDetail} mostrarSetor={false} />
+        </DashCard>
+      </div>
+    </div>
+  );
+}
+
 function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onIniciarRonda, onRetomarRonda, onOpenDetail, onLancarValidade, onCadastrarNoSetor, onExcluir, usuario, ehEncarregado, designacoesHoje, onDesignarRonda, perfil }) {
   const podeVerValores = useValoresVisiveis();
   const [itemParaExcluir, setItemParaExcluir] = useState(null);
@@ -3118,12 +3245,16 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onInicia
   };
 
   return (
-    <div className="px-4 pt-4">
-      <button onClick={onVoltar} style={{ color: BLUE }} className="flex items-center gap-1.5 text-sm font-medium mb-3">
+    <div className="px-4 pt-4 lg:px-0 lg:pt-0">
+      <SetorDetalheDashboard T={T} setor={setor} itensDoSetor={itensDoSetor} filtrados={filtrados} contagens={contagens} ultimaRonda={ultimaRonda} rondasHoje={rondasHoje}
+        parcialHoje={parcialHoje} concluidaHoje={concluidaHoje} search={search} setSearch={setSearch} statusFiltro={statusFiltro} setStatusFiltro={setStatusFiltro}
+        subsetorFiltro={subsetorFiltro} setSubsetorFiltro={setSubsetorFiltro} subsetoresDisponiveis={subsetoresDisponiveis} ordenarPor={ordenarPor} setOrdenarPor={setOrdenarPor}
+        onVoltar={onVoltar} onOpenDetail={onOpenDetail} ehEncarregado={ehEncarregado} onDesignar={() => setDesignarAberto(true)} />
+      <button onClick={onVoltar} style={{ color: BLUE }} className="flex items-center gap-1.5 text-sm font-medium mb-3 lg:hidden">
         <ArrowLeft size={16} /> Todos os setores
       </button>
 
-      <div className="lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:gap-6 lg:items-start">
+      <div className="lg:hidden">
       <aside className="lg:sticky lg:top-20">
       <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="rounded-[28px] p-4 mb-4 shadow-lg shadow-black/5">
         <div className="flex items-center justify-between mb-3">
@@ -3541,6 +3672,52 @@ function RondaView({ T, ronda, onMarcar, onConcluir, onCancelar, onFinalizar, on
 }
 
 // ============ Rondas (aba própria: Minhas Rondas / Todas as Rondas) ============
+// ============ Rondas — versão dashboard (PC) ============
+function RondasDashboard({ T, rondas, lista, subaba, setSubaba, STATUS_STYLE, abrirRonda, lojaNumero }) {
+  const cont = (st) => rondas.filter((r) => r.status === st).length;
+  const hojeStr = new Date().toDateString();
+  const hoje = rondas.filter((r) => r.iniciadoEm && new Date(r.iniciadoEm).toDateString() === hojeStr).length;
+  const dias = Array.from({ length: 14 }, (_, k) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (13 - k)); return d; });
+  const serie = dias.map((d) => ({ label: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
+    parts: [
+      { value: rondas.filter((r) => r.status === "concluida" && r.iniciadoEm && new Date(r.iniciadoEm).toDateString() === d.toDateString()).length, color: "#1F9D55" },
+      { value: rondas.filter((r) => r.status !== "concluida" && r.iniciadoEm && new Date(r.iniciadoEm).toDateString() === d.toDateString()).length, color: "#E0921C" }] }));
+  const porSetor = {};
+  rondas.forEach((r) => { porSetor[r.setor] = (porSetor[r.setor] || 0) + 1; });
+  const topSetores = Object.entries(porSetor).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([label, value]) => ({ label, value, color: BLUE }));
+  const cols = [
+    { key: "titulo", label: "Ronda", render: (r) => { const Icone = iconeDoSetor(r.setor); const st = STATUS_STYLE[r.status] || STATUS_STYLE.concluida;
+      return <div className="flex items-center gap-3"><div style={{ background: st.bg }} className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"><Icone size={16} color={st.color} /></div>
+        <div><p className="font-semibold">{r.titulo || `Verificação de Validade — ${r.setor}`}</p><p style={{ color: T.subtext }} className="text-[11px]">Setor {r.setor}</p></div></div>; } },
+    { key: "usuario", label: "Responsável", render: (r) => <span style={{ color: T.subtext }}>{r.usuario || "—"}{r.finalizadoPor && r.finalizadoPor !== r.usuario ? ` → ${r.finalizadoPor}` : ""}</span> },
+    { key: "inicio", label: "Início", render: (r) => <span className="text-xs tabular-nums">{formatarDataHoraExtenso(r.iniciadoEm)}</span> },
+    { key: "res", label: "Resultado", render: (r) => (r.status === "concluida" || r.status === "parcial") ? (
+      <div className="flex gap-1.5"><DashBadge bg="#E6F7ED" color="#1F9D55">OK {r.okCount ?? 0}</DashBadge><DashBadge bg="#FCF0DD" color="#C2760C">Próx. {r.proximoCount ?? 0}</DashBadge><DashBadge bg={RED_SOFT} color={RED_DARK}>Venc. {r.vencidoCount ?? 0}</DashBadge><DashBadge bg="#EEF0F3" color="#4B5563">N/A {r.naoEncontradoCount ?? 0}</DashBadge></div>) : <span style={{ color: T.subtext }}>—</span> },
+    { key: "status", label: "Status", align: "right", render: (r) => { const st = STATUS_STYLE[r.status] || STATUS_STYLE.concluida; return <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>; } },
+  ];
+  return (
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Rondas" subtitle={`Loja ${lojaNumero || "—"} · histórico de verificações de validade`} />
+      <div className="grid grid-cols-4 gap-4 mb-5">
+        <DashKpi T={T} label="Total de rondas" value={rondas.length} sub="registradas" Icon={ClockIcon} accent={BLUE} />
+        <DashKpi T={T} label="Concluídas" value={cont("concluida")} sub="todos os itens conferidos" Icon={ShieldCheck} accent="#1F9D55" />
+        <DashKpi T={T} label="Parciais" value={cont("parcial")} sub="itens sem conferir" Icon={AlertTriangle} accent="#C98A0C" />
+        <DashKpi T={T} label="Rondas hoje" value={hoje} sub="iniciadas hoje" Icon={Boxes} accent={RED} />
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <DashCard T={T} title="Rondas nos últimos 14 dias" subtitle="Concluídas × parciais/em andamento" className="col-span-2"><DashBars T={T} data={serie} /></DashCard>
+        <DashCard T={T} title="Rondas por setor" subtitle="Setores mais verificados">
+          {topSetores.length ? <DashHBars T={T} data={topSetores} /> : <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Sem rondas ainda.</p>}
+        </DashCard>
+      </div>
+      <DashCard T={T} title="Lista de rondas" subtitle={`${lista.length} ronda(s) — clique para ver os itens`}
+        right={<DashTabs T={T} value={subaba} onChange={setSubaba} options={[{ id: "minhas", label: "Minhas rondas" }, { id: "todas", label: "Todas as rondas" }]} />}>
+        <DashTable T={T} cols={cols} rows={lista} onRow={abrirRonda} empty="Nenhuma ronda registrada." />
+      </DashCard>
+    </div>
+  );
+}
+
 function RondasView({ T, rondas, usuario, lojaNumero, onIniciarRonda, onRetomarRonda, items, catalog }) {
   const [subaba, setSubaba] = useState("minhas"); // minhas | todas
   const [rondaSelecionada, setRondaSelecionada] = useState(null);
@@ -3577,9 +3754,10 @@ function RondasView({ T, rondas, usuario, lojaNumero, onIniciarRonda, onRetomarR
   };
 
   return (
-    <div className="px-4 pt-4 pb-4">
+    <div className="px-4 pt-4 pb-4 lg:px-0 lg:pt-0 lg:pb-0">
+      <RondasDashboard T={T} rondas={rondas} lista={lista} subaba={subaba} setSubaba={setSubaba} STATUS_STYLE={STATUS_STYLE} abrirRonda={abrirRonda} lojaNumero={lojaNumero} />
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 75%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5 mb-4">
+        style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 75%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5 mb-4 lg:hidden">
         <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-2">
           <ClockIconSolid className="w-3.5 h-3.5" /> Rondas · Loja {lojaNumero || "—"}
         </p>
@@ -3599,13 +3777,14 @@ function RondasView({ T, rondas, usuario, lojaNumero, onIniciarRonda, onRetomarR
         </div>
       </motion.div>
 
-      <div style={{ background: T.chipBg }} className="flex rounded-2xl p-1 mb-4">
+      <div style={{ background: T.chipBg }} className="flex rounded-2xl p-1 mb-4 lg:hidden">
         <button onClick={() => setSubaba("minhas")} style={subaba === "minhas" ? { background: T.card, color: RED_DARK } : { color: T.subtext }}
           className="flex-1 text-xs font-semibold py-2 rounded-xl transition">Minhas Rondas</button>
         <button onClick={() => setSubaba("todas")} style={subaba === "todas" ? { background: T.card, color: RED_DARK } : { color: T.subtext }}
           className="flex-1 text-xs font-semibold py-2 rounded-xl transition">Todas as Rondas</button>
       </div>
 
+      <div className="lg:hidden">
       {lista.length === 0 ? (
         <div className="text-center py-14 px-6">
           <div style={{ background: BLUE_SOFT }} className="h-16 w-16 rounded-2xl mx-auto flex items-center justify-center mb-3"><ClockIcon className="w-6 h-6" style={{ color: BLUE }} /></div>
@@ -3660,6 +3839,8 @@ function RondasView({ T, rondas, usuario, lojaNumero, onIniciarRonda, onRetomarR
           })}
         </div>
       )}
+
+      </div>
 
       {/* Detalhe da ronda: fotos dos itens + tag de conferido/não conferido */}
       <AnimatePresence>
@@ -4224,7 +4405,19 @@ function GestaoAplicativoView({ T, showToast, lojaAtiva, lojas, onTrocarLoja }) 
   ];
 
   return (
-    <div className="px-4 pt-4 pb-4">
+    <>
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Gestão do aplicativo" subtitle={`Loja ativa: ${lojaAtiva?.numero_loja || "—"} · área do desenvolvedor`}
+        right={<DashTabs T={T} value={aba} onChange={setAba} options={ABAS} />} />
+      {aba === "funcionarios" && <GestaoFuncionarios T={T} showToast={showToast} lojaAtiva={lojaAtiva} />}
+      {aba === "lojas" && <GestaoLojas T={T} lojas={lojas} lojaAtiva={lojaAtiva} onTrocarLoja={onTrocarLoja} />}
+      {(aba === "produtos" || aba === "notificacoes") && (
+        <DashCard T={T} title={aba === "produtos" ? "Gestão de produtos em construção" : "Central de notificações em construção"}>
+          <p style={{ color: T.subtext }} className="text-sm">{aba === "produtos" ? "Por enquanto, produtos são gerenciados pelo fluxo normal de cadastro." : "Por enquanto, avisos são enviados pelo botão \"Enviar aviso pro app\" em Ajustes."}</p>
+        </DashCard>
+      )}
+    </div>
+    <div className="px-4 pt-4 pb-4 lg:hidden">
       <div style={{ background: `linear-gradient(160deg, #1F2430 0%, #0B0D12 100%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5 mb-4">
         <p className="text-white/60 text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5">
           <Wrench size={13} /> Gestão do Aplicativo
@@ -4259,13 +4452,14 @@ function GestaoAplicativoView({ T, showToast, lojaAtiva, lojas, onTrocarLoja }) 
         </div>
       )}
     </div>
+    </>
   );
 }
 
 function GestaoLojas({ T, lojas, lojaAtiva, onTrocarLoja }) {
   return (
-    <div className="flex flex-col gap-2">
-      <p style={{ color: T.subtext }} className="text-[11px] px-1 mb-1">Como DESENVOLVEDOR, você pode ver os dados de qualquer loja da rede. As telas do app (Setores, Rondas, Relatórios...) passam a mostrar a loja escolhida aqui.</p>
+    <div className="flex flex-col gap-2 lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start">
+      <p style={{ color: T.subtext }} className="text-[11px] px-1 mb-1 lg:col-span-3 lg:text-sm">Como DESENVOLVEDOR, você pode ver os dados de qualquer loja da rede. As telas do app (Setores, Rondas, Relatórios...) passam a mostrar a loja escolhida aqui.</p>
       {(lojas || []).map((l) => (
         <button key={l.id} onClick={() => onTrocarLoja(l)}
           style={lojaAtiva?.id === l.id ? { background: BLUE_SOFT, borderColor: BLUE } : { background: T.card, borderColor: T.border }}
@@ -4326,7 +4520,42 @@ function GestaoFuncionarios({ T, showToast, lojaAtiva }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <>
+    <div className="hidden lg:grid grid-cols-3 gap-4 items-start">
+      <DashCard T={T} title="Pré-cadastrar funcionário" subtitle="A pessoa já entra no primeiro login">
+        <div className="flex flex-col gap-2.5">
+          <input value={novoNome} onChange={(e) => setNovoNome(e.target.value)} placeholder="Nome completo" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
+          <input value={novaMatricula} onChange={(e) => setNovaMatricula(e.target.value.replace(/\D/g, ""))} placeholder="Matrícula (número do crachá)" inputMode="numeric" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
+          <input value={novoCargoLoja} onChange={(e) => setNovoCargoLoja(e.target.value)} placeholder="Cargo na loja (ex: CPD, Repositor)" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
+          <select value={novoCargoId} onChange={(e) => setNovoCargoId(e.target.value)} style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none">
+            <option value="">Cargo no app (nível de acesso)...</option>
+            {cargos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+          <input value={novoSetor} onChange={(e) => setNovoSetor(e.target.value)} placeholder="Setor (opcional)" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
+          <button onClick={criarPendente} style={{ background: "#1F9D55", color: "#fff" }} className="text-sm font-semibold py-2.5 rounded-xl mt-1 flex items-center justify-center gap-1.5"><Plus size={16} /> Pré-cadastrar</button>
+        </div>
+      </DashCard>
+      <DashCard T={T} title="Equipe" subtitle={`${(ativos || []).length} conta(s) ativa(s) · ${(pendentes || []).length} aguardando 1º acesso`} className="col-span-2"
+        right={<DashTabs T={T} value={subaba} onChange={setSubaba} options={[{ id: "ativos", label: "Contas ativas" }, { id: "pendentes", label: "Aguardando 1º acesso" }]} />}>
+        {subaba === "ativos" ? (
+          <DashTable T={T} rows={(ativos || []).map((u) => ({ ...u, id: u.id }))} empty="Nenhuma conta ativa." cols={[
+            { key: "nome", label: "Nome", render: (u) => <span className="font-semibold">{u.nome}</span> },
+            { key: "matricula", label: "Matrícula", render: (u) => <span className="font-mono text-xs">{u.matricula || "—"}</span> },
+            { key: "cargo", label: "Cargo na loja", render: (u) => <span style={{ color: T.subtext }}>{u.cargo_nome_loja || "—"}</span> },
+            { key: "nivel", label: "Nível no app", render: (u) => <DashBadge bg={BLUE_SOFT} color={BLUE_DARK}>{u.cargos?.nome || "sem cargo"}</DashBadge> },
+            { key: "ativo", label: "Acesso", align: "right", render: (u) => <button onClick={() => alternarAtivo(u.id, u.ativo)} style={u.ativo ? { background: "#E6F7ED", color: "#1F9D55" } : { background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-bold px-3 py-1 rounded-full">{u.ativo ? "Ativo" : "Bloqueado"}</button> },
+          ]} />
+        ) : (
+          <DashTable T={T} rows={(pendentes || []).map((p) => ({ ...p, id: p.matricula }))} empty="Ninguém aguardando." cols={[
+            { key: "nome", label: "Nome", render: (p) => <span className="font-semibold">{p.nome}</span> },
+            { key: "matricula", label: "Matrícula", render: (p) => <span className="font-mono text-xs">{p.matricula}</span> },
+            { key: "cargo", label: "Cargo na loja", render: (p) => <span style={{ color: T.subtext }}>{p.cargo_nome_loja || "—"}</span> },
+            { key: "rm", label: "", align: "right", render: (p) => <button onClick={() => removerPendente(p.matricula)} style={{ color: RED_DARK }} className="text-[11px] font-semibold">Remover</button> },
+          ]} />
+        )}
+      </DashCard>
+    </div>
+    <div className="flex flex-col gap-3 lg:hidden">
       <button onClick={() => setNovoAberto((v) => !v)} style={{ background: BLUE, color: "#fff" }}
         className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold py-3 rounded-2xl">
         <Plus size={16} /> Pré-cadastrar funcionário
@@ -4376,6 +4605,7 @@ function GestaoFuncionarios({ T, showToast, lojaAtiva }) {
         </div>
       ))}
     </div>
+    </>
   );
 }
 
@@ -4456,8 +4686,61 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
   const inputCls = "border rounded-xl px-3 py-2.5 text-sm outline-none w-full";
   const inputStyle = { background: T.inputBg, color: T.text, borderColor: T.inputBorder, boxSizing: "border-box" };
 
+  const ativos = (convites || []).filter((c) => statusDe(c).label === "Ativo");
+  const totalUsos = (convites || []).reduce((acc, c) => acc + (c.usos || 0), 0);
   return (
-    <div className="px-4 pt-4 flex flex-col gap-3">
+    <>
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Convites de promotor" subtitle={`Loja ${lojaAtiva?.numero_loja || "—"} · o link funciona como login, sem e-mail nem senha`} />
+      <div className="grid grid-cols-4 gap-4 mb-5">
+        <DashKpi T={T} label="Convites ativos" value={ativos.length} sub="acesso liberado agora" Icon={Ticket} accent="#1F9D55" />
+        <DashKpi T={T} label="Total gerados" value={(convites || []).length} sub="últimos 100" Icon={Link2} accent={BLUE} />
+        <DashKpi T={T} label="Aberturas" value={totalUsos} sub="somando todos os links" Icon={Copy} accent="#C98A0C" />
+        <DashKpi T={T} label="Cancelados / expirados" value={(convites || []).length - ativos.length} sub="sem acesso" Icon={AlertTriangle} accent={RED_DARK} />
+      </div>
+      <div className="grid grid-cols-3 gap-4 items-start">
+        <div className="flex flex-col gap-4">
+          <DashCard T={T} title="Novo convite" subtitle="Nome, marca e duração">
+            <div className="flex flex-col gap-2.5">
+              <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do promotor" style={inputStyle} className={inputCls} />
+              <input value={marca} onChange={(e) => setMarca(e.target.value)} placeholder="Marca (ex: Nestlé, Coca-Cola)" style={inputStyle} className={inputCls} />
+              <select value={duracao} onChange={(e) => setDuracao(e.target.value)} style={inputStyle} className={inputCls}>
+                {DURACOES_CONVITE.map((d) => <option key={d.id} value={d.id}>Duração: {d.label}</option>)}
+              </select>
+              <button onClick={gerar} disabled={gerando} style={{ background: BLUE, color: "#fff" }} className="py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2">
+                {gerando ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />} Gerar link de convite
+              </button>
+            </div>
+          </DashCard>
+          {recente && (
+            <DashCard T={T} title={`Convite de ${recente.nome} pronto`} subtitle={`${recente.marca} · vale até ${formatarDataHoraExtenso(recente.expira_em)}`}>
+              <p style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-mono break-all rounded-xl px-3 py-2 select-all mb-3">{linkDoConvite(recente.token)}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => copiar(recente)} style={{ background: T.chipBg, color: T.text }} className="py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"><Copy size={13} /> Copiar link</button>
+                <button onClick={() => compartilhar(recente)} style={{ background: "#1F9D55", color: "#fff" }} className="py-2 rounded-xl text-xs font-semibold">WhatsApp / enviar</button>
+              </div>
+            </DashCard>
+          )}
+        </div>
+        <DashCard T={T} title="Convites da loja" subtitle="Quem tem acesso e quando vence" className="col-span-2">
+          {convites === null ? <div className="text-center py-8"><Loader2 size={22} className="animate-spin mx-auto" color={T.subtext} /></div> : (
+            <DashTable T={T} rows={convites} empty="Nenhum convite gerado ainda." cols={[
+              { key: "nome", label: "Promotor", render: (c) => <div><p className="font-semibold">{c.nome}</p><p style={{ color: T.subtext }} className="text-[11px]">{c.marca}</p></div> },
+              { key: "expira_em", label: "Validade", render: (c) => <span className="text-xs">{formatarDataHoraExtenso(c.expira_em)}</span> },
+              { key: "usos", label: "Uso", render: (c) => <span style={{ color: T.subtext }} className="text-xs">{c.usos ? `${c.usos}x · ${tempoDesde(c.ultimo_uso)}` : "não aberto"}</span> },
+              { key: "st", label: "Status", render: (c) => { const st = statusDe(c); return <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>; } },
+              { key: "acoes", label: "", align: "right", render: (c) => statusDe(c).label === "Ativo" ? (
+                <div className="flex gap-1.5 justify-end">
+                  <button onClick={() => copiar(c)} style={{ background: T.chipBg, color: T.text }} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold">Copiar</button>
+                  <button onClick={() => compartilhar(c)} style={{ background: T.chipBg, color: T.text }} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold">Enviar</button>
+                  <button onClick={() => cancelar(c)} style={{ background: RED_SOFT, color: RED_DARK }} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold">Cancelar</button>
+                </div>) : null },
+            ]} />
+          )}
+        </DashCard>
+      </div>
+    </div>
+    <div className="px-4 pt-4 flex flex-col gap-3 lg:hidden">
       <div style={{ background: T.card }} className="rounded-2xl p-4 shadow-sm flex flex-col gap-2.5">
         <p className="text-sm font-bold flex items-center gap-2"><Ticket size={16} color={BLUE} /> Novo convite</p>
         <p style={{ color: T.subtext }} className="text-[11px] -mt-1">O promotor abre o link e já entra, sem e-mail nem senha. Loja {lojaAtiva?.numero_loja || "—"}.</p>
@@ -4513,6 +4796,188 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
         })}
       </div>
     </div>
+    </>
+  );
+}
+
+// ============ Kit extra do desktop (páginas em estilo dashboard) ============
+function DashPageHeader({ T, title, subtitle, right }) {
+  return (
+    <div className="flex items-end justify-between gap-4 mb-5">
+      <div className="min-w-0">
+        <h1 style={{ color: T.text }} className="text-2xl font-extrabold tracking-tight">{title}</h1>
+        {subtitle && <p style={{ color: T.subtext }} className="text-sm mt-0.5">{subtitle}</p>}
+      </div>
+      {right && <div className="flex items-center gap-2 shrink-0">{right}</div>}
+    </div>
+  );
+}
+
+function DashTabs({ T, value, onChange, options }) {
+  return (
+    <div style={{ background: T.chipBg }} className="inline-flex rounded-xl p-1 gap-0.5">
+      {options.map((o) => (
+        <button key={o.id} onClick={() => onChange(o.id)}
+          style={value === o.id ? { background: T.card, color: o.color || RED_DARK, boxShadow: "0 1px 2px rgba(0,0,0,.08)" } : { color: T.subtext }}
+          className="text-xs font-semibold px-3.5 py-1.5 rounded-lg transition whitespace-nowrap">{o.label}</button>
+      ))}
+    </div>
+  );
+}
+
+function DashBadge({ bg, color, children }) {
+  return <span style={{ background: bg, color }} className="inline-flex items-center text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">{children}</span>;
+}
+
+// Tabela: cols=[{key,label,align,render,width}], rows=[obj]; onRow opcional
+function DashTable({ T, cols, rows, onRow, empty = "Nada por aqui." }) {
+  return (
+    <div className="overflow-x-auto -mx-5 -mb-5">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr style={{ borderColor: T.border }} className="border-y">
+            {cols.map((c) => (
+              <th key={c.key} style={{ color: T.subtext, width: c.width, textAlign: c.align || "left" }}
+                className="text-[10.5px] font-bold uppercase tracking-wide px-5 py-2.5 whitespace-nowrap">{c.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 && <tr><td colSpan={cols.length} style={{ color: T.subtext }} className="text-center text-xs py-10">{empty}</td></tr>}
+          {rows.map((r, i) => (
+            <tr key={r.id ?? i} onClick={onRow ? () => onRow(r) : undefined} style={{ borderColor: T.border }}
+              className={`border-b last:border-b-0 ${onRow ? "cursor-pointer hover:bg-black/[0.03]" : ""}`}>
+              {cols.map((c) => (
+                <td key={c.key} style={{ textAlign: c.align || "left", color: T.text }} className="px-5 py-2.5 align-middle">
+                  {c.render ? c.render(r) : r[c.key]}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Barras horizontais: data=[{label, value, color, right}]
+function DashHBars({ T, data, fmt = (v) => v }) {
+  const max = Math.max(1, ...data.map((d) => d.value));
+  return (
+    <div className="flex flex-col gap-3">
+      {data.map((d, i) => (
+        <div key={i}>
+          <div className="flex items-center justify-between text-xs mb-1 gap-2">
+            <span style={{ color: T.text }} className="font-semibold truncate">{d.label}</span>
+            <span style={{ color: T.subtext }} className="shrink-0 tabular-nums">{d.right ?? fmt(d.value)}</span>
+          </div>
+          <div style={{ background: T.chipBg }} className="h-2.5 rounded-full overflow-hidden">
+            <div style={{ width: `${(d.value / max) * 100}%`, background: d.color || BLUE }} className="h-full rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============ Painel da Rede — versão dashboard (PC) ============
+function RedeDashboard({ T, lojas, totais, lojasOrdenadas, ordenarPor, setOrdenarPor, lojasDesatualizadas, onAtualizar }) {
+  const PURPLE = "#6D4FC2", PURPLE_DARK = "#4B2E9E";
+  const rotulo = (l) => `Loja ${l.lojaNumero}`;
+  const palette = ["#6D4FC2", BLUE, "#1F9D55", "#C98A0C", RED, "#0E9AA7", "#8A5CF6", "#E0921C", "#5B6B7F", "#B83280"];
+  const porRisco = [...lojas].sort((a, b) => b.valorEmRisco - a.valorEmRisco);
+  const maisRisco = porRisco[0];
+  const semDados = lojas.length === 0;
+  const dataExt = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+  const dataFmt = dataExt.charAt(0).toUpperCase() + dataExt.slice(1);
+
+  return (
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Painel da Rede" subtitle={`${dataFmt} · ${lojas.length} loja(s) reportando`}
+        right={<button onClick={onAtualizar} style={{ background: T.card, borderColor: T.border, color: T.text }} className="text-xs font-semibold px-3.5 py-2 rounded-xl border flex items-center gap-1.5"><RefreshCw size={13} /> Atualizar</button>} />
+
+      <div style={{ background: `linear-gradient(110deg, ${PURPLE_DARK} 0%, ${PURPLE} 70%, #8E73DB 100%)` }} className="rounded-2xl px-7 py-6 mb-5 flex items-center justify-between gap-6 shadow-sm overflow-hidden relative">
+        <div className="relative z-10">
+          <p className="text-white/70 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5"><Building2 size={13} /> Visão consolidada da rede</p>
+          <p className="text-white text-3xl font-extrabold mt-2 tabular-nums">{formatarMoeda(totais.valorEmRisco)}</p>
+          <p className="text-white/75 text-sm mt-1">em risco nas {lojas.length} lojas{maisRisco && maisRisco.valorEmRisco > 0 ? ` · maior exposição: ${rotulo(maisRisco)}${maisRisco.lojaNome ? ` (${maisRisco.lojaNome})` : ""}` : ""}</p>
+        </div>
+        <Building2 size={150} className="text-white/10 absolute -right-4 -bottom-8" />
+      </div>
+
+      {lojasDesatualizadas.length > 0 && (
+        <div style={{ background: "#FEF3E0", color: "#8A5A00" }} className="rounded-xl px-4 py-3 mb-5 text-xs font-medium flex items-start gap-2">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <span>{lojasDesatualizadas.length} loja(s) sem atualização há mais de 6h: {lojasDesatualizadas.map((l) => rotulo(l)).join(", ")}.</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-4 gap-4 mb-5">
+        <DashKpi T={T} label="Valor em risco" value={formatarMoeda(totais.valorEmRisco)} sub="rede inteira" Icon={Boxes} accent={PURPLE} />
+        <DashKpi T={T} label="Perda confirmada no mês" value={formatarMoeda(totais.perdaMes)} sub="baixas por vencimento" Icon={TrendingDown} accent={RED_DARK} />
+        <DashKpi T={T} label="Críticos / atenção" value={`${totais.criticos} / ${totais.atencao}`} sub="produtos na rede" Icon={AlertTriangle} accent={RED} />
+        <DashKpi T={T} label="Rondas pendentes hoje" value={totais.rondasPendentesHoje} sub={`${lojas.filter((l) => l.rondasPendentesHoje === 0).length} loja(s) em dia`} Icon={ClockIcon} accent="#C98A0C" />
+      </div>
+
+      {semDados ? (
+        <DashCard T={T} title="Sem lojas reportando"><p style={{ color: T.subtext }} className="text-sm">Quando as lojas sincronizarem, os gráficos aparecem aqui.</p></DashCard>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-4 mb-5">
+            <DashCard T={T} title="Valor em risco por loja" subtitle="Quanto cada loja tem exposto hoje" className="col-span-2">
+              <DashBars T={T} data={porRisco.map((l) => ({ label: rotulo(l).replace("Loja ", "L"), parts: [{ value: Math.round(l.valorEmRisco), color: PURPLE }] }))} />
+            </DashCard>
+            <DashCard T={T} title="Participação no risco" subtitle="% do valor em risco da rede">
+              <div className="flex flex-col items-center gap-4">
+                <DashDonut T={T} size={170} thickness={22} centerValue={lojas.length} centerLabel="lojas"
+                  segments={porRisco.slice(0, 8).map((l, i) => ({ label: rotulo(l), value: l.valorEmRisco, color: palette[i % palette.length] }))} />
+                <div className="w-full grid grid-cols-2 gap-x-3 gap-y-1.5">
+                  {porRisco.slice(0, 8).map((l, i) => (
+                    <div key={l.lojaNumero} className="flex items-center gap-1.5 text-[11px] min-w-0">
+                      <span style={{ background: palette[i % palette.length] }} className="h-2 w-2 rounded-full shrink-0" />
+                      <span style={{ color: T.subtext }} className="truncate">{rotulo(l)}</span>
+                      <span style={{ color: T.text }} className="ml-auto font-semibold tabular-nums">{totais.valorEmRisco > 0 ? Math.round((l.valorEmRisco / totais.valorEmRisco) * 100) : 0}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </DashCard>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mb-5">
+            <DashCard T={T} title="Críticos e atenção por loja" subtitle="Produtos vencidos/próximos do vencimento">
+              <DashBars T={T} W={420} data={[...lojas].sort((a, b) => (b.criticos + b.atencao) - (a.criticos + a.atencao)).map((l) => ({
+                label: rotulo(l).replace("Loja ", "L"), parts: [{ value: l.criticos, color: RED_DARK }, { value: l.atencao, color: "#E0921C" }] }))} />
+              <div className="flex gap-4 mt-2 text-[11px]" style={{ color: T.subtext }}>
+                <span className="flex items-center gap-1.5"><i style={{ background: RED_DARK }} className="h-2 w-2 rounded-full" /> Críticos</span>
+                <span className="flex items-center gap-1.5"><i style={{ background: "#E0921C" }} className="h-2 w-2 rounded-full" /> Atenção</span>
+              </div>
+            </DashCard>
+            <DashCard T={T} title="Perda confirmada no mês" subtitle="Por loja">
+              <DashHBars T={T} data={[...lojas].sort((a, b) => b.perdaMes - a.perdaMes).slice(0, 8).map((l) => ({ label: rotulo(l), value: l.perdaMes, color: RED_DARK, right: formatarMoeda(l.perdaMes) }))} />
+            </DashCard>
+            <DashCard T={T} title="Rondas pendentes hoje" subtitle="Setores ainda sem ronda">
+              <DashHBars T={T} data={[...lojas].sort((a, b) => b.rondasPendentesHoje - a.rondasPendentesHoje).slice(0, 8).map((l) => ({ label: rotulo(l), value: l.rondasPendentesHoje, color: l.rondasPendentesHoje > 0 ? "#C98A0C" : "#1F9D55", right: `${l.rondasPendentesHoje}` }))} />
+            </DashCard>
+          </div>
+
+          <DashCard T={T} title="Ranking de lojas" subtitle="Clique em um cabeçalho de ordenação para reordenar"
+            right={<DashTabs T={T} value={ordenarPor} onChange={setOrdenarPor} options={[
+              { id: "valorEmRisco", label: "Valor em risco" }, { id: "perdaMes", label: "Perda no mês" }, { id: "rondasPendentesHoje", label: "Rondas pendentes" }]} />}>
+            <DashTable T={T} rows={lojasOrdenadas.map((l) => ({ ...l, id: l.lojaNumero }))} cols={[
+              { key: "pos", label: "#", width: 48, render: (l) => <span style={{ color: T.subtext }} className="tabular-nums">{lojasOrdenadas.findIndex((x) => x.lojaNumero === l.lojaNumero) + 1}</span> },
+              { key: "loja", label: "Loja", render: (l) => <div><p className="font-semibold">Loja {l.lojaNumero}</p>{l.lojaNome && <p style={{ color: T.subtext }} className="text-[11px]">{l.lojaNome}</p>}</div> },
+              { key: "valorEmRisco", label: "Valor em risco", align: "right", render: (l) => <span className="font-semibold tabular-nums">{formatarMoeda(l.valorEmRisco)}</span> },
+              { key: "perdaMes", label: "Perda no mês", align: "right", render: (l) => <span className="tabular-nums">{formatarMoeda(l.perdaMes)}</span> },
+              { key: "criticos", label: "Críticos", align: "right", render: (l) => <DashBadge bg={l.criticos > 0 ? RED_SOFT : T.chipBg} color={l.criticos > 0 ? RED_DARK : T.subtext}>{l.criticos}</DashBadge> },
+              { key: "atencao", label: "Atenção", align: "right", render: (l) => <DashBadge bg={l.atencao > 0 ? "#FCF0DD" : T.chipBg} color={l.atencao > 0 ? "#C2760C" : T.subtext}>{l.atencao}</DashBadge> },
+              { key: "rondasPendentesHoje", label: "Rondas pend.", align: "right", render: (l) => <DashBadge bg={l.rondasPendentesHoje > 0 ? "#FCF0DD" : "#E4F7EC"} color={l.rondasPendentesHoje > 0 ? "#C2760C" : "#1F9D55"}>{l.rondasPendentesHoje}</DashBadge> },
+              { key: "atualizadoEm", label: "Atualizado", align: "right", render: (l) => { const velho = Date.now() - new Date(l.atualizadoEm).getTime() > 6 * 3600000; return <span style={{ color: velho ? "#C98A0C" : T.subtext }} className="text-xs">{l.atualizadoEm ? tempoDesde(l.atualizadoEm) : "—"}</span>; } },
+            ]} />
+          </DashCard>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -4543,7 +5008,14 @@ function RedeView({ T, showToast }) {
   const lojasDesatualizadas = useMemo(() => (lojas || []).filter((l) => Date.now() - new Date(l.atualizadoEm).getTime() > 6 * 3600000), [lojas]);
 
   return (
-    <div className="px-4 pt-4 pb-4">
+    <>
+    {lojas === null ? (
+      <div className="hidden lg:block text-center py-24"><Loader2 size={26} className="animate-spin mx-auto" color={T.subtext} /></div>
+    ) : (
+      <RedeDashboard T={T} lojas={lojas} totais={totais} lojasOrdenadas={lojasOrdenadas} ordenarPor={ordenarPor} setOrdenarPor={setOrdenarPor}
+        lojasDesatualizadas={lojasDesatualizadas} onAtualizar={carregar} />
+    )}
+    <div className="px-4 pt-4 pb-4 lg:hidden">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
         style={{ background: `linear-gradient(160deg, #6D4FC2 0%, #4B2E9E 75%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5 mb-4">
         <p className="text-white/70 text-[10px] font-bold uppercase tracking-wide mb-3 flex items-center gap-1.5">
@@ -4627,6 +5099,63 @@ function RedeView({ T, showToast }) {
         </div>
       )}
     </div>
+    </>
+  );
+}
+
+// ============ Torre de Controle — versão dashboard (PC) ============
+function TorreDashboard({ T, criticos, atencao, valorEmRisco, previsaoAmanha, riscoPorSetor, setorMaisPerigoso, riscoPorCorredor, tendenciaPerdas, reincidentes, rankingResponsaveis, ultimasAcoes, onGerarPDF }) {
+  const fmt = useFormatarMoedaComCamada();
+  const v = tendenciaPerdas.variacao;
+  return (
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Torre de controle" subtitle="Visão gerencial da loja em tempo real"
+        right={<button onClick={onGerarPDF} style={{ background: `linear-gradient(135deg, ${RED}, ${RED_DARK})` }} className="text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2"><FileText size={14} /> Relatório completo (PDF)</button>} />
+      {setorMaisPerigoso && (
+        <div style={{ background: RED_SOFT, color: RED_DARK }} className="rounded-xl px-4 py-3 mb-5 text-sm flex items-center gap-2.5">
+          <AlertTriangle size={16} /><span><strong>Setor crítico do dia: {setorMaisPerigoso[0]}.</strong> {fmt(setorMaisPerigoso[1])} em valor exposto — comece por aqui.</span>
+        </div>
+      )}
+      <div className="grid grid-cols-4 gap-4 mb-5">
+        <DashKpi T={T} label="Produtos críticos" value={criticos.length} sub="já vencidos" Icon={AlertTriangle} accent={RED_DARK} />
+        <DashKpi T={T} label="Em atenção" value={atencao.length} sub="dentro do prazo de alerta" Icon={ClockIcon} accent="#C98A0C" />
+        <DashKpi T={T} label="Valor em risco" value={fmt(valorEmRisco)} sub="vencidos + em alerta" Icon={Boxes} accent={RED} />
+        <DashKpi T={T} label="Perda no mês" value={fmt(tendenciaPerdas.atual)} sub={v === null ? "sem mês anterior" : `${v > 0 ? "+" : ""}${v}% vs mês anterior`} chip={v === null ? null : `${v > 0 ? "+" : ""}${v}%`} chipBom={v !== null && v <= 0} Icon={TrendingDown} accent={BLUE} />
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <DashCard T={T} title="Ações prioritárias por setor" subtitle="Maior valor exposto primeiro">
+          {riscoPorSetor.length ? <DashHBars T={T} data={riscoPorSetor.slice(0, 7).map(([s, val]) => ({ label: s, value: val, color: RED, right: fmt(val) }))} /> : <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Nada em risco.</p>}
+        </DashCard>
+        <DashCard T={T} title="Risco por corredor" subtitle="Onde estão os produtos críticos">
+          {riscoPorCorredor.length ? <DashHBars T={T} data={riscoPorCorredor.map(([c, d]) => ({ label: c, value: d.valor, color: RED_DARK, right: `${fmt(d.valor)} · ${d.vencidos + d.proximos} item(ns)` }))} /> : <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Sem corredores informados.</p>}
+        </DashCard>
+        <DashCard T={T} title="Previsão para amanhã" subtitle="Produtos que entram em alerta">
+          <p className="text-4xl font-extrabold tabular-nums" style={{ color: BLUE }}>{previsaoAmanha.qtd}</p>
+          <p style={{ color: T.subtext }} className="text-sm mt-1">produto(s) · {fmt(previsaoAmanha.valor)}</p>
+          <p style={{ color: T.subtext }} className="text-xs mt-4">Planeje as rondas e promoções antes que eles virem perda.</p>
+        </DashCard>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <DashCard T={T} title="Produtos reincidentes" subtitle="3+ perdas nos últimos 60 dias">
+          <DashTable T={T} rows={reincidentes.map((r, i) => ({ ...r, id: i }))} empty="Nenhum reincidente." cols={[
+            { key: "nome", label: "Produto", render: (r) => <div><p className="font-semibold truncate max-w-[14rem]">{r.nome}</p><p style={{ color: T.subtext }} className="text-[11px]">{r.setor}</p></div> },
+            { key: "n", label: "Perdas", align: "right", render: (r) => <DashBadge bg={RED_SOFT} color={RED_DARK}>{r.datas.length}x</DashBadge> }]} />
+        </DashCard>
+        <DashCard T={T} title="Quem registra baixas" subtitle="Ranking de responsáveis">
+          {rankingResponsaveis.length ? <DashHBars T={T} data={rankingResponsaveis.map(([n, c]) => ({ label: n, value: c, color: BLUE, right: `${c}` }))} /> : <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Sem registros.</p>}
+        </DashCard>
+        <DashCard T={T} title="Últimas ações" subtitle="Auditoria recente">
+          <div className="flex flex-col gap-3">
+            {ultimasAcoes.length === 0 && <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Sem ações.</p>}
+            {ultimasAcoes.map((a, i) => (
+              <div key={a.id ?? i} className="flex items-start gap-2.5 text-xs">
+                <span style={{ background: BLUE_SOFT, color: BLUE }} className="h-7 w-7 rounded-full flex items-center justify-center font-bold shrink-0">{(a.usuario || "?").slice(0, 1).toUpperCase()}</span>
+                <div className="min-w-0"><p><b>{a.usuario}</b> {a.acao}</p><p style={{ color: T.subtext }} className="text-[10.5px]">{tempoDesde(a.criadoEm)}</p></div>
+              </div>))}
+          </div>
+        </DashCard>
+      </div>
+    </div>
   );
 }
 
@@ -4644,7 +5173,11 @@ function TorreControleView({ T, items, historico, auditoria, usuario, showToast,
   });
 
   return (
-    <div className="px-4 pt-4 flex flex-col gap-3">
+    <>
+    <TorreDashboard T={T} criticos={criticos} atencao={atencao} valorEmRisco={valorEmRisco} previsaoAmanha={previsaoAmanha} riscoPorSetor={riscoPorSetor}
+      setorMaisPerigoso={setorMaisPerigoso} riscoPorCorredor={riscoPorCorredor} tendenciaPerdas={tendenciaPerdas} reincidentes={reincidentes}
+      rankingResponsaveis={rankingResponsaveis} ultimasAcoes={ultimasAcoes} onGerarPDF={gerarRelatorioCompleto} />
+    <div className="px-4 pt-4 flex flex-col gap-3 lg:hidden">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
         style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 75%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5">
         <p className="text-white/70 text-[11px] font-bold uppercase tracking-wide mb-3 flex items-center gap-1.5">
@@ -4766,6 +5299,7 @@ function TorreControleView({ T, items, historico, auditoria, usuario, showToast,
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -4968,10 +5502,11 @@ function DashKpi({ T, label, value, sub, chip, chipBom, Icon, accent, children }
   );
 }
 
-function DashBars({ T, data }) {
-  const W = 760, H = 250, pl = 30, pb = 26, pt = 16;
+function DashBars({ T, data, W = 760 }) {
+  const H = 250, pb = 26, pt = 16;
   const totais = data.map((d) => d.parts.reduce((a, p) => a + p.value, 0));
   const topo = Math.max(4, Math.ceil(Math.max(...totais, 0) / 4) * 4);
+  const pl = 16 + String(topo).length * 6.5;
   const ih = H - pb - pt, bw = (W - pl) / data.length;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full block">
@@ -5009,7 +5544,7 @@ function DashArea({ T, data, color, gid }) {
   const iw = W - pl - 8, ih = H - pb - pt, step = iw / Math.max(data.length - 1, 1);
   const pts = data.map((d, i) => [pl + i * step, pt + ih - (d.value / topo) * ih]);
   const linha = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-  const marcas = [0, 7, 14, 21, data.length - 1].filter((v, i, a) => v >= 0 && a.indexOf(v) === i);
+  const marcas = (data.length <= 8 ? data.map((_, i) => i) : [0, 7, 14, 21, data.length - 1]).filter((v, i, a) => v >= 0 && v < data.length && a.indexOf(v) === i);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full block">
       <defs>
@@ -5422,6 +5957,111 @@ function interpretarBusca(query, item) {
   if (/sem\s*troca/.test(q)) return item.politicaTroca === "sem_troca";
 
   return item.nome.toLowerCase().includes(q) || item.barcode.includes(q);
+}
+
+// ============ Produtos monitorados — versão dashboard (PC) ============
+const NIVEL_BADGE = (level) => level === "expired" ? { bg: RED_SOFT, fg: RED_DARK } : level === "alert" ? { bg: "#FDE8E8", fg: RED } : level === "warning" ? { bg: "#FCF0DD", fg: "#C2760C" } : { bg: "#E4F7EC", fg: "#1F9D55" };
+function diasTexto(d) { return d < 0 ? `${Math.abs(d)} dia(s) vencido` : d === 0 ? "vence hoje" : `${d} dia(s)`; }
+
+function TabelaProdutos({ T, itens, onOpenDetail, limite = 60, mostrarSetor = true }) {
+  const fmt = useFormatarMoedaComCamada();
+  const [mostrar, setMostrar] = useState(limite);
+  useEffect(() => { setMostrar(limite); }, [itens.length, limite]);
+  const rows = itens.slice(0, mostrar).map((i) => ({ ...i, id: i.id }));
+  const cols = [
+    { key: "nome", label: "Produto", render: (i) => (
+      <div className="flex items-center gap-3 min-w-0">
+        <Thumb foto={i.foto} size={36} />
+        <div className="min-w-0"><p className="font-semibold truncate max-w-[22rem]">{i.nome}</p>{i.barcode && <p style={{ color: T.subtext }} className="text-[10.5px] font-mono">{i.barcode}</p>}</div>
+      </div>) },
+    ...(mostrarSetor ? [{ key: "setor", label: "Setor", render: (i) => <span style={{ color: T.subtext }}>{i.setor}</span> }] : []),
+    { key: "validade", label: "Validade", render: (i) => <span className="tabular-nums">{formatarData(i.validade)}</span> },
+    { key: "dias", label: "Prazo", render: (i) => { const b = NIVEL_BADGE(i.status.level); return <DashBadge bg={b.bg} color={b.fg}>{diasTexto(i.status.d)}</DashBadge>; } },
+    { key: "quantidade", label: "Qtd", align: "right", render: (i) => <span className="tabular-nums">{i.quantidade ?? 1}</span> },
+    { key: "valor", label: "Valor", align: "right", render: (i) => <span className="tabular-nums font-semibold">{fmt((Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0))}</span> },
+    { key: "status", label: "Status", align: "right", render: (i) => { const b = statusStyles(i.status.level); return <span style={{ background: b.bg, color: b.fg }} className="text-[10px] font-bold px-2.5 py-1 rounded-full">{i.status.label}</span>; } },
+  ];
+  return (
+    <>
+      <DashTable T={T} rows={rows} cols={cols} onRow={onOpenDetail} empty="Nenhum produto encontrado." />
+      {itens.length > mostrar && (
+        <div className="pt-6 text-center">
+          <button onClick={() => setMostrar((m) => m + 60)} style={{ background: T.chipBg, color: T.text }} className="text-xs font-semibold px-4 py-2 rounded-xl">Mostrar mais ({itens.length - mostrar} restantes)</button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function DashFiltros({ T, children }) {
+  return <div className="flex items-center gap-3 flex-wrap mb-4">{children}</div>;
+}
+
+function ProdutosDashboard({ T, items, historico, search, setSearch, filtroSetor, setFiltroSetor, ordenarPor, setOrdenarPor, onOpenDetail, onVerPrioridades }) {
+  const fmt = useFormatarMoedaComCamada();
+  const [categoria, setCategoria] = useState("todos");
+  const enriched = useMemo(() => items.map((it) => ({ ...it, status: getStatus(it) })), [items]);
+  const kpi = useMemo(() => {
+    const val = (arr) => arr.reduce((a, i) => a + (Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0), 0);
+    const venc = enriched.filter((i) => i.status.level === "expired"), alerta = enriched.filter((i) => i.status.level === "alert"), aten = enriched.filter((i) => i.status.level === "warning");
+    return { total: enriched.length, venc: venc.length, alerta: alerta.length, aten: aten.length, risco: val([...venc, ...alerta]) };
+  }, [enriched]);
+  const setores = useMemo(() => ["Todos", ...Array.from(new Set(enriched.filter((i) => categoria === "todos" || (categoria === "pereciveis" ? ehPerecivel(i.setor) : !ehPerecivel(i.setor))).map((i) => i.setor)))], [enriched, categoria]);
+  const lista = useMemo(() => enriched.filter((i) => {
+    if (categoria === "pereciveis" && !ehPerecivel(i.setor)) return false;
+    if (categoria === "outros" && ehPerecivel(i.setor)) return false;
+    if (filtroSetor !== "Todos" && i.setor !== filtroSetor) return false;
+    return interpretarBusca(search, i);
+  }).sort((a, b) => ordenarPor === "nome" ? a.nome.localeCompare(b.nome) : ordenarPor === "setor" ? a.setor.localeCompare(b.setor) : ordenarPor === "validade" ? b.status.d - a.status.d : a.status.d - b.status.d), [enriched, categoria, filtroSetor, search, ordenarPor]);
+  const porSetor = useMemo(() => {
+    const m = {};
+    enriched.filter((i) => i.status.level === "alert" || i.status.level === "expired").forEach((i) => { m[i.setor] = (m[i.setor] || 0) + 1; });
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([label, value]) => ({ label, value, color: RED }));
+  }, [enriched]);
+  const donut = [{ label: "Vencidos", value: kpi.venc, color: RED_DARK }, { label: "Em alerta", value: kpi.alerta, color: RED }, { label: "Atenção", value: kpi.aten, color: "#C98A0C" }, { label: "OK", value: kpi.total - kpi.venc - kpi.alerta - kpi.aten, color: "#1F9D55" }];
+  const sel = { background: T.inputBg, borderColor: T.inputBorder, color: T.text };
+
+  return (
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Produtos monitorados" subtitle={`${kpi.total} produtos acompanhados na loja`}
+        right={<button onClick={onVerPrioridades} style={{ background: T.card, borderColor: T.border, color: T.text }} className="text-xs font-semibold px-3.5 py-2 rounded-xl border">Ver prioridade de perda</button>} />
+      <div className="grid grid-cols-4 gap-4 mb-5">
+        <DashKpi T={T} label="Total monitorado" value={kpi.total} sub="produtos com validade" Icon={Boxes} accent={BLUE} />
+        <DashKpi T={T} label="Vencidos" value={kpi.venc} sub="retirar da área de venda" Icon={AlertTriangle} accent={RED_DARK} />
+        <DashKpi T={T} label="Em alerta" value={kpi.alerta} sub={`${kpi.aten} em atenção`} Icon={ClockIcon} accent="#C98A0C" />
+        <DashKpi T={T} label="Valor em risco" value={fmt(kpi.risco)} sub="vencidos + em alerta" Icon={TrendingDown} accent={RED} />
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <DashCard T={T} title="Situação dos produtos" subtitle="Distribuição por status">
+          <div className="flex items-center gap-6">
+            <DashDonut T={T} size={140} thickness={20} segments={donut} centerValue={kpi.total} centerLabel="produtos" />
+            <div className="flex flex-col gap-2 text-xs flex-1">
+              {donut.map((s) => <div key={s.label} className="flex items-center gap-2"><i style={{ background: s.color }} className="h-2 w-2 rounded-full" /><span style={{ color: T.subtext }}>{s.label}</span><b className="ml-auto tabular-nums">{s.value}</b></div>)}
+            </div>
+          </div>
+        </DashCard>
+        <DashCard T={T} title="Críticos por setor" subtitle="Vencidos + em alerta" className="col-span-2">
+          {porSetor.length ? <DashHBars T={T} data={porSetor} /> : <p style={{ color: T.subtext }} className="text-sm py-6 text-center">Nenhum produto crítico. 🎉</p>}
+        </DashCard>
+      </div>
+      <DashCard T={T} title="Lista de produtos" subtitle={`${lista.length} resultado(s)`}
+        right={<DashTabs T={T} value={categoria} onChange={(v) => { setCategoria(v); setFiltroSetor("Todos"); }} options={[{ id: "todos", label: "Todos" }, { id: "pereciveis", label: "Perecíveis" }, { id: "outros", label: "Outros" }]} />}>
+        <DashFiltros T={T}>
+          <div style={{ background: T.inputBg, borderColor: T.inputBorder }} className="flex items-center gap-2 border rounded-xl px-3 py-2 flex-1 min-w-[16rem]">
+            <MagnifyingGlassIcon className="w-4 h-4" style={{ color: T.subtext }} />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome, código, setor…" style={{ color: T.text }} className="bg-transparent outline-none text-sm flex-1" />
+          </div>
+          <select value={filtroSetor} onChange={(e) => setFiltroSetor(e.target.value)} style={sel} className="border rounded-xl px-3 py-2 text-sm outline-none">
+            {setores.map((s) => <option key={s} value={s}>{s === "Todos" ? "Todos os setores" : s}</option>)}
+          </select>
+          <select value={ordenarPor} onChange={(e) => setOrdenarPor(e.target.value)} style={sel} className="border rounded-xl px-3 py-2 text-sm outline-none">
+            <option value="urgencia">Mais urgentes</option><option value="validade">Validade mais longa</option><option value="nome">Nome (A–Z)</option><option value="setor">Setor</option>
+          </select>
+        </DashFiltros>
+        <TabelaProdutos T={T} itens={lista} onOpenDetail={onOpenDetail} />
+      </DashCard>
+    </div>
+  );
 }
 
 function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFiltroSetor, ordenarPor, setOrdenarPor, modoVisual, setModoVisual, onScan, onCadastrar, onOpenDetail, onVerPrioridades }) {
@@ -6159,6 +6799,136 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 // (urgência + valor + quantidade + política de troca + reincidência). Um produto que
 // vence depois mas não tem troca com o fornecedor pode furar a frente de um que vence
 // antes mas tem troca garantida — é exatamente essa a diferença do motor calcularPrioridade.
+// ============ Prioridade / Histórico / Auditoria — versões dashboard (PC) ============
+function PrioridadeDashboard({ T, prioridades, valorEmRisco, urgenteCount, semTrocaCount, filtro, setFiltro, filtrados, onOpenDetail }) {
+  const fmt = useFormatarMoedaComCamada();
+  const porSetor = {};
+  prioridades.forEach((x) => { porSetor[x.item.setor] = (porSetor[x.item.setor] || 0) + x.p.valor; });
+  const top = Object.entries(porSetor).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([label, value]) => ({ label, value, color: RED, right: fmt(value) }));
+  const cols = [
+    { key: "pos", label: "#", width: 44, render: (x) => <span style={{ color: T.subtext }} className="tabular-nums">{filtrados.indexOf(x) + 1}</span> },
+    { key: "nome", label: "Produto", render: (x) => <div className="flex items-center gap-3"><Thumb foto={x.item.foto} size={34} /><div><p className="font-semibold truncate max-w-[20rem]">{x.item.nome}</p><p style={{ color: T.subtext }} className="text-[11px]">{x.item.setor}{gerarCodigoLocalizacao(x.item) ? ` · ${gerarCodigoLocalizacao(x.item)}` : ""}</p></div></div> },
+    { key: "nivel", label: "Nível", render: (x) => <DashBadge bg={x.p.nivel === "urgente" ? RED_DARK : RED_SOFT} color={x.p.nivel === "urgente" ? "#fff" : RED_DARK}>{x.p.nivel === "urgente" ? "URGENTE" : "ATENÇÃO"}</DashBadge> },
+    { key: "score", label: "Risco", render: (x) => <div className="flex items-center gap-2 w-28"><div style={{ background: T.chipBg }} className="h-1.5 flex-1 rounded-full overflow-hidden"><div style={{ width: `${x.p.score}%`, background: x.p.score > 70 ? RED_DARK : "#E0921C" }} className="h-full" /></div><span className="text-xs font-bold tabular-nums">{x.p.score}</span></div> },
+    { key: "prazo", label: "Prazo", render: (x) => <span className="text-xs">{x.p.status.level === "expired" ? `vencido há ${Math.abs(x.p.dias)}d` : x.p.dias === 0 ? "vence hoje" : `em ${x.p.dias}d`}</span> },
+    { key: "troca", label: "Troca", render: (x) => x.p.semTroca ? <DashBadge bg="#4A1013" color="#FFD5D8">SEM TROCA</DashBadge> : <span style={{ color: T.subtext }} className="text-xs">—</span> },
+    { key: "valor", label: "Valor", align: "right", render: (x) => <span className="font-semibold tabular-nums">{fmt(x.p.valor)}</span> },
+    { key: "acao", label: "Ação recomendada", render: (x) => <span style={{ color: BLUE_DARK }} className="text-xs font-semibold">{x.p.acao}</span> },
+  ];
+  return (
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Prioridade de perda" subtitle="Ordenado por quem gera a maior perda e tem menor chance de recuperação" />
+      <div className="grid grid-cols-4 gap-4 mb-5">
+        <DashKpi T={T} label="Valor priorizado em risco" value={fmt(valorEmRisco)} sub="soma dos itens em risco" Icon={TrendingDown} accent={RED_DARK} />
+        <DashKpi T={T} label="Em risco" value={prioridades.length} sub="vencidos + em alerta" Icon={AlertTriangle} accent={RED} />
+        <DashKpi T={T} label="Urgentes" value={urgenteCount} sub="agir primeiro" Icon={Flame} accent={RED_DARK} />
+        <DashKpi T={T} label="Sem troca" value={semTrocaCount} sub="não voltam ao fornecedor" Icon={ShieldAlert} accent="#C98A0C" />
+      </div>
+      {prioridades.length === 0 ? (
+        <DashCard T={T} title="Nenhum produto em risco agora"><p style={{ color: T.subtext }} className="text-sm">Assim que algo entrar em alerta ou vencer, a prioridade aparece aqui.</p></DashCard>
+      ) : (
+        <div className="grid grid-cols-4 gap-4 items-start">
+          <DashCard T={T} title="Valor em risco por setor" className="col-span-1"><DashHBars T={T} data={top} /></DashCard>
+          <DashCard T={T} title="Fila de prioridade" subtitle={`${filtrados.length} produto(s) — clique para abrir`} className="col-span-3"
+            right={<DashTabs T={T} value={filtro} onChange={setFiltro} options={[{ id: "todos", label: `Todos (${prioridades.length})` }, { id: "urgente", label: `Urgente (${urgenteCount})`, color: RED_DARK }, { id: "sem_troca", label: `Sem troca (${semTrocaCount})` }]} />}>
+            <DashTable T={T} cols={cols} rows={filtrados.map((x) => ({ ...x, id: x.item.id }))} onRow={(x) => onOpenDetail(x.item)} empty="Nenhum produto nesse filtro." />
+          </DashCard>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistoricoDashboard({ T, filtrado, periodo, setPeriodo, valorPerdido, valorTotalMovimentado, rankingSetores, rankingResponsaveis, reincidentes, exportarCSV, exportarPlanilha }) {
+  const fmt = useFormatarMoedaComCamada();
+  const dias = Math.min(periodo, 30);
+  const serie = Array.from({ length: dias }, (_, k) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (dias - 1 - k)); return d; });
+  const dadosSerie = serie.map((d) => ({ label: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
+    value: Math.round(filtrado.filter((h) => new Date(h.dataBaixa).toDateString() === d.toDateString()).reduce((a, h) => a + (Number(h.quantidade) || 1) * (Number(h.precoUnitario) || 0), 0)) }));
+  const cols = [
+    { key: "nome", label: "Produto", render: (h) => <div><p className="font-semibold truncate max-w-[22rem]">{h.nome}</p>{h.barcode && <p style={{ color: T.subtext }} className="text-[10.5px] font-mono">{h.barcode}</p>}</div> },
+    { key: "setor", label: "Setor", render: (h) => <span style={{ color: T.subtext }}>{h.setor}</span> },
+    { key: "data", label: "Baixa", render: (h) => <span className="text-xs tabular-nums">{formatarDataHora(h.dataBaixa)}</span> },
+    { key: "motivo", label: "Ação", render: (h) => <DashBadge bg={h.vencidoAntes ? RED_SOFT : BLUE_SOFT} color={h.vencidoAntes ? RED_DARK : BLUE_DARK}>{h.motivo}</DashBadge> },
+    { key: "qtd", label: "Qtd", align: "right", render: (h) => <span className="tabular-nums">{h.quantidade || 1}</span> },
+    { key: "valor", label: "Valor", align: "right", render: (h) => <span className="font-semibold tabular-nums">{fmt((Number(h.quantidade) || 1) * (Number(h.precoUnitario) || 0))}</span> },
+    { key: "por", label: "Responsável", render: (h) => <span style={{ color: T.subtext }} className="text-xs">{h.registradoPor || "—"}</span> },
+  ];
+  const btn = { background: T.card, borderColor: T.border, color: T.text };
+  return (
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Histórico de baixas" subtitle={`Últimos ${periodo} dias · ${filtrado.length} baixa(s)`}
+        right={<>
+          <DashTabs T={T} value={periodo} onChange={setPeriodo} options={[{ id: 7, label: "7 dias" }, { id: 30, label: "30 dias" }, { id: 90, label: "90 dias" }]} />
+          <button onClick={exportarCSV} style={btn} className="text-xs font-semibold px-3 py-2 rounded-xl border flex items-center gap-1.5"><Download size={13} /> CSV</button>
+          <button onClick={() => exportarPlanilha("xlsx")} style={btn} className="text-xs font-semibold px-3 py-2 rounded-xl border flex items-center gap-1.5"><FileSpreadsheet size={13} /> Excel</button>
+        </>} />
+      <div className="grid grid-cols-4 gap-4 mb-5">
+        <DashKpi T={T} label="Perda por vencimento" value={fmt(valorPerdido)} sub="baixas de produto vencido" Icon={TrendingDown} accent={RED_DARK} />
+        <DashKpi T={T} label="Valor movimentado" value={fmt(valorTotalMovimentado)} sub="todas as baixas" Icon={Boxes} accent={BLUE} />
+        <DashKpi T={T} label="Baixas registradas" value={filtrado.length} sub={`nos últimos ${periodo} dias`} Icon={History} accent="#1F9D55" />
+        <DashKpi T={T} label="Reincidentes" value={reincidentes.length} sub="produtos com 3+ perdas" Icon={AlertTriangle} accent="#C98A0C" />
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <DashCard T={T} title="Valor baixado por dia" subtitle={`Últimos ${dias} dias`} className="col-span-2"><DashArea T={T} data={dadosSerie} color={RED_DARK} gid="hist" /></DashCard>
+        <DashCard T={T} title="Perda por setor" subtitle="% do valor no período">
+          {rankingSetores.length ? <DashHBars T={T} data={rankingSetores.map((r) => ({ label: r.setor, value: r.valor, color: RED, right: `${Math.round(r.pct)}% · ${fmt(r.valor)}` }))} /> : <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Sem baixas.</p>}
+        </DashCard>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="col-span-2">
+          <DashCard T={T} title="Baixas registradas" subtitle="Mais recentes primeiro">
+            <DashTable T={T} cols={cols} rows={[...filtrado].sort((a, b) => new Date(b.dataBaixa) - new Date(a.dataBaixa)).slice(0, 100).map((h, i) => ({ ...h, id: h.id ?? i }))} empty="Nenhuma baixa no período." />
+          </DashCard>
+        </div>
+        <div className="flex flex-col gap-4">
+          <DashCard T={T} title="Quem registra" subtitle="Ranking de responsáveis">
+            {rankingResponsaveis.length ? <DashHBars T={T} data={rankingResponsaveis.map(([n, c]) => ({ label: n, value: c, color: BLUE, right: `${c}` }))} /> : <p style={{ color: T.subtext }} className="text-sm py-4 text-center">—</p>}
+          </DashCard>
+          <DashCard T={T} title="Reincidentes" subtitle="3+ perdas em 60 dias">
+            {reincidentes.length ? <DashHBars T={T} data={reincidentes.map((r) => ({ label: r.nome, value: r.datas.length, color: RED_DARK, right: `${r.datas.length}x` }))} /> : <p style={{ color: T.subtext }} className="text-sm py-4 text-center">Nenhum reincidente.</p>}
+          </DashCard>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuditoriaDashboard({ T, auditoria, filtrada, busca, setBusca }) {
+  const hojeStr = new Date().toDateString();
+  const hoje = auditoria.filter((a) => new Date(a.criadoEm).toDateString() === hojeStr).length;
+  const porUser = {};
+  auditoria.forEach((a) => { const u = a.usuario || "Alguém"; porUser[u] = (porUser[u] || 0) + 1; });
+  const topUsers = Object.entries(porUser).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const dias = Array.from({ length: 14 }, (_, k) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (13 - k)); return d; });
+  const serie = dias.map((d) => ({ label: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`, value: auditoria.filter((a) => new Date(a.criadoEm).toDateString() === d.toDateString()).length }));
+  const cols = [
+    { key: "quando", label: "Quando", width: 190, render: (a) => <span className="text-xs tabular-nums">{formatarDataHoraExtenso(a.criadoEm)}</span> },
+    { key: "usuario", label: "Pessoa", render: (a) => <span className="font-semibold">{a.usuario || "Alguém"}</span> },
+    { key: "acao", label: "Ação", render: (a) => <span>{a.acao}</span> },
+    { key: "detalhe", label: "Detalhe", render: (a) => <span style={{ color: T.subtext }} className="text-xs">{a.detalhe || "—"}</span> },
+  ];
+  return (
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Auditoria" subtitle="Trilha de tudo o que foi feito no app" />
+      <div className="grid grid-cols-4 gap-4 mb-5">
+        <DashKpi T={T} label="Ações registradas" value={auditoria.length} sub="total" Icon={DocumentMagnifyingGlassIcon} accent={BLUE} />
+        <DashKpi T={T} label="Ações hoje" value={hoje} sub="desde 00:00" Icon={ClockIcon} accent="#1F9D55" />
+        <DashKpi T={T} label="Pessoas ativas" value={Object.keys(porUser).length} sub="com ao menos 1 ação" Icon={Boxes} accent={RED} />
+        <DashKpi T={T} label="Mais ativa" value={topUsers[0] ? topUsers[0][0].split(" ")[0] : "—"} sub={topUsers[0] ? `${topUsers[0][1]} ação(ões)` : ""} Icon={ShieldCheck} accent="#C98A0C" />
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <DashCard T={T} title="Atividade nos últimos 14 dias" className="col-span-2"><DashArea T={T} data={serie} color={BLUE} gid="aud" /></DashCard>
+        <DashCard T={T} title="Ações por pessoa">{topUsers.length ? <DashHBars T={T} data={topUsers.map(([n, c]) => ({ label: n, value: c, color: BLUE, right: `${c}` }))} /> : <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Sem registros.</p>}</DashCard>
+      </div>
+      <DashCard T={T} title="Registros" subtitle={`${filtrada.length} ação(ões)`}
+        right={<div style={{ background: T.inputBg, borderColor: T.inputBorder }} className="flex items-center gap-2 border rounded-xl px-3 py-1.5 w-72"><MagnifyingGlassIcon className="w-4 h-4" style={{ color: T.subtext }} /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar pessoa, ação, detalhe…" style={{ color: T.text }} className="bg-transparent outline-none text-sm flex-1" /></div>}>
+        <DashTable T={T} cols={cols} rows={filtrada.slice(0, 150).map((a, i) => ({ ...a, id: a.id ?? i }))} empty="Nenhum registro encontrado." />
+      </DashCard>
+    </div>
+  );
+}
+
 function PrioridadeInteligenteView({ T, items, historico, onOpenDetail }) {
   const podeVerValores = useValoresVisiveis();
   const [filtro, setFiltro] = useState("todos"); // todos | urgente | sem_troca
@@ -6185,7 +6955,9 @@ function PrioridadeInteligenteView({ T, items, historico, onOpenDetail }) {
   });
 
   return (
-    <div className="px-4 pt-4 pb-6">
+    <>
+    <PrioridadeDashboard T={T} prioridades={prioridadesTodas} valorEmRisco={valorEmRisco} urgenteCount={urgenteCount} semTrocaCount={semTrocaCount} filtro={filtro} setFiltro={setFiltro} filtrados={filtrados} onOpenDetail={onOpenDetail} />
+    <div className="px-4 pt-4 pb-6 lg:hidden">
       <div className="flex items-center gap-2 mb-1">
         <Flame size={18} color={RED_DARK} />
         <h1 style={{ color: T.text }} className="text-lg font-bold">Prioridade Inteligente</h1>
@@ -6281,6 +7053,7 @@ function PrioridadeInteligenteView({ T, items, historico, onOpenDetail }) {
         </>
       )}
     </div>
+  </>
   );
 }
 
@@ -7539,7 +8312,9 @@ function HistoricoView({ T, historico, items, usuario }) {
   }
 
   return (
-    <div className="px-4 pt-4">
+    <>
+    <HistoricoDashboard T={T} filtrado={filtrado} periodo={periodo} setPeriodo={setPeriodo} valorPerdido={valorPerdido} valorTotalMovimentado={valorTotalMovimentado} rankingSetores={rankingSetores} rankingResponsaveis={rankingResponsaveis} reincidentes={reincidentes} exportarCSV={exportarCSV} exportarPlanilha={exportarPlanilha} />
+    <div className="lg:hidden px-4 pt-4">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
         style={{ background: `linear-gradient(160deg, ${RED_DARK} 0%, ${BLUE_DARK} 100%)` }} className="rounded-[28px] px-4 py-4 mb-4 shadow-lg shadow-black/5 flex items-center gap-3">
         <div className="h-10 w-10 rounded-2xl bg-white/15 flex items-center justify-center shrink-0"><DollarSign size={18} color="#fff" /></div>
@@ -7664,6 +8439,7 @@ function HistoricoView({ T, historico, items, usuario }) {
         </div>
       )}
     </div>
+  </>
   );
 }
 
@@ -7692,7 +8468,9 @@ function AuditoriaView({ T, auditoria }) {
   }, [filtrada]);
 
   return (
-    <div className="px-4 pt-4 pb-4">
+    <>
+    <AuditoriaDashboard T={T} auditoria={auditoria} filtrada={filtrada} busca={busca} setBusca={setBusca} />
+    <div className="px-4 pt-4 pb-4 lg:hidden">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
         style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 75%)` }} className="rounded-[28px] p-4 mb-4 shadow-lg shadow-black/5">
         <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1.5">
@@ -7750,6 +8528,7 @@ function AuditoriaView({ T, auditoria }) {
         </div>
       )}
     </div>
+  </>
   );
 }
 
@@ -7797,8 +8576,103 @@ function SelecionarSecoesRelatorioSheet({ T, secoesDisponiveis, selecionadas, on
 }
 
 // ============ Relatórios (resumo geral, setores, itens, financeiro, atividade — com exportação em PDF/ODS/XLSX/CSV) ============
+// ============ Relatórios — versão dashboard (PC) ============
+function RelatoriosDashboard({ T, lojaNumero, items, criticos, atencao, valorEmRisco, valorTotalMonitorado, tendenciaPerdas, perdaUltimos6Meses, faixasRisco, porPoliticaTroca, topRisco,
+  resumoPorSetor, porUsuarioAuditoria, porTipoAcao, rondasResumo, taxaExecucaoRonda, indicePerda, faturamentoMensal, faturamentoInput, setFaturamentoInput, salvarFaturamento,
+  onGerarPDF, gerarPDFFinanceiro, gerarPDFAtividade, exportarFinanceiro, exportarAtividade, onOpenDetail }) {
+  const fmt = useFormatarMoedaComCamada();
+  const [aba, setAba] = useState("geral");
+  const btn = { background: T.card, borderColor: T.border, color: T.text };
+  const v = tendenciaPerdas.variacao;
+  const cores = ["#C0192B", "#E0921C", "#C98A0C", BLUE, "#1F9D55"];
+  return (
+    <div className="hidden lg:block">
+      <DashPageHeader T={T} title="Relatórios" subtitle={`Loja ${lojaNumero || "—"} · atualizado em ${formatarDataHoraExtenso(new Date().toISOString())}`}
+        right={<button onClick={onGerarPDF} style={{ background: `linear-gradient(135deg, ${RED}, ${RED_DARK})` }} className="text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2"><Download size={14} /> Relatório PDF para gerência</button>} />
+      <div className="mb-5"><DashTabs T={T} value={aba} onChange={setAba} options={[{ id: "geral", label: "Visão geral" }, { id: "setores", label: "Setores e itens" }, { id: "financeiro", label: "Financeiro e ROI" }, { id: "atividade", label: "Atividade" }]} /></div>
+
+      {aba === "geral" && (<>
+        <div className="grid grid-cols-4 gap-4 mb-5">
+          <DashKpi T={T} label="Valor em risco" value={fmt(valorEmRisco)} sub="vencidos + em alerta" Icon={TrendingDown} accent={RED_DARK} />
+          <DashKpi T={T} label="Vencidos" value={criticos.length} sub={`${atencao.length} em atenção`} Icon={AlertTriangle} accent={RED} />
+          <DashKpi T={T} label="Perda no mês" value={fmt(tendenciaPerdas.atual)} sub={v === null ? "sem mês anterior" : `${v > 0 ? "+" : ""}${v}% vs mês anterior`} Icon={Boxes} accent="#C98A0C" />
+          <DashKpi T={T} label="Monitorados" value={items.length} sub={fmt(valorTotalMonitorado)} Icon={ShieldCheck} accent={BLUE} />
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <DashCard T={T} title="Perda por vencimento" subtitle="Últimos 6 meses" className="col-span-2"><DashArea T={T} data={perdaUltimos6Meses.map((m) => ({ label: m.label, value: Math.round(m.valor) }))} color={RED_DARK} gid="rel6" /></DashCard>
+          <DashCard T={T} title="Faixas de vencimento" subtitle="Quantidade de produtos">
+            <DashHBars T={T} data={faixasRisco.map((f, i) => ({ label: f.label, value: f.qtd, color: cores[i], right: `${f.qtd} · ${fmt(f.valor)}` }))} />
+          </DashCard>
+        </div>
+      </>)}
+
+      {aba === "setores" && (<>
+        <div className="grid grid-cols-3 gap-4 mb-5">
+          <DashCard T={T} title="Risco por setor" subtitle="Valor em risco" className="col-span-1"><DashHBars T={T} data={resumoPorSetor.filter(([, d]) => d.valorEmRisco > 0).slice(0, 8).map(([s, d]) => ({ label: s, value: d.valorEmRisco, color: RED, right: fmt(d.valorEmRisco) }))} /></DashCard>
+          <DashCard T={T} title="Resumo por setor" className="col-span-2">
+            <DashTable T={T} rows={resumoPorSetor.map(([setor, d]) => ({ id: setor, setor, ...d }))} cols={[
+              { key: "setor", label: "Setor", render: (r) => <span className="font-semibold">{r.setor}</span> },
+              { key: "total", label: "Produtos", align: "right" },
+              { key: "criticos", label: "Vencidos", align: "right", render: (r) => <DashBadge bg={r.criticos ? RED_SOFT : T.chipBg} color={r.criticos ? RED_DARK : T.subtext}>{r.criticos}</DashBadge> },
+              { key: "atencao", label: "Alerta", align: "right", render: (r) => <DashBadge bg={r.atencao ? "#FCF0DD" : T.chipBg} color={r.atencao ? "#C2760C" : T.subtext}>{r.atencao}</DashBadge> },
+              { key: "ok", label: "OK", align: "right" },
+              { key: "valorEmRisco", label: "Valor em risco", align: "right", render: (r) => <span className="font-semibold tabular-nums">{fmt(r.valorEmRisco)}</span> }]} />
+          </DashCard>
+        </div>
+        <DashCard T={T} title="Itens de maior valor" subtitle="Top 10 do estoque monitorado">
+          <DashTable T={T} onRow={onOpenDetail} rows={topRisco} cols={[
+            { key: "nome", label: "Produto", render: (i) => <span className="font-semibold">{i.nome}</span> },
+            { key: "setor", label: "Setor", render: (i) => <span style={{ color: T.subtext }}>{i.setor}</span> },
+            { key: "validade", label: "Validade", render: (i) => formatarData(i.validade) },
+            { key: "valorRisco", label: "Valor", align: "right", render: (i) => <span className="font-semibold tabular-nums">{fmt(i.valorRisco)}</span> }]} />
+        </DashCard>
+      </>)}
+
+      {aba === "financeiro" && (<>
+        <div className="grid grid-cols-4 gap-4 mb-5">
+          <DashKpi T={T} label="Faturamento mensal" value={faturamentoMensal ? fmt(faturamentoMensal) : "—"} sub="informado pela loja" Icon={Boxes} accent={BLUE} />
+          <DashKpi T={T} label="Índice de perda" value={indicePerda == null ? "—" : `${indicePerda.toFixed(2)}%`} sub="perda do mês ÷ faturamento" Icon={TrendingDown} accent={RED_DARK} />
+          <DashKpi T={T} label="Com troca" value={porPoliticaTroca.com_troca.qtd} sub={fmt(porPoliticaTroca.com_troca.valor)} Icon={ShieldCheck} accent="#1F9D55" />
+          <DashKpi T={T} label="Sem troca" value={porPoliticaTroca.sem_troca.qtd} sub={fmt(porPoliticaTroca.sem_troca.valor)} Icon={ShieldAlert} accent={RED} />
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <DashCard T={T} title="Faturamento mensal" subtitle="Base do índice de perda">
+            <div className="flex gap-2"><input type="number" value={faturamentoInput} onChange={(e) => setFaturamentoInput(e.target.value)} placeholder="Ex.: 1200000" style={{ background: T.inputBg, borderColor: T.inputBorder, color: T.text }} className="flex-1 border rounded-xl px-3 py-2 text-sm outline-none" />
+              <button onClick={salvarFaturamento} style={{ background: BLUE }} className="text-white text-xs font-bold px-4 rounded-xl">Salvar</button></div>
+          </DashCard>
+          <DashCard T={T} title="Exportar financeiro" subtitle="PDF e planilhas" className="col-span-2">
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={gerarPDFFinanceiro} style={{ background: RED_SOFT, color: RED_DARK }} className="text-xs font-semibold px-3.5 py-2 rounded-xl flex items-center gap-1.5"><FileText size={13} /> PDF</button>
+              {["csv", "ods", "xlsx"].map((f) => <button key={f} onClick={() => exportarFinanceiro(f)} style={btn} className="text-xs font-semibold px-3.5 py-2 rounded-xl border uppercase">{f}</button>)}
+            </div>
+          </DashCard>
+        </div>
+      </>)}
+
+      {aba === "atividade" && (<>
+        <div className="grid grid-cols-4 gap-4 mb-5">
+          <DashKpi T={T} label="Ações registradas" value={porUsuarioAuditoria.reduce((a, [, q]) => a + q, 0)} sub="na auditoria" Icon={DocumentMagnifyingGlassIcon} accent={BLUE} />
+          <DashKpi T={T} label="Rondas concluídas" value={rondasResumo.concluidas} sub="" Icon={ShieldCheck} accent="#1F9D55" />
+          <DashKpi T={T} label="Rondas parciais" value={rondasResumo.parciais} sub="" Icon={ClockIcon} accent="#C98A0C" />
+          <DashKpi T={T} label="Execução de rondas" value={taxaExecucaoRonda == null ? "—" : `${taxaExecucaoRonda}%`} sub="concluídas ÷ total" Icon={Boxes} accent={RED} />
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <DashCard T={T} title="Ações por pessoa"><DashHBars T={T} data={porUsuarioAuditoria.slice(0, 8).map(([n, c]) => ({ label: n, value: c, color: BLUE, right: `${c}` }))} /></DashCard>
+          <DashCard T={T} title="Tipos de ação"><DashHBars T={T} data={porTipoAcao.slice(0, 8).map(([n, c]) => ({ label: n, value: c, color: "#0E9AA7", right: `${c}` }))} /></DashCard>
+          <DashCard T={T} title="Rondas por setor" right={<div className="flex gap-1.5">
+            <button onClick={gerarPDFAtividade} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-semibold px-2.5 py-1 rounded-lg">PDF</button>
+            {["csv", "xlsx"].map((f) => <button key={f} onClick={() => exportarAtividade(f)} style={btn} className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border uppercase">{f}</button>)}</div>}>
+            <DashHBars T={T} data={rondasResumo.porSetor.slice(0, 8).map(([s, d]) => ({ label: s, value: d.concluidas + d.parciais, color: "#1F9D55", right: `${d.concluidas} ok · ${d.parciais} parc.` }))} />
+          </DashCard>
+        </div>
+      </>)}
+    </div>
+  );
+}
+
 function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, onOpenDetail, rondas, lojaNumero }) {
   const [aba, setAba] = useState("resumo"); // resumo | setores | itens | financeiro | atividade
+  const telaLargaRel = useTelaLarga();
   const [exportarAberto, setExportarAberto] = useState(false);
   const SECOES_RELATORIO = [
     { id: "setores", label: "Top setores em risco" },
@@ -7901,12 +8775,12 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
   const [faturamentoInput, setFaturamentoInput] = useState("");
   const [editandoFaturamento, setEditandoFaturamento] = useState(false);
   useEffect(() => {
-    if (aba === "roi" && lojaNumero) {
+    if ((aba === "roi" || telaLargaRel) && lojaNumero) {
       supaFetchConfigLoja(lojaNumero).then((cfg) => {
         if (cfg?.faturamentoMensal != null) { setFaturamentoMensal(cfg.faturamentoMensal); setFaturamentoInput(String(cfg.faturamentoMensal)); }
       });
     }
-  }, [aba, lojaNumero]);
+  }, [aba, lojaNumero, telaLargaRel]);
   function salvarFaturamento() {
     const v = Number(faturamentoInput);
     if (!v || v <= 0) return;
@@ -7972,7 +8846,13 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
   ];
 
   return (
-    <div className="px-4 pt-4 pb-4">
+    <>
+    <RelatoriosDashboard T={T} lojaNumero={lojaNumero} items={items} criticos={criticos} atencao={atencao} valorEmRisco={valorEmRisco} valorTotalMonitorado={valorTotalMonitorado}
+      tendenciaPerdas={tendenciaPerdas} perdaUltimos6Meses={perdaUltimos6Meses} faixasRisco={faixasRisco} porPoliticaTroca={porPoliticaTroca} topRisco={topRisco}
+      resumoPorSetor={resumoPorSetor} porUsuarioAuditoria={porUsuarioAuditoria} porTipoAcao={porTipoAcao} rondasResumo={rondasResumo} taxaExecucaoRonda={taxaExecucaoRonda}
+      indicePerda={indicePerda} faturamentoMensal={faturamentoMensal} faturamentoInput={faturamentoInput} setFaturamentoInput={setFaturamentoInput} salvarFaturamento={salvarFaturamento}
+      onGerarPDF={() => setExportarAberto(true)} gerarPDFFinanceiro={gerarPDFFinanceiro} gerarPDFAtividade={gerarPDFAtividade} exportarFinanceiro={exportarFinanceiro} exportarAtividade={exportarAtividade} onOpenDetail={onOpenDetail} />
+    <div className="px-4 pt-4 pb-4 lg:hidden">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
         style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 75%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5 mb-4">
         <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-2">
@@ -7986,16 +8866,6 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
         <Download size={17} /> Gerar relatório em PDF pra gerência
       </button>
 
-      {exportarAberto && (
-        <SelecionarSecoesRelatorioSheet T={T} secoesDisponiveis={SECOES_RELATORIO} selecionadas={secoesSelecionadas}
-          onAlternar={(id) => setSecoesSelecionadas((prev) => {
-            const novo = new Set(prev);
-            if (novo.has(id)) novo.delete(id); else novo.add(id);
-            return novo;
-          })}
-          onFechar={() => setExportarAberto(false)}
-          onGerar={() => { gerarPDF(); setExportarAberto(false); }} />
-      )}
 
       <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4 no-scrollbar">
         {ABAS.map((a) => (
@@ -8284,6 +9154,17 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
         </div>
       )}
     </div>
+      {exportarAberto && (
+        <SelecionarSecoesRelatorioSheet T={T} secoesDisponiveis={SECOES_RELATORIO} selecionadas={secoesSelecionadas}
+          onAlternar={(id) => setSecoesSelecionadas((prev) => {
+            const novo = new Set(prev);
+            if (novo.has(id)) novo.delete(id); else novo.add(id);
+            return novo;
+          })}
+          onFechar={() => setExportarAberto(false)}
+          onGerar={() => { gerarPDF(); setExportarAberto(false); }} />
+      )}
+    </>
   );
 }
 
