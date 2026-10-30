@@ -27,7 +27,7 @@ import {
   Carrot, Beef, Croissant, Milk, Wine, Snowflake, SprayCan, ShoppingBasket, Warehouse, Boxes, LogOut, Megaphone, Building2, Wrench, Ticket, Copy, Link2, LayoutDashboard, Pencil, Mail
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA } from "./inteligencia";
+import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
 // Logo oficial da Condor (PNG em base64, embutida direto no bundle — sem depender de asset externo)
@@ -2319,7 +2319,7 @@ function AppInner() {
 
         {flow === "auditoria" && <AuditoriaView T={T} auditoria={auditoria} />}
         {flow === "torre" && <TorreControleView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
-        {flow === "rede" && ehCorporativo && <RedeView T={T} showToast={showToast} />}
+        {flow === "rede" && ehCorporativo && <PainelRedeView T={T} showToast={showToast} />}
         {flow === "convites" && ehEncarregado && <ConvitesPromotorView T={T} showToast={showToast} lojaAtiva={lojaAtiva} />}
         {flow === "gestao" && ehDev && <GestaoAplicativoView T={T} showToast={showToast} lojaAtiva={lojaAtiva} lojas={todasLojas} onRecarregarLojas={recarregarLojas} nivelUsuario={perfil?.cargos?.nivel} onTrocarLoja={(l) => { setLojaAtivaOverride(l); showToast(`Trocado pra loja ${l.numero_loja}.`); }} />}
         {flow === "relatorios" && <RelatoriosView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} onOpenDetail={setDetalheItem} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
@@ -2846,7 +2846,7 @@ function SetoresDashboard({ T, grupos, resumo, ultimaRondaPorSetor, onAbrirSetor
   return (
     <div className="hidden lg:block">
       <DashPageHeader T={T} title="Setores" subtitle={`${grupos.length} setores · ${totalItens} produtos`} />
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <DashKpi T={T} label="Setores críticos" value={resumo.criticos} sub="com produto vencido" Icon={AlertTriangle} accent={RED_DARK} />
         <DashKpi T={T} label="Em atenção" value={resumo.atencao} sub="alerta ou ronda atrasada" Icon={ClockIcon} accent="#C98A0C" />
         <DashKpi T={T} label="Controlados" value={resumo.controlados} sub="sem pendências" Icon={ShieldCheck} accent="#1F9D55" />
@@ -3147,7 +3147,7 @@ function SetorDetalheDashboard({ T, setor, itensDoSetor, filtrados, contagens, u
       <button onClick={onVoltar} style={{ color: BLUE }} className="flex items-center gap-1.5 text-sm font-semibold mb-3"><ArrowLeft size={15} /> Todos os setores</button>
       <DashPageHeader T={T} title={setor} subtitle={`${itensDoSetor.length} produto(s) · ${estadoRonda.t.toLowerCase()}${ultimaRonda ? ` · última ronda ${tempoDesde(ultimaRonda)}` : ""}`}
         right={ehEncarregado ? <button onClick={onDesignar} style={{ background: T.card, borderColor: T.border, color: BLUE }} className="text-xs font-semibold px-3.5 py-2 rounded-xl border flex items-center gap-1.5"><ShieldCheck size={13} /> Criar ronda deste setor</button> : null} />
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <DashKpi T={T} label="Vencidos" value={contagens.vencido} sub="retirar da área de venda" Icon={AlertTriangle} accent={RED_DARK} />
         <DashKpi T={T} label="Em alerta" value={contagens.alerta} sub="agir antes de vencer" Icon={ClockIcon} accent={RED} />
         <DashKpi T={T} label="Valor em risco" value={fmt(valorEmRisco)} sub="vencidos + em alerta" Icon={TrendingDown} accent="#C98A0C" />
@@ -5786,7 +5786,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
     <>
     <div className="hidden lg:block">
       <DashPageHeader T={T} title="Convites de promotor" subtitle={`Loja ${lojaAtiva?.numero_loja || "—"} · o link funciona como login, sem e-mail nem senha`} />
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <DashKpi T={T} label="Convites ativos" value={ativos.length} sub="acesso liberado agora" Icon={Ticket} accent="#1F9D55" />
         <DashKpi T={T} label="Total gerados" value={(convites || []).length} sub="últimos 100" Icon={Link2} accent={BLUE} />
         <DashKpi T={T} label="Aberturas" value={totalUsos} sub="somando todos os links" Icon={Copy} accent="#C98A0C" />
@@ -5963,7 +5963,7 @@ function DashHBars({ T, data, fmt = (v) => v }) {
         <div key={i}>
           <div className="flex items-center justify-between text-xs mb-1 gap-2">
             <span style={{ color: T.text }} className="font-semibold truncate">{d.label}</span>
-            <span style={{ color: T.subtext }} className="shrink-0 tabular-nums">{d.right ?? fmt(d.value)}</span>
+            <span style={{ color: T.subtext }} className="shrink-0 tabular-nums whitespace-nowrap">{d.right ?? fmt(d.value)}</span>
           </div>
           <div style={{ background: T.chipBg }} className="h-2.5 rounded-full overflow-hidden">
             <div style={{ width: `${(d.value / max) * 100}%`, background: d.color || BLUE }} className="h-full rounded-full" />
@@ -6006,7 +6006,7 @@ function RedeDashboard({ T, lojas, totais, lojasOrdenadas, ordenarPor, setOrdena
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <DashKpi T={T} label="Valor em risco" value={formatarMoeda(totais.valorEmRisco)} sub="rede inteira" Icon={Boxes} accent={PURPLE} />
         <DashKpi T={T} label="Perda confirmada no mês" value={formatarMoeda(totais.perdaMes)} sub="baixas por vencimento" Icon={TrendingDown} accent={RED_DARK} />
         <DashKpi T={T} label="Críticos / atenção" value={`${totais.criticos} / ${totais.atencao}`} sub="produtos na rede" Icon={AlertTriangle} accent={RED} />
@@ -6210,7 +6210,7 @@ function TorreDashboard({ T, criticos, atencao, valorEmRisco, previsaoAmanha, ri
           <AlertTriangle size={16} /><span><strong>Setor crítico do dia: {setorMaisPerigoso[0]}.</strong> {fmt(setorMaisPerigoso[1])} em valor exposto — comece por aqui.</span>
         </div>
       )}
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <DashKpi T={T} label="Produtos críticos" value={criticos.length} sub="já vencidos" Icon={AlertTriangle} accent={RED_DARK} />
         <DashKpi T={T} label="Em atenção" value={atencao.length} sub="dentro do prazo de alerta" Icon={ClockIcon} accent="#C98A0C" />
         <DashKpi T={T} label="Valor em risco" value={fmt(valorEmRisco)} sub="vencidos + em alerta" Icon={Boxes} accent={RED} />
@@ -6577,8 +6577,10 @@ function DashKpi({ T, label, value, sub, chip, chipBom, Icon, accent, children }
         <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide truncate">{label}</p>
         <div style={{ background: `${accent}1F` }} className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0"><Icon size={16} color={accent} /></div>
       </div>
-      <div className="flex items-end gap-2 mt-2">
-        <p style={{ color: T.text }} className="text-[28px] font-extrabold leading-none tabular-nums">{value}</p>
+      {/* valor nunca sai da caixa: fonte se ajusta ao tamanho do texto e ao espaço disponível */}
+      <div className="flex items-end gap-2 mt-2 min-w-0 flex-wrap">
+        <p style={{ color: T.text, fontSize: String(value ?? "").length > 12 ? "clamp(17px, 1.55vw, 24px)" : String(value ?? "").length > 8 ? "clamp(19px, 1.8vw, 26px)" : "28px" }}
+          className="font-extrabold leading-none tabular-nums whitespace-nowrap overflow-hidden text-ellipsis max-w-full" title={String(value ?? "")}>{value}</p>
         {chip && <span style={chipStyle} className="text-[11px] font-bold px-1.5 py-0.5 rounded-md mb-0.5">{chip}</span>}
       </div>
       {sub && <p style={{ color: T.subtext }} className="text-[11px] mt-1.5">{sub}</p>}
@@ -7110,7 +7112,7 @@ function ProdutosDashboard({ T, items, historico, search, setSearch, filtroSetor
     <div className="hidden lg:block">
       <DashPageHeader T={T} title="Produtos monitorados" subtitle={`${kpi.total} produtos acompanhados na loja`}
         right={<button onClick={onVerPrioridades} style={{ background: T.card, borderColor: T.border, color: T.text }} className="text-xs font-semibold px-3.5 py-2 rounded-xl border">Ver prioridade de perda</button>} />
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <DashKpi T={T} label="Total monitorado" value={kpi.total} sub="produtos com validade" Icon={Boxes} accent={BLUE} />
         <DashKpi T={T} label="Vencidos" value={kpi.venc} sub="retirar da área de venda" Icon={AlertTriangle} accent={RED_DARK} />
         <DashKpi T={T} label="Em alerta" value={kpi.alerta} sub={`${kpi.aten} em atenção`} Icon={ClockIcon} accent="#C98A0C" />
@@ -7898,7 +7900,7 @@ function PrioridadeDashboard({ T, prioridades, valorEmRisco, urgenteCount, semTr
   return (
     <div className="hidden lg:block">
       <DashPageHeader T={T} title="Prioridade de perda" subtitle="Ordenado por quem gera a maior perda e tem menor chance de recuperação" />
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <DashKpi T={T} label="Valor priorizado em risco" value={fmt(valorEmRisco)} sub="soma dos itens em risco" Icon={TrendingDown} accent={RED_DARK} />
         <DashKpi T={T} label="Em risco" value={prioridades.length} sub="vencidos + em alerta" Icon={AlertTriangle} accent={RED} />
         <DashKpi T={T} label="Urgentes" value={urgenteCount} sub="agir primeiro" Icon={Flame} accent={RED_DARK} />
@@ -7943,7 +7945,7 @@ function HistoricoDashboard({ T, filtrado, periodo, setPeriodo, valorPerdido, va
           <button onClick={exportarCSV} style={btn} className="text-xs font-semibold px-3 py-2 rounded-xl border flex items-center gap-1.5"><Download size={13} /> CSV</button>
           <button onClick={() => exportarPlanilha("xlsx")} style={btn} className="text-xs font-semibold px-3 py-2 rounded-xl border flex items-center gap-1.5"><FileSpreadsheet size={13} /> Excel</button>
         </>} />
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <DashKpi T={T} label="Perda por vencimento" value={fmt(valorPerdido)} sub="baixas de produto vencido" Icon={TrendingDown} accent={RED_DARK} />
         <DashKpi T={T} label="Valor movimentado" value={fmt(valorTotalMovimentado)} sub="todas as baixas" Icon={Boxes} accent={BLUE} />
         <DashKpi T={T} label="Baixas registradas" value={filtrado.length} sub={`nos últimos ${periodo} dias`} Icon={History} accent="#1F9D55" />
@@ -7991,7 +7993,7 @@ function AuditoriaDashboard({ T, auditoria, filtrada, busca, setBusca }) {
   return (
     <div className="hidden lg:block">
       <DashPageHeader T={T} title="Auditoria" subtitle="Trilha de tudo o que foi feito no app" />
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
         <DashKpi T={T} label="Ações registradas" value={auditoria.length} sub="total" Icon={DocumentMagnifyingGlassIcon} accent={BLUE} />
         <DashKpi T={T} label="Ações hoje" value={hoje} sub="desde 00:00" Icon={ClockIcon} accent="#1F9D55" />
         <DashKpi T={T} label="Pessoas ativas" value={Object.keys(porUser).length} sub="com ao menos 1 ação" Icon={Boxes} accent={RED} />
@@ -9591,7 +9593,7 @@ function RelatoriosDashboard({ T, lojaNumero, items, criticos, atencao, valorEmR
       <div className="mb-5"><DashTabs T={T} value={aba} onChange={setAba} options={[{ id: "geral", label: "Visão geral" }, { id: "setores", label: "Setores e itens" }, { id: "financeiro", label: "Financeiro e ROI" }, { id: "atividade", label: "Atividade" }]} /></div>
 
       {aba === "geral" && (<>
-        <div className="grid grid-cols-4 gap-4 mb-5">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
           <DashKpi T={T} label="Valor em risco" value={fmt(valorEmRisco)} sub="vencidos + em alerta" Icon={TrendingDown} accent={RED_DARK} />
           <DashKpi T={T} label="Vencidos" value={criticos.length} sub={`${atencao.length} em atenção`} Icon={AlertTriangle} accent={RED} />
           <DashKpi T={T} label="Perda no mês" value={fmt(tendenciaPerdas.atual)} sub={v === null ? "sem mês anterior" : `${v > 0 ? "+" : ""}${v}% vs mês anterior`} Icon={Boxes} accent="#C98A0C" />
@@ -9628,7 +9630,7 @@ function RelatoriosDashboard({ T, lojaNumero, items, criticos, atencao, valorEmR
       </>)}
 
       {aba === "financeiro" && (<>
-        <div className="grid grid-cols-4 gap-4 mb-5">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
           <DashKpi T={T} label="Faturamento mensal" value={faturamentoMensal ? fmt(faturamentoMensal) : "—"} sub="informado pela loja" Icon={Boxes} accent={BLUE} />
           <DashKpi T={T} label="Índice de perda" value={indicePerda == null ? "—" : `${indicePerda.toFixed(2)}%`} sub="perda do mês ÷ faturamento" Icon={TrendingDown} accent={RED_DARK} />
           <DashKpi T={T} label="Com troca" value={porPoliticaTroca.com_troca.qtd} sub={fmt(porPoliticaTroca.com_troca.valor)} Icon={ShieldCheck} accent="#1F9D55" />
@@ -9649,7 +9651,7 @@ function RelatoriosDashboard({ T, lojaNumero, items, criticos, atencao, valorEmR
       </>)}
 
       {aba === "atividade" && (<>
-        <div className="grid grid-cols-4 gap-4 mb-5">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
           <DashKpi T={T} label="Ações registradas" value={porUsuarioAuditoria.reduce((a, [, q]) => a + q, 0)} sub="na auditoria" Icon={DocumentMagnifyingGlassIcon} accent={BLUE} />
           <DashKpi T={T} label="Rondas concluídas" value={rondasResumo.concluidas} sub="" Icon={ShieldCheck} accent="#1F9D55" />
           <DashKpi T={T} label="Rondas parciais" value={rondasResumo.parciais} sub="" Icon={ClockIcon} accent="#C98A0C" />

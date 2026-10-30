@@ -964,3 +964,198 @@ export const MODOS_RONDA = [
   { id: "amostragem", label: "Amostragem", desc: "Metade pelos maiores riscos, metade sorteada" },
   { id: "manual", label: "Manual", desc: "Só os produtos que você escolher" },
 ];
+
+// ============================================================================ PAINEL DA REDE (refeito)
+// Tudo calculado ao vivo no banco (função painel_rede) — não depende mais do resumo enviado pelos celulares.
+const ROXO = "#6D4FC2", ROXO_ESCURO = "#4B2E9E";
+const tempoAtras = (iso) => {
+  if (!iso) return "sem registro";
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 60) return `há ${Math.max(1, min)} min`;
+  const h = Math.round(min / 60); if (h < 48) return `há ${h} h`;
+  return `há ${Math.round(h / 24)} dias`;
+};
+const variacao = (atual, ant) => (ant > 0 ? Math.round(((atual - ant) / ant) * 100) : null);
+function Variacao({ v, inverso = true }) {
+  if (v === null || v === undefined) return <span className="text-[10.5px] opacity-70">sem período anterior</span>;
+  const ruim = inverso ? v > 0 : v < 0;
+  return <span style={{ color: ruim ? RED_DARK : VERDE }} className="text-[10.5px] font-bold">{v > 0 ? "+" : ""}{v}% vs período anterior</span>;
+}
+
+export function PainelRedeView({ T, showToast }) {
+  const [dias, setDias] = useState(30);
+  const [lojaSel, setLojaSel] = useState("todas");
+  const [ordenar, setOrdenar] = useState("valor_risco");
+  const [d, setD] = useState(null);
+  const [erro, setErro] = useState(null);
+  const [detalhe, setDetalhe] = useState(null);
+  const carregar = useCallback(async () => {
+    setErro(null); setD(null);
+    const { data, error } = await supabase.rpc("painel_rede", { p_dias: dias });
+    if (error) setErro(erroInteligencia(error)); else setD(data);
+  }, [dias]);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  if (erro) return <div className="px-4 pt-4 lg:px-0"><Cartao T={T}><Vazio T={T} texto={erro} /></Cartao></div>;
+  if (!d) return <Carregando T={T} texto="Calculando os números da rede…" />;
+
+  const todas = d.lojas || [];
+  const lojas = lojaSel === "todas" ? todas : todas.filter((l) => String(l.numero_loja) === lojaSel);
+  const soma = (k) => lojas.reduce((a, l) => a + (Number(l[k]) || 0), 0);
+  const tot = {
+    valor_risco: soma("valor_risco"), valor_perdas: soma("valor_perdas"), valor_perdas_ant: soma("valor_perdas_ant"), perdas: soma("perdas"), perdas_ant: soma("perdas_ant"),
+    vencidos: soma("vencidos"), atencao: soma("atencao"), vencem_7d: soma("vencem_7d"), monitorados: soma("monitorados"), valor_monitorado: soma("valor_monitorado"),
+    rondas: soma("rondas"), rondas_abertas: soma("rondas_abertas"), rondas_concluidas: soma("rondas_concluidas"), itens_ronda: soma("itens_ronda"), itens_conferidos: soma("itens_conferidos"),
+    irregularidades: soma("irregularidades"), tarefas_abertas: soma("tarefas_abertas"), tarefas_atrasadas: soma("tarefas_atrasadas"), acoes_abertas: soma("acoes_abertas"), equipe: soma("equipe"),
+  };
+  const pctConferido = tot.itens_ronda ? Math.round((tot.itens_conferidos / tot.itens_ronda) * 100) : null;
+  const pctRisco = tot.valor_monitorado ? Math.round((tot.valor_risco / tot.valor_monitorado) * 100) : null;
+  const serie = lojaSel === "todas" ? (d.serie_rede || []).map((x) => ({ rotulo: x.semana, valor: x.registros }))
+    : (d.semanas || []).map((s, i) => ({ rotulo: s, valor: lojas[0]?.serie?.[i] || 0 }));
+  const somarSetores = (campo, valor) => {
+    const m = {}; lojas.forEach((l) => (l[campo] || []).forEach((s) => { m[s.setor] = (m[s.setor] || 0) + Number(s[valor] || 0); }));
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).map(([rotulo, v]) => ({ rotulo, valor: Math.round(v * 100) / 100 }));
+  };
+  const setoresRisco = somarSetores("setores_risco", "valor_risco");
+  const setoresPerdas = lojaSel === "todas" ? (d.por_setor || []).map((x) => ({ rotulo: x.setor, valor: Number(x.valor) })) : somarSetores("setores_perdas", "valor");
+  const ordenadas = [...todas].sort((a, b) => (Number(b[ordenar]) || 0) - (Number(a[ordenar]) || 0));
+  // alertas automáticos: o que merece atenção agora (só com base nos dados)
+  const alertas = [];
+  todas.forEach((l) => {
+    const nome = `Loja ${l.numero_loja}`;
+    if (l.vencidos > 0) alertas.push({ nivel: "alto", texto: `${nome}: ${l.vencidos} produto(s) vencido(s) ainda cadastrado(s) — ${moeda(l.valor_risco)} em risco.` });
+    if (l.tarefas_atrasadas > 0) alertas.push({ nivel: "medio", texto: `${nome}: ${l.tarefas_atrasadas} tarefa(s) com prazo vencido.` });
+    const v = variacao(Number(l.valor_perdas), Number(l.valor_perdas_ant));
+    if (v !== null && v >= 50 && l.perdas >= 5) alertas.push({ nivel: "alto", texto: `${nome}: perdas subiram ${v}% em relação aos ${d.periodo_dias} dias anteriores.` });
+    if (!l.ultima_atividade || Date.now() - new Date(l.ultima_atividade).getTime() > 3 * 86400000) alertas.push({ nivel: "medio", texto: `${nome}: sem movimentação no app ${tempoAtras(l.ultima_atividade)}.` });
+    if (l.rondas === 0) alertas.push({ nivel: "baixo", texto: `${nome}: nenhuma ronda nos últimos ${d.periodo_dias} dias.` });
+  });
+
+  return (
+    <div className="px-4 pt-4 lg:px-0 flex flex-col gap-4">
+      <div style={{ background: `linear-gradient(120deg, ${ROXO_ESCURO} 0%, ${ROXO} 70%, #8E73DB 100%)` }} className="rounded-3xl p-5 lg:p-7 text-white relative overflow-hidden">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold tracking-[0.16em] text-white/70">PAINEL DA REDE · {todas.length} LOJA(S) · AO VIVO</p>
+            <p className="text-3xl lg:text-4xl font-extrabold mt-2 tabular-nums break-words">{moeda(tot.valor_risco)}</p>
+            <p className="text-[12.5px] text-white/80 mt-1">em risco agora{pctRisco !== null ? ` · ${pctRisco}% do valor monitorado (${moeda(tot.valor_monitorado)})` : ""}</p>
+            <p className="text-[11px] text-white/60 mt-1">Atualizado {tempoAtras(d.gerado_em)} · calculado direto do banco</p>
+          </div>
+          <div className="flex flex-col gap-2 lg:items-end">
+            <div className="flex gap-1.5">{[7, 30, 90].map((n) => (
+              <button key={n} onClick={() => setDias(n)} style={dias === n ? { background: "#fff", color: ROXO_ESCURO } : { background: "rgba(255,255,255,.15)", color: "#fff" }} className="rounded-xl px-3 py-1.5 text-xs font-bold">{n} dias</button>
+            ))}<button onClick={carregar} title="Atualizar" className="rounded-xl px-2.5 py-1.5 bg-white/15"><RefreshCw size={14} /></button></div>
+            <select value={lojaSel} onChange={(e) => setLojaSel(e.target.value)} className="rounded-xl px-3 py-2 text-xs font-semibold text-[#2b1d63] bg-white outline-none">
+              <option value="todas">Todas as lojas</option>{todas.map((l) => <option key={l.id} value={String(l.numero_loja)}>Loja {l.numero_loja}{l.cidade ? ` · ${l.cidade}` : ""}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
+        <Kpi T={T} label={`Perdas em ${d.periodo_dias} dias`} valor={moeda(tot.valor_perdas)} cor={RED_DARK} sub={<Variacao v={variacao(tot.valor_perdas, tot.valor_perdas_ant)} />} />
+        <Kpi T={T} label="Ocorrências de perda" valor={tot.perdas} sub={<Variacao v={variacao(tot.perdas, tot.perdas_ant)} />} />
+        <Kpi T={T} label="Vencidos cadastrados" valor={tot.vencidos} cor={RED_DARK} sub={`${tot.atencao} em atenção · ${tot.vencem_7d} vencem em 7 dias`} />
+        <Kpi T={T} label="Produtos monitorados" valor={tot.monitorados} sub={moeda(tot.valor_monitorado)} />
+        <Kpi T={T} label={`Rondas (${d.periodo_dias} dias)`} valor={tot.rondas} sub={`${tot.rondas_abertas} aberta(s) · ${tot.rondas_concluidas} concluída(s)`} />
+        <Kpi T={T} label="Itens conferidos" valor={pctConferido === null ? "—" : `${pctConferido}%`} cor={BLUE} sub={`${tot.itens_conferidos} de ${tot.itens_ronda} · ${tot.irregularidades} irregular(es)`} />
+        <Kpi T={T} label="Tarefas abertas" valor={tot.tarefas_abertas} cor={tot.tarefas_atrasadas ? LARANJA : T.text} sub={`${tot.tarefas_atrasadas} atrasada(s)`} />
+        <Kpi T={T} label="Planos de ação ativos" valor={tot.acoes_abertas} cor={VERDE} sub={`${tot.equipe} pessoa(s) na equipe`} />
+      </div>
+
+      {alertas.length > 0 && (
+        <Cartao T={T} titulo="Precisa de atenção" sub="Gerado automaticamente a partir dos números acima">
+          <div className="flex flex-col gap-1.5">{alertas.slice(0, 8).map((a, i) => (
+            <div key={i} style={{ background: a.nivel === "alto" ? RED_SOFT : a.nivel === "medio" ? LARANJA_SOFT : T.chipBg, color: a.nivel === "alto" ? RED_DARK : a.nivel === "medio" ? LARANJA : T.text }}
+              className="rounded-xl px-3 py-2 text-[12px] font-semibold flex items-start gap-2"><AlertTriangle size={14} className="shrink-0 mt-0.5" /><span>{a.texto}</span></div>
+          ))}</div>
+        </Cartao>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <Cartao T={T} titulo="Evolução das perdas" sub={`Ocorrências por semana · ${lojaSel === "todas" ? "rede inteira" : `Loja ${lojaSel}`} · 12 semanas`}><GraficoSimples T={T} tipo="linha" dados={serie} cor={ROXO} /></Cartao>
+        <Cartao T={T} titulo="Valor em risco por loja" sub="Vencidos + em atenção (R$)"><GraficoSimples T={T} formato="moeda" cor={ROXO} dados={todas.map((l) => ({ rotulo: `L${l.numero_loja}`, valor: Number(l.valor_risco) }))} /></Cartao>
+        <Cartao T={T} titulo="Risco por setor" sub="Onde está o dinheiro exposto agora (R$)"><GraficoSimples T={T} formato="moeda" cor={RED} dados={setoresRisco.slice(0, 10)} /></Cartao>
+        <Cartao T={T} titulo={`Perdas por setor (${d.periodo_dias} dias)`} sub="Valor perdido (R$)"><GraficoSimples T={T} formato="moeda" cor={RED_DARK} dados={setoresPerdas.slice(0, 10)} /></Cartao>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <Cartao T={T} titulo="Motivos de perda" sub={`Rede · ${d.periodo_dias} dias`}>
+          {!d.por_motivo?.length ? <Vazio T={T} texto="Sem perdas no período." /> : d.por_motivo.map((m) => {
+            const max = Math.max(...d.por_motivo.map((x) => x.registros));
+            return <div key={m.tipo} className="text-[12px] mb-2"><div className="flex justify-between gap-2 mb-1"><span className="font-semibold">{MOTIVO_LABEL[m.tipo] || m.tipo}</span><span style={{ color: T.subtext }} className="whitespace-nowrap">{m.registros} · {moeda(m.valor)}</span></div>
+              <div className="h-2 rounded-full bg-black/10 overflow-hidden"><div style={{ width: `${(m.registros / max) * 100}%`, background: ROXO }} className="h-full rounded-full" /></div></div>;
+          })}
+        </Cartao>
+        <Cartao T={T} titulo="Produtos que mais perdem" sub={lojaSel === "todas" ? "Top de cada loja" : `Loja ${lojaSel}`} className="lg:col-span-2">
+          {lojas.every((l) => !l.top_produtos?.length) ? <Vazio T={T} texto="Sem perdas no período." /> : (
+            <div className="flex flex-col">{lojas.flatMap((l) => (l.top_produtos || []).map((p) => ({ ...p, loja: l.numero_loja }))).sort((a, b) => b.registros - a.registros || b.valor - a.valor).slice(0, 8).map((p, i) => (
+              <div key={i} className="flex items-center gap-3 py-1.5 text-[12.5px]">
+                <span style={{ background: i < 3 ? RED_SOFT : T.chipBg, color: i < 3 ? RED_DARK : T.subtext }} className="h-6 w-6 rounded-lg text-[10.5px] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
+                <span className="flex-1 min-w-0 truncate font-semibold">{p.nome}</span>
+                <span style={{ color: T.subtext }} className="whitespace-nowrap text-[11px]">L{p.loja} · {p.registros}x · {moeda(p.valor)}</span>
+              </div>
+            ))}</div>
+          )}
+        </Cartao>
+      </div>
+
+      <Cartao T={T} titulo="Ranking de lojas" sub="Toque em uma loja para ver o detalhe"
+        direita={<select value={ordenar} onChange={(e) => setOrdenar(e.target.value)} style={estiloCampo(T)} className="border rounded-xl px-2.5 py-1.5 text-[11.5px] outline-none">
+          <option value="valor_risco">Valor em risco</option><option value="valor_perdas">Perdas no período</option><option value="vencidos">Vencidos</option>
+          <option value="tarefas_atrasadas">Tarefas atrasadas</option><option value="rondas">Rondas</option></select>}>
+        <div className="overflow-x-auto -mx-1">
+          <table className="w-full text-[12px] min-w-[760px]">
+            <thead><tr style={{ color: T.subtext }} className="text-left text-[10.5px] uppercase tracking-wide">
+              {["#", "Loja", "Em risco", "Perdas", "Variação", "Vencidos", "Atenção", "Rondas", "Conferido", "Tarefas atras.", "Atividade"].map((h) => <th key={h} className="px-2 py-2 font-bold whitespace-nowrap">{h}</th>)}
+            </tr></thead>
+            <tbody>{ordenadas.map((l, i) => {
+              const v = variacao(Number(l.valor_perdas), Number(l.valor_perdas_ant));
+              const conf = l.itens_ronda ? Math.round((l.itens_conferidos / l.itens_ronda) * 100) : null;
+              return (
+                <tr key={l.id} onClick={() => setDetalhe(l)} style={{ borderTop: `1px solid ${T.chipBg}` }} className="cursor-pointer hover:opacity-80">
+                  <td className="px-2 py-2.5 tabular-nums" style={{ color: T.subtext }}>{i + 1}</td>
+                  <td className="px-2 py-2.5 whitespace-nowrap"><b>Loja {l.numero_loja}</b>{l.cidade && <span style={{ color: T.subtext }} className="block text-[10.5px]">{l.cidade}</span>}</td>
+                  <td className="px-2 py-2.5 whitespace-nowrap font-bold tabular-nums" style={{ color: RED_DARK }}>{moeda(l.valor_risco)}</td>
+                  <td className="px-2 py-2.5 whitespace-nowrap tabular-nums">{moeda(l.valor_perdas)} <span style={{ color: T.subtext }}>({l.perdas})</span></td>
+                  <td className="px-2 py-2.5 whitespace-nowrap">{v === null ? "—" : <span style={{ color: v > 0 ? RED_DARK : VERDE }} className="font-bold">{v > 0 ? "+" : ""}{v}%</span>}</td>
+                  <td className="px-2 py-2.5"><Selo bg={l.vencidos ? RED_SOFT : T.chipBg} color={l.vencidos ? RED_DARK : T.subtext}>{l.vencidos}</Selo></td>
+                  <td className="px-2 py-2.5"><Selo bg={l.atencao ? LARANJA_SOFT : T.chipBg} color={l.atencao ? LARANJA : T.subtext}>{l.atencao}</Selo></td>
+                  <td className="px-2 py-2.5 tabular-nums">{l.rondas} <span style={{ color: T.subtext }}>({l.rondas_abertas} ab.)</span></td>
+                  <td className="px-2 py-2.5 tabular-nums">{conf === null ? "—" : `${conf}%`}</td>
+                  <td className="px-2 py-2.5"><Selo bg={l.tarefas_atrasadas ? LARANJA_SOFT : VERDE_SOFT} color={l.tarefas_atrasadas ? LARANJA : VERDE}>{l.tarefas_atrasadas}</Selo></td>
+                  <td className="px-2 py-2.5 whitespace-nowrap" style={{ color: T.subtext }}>{tempoAtras(l.ultima_atividade)}</td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        </div>
+      </Cartao>
+
+      {detalhe && (
+        <Folha T={T} titulo={`Loja ${detalhe.numero_loja}`} sub={[detalhe.cidade, detalhe.estado].filter(Boolean).join(" · ") || "Detalhe da loja"} onClose={() => setDetalhe(null)}>
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              <Kpi T={T} label="Em risco" valor={moeda(detalhe.valor_risco)} cor={RED_DARK} />
+              <Kpi T={T} label={`Perdas (${d.periodo_dias}d)`} valor={moeda(detalhe.valor_perdas)} sub={<Variacao v={variacao(Number(detalhe.valor_perdas), Number(detalhe.valor_perdas_ant))} />} />
+              <Kpi T={T} label="Vencidos / atenção" valor={`${detalhe.vencidos} / ${detalhe.atencao}`} />
+              <Kpi T={T} label="Tarefas atrasadas" valor={detalhe.tarefas_atrasadas} cor={detalhe.tarefas_atrasadas ? LARANJA : T.text} />
+            </div>
+            <Cartao T={T} titulo="Perdas por semana"><GraficoSimples T={T} tipo="linha" cor={ROXO} altura={170} dados={(d.semanas || []).map((s, i) => ({ rotulo: s, valor: detalhe.serie?.[i] || 0 }))} /></Cartao>
+            <Cartao T={T} titulo="Setores com risco">
+              {!detalhe.setores_risco?.length ? <Vazio T={T} texto="Nenhum setor com produto vencido ou em atenção." /> : detalhe.setores_risco.map((s) => (
+                <div key={s.setor} className="flex justify-between gap-2 py-1 text-[12.5px]"><span className="font-semibold">{s.setor}</span><span style={{ color: T.subtext }} className="whitespace-nowrap">{s.vencidos} venc. · {s.atencao} atenção · {moeda(s.valor_risco)}</span></div>
+              ))}
+            </Cartao>
+            <Cartao T={T} titulo="Produtos que mais perdem">
+              {!detalhe.top_produtos?.length ? <Vazio T={T} texto="Sem perdas no período." /> : detalhe.top_produtos.map((p, i) => (
+                <div key={i} className="flex justify-between gap-2 py-1 text-[12.5px]"><span className="truncate">{p.nome}</span><span style={{ color: T.subtext }} className="whitespace-nowrap">{p.registros}x · {moeda(p.valor)}</span></div>
+              ))}
+            </Cartao>
+            <p style={{ color: T.subtext }} className="text-[11px]">Equipe: {detalhe.equipe} pessoa(s) · Rondas no período: {detalhe.rondas} ({detalhe.rondas_concluidas} concluída(s)) · Planos de ação ativos: {detalhe.acoes_abertas} · Última movimentação {tempoAtras(detalhe.ultima_atividade)}.</p>
+          </div>
+        </Folha>
+      )}
+    </div>
+  );
+}
