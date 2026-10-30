@@ -1,4 +1,4 @@
-// Condor · Alerta de Validade — service worker v7
+// Condor · Alerta de Validade — service worker v7.1
 // Modelo de atualização: o app instalado SEMPRE abre a versão que está em cache (rápido e funciona offline).
 // Quem descobre que existe versão nova é o próprio app (compara com o que está publicado) e mostra o aviso
 // "Atualizar". Só quando a pessoa toca no botão o app baixa a versão nova para o cache e reinicia.
@@ -51,7 +51,9 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return; // Supabase, fontes etc.: direto na rede
 
   // Abrir o app (navegação): serve a versão já instalada. Sem cache ainda → rede.
-  if (request.mode === "navigate" || url.pathname === "/" || url.pathname === "/index.html") {
+  // Só a ABERTURA do app (navegação) usa a versão guardada. Consultas do próprio app ao /index.html (checagem de
+  // versão nova) precisam ir direto à rede, senão sempre enxergariam a versão antiga.
+  if (request.mode === "navigate") {
     event.respondWith((async () => {
       const cacheShell = await caches.open(CACHE_SHELL);
       const guardado = await cacheShell.match("/index.html");
@@ -64,6 +66,8 @@ self.addEventListener("fetch", (event) => {
     })());
     return;
   }
+
+  if (url.pathname === "/" || url.pathname === "/index.html") return; // consulta de versão do app: rede direta, sem cache
 
   // Arquivos do app (hash no nome, nunca mudam): cache primeiro.
   if (url.pathname.startsWith("/assets/")) {
