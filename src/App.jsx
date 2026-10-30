@@ -61,6 +61,7 @@ const POLITICAS_TROCA = [
   { valor: "sem_troca", label: "Sem troca", desc: "Fornecedor não aceita troca após vencimento" }
 ];
 function gerarCodigoLocalizacao(item) {
+  return null; // localização (corredor/módulo/prateleira/depósito) desativada por enquanto
   if (item.local === "deposito") {
     if (!item.corredorDeposito && !item.moduloDeposito && !item.nivelDeposito && !item.vaoDeposito) return null;
     const partes = ["DEP"];
@@ -2102,7 +2103,7 @@ function AppInner() {
     setPendingBarcode(item.barcode);
     setDraftProduct({ ...item });
     setIntencaoFluxo("validade");
-    setFlow("confirm"); // passa pela tela de dados primeiro — assim dá pra trocar foto/setor/localização também
+    setFlow("confirm"); // passa pela tela de dados primeiro — assim dá pra trocar foto/setor também
   }
 
   function editarCadastroDoSetor(entradaCatalogo) {
@@ -2554,7 +2555,7 @@ function AppInner() {
                 <div style={{ background: BLUE_SOFT }} className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"><Package size={16} color={BLUE} /></div>
                 <div>
                   <p className="text-sm font-semibold">Só cadastrar o produto</p>
-                  <p style={{ color: T.subtext }} className="text-[11px]">Guarda nome, setor e localização pra usar depois</p>
+                  <p style={{ color: T.subtext }} className="text-[11px]">Guarda nome, setor e preço pra usar depois</p>
                 </div>
               </button>
               <button onClick={() => escolherIntencao("validade")} style={{ background: RED_SOFT, color: RED_DARK }} className="w-full text-left rounded-2xl p-3.5 flex items-center gap-3">
@@ -3135,9 +3136,6 @@ function ItemCardGridSetor({ T, item, onOpenDetail, onLancarValidade, onExcluir,
               <Plus size={12} />
             </span>
           )}
-          {!item.semValidade && item.local === "deposito" && (
-            <span style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }} className="absolute top-1.5 right-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded">DEP</span>
-          )}
         </div>
         <div className="p-2.5 pr-8">
           <p className="font-semibold text-xs truncate">{item.nome}</p>
@@ -3175,7 +3173,7 @@ function ItemCardGridAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onO
         </div>
         <div className="p-2.5">
           <p className="font-semibold text-xs truncate">{base.nome}</p>
-          <p style={{ color: T.subtext }} className="text-[10px] mt-1">{totalQuantidade} un no total{temDeposito && temLoja ? " · Loja + Depósito" : ""}</p>
+          <p style={{ color: T.subtext }} className="text-[10px] mt-1">{totalQuantidade} un no total</p>
         </div>
       </button>
       {aberto && (
@@ -3188,7 +3186,6 @@ function ItemCardGridAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onO
                   <span style={{ background: sl.bg, color: sl.fg }} className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0">{sl.label}</span>
                   <span className="text-xs font-semibold">{formatarData(l.validade)}</span>
                   <span style={{ color: T.subtext }} className="text-[10px]">· {l.quantidade || 1}un</span>
-                  {l.local === "deposito" && <span style={{ background: "#EEF0F3", color: "#4B5563" }} className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0">DEP</span>}
                 </div>
                 <ChevronRight size={13} color={T.subtext} className="shrink-0" />
               </button>
@@ -4257,7 +4254,7 @@ async function gerarRelatorioGerencialPDF({ items, historico, usuario, showToast
   }
 
   // --- Top corredores ---
-  if (inclui("corredores") && riscoPorCorredor.length > 0) {
+  if (false) { // risco por corredor desativado
     secao("RISCO POR CORREDOR / LOCALIZAÇÃO");
     tabela(["LOCAL", "VENCIDOS", "VALOR"], riscoPorCorredor.map(([l, d]) => [l, String(d.vencidos), formatarMoeda(d.valor)]), [96, 40, 46]);
   }
@@ -5586,12 +5583,9 @@ function TorreDashboard({ T, criticos, atencao, valorEmRisco, previsaoAmanha, ri
         <DashKpi T={T} label="Valor em risco" value={fmt(valorEmRisco)} sub="vencidos + em alerta" Icon={Boxes} accent={RED} />
         <DashKpi T={T} label="Perda no mês" value={fmt(tendenciaPerdas.atual)} sub={v === null ? "sem mês anterior" : `${v > 0 ? "+" : ""}${v}% vs mês anterior`} chip={v === null ? null : `${v > 0 ? "+" : ""}${v}%`} chipBom={v !== null && v <= 0} Icon={TrendingDown} accent={BLUE} />
       </div>
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-2 gap-4 mb-5">
         <DashCard T={T} title="Ações prioritárias por setor" subtitle="Maior valor exposto primeiro">
           {riscoPorSetor.length ? <DashHBars T={T} data={riscoPorSetor.slice(0, 7).map(([s, val]) => ({ label: s, value: val, color: RED, right: fmt(val) }))} /> : <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Nada em risco.</p>}
-        </DashCard>
-        <DashCard T={T} title="Risco por corredor" subtitle="Onde estão os produtos críticos">
-          {riscoPorCorredor.length ? <DashHBars T={T} data={riscoPorCorredor.map(([c, d]) => ({ label: c, value: d.valor, color: RED_DARK, right: `${fmt(d.valor)} · ${d.vencidos + d.proximos} item(ns)` }))} /> : <p style={{ color: T.subtext }} className="text-sm py-8 text-center">Sem corredores informados.</p>}
         </DashCard>
         <DashCard T={T} title="Previsão para amanhã" subtitle="Produtos que entram em alerta">
           <p className="text-4xl font-extrabold tabular-nums" style={{ color: BLUE }}>{previsaoAmanha.qtd}</p>
@@ -5693,20 +5687,6 @@ function TorreControleView({ T, items, historico, auditoria, usuario, showToast,
             <strong>Previsão de amanhã:</strong> {previsaoAmanha.qtd} produto(s) entrarão em alerta.
             {previsaoAmanha.valor > 0 && ` Se nada for feito hoje, ${formatarMoeda(previsaoAmanha.valor)} ficarão em risco.`}
           </p>
-        </div>
-      )}
-
-      {riscoPorCorredor.length > 0 && (
-        <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
-          <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide flex items-center gap-1.5"><MapPin size={12} /> Risco por corredor</p>
-          <div className="flex flex-col gap-1.5">
-            {riscoPorCorredor.map(([local, dados]) => (
-              <div key={local} className="flex items-center justify-between">
-                <span className="text-xs">{local} {dados.vencidos > 0 ? `· ${dados.vencidos} vencido(s)` : ""}</span>
-                <span style={{ color: RED_DARK }} className="text-xs font-bold">{formatarMoeda(dados.valor)}</span>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
@@ -6905,9 +6885,6 @@ function ItemCardAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onOpenD
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span style={{ background: s.bg, color: s.fg }} className="text-[10px] font-bold px-2 py-1 rounded-md tracking-wide">{piorStatus.label}</span>
               <span style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[10px] font-bold px-2 py-1 rounded-md">{lotes.length} datas diferentes</span>
-              {temDeposito && temLoja && (
-                <span style={{ background: "#EEF0F3", color: "#4B5563" }} className="text-[10px] font-bold px-2 py-1 rounded-md">Loja + Depósito</span>
-              )}
             </div>
             <p style={{ color: T.subtext }} className="text-[10px] mt-1.5">Total {totalQuantidade} unidade{totalQuantidade !== 1 ? "s" : ""} nesse produto</p>
           </div>
@@ -6925,7 +6902,6 @@ function ItemCardAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onOpenD
                     <span style={{ background: sl.bg, color: sl.fg }} className="text-[9px] font-bold px-1.5 py-0.5 rounded">{sl.label}</span>
                     <span className="text-xs font-semibold">{formatarData(l.validade)}</span>
                     <span style={{ color: T.subtext }} className="text-[10px]">· {l.quantidade || 1} un</span>
-                    {l.local === "deposito" && <span style={{ background: "#EEF0F3", color: "#4B5563" }} className="text-[9px] font-bold px-1.5 py-0.5 rounded">Depósito</span>}
                   </div>
                   {gerarCodigoLocalizacao(l) && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5 font-mono">{gerarCodigoLocalizacao(l)}</p>}
                 </div>
@@ -7091,7 +7067,6 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                           <span style={{ background: sl.bg, color: sl.fg }} className="text-[9px] font-bold px-1.5 py-0.5 rounded">{sl.label}</span>
                           <span className="text-xs font-semibold">{formatarData(l.validade)}</span>
                           <span style={{ color: T.subtext }} className="text-[10px]">· {l.quantidade || 1}{l.porPeso ? "kg" : "un"}</span>
-                          {l.local === "deposito" && <span style={{ background: "#EEF0F3", color: "#4B5563" }} className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0">DEP</span>}
                         </div>
                         {gerarCodigoLocalizacao(l) && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5 font-mono">{gerarCodigoLocalizacao(l)}</p>}
                       </div>
@@ -8057,7 +8032,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
   // com o coletor numa mão e o produto na outra. Cada etapa só libera "Avançar" com o essencial dela ok.
   const [etapa, setEtapa] = useState(1);
   const TOTAL_ETAPAS = 4;
-  const NOMES_ETAPA = ["Produto", "Preço", "Setor", "Localização"];
+  const NOMES_ETAPA = ["Produto", "Preço", "Setor", "Detalhes"];
   const podeAvancarEtapa = {
     1: nome.trim().length > 0,
     2: Number(precoUnitario) > 0,
@@ -8207,36 +8182,6 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
           <p style={{ color: T.subtext }} className="text-[10px] mt-1">Fica salvo no cadastro — não precisa digitar de novo ao lançar a validade.</p>
         </div>
         )}
-        {etapa === 2 && (
-        <div style={{ background: T.chipBg }} className="rounded-2xl p-3.5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold">Cadastrar no estoque (depósito) também?</p>
-              <p style={{ color: T.subtext }} className="text-[10px] mt-0.5">Guarda o endereço desse produto no depósito, além da loja.</p>
-            </div>
-            <div className="flex rounded-xl overflow-hidden shrink-0 ml-2" style={{ border: `1px solid ${T.inputBorder}` }}>
-              <button type="button" onClick={() => setCadastrarEstoque(true)}
-                style={cadastrarEstoque ? { background: BLUE, color: "#fff" } : { background: T.inputBg, color: T.subtext }}
-                className="text-[11px] font-semibold px-3 py-1.5">Sim</button>
-              <button type="button" onClick={() => setCadastrarEstoque(false)}
-                style={!cadastrarEstoque ? { background: BLUE, color: "#fff" } : { background: T.inputBg, color: T.subtext }}
-                className="text-[11px] font-semibold px-3 py-1.5">Não</button>
-            </div>
-          </div>
-          {cadastrarEstoque && (
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              <input value={corredorDeposito} onChange={(e) => setCorredorDeposito(sanitizarTexto(e.target.value, 10))} placeholder="Corredor"
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-              <input value={moduloDeposito} onChange={(e) => setModuloDeposito(sanitizarTexto(e.target.value, 10))} placeholder="Módulo"
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-              <input value={nivelDeposito} onChange={(e) => setNivelDeposito(sanitizarTexto(e.target.value, 10))} placeholder="Nível"
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-              <input value={vaoDeposito} onChange={(e) => setVaoDeposito(sanitizarTexto(e.target.value, 10))} placeholder="Vão"
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-            </div>
-          )}
-        </div>
-        )}
         {etapa === 3 && (
         <div>
           <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Setor <span style={{ color: RED }}>*</span></label>
@@ -8331,34 +8276,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
 
         {etapa === 4 && (
         <div style={{ borderColor: T.border }} className="pt-1 border-t">
-          <p style={{ color: T.subtext }} className="text-[11px] font-semibold uppercase tracking-wide mt-3 mb-2 flex items-center gap-1.5"><Target size={12} /> Localização na loja (opcional — fica salvo pra sempre neste código)</p>
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            <div>
-              <label style={{ color: T.subtext }} className="text-[10px] font-medium mb-1 block">Corredor (1-700)</label>
-              <input value={corredor} inputMode="numeric" maxLength={3} onChange={(e) => setCorredor(apenasNumeros(e.target.value, 3))}
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-2 py-2 text-sm outline-none focus:ring-2" />
-            </div>
-            <div>
-              <label style={{ color: T.subtext }} className="text-[10px] font-medium mb-1 block">Módulo</label>
-              <input value={modulo} inputMode="numeric" maxLength={2} onChange={(e) => setModulo(apenasNumeros(e.target.value, 2))}
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-2 py-2 text-sm outline-none focus:ring-2" />
-            </div>
-            <div>
-              <label style={{ color: T.subtext }} className="text-[10px] font-medium mb-1 block">Prateleira</label>
-              <input value={prateleira} inputMode="numeric" maxLength={2} onChange={(e) => setPrateleira(apenasNumeros(e.target.value, 2))}
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-2 py-2 text-sm outline-none focus:ring-2" />
-            </div>
-          </div>
-          <div className="flex gap-1.5 mb-3">
-            {["LE", "LR"].map((l) => (
-              <button key={l} onClick={() => setLadoCorredor(ladoCorredor === l ? "" : l)}
-                style={ladoCorredor === l ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }}
-                className="text-[11px] font-semibold px-3 py-1.5 rounded-xl">
-                {l === "LE" ? "Lado esquerdo" : "Lado direito"}
-              </button>
-            ))}
-          </div>
-
+          <div className="mt-3" />
           <label style={{ color: T.subtext }} className="text-[10px] font-medium mb-1 block">Categoria de giro</label>
           <div className="flex gap-1.5 mb-3">
             {CATEGORIAS_GIRO.map((g) => (
@@ -8449,7 +8367,7 @@ function ExpiryView({ T, product, barcode, editing, items, onCancel, onVoltar, o
     : (product.unidadeMedida || unidadeSugeridaPeloSetor(product.setor)));
   const [observacoes, setObservacoes] = useState(editing ? editing.observacoes || "" : "");
   const [confirmarDuplicado, setConfirmarDuplicado] = useState(false);
-  const [local, setLocal] = useState(editing ? editing.local || "loja" : (product.local || (product.cadastrarEstoque ? "deposito" : "loja")));
+  const [local, setLocal] = useState(editing ? editing.local || "loja" : "loja");
   const [corredorDeposito, setCorredorDeposito] = useState(editing ? editing.corredorDeposito || "" : product.corredorDeposito || "");
   const [moduloDeposito, setModuloDeposito] = useState(editing ? editing.moduloDeposito || "" : product.moduloDeposito || "");
   const [nivelDeposito, setNivelDeposito] = useState(editing ? editing.nivelDeposito || "" : product.nivelDeposito || "");
@@ -8662,35 +8580,11 @@ function ExpiryView({ T, product, barcode, editing, items, onCancel, onVoltar, o
         )}
 
         <div>
-          <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Onde está esse lote?</label>
-          <div className="flex rounded-xl overflow-hidden" style={{ border: `1px solid ${T.inputBorder}` }}>
-            <button type="button" onClick={() => setLocal("loja")}
-              style={local === "loja" ? { background: BLUE, color: "#fff" } : { background: T.inputBg, color: T.subtext }}
-              className="flex-1 text-xs font-semibold py-2.5">Loja</button>
-            <button type="button" onClick={() => setLocal("deposito")}
-              style={local === "deposito" ? { background: BLUE, color: "#fff" } : { background: T.inputBg, color: T.subtext }}
-              className="flex-1 text-xs font-semibold py-2.5">Depósito</button>
-          </div>
-          {local === "deposito" && (
-            <div className="grid grid-cols-2 gap-2 mt-2.5">
-              <input value={corredorDeposito} onChange={(e) => setCorredorDeposito(sanitizarTexto(e.target.value, 10))} placeholder="Corredor"
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-              <input value={moduloDeposito} onChange={(e) => setModuloDeposito(sanitizarTexto(e.target.value, 10))} placeholder="Módulo"
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-              <input value={nivelDeposito} onChange={(e) => setNivelDeposito(sanitizarTexto(e.target.value, 10))} placeholder="Nível"
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-              <input value={vaoDeposito} onChange={(e) => setVaoDeposito(sanitizarTexto(e.target.value, 10))} placeholder="Vão"
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="border rounded-xl px-3 py-2 text-sm outline-none" />
-            </div>
-          )}
-        </div>
-
-        <div>
           <div className="flex items-center justify-between mb-1.5">
             <label style={{ color: T.subtext }} className="text-xs font-semibold block">Observações (opcional)</label>
             <span style={{ color: T.subtext }} className="text-[10px]">{observacoes.length}/300</span>
           </div>
-          <textarea value={observacoes} maxLength={300} onChange={(e) => setObservacoes(e.target.value)} rows={2} placeholder="Ex: prateleira 3, lote da promoção..."
+          <textarea value={observacoes} maxLength={300} onChange={(e) => setObservacoes(e.target.value)} rows={2} placeholder="Ex: lote da promoção, caixa danificada..."
             style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 resize-none" />
         </div>
 
@@ -9140,7 +9034,6 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
   const [exportarAberto, setExportarAberto] = useState(false);
   const SECOES_RELATORIO = [
     { id: "setores", label: "Top setores em risco" },
-    { id: "corredores", label: "Risco por corredor/localização" },
     { id: "reincidentes", label: "Produtos reincidentes" },
     { id: "responsaveis", label: "Registros por responsável" },
     { id: "rondas", label: "Execução de rondas" },
