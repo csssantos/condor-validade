@@ -1633,45 +1633,44 @@ function AppInner() {
   const [mostrarAtualizacao, setMostrarAtualizacao] = useState(false);
   // Aviso "tem versão nova, quer atualizar agora?" — dispara na hora (via sw.js comparando o index.html),
   // sem depender do service worker mudar de bytes (que é o que travava antes quando só o App.tsx mudava).
-  const [novaVersaoDisponivel, setNovaVersaoDisponivel] = useState(false);
+  const [novaVersao, setNovaVersao] = useState(null); // { html, assets, assinatura } quando há versão publicada diferente da que está rodando
+  const [versaoDispensada, setVersaoDispensada] = useState(null);
+  const [estadoAtualizacao, setEstadoAtualizacao] = useState("idle"); // idle | baixando
+  const [progressoAtualizacao, setProgressoAtualizacao] = useState(0);
+  const [erroAtualizacao, setErroAtualizacao] = useState(false);
   useEffect(() => {
     if (sessionStorage.getItem("avdc_acabou_de_atualizar") === "1") {
       sessionStorage.removeItem("avdc_acabou_de_atualizar");
       setMostrarAtualizacao(true);
     }
-    if (!("serviceWorker" in navigator)) return;
-    let recarregando = false;
-    function aoTrocarController() {
-      if (recarregando) return;
-      recarregando = true;
-      sessionStorage.setItem("avdc_acabou_de_atualizar", "1");
-      window.location.reload();
+    // Checagem "em tempo real": ao abrir, ao voltar pro app/aba, ao reconectar e a cada 20 s com o app aberto.
+    let ativo = true;
+    async function checar() {
+      if (!navigator.onLine || document.visibilityState === "hidden") return;
+      try { const v = await buscarVersaoPublicada(); if (ativo) setNovaVersao((atual) => (v ? (atual?.assinatura === v.assinatura ? atual : v) : null)); } catch {}
     }
-    function aoReceberMensagem(evento) {
-      if (evento.data?.type === "novaVersaoDisponivel") setNovaVersaoDisponivel(true);
-    }
-    navigator.serviceWorker.addEventListener("controllerchange", aoTrocarController);
-    navigator.serviceWorker.addEventListener("message", aoReceberMensagem);
-    // Verifica se existe uma versão nova publicada no servidor: na hora que abre/volta a ficar em foco, e a cada 5 min.
-    // Faz duas coisas: (1) reg.update() checa se o PRÓPRIO sw.js mudou; (2) um fetch da home checa se o
-    // conteúdo publicado mudou (é essa segunda checagem que detecta quando só o App.tsx foi alterado).
-    function checarVersaoNova() {
-      fetch("/", { cache: "no-store" }).catch(() => {});
-    }
-    let intervaloCheck;
-    navigator.serviceWorker.getRegistration().then((reg) => {
-      if (!reg) return;
-      reg.update().catch(() => {});
-      checarVersaoNova();
-      intervaloCheck = setInterval(() => { reg.update().catch(() => {}); checarVersaoNova(); }, 5 * 60 * 1000);
-      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { reg.update().catch(() => {}); checarVersaoNova(); } });
-    });
-    return () => {
-      navigator.serviceWorker.removeEventListener("controllerchange", aoTrocarController);
-      navigator.serviceWorker.removeEventListener("message", aoReceberMensagem);
-      if (intervaloCheck) clearInterval(intervaloCheck);
-    };
+    checar();
+    const intervalo = setInterval(checar, 20000);
+    document.addEventListener("visibilitychange", checar);
+    window.addEventListener("focus", checar);
+    window.addEventListener("online", checar);
+    // O service worker em si (push, cache) também se mantém em dia — sem recarregar a tela por conta própria.
+    if ("serviceWorker" in navigator) navigator.serviceWorker.getRegistration().then((reg) => reg && reg.update().catch(() => {}));
+    return () => { ativo = false; clearInterval(intervalo); document.removeEventListener("visibilitychange", checar); window.removeEventListener("focus", checar); window.removeEventListener("online", checar); };
   }, []);
+  async function aplicarAtualizacao() {
+    if (!novaVersao || estadoAtualizacao === "baixando") return;
+    setErroAtualizacao(false); setProgressoAtualizacao(0); setEstadoAtualizacao("baixando");
+    try {
+      await baixarVersaoNova(novaVersao, setProgressoAtualizacao);
+      sessionStorage.setItem("avdc_acabou_de_atualizar", "1");
+      setTimeout(() => window.location.reload(), 700);
+    } catch (e) {
+      console.error(e);
+      setEstadoAtualizacao("idle"); setErroAtualizacao(true);
+    }
+  }
+  const mostrarBannerVersao = !!novaVersao && (estadoAtualizacao === "baixando" || versaoDispensada !== novaVersao.assinatura);
 
   // ---------- Deep link: abrir o app direto no produto quando vem de uma notificação ----------
   useEffect(() => {
@@ -1725,6 +1724,26 @@ function AppInner() {
       .subscribe();
     return () => { supabase.removeChannel(canalProdutos); supabase.removeChannel(canalHistorico); };
   }, [loading]);
+
+  // Tempo real para o resto dos dados da loja: qualquer mudança no banco (app de outro colega, painel do Supabase,
+  // SQL) recarrega só a parte afetada, com um pequeno atraso pra juntar várias mudanças seguidas.
+  useEffect(() => {
+    if (loading || !lojaAtiva?.id) return;
+    const temporizadores = {};
+    const recarregar = (chave, fn) => { clearTimeout(temporizadores[chave]); temporizadores[chave] = setTimeout(() => { fn(); }, 600); };
+    const alvos = [
+      ["rondas", () => supaFetchRondas().then(setRondas)],
+      ["designacoes_ronda", () => supaFetchDesignacoesHoje().then(setDesignacoesHoje)],
+      ["auditoria", () => supaFetchAuditoria().then(setAuditoria)],
+      ["setores_customizados", () => supaFetchSetoresCustomizados().then(setSetoresExtra)],
+      ["subsetores_customizados", () => supaFetchSubsetoresCustomizados().then(setSubsetoresExtra)],
+      ["catalogo", () => supaFetchCatalogo().then(setCatalog)],
+    ];
+    let canal = supabase.channel("realtime-dados-loja");
+    alvos.forEach(([tabela, fn]) => { canal = canal.on("postgres_changes", { event: "*", schema: "public", table: tabela }, () => recarregar(tabela, fn)); });
+    canal.subscribe();
+    return () => { Object.values(temporizadores).forEach(clearTimeout); supabase.removeChannel(canal); };
+  }, [loading, lojaAtiva?.id]);
 
   useEffect(() => { if (!loading) saveLocal(PREFS_KEY, prefs); }, [prefs, loading]);
 
@@ -2564,7 +2583,7 @@ function AppInner() {
       )}
       {toast && <Toast msg={toast.msg} tone={toast.tone} />}
       {desfazer && <DesfazerToast T={T} mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} />}
-      {novaVersaoDisponivel && <NovaVersaoBanner T={T} onAtualizar={() => window.location.reload()} onFechar={() => setNovaVersaoDisponivel(false)} />}
+      {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
         {avisoAtual && <AvisoModal T={T} aviso={avisoAtual} onFechar={() => marcarAvisoVisto(avisoAtual.id)} />}
         {!avisoAtual && mostrarAtualizacao && <AtualizacaoModal T={T} onFechar={() => setMostrarAtualizacao(false)} />}
@@ -2602,16 +2621,84 @@ function AvisoModal({ T, aviso, onFechar }) {
   );
 }
 
+
+// ============ Atualização do app (versão nova publicada no Vercel) ============
+// O service worker serve SEMPRE a versão já instalada (cache) e o app compara, em segundo plano, com o que
+// está publicado. Se for diferente, aparece o aviso; só quando a pessoa toca em "Atualizar" o app baixa a
+// versão nova (com barra de progresso), troca o cache e reinicia. Nunca atualiza sozinho.
+const CACHE_SHELL = "condor-shell-v7";
+const CACHE_ASSETS = "condor-assets-v7";
+function assetsDoDocumento(doc) {
+  return Array.from(doc.querySelectorAll("script[src], link[href]"))
+    .map((el) => { try { return new URL(el.getAttribute("src") || el.getAttribute("href"), window.location.origin).pathname; } catch { return null; } })
+    .filter((u) => u && u.startsWith("/assets/"))
+    .sort();
+}
+async function buscarVersaoPublicada() {
+  const atuais = assetsDoDocumento(document);
+  if (!atuais.length) return null; // modo desenvolvimento: sem build, nada a comparar
+  const resp = await fetch(`/index.html?__v=${Date.now()}`, { cache: "no-store" });
+  if (!resp.ok) return null;
+  const html = await resp.text();
+  const novos = assetsDoDocumento(new DOMParser().parseFromString(html, "text/html"));
+  if (!novos.length) return null; // resposta que não é o app (ex.: página de erro)
+  if (novos.join("|") === atuais.join("|")) return null;
+  return { html, assets: novos, assinatura: novos.join("|") };
+}
+async function baixarVersaoNova(versao, aoProgredir) {
+  if (!("caches" in window)) { aoProgredir(1); return; }
+  const cacheAssets = await caches.open(CACHE_ASSETS);
+  const total = versao.assets.length;
+  for (let i = 0; i < total; i++) {
+    const url = versao.assets[i];
+    const resp = await fetch(url, { cache: "reload" });
+    if (!resp.ok) throw new Error(`Falha ao baixar ${url}`);
+    const tamanho = Number(resp.headers.get("content-length")) || 0;
+    const partes = []; let lido = 0;
+    if (resp.body && resp.body.getReader) {
+      const leitor = resp.body.getReader();
+      for (;;) {
+        const { done, value } = await leitor.read();
+        if (done) break;
+        partes.push(value); lido += value.length;
+        const fracao = tamanho ? Math.min(0.98, lido / (tamanho * 3)) : 0.5; // tamanho vem comprimido; lido, não
+        aoProgredir(((i + fracao) / total) * 0.95);
+      }
+    } else { partes.push(new Uint8Array(await resp.arrayBuffer())); }
+    await cacheAssets.put(url, new Response(new Blob(partes), { headers: { "content-type": resp.headers.get("content-type") || "application/octet-stream" } }));
+    aoProgredir(((i + 1) / total) * 0.95);
+  }
+  // só agora troca a "casca" do app: se algo acima falhar, a versão antiga continua intacta
+  const cacheShell = await caches.open(CACHE_SHELL);
+  const htmlResp = () => new Response(versao.html, { headers: { "content-type": "text/html; charset=utf-8" } });
+  await cacheShell.put("/index.html", htmlResp());
+  await cacheShell.put("/", htmlResp());
+  const manter = new Set(versao.assets);
+  for (const req of await cacheAssets.keys()) { if (!manter.has(new URL(req.url).pathname)) await cacheAssets.delete(req); }
+  aoProgredir(1);
+}
+
 // ============ Banner "Nova versão disponível" — aparece na hora, sem precisar fechar o app ============
-function NovaVersaoBanner({ T, onAtualizar, onFechar }) {
+function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar }) {
+  const baixando = estado === "baixando";
+  const pct = Math.round((progresso || 0) * 100);
   return (
     <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
       className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] lg:bottom-6 left-0 right-0 lg:left-64 z-[70] px-3">
-      <div style={{ background: BLUE_DARK }} className="max-w-md mx-auto rounded-2xl px-4 py-3 flex items-center gap-3 shadow-lg shadow-black/20">
-        <Sparkles size={18} color="#fff" className="shrink-0" />
-        <p className="text-white text-xs font-medium flex-1">Tem uma versão nova do app. Atualizar agora?</p>
-        <button onClick={onFechar} className="text-white/70 text-[11px] font-medium shrink-0 px-1">Depois</button>
-        <button onClick={onAtualizar} style={{ background: "#fff", color: BLUE_DARK }} className="text-[11px] font-bold px-3 py-1.5 rounded-full shrink-0">Atualizar</button>
+      <div style={{ background: BLUE_DARK }} className="max-w-md mx-auto rounded-2xl px-4 py-3 shadow-lg shadow-black/20">
+        <div className="flex items-center gap-3">
+          <Sparkles size={18} color="#fff" className="shrink-0" />
+          <p className="text-white text-xs font-medium flex-1">
+            {baixando ? (pct >= 100 ? "Pronto! Reiniciando o app…" : `Baixando a atualização… ${pct}%`) : erro ? "Não deu pra baixar a atualização. Tente de novo." : "Tem uma versão nova do app. Atualizar agora?"}
+          </p>
+          {!baixando && <button onClick={onFechar} className="text-white/70 text-[11px] font-medium shrink-0 px-1">Depois</button>}
+          {!baixando && <button onClick={onAtualizar} style={{ background: "#fff", color: BLUE_DARK }} className="text-[11px] font-bold px-3 py-1.5 rounded-full shrink-0">{erro ? "Tentar de novo" : "Atualizar"}</button>}
+        </div>
+        {baixando && (
+          <div className="h-1.5 rounded-full bg-white/20 mt-2.5 overflow-hidden">
+            <div style={{ width: `${pct}%`, background: "#fff", transition: "width .25s ease" }} className="h-full rounded-full" />
+          </div>
+        )}
       </div>
     </motion.div>
   );

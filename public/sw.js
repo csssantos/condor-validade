@@ -1,66 +1,92 @@
-const CACHE_NAME = "condor-validade-v6";
-const APP_SHELL = ["/", "/index.html", "/manifest.json"];
+// Condor · Alerta de Validade — service worker v7
+// Modelo de atualização: o app instalado SEMPRE abre a versão que está em cache (rápido e funciona offline).
+// Quem descobre que existe versão nova é o próprio app (compara com o que está publicado) e mostra o aviso
+// "Atualizar". Só quando a pessoa toca no botão o app baixa a versão nova para o cache e reinicia.
+// Este arquivo NUNCA troca a versão sozinho.
+const CACHE_SHELL = "condor-shell-v7";
+const CACHE_ASSETS = "condor-assets-v7";
+
+function assetsDoHtml(html) {
+  const achados = new Set();
+  const re = /(?:src|href)=["'](\/assets\/[^"']+)["']/g;
+  let m;
+  while ((m = re.exec(html))) achados.add(m[1]);
+  return Array.from(achados);
+}
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => {})
-  );
+  event.waitUntil((async () => {
+    try {
+      const cacheShell = await caches.open(CACHE_SHELL);
+      if (!(await cacheShell.match("/index.html"))) {
+        const resp = await fetch("/index.html", { cache: "reload" });
+        if (resp.ok) {
+          const html = await resp.clone().text();
+          const cacheAssets = await caches.open(CACHE_ASSETS);
+          await Promise.all(assetsDoHtml(html).map(async (u) => {
+            const r = await fetch(u, { cache: "reload" });
+            if (r.ok) await cacheAssets.put(u, r);
+          }));
+          await cacheShell.put("/index.html", resp.clone());
+          await cacheShell.put("/", resp);
+        }
+      }
+    } catch {}
+  })());
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((nomes) =>
-      Promise.all(nomes.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
-    )
+      Promise.all(nomes.filter((n) => n !== CACHE_SHELL && n !== CACHE_ASSETS).map((n) => caches.delete(n)))
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
-
-// Estratégia: network-first para navegação/API, cache-first pra estáticos.
-// Assim o app abre offline (última versão salva) mas prioriza dados atualizados do Supabase quando há internet.
-//
-// IMPORTANTE sobre atualização: o navegador só detecta "novo service worker" quando o ARQUIVO sw.js muda de
-// bytes — e como esse arquivo não muda quando só o App.tsx é editado, o aviso de "app atualizado" parava de
-// aparecer. Corrigido abaixo: em vez de depender do sw.js mudar, comparamos o conteúdo do index.html a cada
-// vez que ele é buscado da rede. Se mudou desde a última vez, avisamos todo app aberto na hora (postMessage),
-// sem precisar esperar o ciclo de instalação de um novo service worker.
-function ehNavegacao(request, url) {
-  return request.mode === "navigate" || url.pathname === "/" || url.pathname === "/index.html";
-}
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (url.origin.includes("supabase.co")) return; // nunca cachear chamadas ao Supabase
+  if (url.origin !== self.location.origin) return; // Supabase, fontes etc.: direto na rede
 
-  const navegacao = ehNavegacao(request, url);
-
-  event.respondWith(
-    fetch(request)
-      .then(async (resp) => {
-        const respParaCache = resp.clone();
-
-        if (navegacao) {
-          try {
-            const textoNovo = await resp.clone().text();
-            const cache = await caches.open(CACHE_NAME);
-            const anterior = await cache.match(request);
-            const textoAnterior = anterior ? await anterior.clone().text() : null;
-            // Só avisa se já existia uma versão anterior em cache E ela é diferente da que acabou de chegar
-            // (na primeira visita, textoAnterior é null — não é "atualização", é a primeira carga).
-            if (textoAnterior !== null && textoAnterior !== textoNovo) {
-              const clientes = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-              clientes.forEach((c) => c.postMessage({ type: "novaVersaoDisponivel" }));
-            }
-          } catch {}
-        }
-
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, respParaCache)).catch(() => {});
+  // Abrir o app (navegação): serve a versão já instalada. Sem cache ainda → rede.
+  if (request.mode === "navigate" || url.pathname === "/" || url.pathname === "/index.html") {
+    event.respondWith((async () => {
+      const cacheShell = await caches.open(CACHE_SHELL);
+      const guardado = await cacheShell.match("/index.html");
+      if (guardado) return guardado;
+      try {
+        const resp = await fetch(request);
+        if (resp.ok) { cacheShell.put("/index.html", resp.clone()).catch(() => {}); }
         return resp;
-      })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/index.html")))
+      } catch { return new Response("Sem conexão", { status: 503 }); }
+    })());
+    return;
+  }
+
+  // Arquivos do app (hash no nome, nunca mudam): cache primeiro.
+  if (url.pathname.startsWith("/assets/")) {
+    event.respondWith((async () => {
+      const cacheAssets = await caches.open(CACHE_ASSETS);
+      const guardado = await cacheAssets.match(url.pathname);
+      if (guardado) return guardado;
+      try {
+        const resp = await fetch(request);
+        if (resp.ok) cacheAssets.put(url.pathname, resp.clone()).catch(() => {});
+        else if (resp.status === 404) caches.delete(CACHE_SHELL); // casca apontava para arquivo que não existe mais → próxima abertura busca a versão atual
+        return resp;
+      } catch { return new Response("", { status: 504 }); }
+    })());
+    return;
+  }
+
+  // Resto (manifest, ícones): rede primeiro, cache como reserva.
+  event.respondWith(
+    fetch(request).then((resp) => {
+      if (resp.ok) { const c = resp.clone(); caches.open(CACHE_SHELL).then((ca) => ca.put(request, c)).catch(() => {}); }
+      return resp;
+    }).catch(() => caches.match(request).then((c) => c || new Response("", { status: 504 })))
   );
 });
 
