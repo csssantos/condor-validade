@@ -16,12 +16,13 @@ export const TERMOS_ALTERACOES = [
       "Novo recurso opcional: lançar validade pelo Telegram, conversando com um bot. Nada é lançado sem a sua confirmação.",
       "Promotores ganham um código próprio (ex.: ABC-12345) que vale para um único Telegram e só permite lançar produtos da própria marca.",
       "As ações feitas pelo Telegram passam a aparecer na auditoria da loja, como as ações do app.",
+      "Pelo Telegram, o funcionário pode cadastrar produto novo: o bot busca a imagem na internet e só cadastra depois da sua confirmação. O bot não recebe fotos.",
     ],
     privacidade: [
       "Se você vincular o Telegram, guardamos o identificador da sua conversa (não o seu telefone) e as mensagens enviadas ao bot, por até 30 dias.",
-      "Novos fornecedores: Telegram (apenas se você vincular) e Google Gemini (leitura de fotos enviadas ao bot).",
+      "Novos fornecedores: Telegram (apenas se você vincular) e Open Food Facts (base pública de produtos: recebe só o código de barras para buscar nome e imagem de produto novo).",
       "Gestores da loja podem remover o vínculo do seu Telegram.",
-      "Ações feitas pelo Telegram (vincular, lançar, cancelar, tentativas barradas e envio de fotos) ficam na auditoria da loja, como as ações do app.",
+      "Ações feitas pelo Telegram (vincular, lançar, cancelar, tentativas barradas, consultas e cadastro de produto novo) ficam na auditoria da loja, como as ações do app.",
     ],
   } },
 ];
@@ -84,7 +85,7 @@ export const DOCUMENTOS = [
       ] },
       { t: "5. Registros e auditoria", p: [
         "As ações feitas no app (cadastros, baixas, rondas, alterações de validade, exclusões, logins) ficam registradas com seu nome, data e hora, para controle operacional, prevenção de perdas e segurança. Esses registros não podem ser apagados por quem os fez.",
-        "O mesmo vale para o que é feito pelo Telegram: vincular e desvincular, gerar código, lançamentos, cancelamentos, tentativas barradas pelo sistema e envio de fotos para leitura aparecem na auditoria da loja, com seu nome, data e hora.",
+        "O mesmo vale para o que é feito pelo Telegram: vincular e desvincular, gerar código, lançamentos, cancelamentos, tentativas barradas pelo sistema, consultas de produto na internet e cadastro de produto novo aparecem na auditoria da loja, com seu nome, data e hora.",
       ] },
       { t: "6. Conteúdo que você envia", p: [
         "Fotos, observações e dados enviados continuam sendo de seus titulares, mas você autoriza o uso deles dentro do app e na operação da sua loja. Não envie fotos de pessoas, documentos pessoais ou informações sensíveis que não sejam necessárias ao trabalho.",
@@ -92,7 +93,7 @@ export const DOCUMENTOS = [
       { t: "7. Recursos de IA e voz", p: [
         "O app pode ter recursos de assistente de IA e cadastro por voz. As respostas da IA podem conter erros e são apoio à decisão, não substituem o seu julgamento nem as regras da empresa. Nenhuma ação é criada sem a sua confirmação.",
         "O cadastro por voz usa o reconhecimento de voz do seu navegador/aparelho, que pode ser processado pelo fornecedor dele (por exemplo, Google ou Apple). Você escolhe quando usar.",
-        "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. Fotos enviadas ao bot podem ser lidas por IA (Google Gemini) para identificar código de barras e validade. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
+        "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. O bot não recebe fotos. Para um produto que ainda não está no app, o bot consulta o código de barras no Open Food Facts (base pública na internet, que recebe apenas esse número), mostra a imagem encontrada e, se você confirmar, cadastra o produto no app com essa imagem. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
         "Promotores: o código do promotor (ex.: ABC-12345) vale para um único Telegram por vez e só permite lançar produtos da própria marca enquanto o acesso estiver ativo.",
       ] },
       { t: "8. Disponibilidade e mudanças", p: [
@@ -145,7 +146,7 @@ export const DOCUMENTOS = [
         ] },
         { t: "5. Com quem compartilhamos", p: [
           "Dentro da sua loja/empresa: gestores e pessoas autorizadas no app, de acordo com o cargo e a loja. Os valores financeiros podem ser ocultados de alguns cargos.",
-          "Fornecedores de tecnologia (operadores) que armazenam e entregam o app: Supabase (banco de dados, autenticação e arquivos) e Vercel (hospedagem do site), além dos serviços de notificação push do seu aparelho (Apple, Google ou Microsoft), o Telegram (apenas se você vincular, para o bot de lançamento) e o Google Gemini (leitura de fotos e assistente de IA). Eles tratam os dados só para prestar o serviço, sob contrato.",
+          "Fornecedores de tecnologia (operadores) que armazenam e entregam o app: Supabase (banco de dados, autenticação e arquivos) e Vercel (hospedagem do site), além dos serviços de notificação push do seu aparelho (Apple, Google ou Microsoft), o Telegram (apenas se você vincular, para o bot de lançamento) o Open Food Facts (busca de nome e imagem de produto novo, só com o código de barras) e o Google Gemini (assistente de IA). Eles tratam os dados só para prestar o serviço, sob contrato.",
           "Autoridades públicas e judiciais, quando houver obrigação legal ou ordem válida.",
           "Não vendemos nem alugamos dados pessoais.",
         ] },

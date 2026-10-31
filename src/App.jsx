@@ -2578,9 +2578,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
-    { tipo: "adicionado", ate: 7, texto: "Lançar validade pelo Telegram: converse com o bot, mande o código de barras, o nome ou uma foto e confirme. Vincule em Mais → Conta → Telegram." },
+    { tipo: "adicionado", ate: 7, texto: "Lançar validade pelo Telegram: converse com o bot, mande o código de barras ou o nome e confirme. Produto que não está no app? O bot busca a imagem na internet, você confirma e ele cadastra. Vincule em Mais → Conta → Telegram." },
     { tipo: "adicionado", ate: 7, texto: "Promotor com código fixo (ex.: ABC-12345) e link permanente: o código vale para um único Telegram." },
-    { tipo: "adicionado", ate: 5, texto: "Auditoria do Telegram: vincular, gerar código, lançar, cancelar, tentativas barradas e envio de foto aparecem na tela Auditoria, como as ações do app." },
+    { tipo: "adicionado", ate: 5, texto: "Auditoria do Telegram: vincular, gerar código, lançar, cancelar, tentativas barradas, consultas e produto novo cadastrado aparecem na tela Auditoria, como as ações do app." },
     { tipo: "adicionado", ate: 5, texto: "Remover o Telegram de um funcionário ou promotor pelo menu de ações." },
     { tipo: "adicionado", ate: 5, texto: "Pré-cadastro com setor: o encarregado cadastra a equipe já no setor dele; gerência e diretoria escolhem o setor do encarregado." },
     { tipo: "melhorado", ate: 7, texto: "Ao atualizar os Termos, aparece só o que mudou, não o texto inteiro." },
@@ -10382,7 +10382,7 @@ function TelegramVinculo({ T, showToast }) {
   return (
     <MaisBloco T={T} titulo="Telegram">
       <div className="p-4 flex flex-col gap-3">
-        <p style={{ color: T.subtext }} className="text-xs">Lance validade conversando com o bot do Telegram: mande o código de barras, o nome ou uma foto. Ele pergunta o que faltar e só grava depois do seu "sim".</p>
+        <p style={{ color: T.subtext }} className="text-xs">Lance validade conversando com o bot do Telegram: mande o código de barras ou o nome. Se o produto não existir no app, ele busca a imagem na internet e cadastra depois da sua confirmação. Ele pergunta o que faltar e só grava depois do seu "sim".</p>
         {st.vinculado ? (
           <>
             <p style={{ color: "#1F9D55" }} className="text-sm font-bold">✓ Telegram vinculado</p>

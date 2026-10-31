@@ -9,7 +9,7 @@ begin
   -- só ações conhecidas (o bot não grava texto livre no lugar da ação)
   if p_acao not in (
     'desvinculou o Telegram (/sair)', 'cancelou lançamento no Telegram', 'confirmou lançamento duplicado no Telegram',
-    'lançamento barrado no Telegram', 'dado barrado no Telegram', 'enviou foto ao Telegram (leitura por IA)'
+    'lançamento barrado no Telegram', 'dado barrado no Telegram', 'consultou produto na internet (Open Food Facts)'
   ) then raise exception 'acao_invalida'; end if;
   select nome, loja_id into v from public.telegram_vinculos where chat_id = p_chat_id;
   if not found then return; end if;  -- sem vínculo não há loja para registrar
