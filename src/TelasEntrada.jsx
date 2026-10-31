@@ -5,7 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 
 const AZUL = "#0B4F9E";
-const FUNDO_MARCA = "radial-gradient(120% 85% at 50% 0%, #1B6FD1 0%, #0B4F9E 42%, #061C3A 100%)";
+export const FUNDO_MARCA = "radial-gradient(120% 85% at 50% 0%, #1B6FD1 0%, #0B4F9E 42%, #061C3A 100%)";
 const CORES_STATUS = ["#E31E24", "#F5A524", "#34C77B"]; // vencido · atenção · ok (as mesmas cores do app)
 
 // ───────────────────────── Carregamento ─────────────────────────

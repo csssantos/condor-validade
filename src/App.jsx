@@ -29,6 +29,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import VozSheet from "./VozSheet";
 import TelaBiparCracha from "./TelaBiparCracha";
+import { PalcoInicio } from "./Inicio";
 import { TelaCarregando, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
@@ -2194,7 +2195,7 @@ function AppInner() {
         </div>
       )}
 
-      <main className={`${larguraMain} mx-auto pb-24 lg:pb-10 lg:px-6`}>
+      <main className={`${larguraMain} mx-auto pb-32 lg:pb-10 lg:px-6`}>
         {flow === "scan" && <ScanView T={T} onDetected={handleBarcodeCaptured} onCancel={resetFlow} />}
         {flow === "confirm" && (
           <ConfirmProductView T={T} barcode={pendingBarcode} initial={draftProduct} wasKnown={!!catalog[chaveCatalogo(pendingBarcode, draftProduct)]}
@@ -2237,7 +2238,10 @@ function AppInner() {
             ordenarPor={ordenarPor} setOrdenarPor={setOrdenarPor}
             modoVisual={modoVisual} setModoVisual={setModoVisual}
             onScan={() => setFlow("scan")} onCadastrar={() => abrirCadastroDireto()} onOpenDetail={setDetalheItem}
-            onVerPrioridades={() => setFlow("prioridade")} />
+            onVerPrioridades={() => setFlow("prioridade")}
+            comPalco={tab === "home"} nomeUsuario={perfil?.nome} lojaNumero={lojaAtiva?.numero_loja}
+            notifPermission={notifPermission} onToggleNotif={toggleNotificacoes}
+            dark={dark} onTema={() => setPrefs((p) => ({ ...p, tema: dark ? "claro" : "escuro" }))} />
         )}
         {flow === null && tab === "setores" && !setorAtivo && (
           <SetoresView T={T} items={items} catalog={catalog} rondas={rondas}
@@ -2314,7 +2318,7 @@ function AppInner() {
         <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 28 }}
           onClick={() => setVozAberta(true)} aria-label="Cadastrar por voz"
           style={{ background: T.card, color: RED_DARK, borderColor: T.border }}
-          className="lg:hidden fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-20 h-12 w-12 rounded-full border shadow-lg flex items-center justify-center">
+          className="lg:hidden fixed right-4 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-20 h-12 w-12 rounded-full border shadow-lg flex items-center justify-center">
           <Mic size={22} />
         </motion.button>
       )}
@@ -2435,7 +2439,7 @@ function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar, s
   const pct = Math.round((progresso || 0) * 100);
   return (
     <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-      className={`fixed ${solto ? "bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-0 right-0" : "bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] lg:bottom-6 left-0 right-0 lg:left-64"} z-[70] px-3`}>
+      className={`fixed ${solto ? "bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-0 right-0" : "bottom-[calc(env(safe-area-inset-bottom)+6.75rem)] lg:bottom-6 left-0 right-0 lg:left-64"} z-[70] px-3`}>
       <div style={{ background: BLUE_DARK }} className="max-w-md mx-auto rounded-2xl px-4 py-3 shadow-lg shadow-black/20">
         <div className="flex items-center gap-3">
           <Sparkles size={18} color="#fff" className="shrink-0" />
@@ -2573,6 +2577,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
     previsao: "Previsão Operacional", prevencao: "Prevenção de Perdas", assistente: "Assistente IA", perda: "Registrar perda"
   };
   const title = flow ? titles[flow] : (telaLarga && tab === "home" ? "Dashboard" : titles[tab]);
+  if (!telaLarga && !flow && tab === "home") return null; // celular: a tela inicial tem o próprio palco (logo, tema e notificações)
   if (telaLarga) {
     const iniciais = (nomeUsuario || "?").trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
     return (
@@ -2599,9 +2604,10 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
   return (
     <motion.header
       initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.3 }}
-      style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }}
-      className="sticky top-0 z-20 shadow-md rounded-b-[26px] lg:rounded-b-none pt-[env(safe-area-inset-top)]">
-      <div className="max-w-md lg:max-w-[1600px] mx-auto px-4 lg:px-6 pt-4 pb-4 lg:pt-3 lg:pb-3">
+      style={{ background: "radial-gradient(130% 160% at 50% -30%, #1B6FD1 0%, #0B4F9E 45%, #061C3A 100%)" }}
+      className="sticky top-0 z-20 shadow-lg shadow-black/15 rounded-b-[30px] lg:rounded-b-none pt-[env(safe-area-inset-top)] overflow-hidden">
+      <div aria-hidden className="absolute inset-0 opacity-[.12] pointer-events-none" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+      <div className="relative max-w-md lg:max-w-[1600px] mx-auto px-4 lg:px-6 pt-4 pb-5 lg:pt-3 lg:pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             {flow && (
@@ -6211,6 +6217,8 @@ function TorreControleView({ T, items, historico, auditoria, usuario, showToast,
 }
 
 function BottomNav({ T, tab, setTab, alertCount, onScan }) {
+  const reduzir = useReducedMotion();
+  const escuro = T.bg === "#0B1220";
   const ESQUERDA = [
     { id: "home", label: "Início", Icon: HomeIcon, IconSolid: HomeIconSolid, badge: alertCount },
     { id: "setores", label: "Setores", Icon: Squares2X2Icon, IconSolid: Squares2X2IconSolid },
@@ -6219,40 +6227,45 @@ function BottomNav({ T, tab, setTab, alertCount, onScan }) {
     { id: "rondas", label: "Rondas", Icon: ClockIcon, IconSolid: ClockIconSolid },
     { id: "ajustes", label: "Mais", Icon: Cog6ToothIcon, IconSolid: Cog6ToothIconSolid },
   ];
-  const NavBtn = ({ id, label, Icon, IconSolid, badge }) => {
+  // função comum (não componente): o botão não é recriado a cada render, então a bolha ativa desliza de verdade
+  const navBtn = ({ id, label, Icon, IconSolid, badge }) => {
     const ativo = tab === id;
     const Ico = ativo ? IconSolid : Icon;
     return (
-      <button onClick={() => setTab(id)} className="flex-1 flex flex-col items-center gap-1 py-2.5 relative">
+      <button key={id} onClick={() => setTab(id)} className="flex-1 flex flex-col items-center justify-center gap-1 h-full relative" aria-label={label} aria-current={ativo ? "page" : undefined}>
         {badge > 0 && (
-          <span style={{ background: RED }} className="absolute top-1 right-[28%] text-[9px] text-white font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center z-10">
-            {badge}
-          </span>
+          <span style={{ background: RED }} className="absolute top-1.5 right-[26%] text-[9px] text-white font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center z-10">{badge}</span>
         )}
         {ativo && (
-          <motion.div layoutId="navPill" style={{ background: RED_SOFT }}
-            className="absolute inset-x-2 top-0.5 bottom-0.5 rounded-2xl"
-            transition={{ type: "spring", stiffness: 500, damping: 35 }} />
+          <motion.div layoutId="navPill" style={{ background: escuro ? "rgba(255,255,255,.1)" : RED_SOFT }}
+            className="absolute inset-x-1 top-1.5 bottom-1.5 rounded-[22px]" transition={{ type: "spring", stiffness: 500, damping: 35 }} />
         )}
-        <Ico className="relative w-[19px] h-[19px]" style={{ color: ativo ? RED_DARK : T.subtext }} />
-        <span className="relative text-[9.5px] font-medium whitespace-nowrap leading-none" style={{ color: ativo ? RED_DARK : T.subtext }}>{label}</span>
+        <Ico className="relative w-[20px] h-[20px]" style={{ color: ativo ? (escuro ? "#fff" : RED_DARK) : T.subtext }} />
+        <span className="relative text-[10px] font-semibold whitespace-nowrap leading-none" style={{ color: ativo ? (escuro ? "#fff" : RED_DARK) : T.subtext }}>{label}</span>
       </button>
     );
   };
   return (
-    <nav style={{ background: T.card }} className="lg:hidden fixed bottom-0 left-0 right-0 z-20 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
-      <div className="max-w-md mx-auto flex items-center px-1 relative">
-        {ESQUERDA.map((it) => <NavBtn key={it.id} {...it} />)}
-
+    <nav className="lg:hidden fixed inset-x-0 bottom-0 z-20 pointer-events-none px-3 pb-[calc(env(safe-area-inset-bottom)+10px)]" style={{ transform: "translateZ(0)", willChange: "transform" }}>
+      <motion.div initial={{ y: 90, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 26 }}
+        className="pointer-events-auto max-w-md mx-auto relative flex items-center rounded-[32px] px-1.5 h-[68px]"
+        style={{
+          background: escuro ? "rgba(21,31,48,.88)" : "rgba(255,255,255,.9)", backdropFilter: "blur(20px) saturate(160%)", WebkitBackdropFilter: "blur(20px) saturate(160%)",
+          border: `1px solid ${escuro ? "rgba(255,255,255,.1)" : "rgba(15,40,80,.08)"}`, boxShadow: "0 18px 40px -12px rgba(5,20,50,.38), 0 2px 6px rgba(5,20,50,.08)",
+        }}>
+        {ESQUERDA.map(navBtn)}
         <div className="flex-1 flex justify-center">
-          <motion.button whileTap={{ scale: 0.92 }} onClick={onScan} style={{ background: `linear-gradient(160deg, ${RED} 0%, ${RED_DARK} 100%)` }}
-            className="h-14 w-14 rounded-full flex items-center justify-center shadow-lg shadow-red-900/30 -mt-6">
-            <CameraIcon className="w-6 h-6 text-white" />
-          </motion.button>
+          <div className="relative -mt-9">
+            {!reduzir && <motion.span aria-hidden className="absolute inset-0 rounded-full" style={{ border: `2px solid ${RED}` }} animate={{ scale: [1, 1.55], opacity: [0.55, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }} />}
+            <motion.button whileTap={{ scale: 0.9 }} onClick={onScan} aria-label="Bipar produto"
+              style={{ background: `linear-gradient(160deg, ${RED} 0%, ${RED_DARK} 100%)`, boxShadow: "0 12px 24px -6px rgba(168,20,25,.6)", border: `4px solid ${T.bg}` }}
+              className="relative h-[62px] w-[62px] rounded-full flex items-center justify-center">
+              <CameraIcon className="w-6 h-6 text-white" />
+            </motion.button>
+          </div>
         </div>
-
-        {DIREITA.map((it) => <NavBtn key={it.id} {...it} />)}
-      </div>
+        {DIREITA.map(navBtn)}
+      </motion.div>
     </nav>
   );
 }
@@ -6985,7 +6998,7 @@ function ProdutosDashboard({ T, items, historico, search, setSearch, filtroSetor
   );
 }
 
-function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFiltroSetor, ordenarPor, setOrdenarPor, modoVisual, setModoVisual, onScan, onCadastrar, onOpenDetail, onVerPrioridades }) {
+function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFiltroSetor, ordenarPor, setOrdenarPor, modoVisual, setModoVisual, onScan, onCadastrar, onOpenDetail, onVerPrioridades, comPalco, nomeUsuario, lojaNumero, notifPermission, onToggleNotif, dark, onTema }) {
   const enriched = items.map((it) => ({ ...it, status: getStatus(it) }));
   // Item 2: perecíveis e os demais setores nunca aparecem misturados
   const [categoriaFiltro, setCategoriaFiltro] = useState("todos"); // todos | pereciveis | outros
@@ -7045,99 +7058,54 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
     return 0;
   });
 
+  const trocaTotal = comparativoTroca.semTroca + comparativoTroca.comTroca + comparativoTroca.naoInformado;
+  const mostrarPrioridade = !modoEmergencia && resumoPrioridade.total > 0;
+  const mostrarTroca = !modoEmergencia && trocaTotal > 0;
+  const pontoTroca = (cor) => <span style={{ background: cor }} className="h-2 w-2 rounded-full shrink-0" />;
+
   return (
-    <div className="px-4 pt-4 lg:px-0 lg:pt-6">
-      <div className="flex items-center justify-between mb-3">
-        <h1 style={{ color: T.text }} className="text-lg lg:text-xl font-bold">Olá 👋</h1>
-        <button onClick={() => setModoEmergencia((v) => !v)}
-          style={modoEmergencia ? { background: RED_DARK, color: "#fff" } : { background: T.chipBg, color: T.subtext }}
-          className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full">
-          <AlertTriangle size={12} /> {modoEmergencia ? "Sair da emergência" : "Modo emergência"}
-        </button>
-      </div>
-
-      <div className="lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:gap-6 lg:items-start">
-      <aside className="lg:sticky lg:top-20">
-      {/* Fonte única do "valor em risco" no app inteiro — estilo bilhete, com perfuração central */}
-      {!modoEmergencia && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-          style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 75%)` }}
-          className="relative rounded-[28px] shadow-lg shadow-black/5 mb-4 overflow-hidden">
-          <div className="p-4 pb-4">
-            <div className="flex items-center justify-between">
-              <p className="text-white/60 text-[10px] font-semibold uppercase tracking-wide">Valor estimado em risco</p>
-              <ShieldExclamationIcon className="w-4 h-4 text-white/50" />
-            </div>
-            <p className="text-white font-extrabold text-[30px] leading-tight mt-1 tabular-nums">{formatarMoeda(valorEmRisco)}</p>
-          </div>
-          <div className="relative flex items-center px-4">
-            <div style={{ background: T.bg }} className="absolute -left-5 w-5 h-5 rounded-full shrink-0" />
-            <div className="flex-1 border-t border-dashed border-white/25" />
-            <div style={{ background: T.bg }} className="absolute -right-5 w-5 h-5 rounded-full shrink-0" />
-          </div>
-          <div className="grid grid-cols-3 divide-x divide-white/15 px-4 py-3">
-            <div className="text-center">
-              <p className="text-white text-lg font-extrabold leading-none">{vencidos}</p>
-              <p className="text-white/60 text-[9px] mt-1 font-medium">Vencidos</p>
-            </div>
-            <div className="text-center">
-              <p className="text-white text-lg font-extrabold leading-none">{emAlerta}</p>
-              <p className="text-white/60 text-[9px] mt-1 font-medium">Em alerta</p>
-            </div>
-            <div className="text-center">
-              <p className="text-white text-lg font-extrabold leading-none">{total}</p>
-              <p className="text-white/60 text-[9px] mt-1 font-medium">Monitorados</p>
-            </div>
-          </div>
-        </motion.div>
+    <div>
+      {comPalco && (
+        <PalcoInicio logo={LOGO_SRC} nome={nomeUsuario} loja={lojaNumero} valorNum={valorEmRisco} formatarMoeda={formatarMoeda}
+          vencidos={vencidos} alerta={emAlerta} total={total} emergencia={modoEmergencia} onEmergencia={() => setModoEmergencia((v) => !v)}
+          notifOk={notifPermission === "granted"} onNotif={onToggleNotif} dark={dark} onTema={onTema} />
       )}
-
-      {!modoEmergencia && comparativoTroca.semTroca + comparativoTroca.comTroca + comparativoTroca.naoInformado > 0 && (
-        <div style={{ background: T.card, borderColor: T.border }} className="rounded-[28px] p-4 border shadow-lg shadow-black/5 mb-4">
-          <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-3 uppercase tracking-wide">Política de troca com fornecedor</p>
-          <div className="flex items-center justify-between text-center">
-            <div className="flex-1">
-              <ShieldExclamationIcon className="w-4 h-4 mx-auto mb-1" style={{ color: RED_DARK }} />
-              <p style={{ color: RED_DARK }} className="text-xl font-extrabold leading-none">{comparativoTroca.semTroca}</p>
-              <p style={{ color: T.subtext }} className="text-[10px] mt-1">Sem troca</p>
-              {comparativoTroca.valorSemTroca > 0 && (
-                <p style={{ color: RED_DARK }} className="text-[9px] font-semibold mt-0.5">{formatarMoeda(comparativoTroca.valorSemTroca)}</p>
-              )}
-            </div>
-            <div className="flex-1">
-              <ShieldCheckIcon className="w-4 h-4 mx-auto mb-1" style={{ color: "#1F9D55" }} />
-              <p style={{ color: "#1F9D55" }} className="text-xl font-extrabold leading-none">{comparativoTroca.comTroca}</p>
-              <p style={{ color: T.subtext }} className="text-[10px] mt-1">Com troca</p>
-            </div>
-            <div className="flex-1">
-              <QuestionMarkCircleIcon className="w-4 h-4 mx-auto mb-1" style={{ color: T.subtext }} />
-              <p style={{ color: T.subtext }} className="text-xl font-extrabold leading-none">{comparativoTroca.naoInformado}</p>
-              <p style={{ color: T.subtext }} className="text-[10px] mt-1">Não informado</p>
-            </div>
-          </div>
+      <div style={{ background: T.bg }} className={`relative z-10 px-4 ${comPalco ? "-mt-7 rounded-t-[32px] pt-6" : "pt-4"}`}>
+      {(mostrarPrioridade || mostrarTroca) && (
+        <div className={`grid gap-3 mb-5 ${mostrarPrioridade && mostrarTroca ? "grid-cols-2" : "grid-cols-1"}`}>
+          {mostrarPrioridade && (
+            <motion.button initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} whileTap={{ scale: 0.97 }} onClick={onVerPrioridades}
+              style={{ background: T.card }} className="text-left rounded-[24px] p-4 shadow-lg shadow-black/5 flex flex-col">
+              <div className="flex items-center justify-between">
+                <span style={{ background: RED_SOFT }} className="h-9 w-9 rounded-2xl flex items-center justify-center"><FireIconSolid className="w-[18px] h-[18px]" style={{ color: RED_DARK }} /></span>
+                <ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} />
+              </div>
+              <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide mt-3">Prioridade de perda</p>
+              <p style={{ color: T.text }} className="text-[26px] font-extrabold leading-tight tabular-nums">{resumoPrioridade.total}</p>
+              <p style={{ color: T.subtext }} className="text-[11.5px] leading-snug">{resumoPrioridade.semTroca > 0 ? `${resumoPrioridade.semTroca} sem troca` : "precisam de atenção"}</p>
+              <div className="flex flex-col gap-1 mt-2.5">
+                {resumoPrioridade.topSetores.slice(0, 3).map(([setor, n]) => (
+                  <p key={setor} style={{ color: T.text }} className="text-[12px] font-semibold flex items-center justify-between gap-2"><span className="truncate">{setor}</span><span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[10.5px] font-bold rounded-full px-2 py-0.5 tabular-nums shrink-0">{n}</span></p>
+                ))}
+              </div>
+            </motion.button>
+          )}
+          {mostrarTroca && (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+              style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5 flex flex-col">
+              <span style={{ background: BLUE_SOFT }} className="h-9 w-9 rounded-2xl flex items-center justify-center"><ShieldCheckIcon className="w-[18px] h-[18px]" style={{ color: BLUE }} /></span>
+              <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide mt-3">Troca com fornecedor</p>
+              <div className="flex flex-col gap-1.5 mt-1.5">
+                <p style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2 tabular-nums">{pontoTroca(RED_DARK)}{comparativoTroca.semTroca}<span style={{ color: T.subtext }} className="font-medium text-[11.5px]">sem troca</span></p>
+                <p style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2 tabular-nums">{pontoTroca("#1F9D55")}{comparativoTroca.comTroca}<span style={{ color: T.subtext }} className="font-medium text-[11.5px]">com troca</span></p>
+                <p style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2 tabular-nums">{pontoTroca("#9AA3B2")}{comparativoTroca.naoInformado}<span style={{ color: T.subtext }} className="font-medium text-[11.5px]">não informado</span></p>
+              </div>
+              {comparativoTroca.valorSemTroca > 0 && <p style={{ color: RED_DARK }} className="text-[11px] font-bold mt-2">{formatarMoeda(comparativoTroca.valorSemTroca)} sem troca</p>}
+            </motion.div>
+          )}
         </div>
       )}
 
-      {!modoEmergencia && resumoPrioridade.total > 0 && (
-        <motion.button whileTap={{ scale: 0.98 }} onClick={onVerPrioridades} style={{ background: T.card, borderColor: T.border }}
-          className="w-full text-left rounded-[28px] p-4 mb-5 border shadow-lg shadow-black/5 flex items-center gap-3">
-          <div style={{ background: RED_SOFT }} className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0">
-            <FireIconSolid className="w-5 h-5" style={{ color: RED_DARK }} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold">Prioridade de Perda</p>
-            <p style={{ color: T.subtext }} className="text-[11px] truncate">
-              {resumoPrioridade.semTroca > 0
-                ? `${resumoPrioridade.semTroca} sem troca precisam de atenção`
-                : `${resumoPrioridade.total} produto(s) precisam de atenção`}
-              {resumoPrioridade.topSetores[0] && ` · ${resumoPrioridade.topSetores[0][0]}`}
-            </p>
-          </div>
-          <ChevronRightIcon className="w-4 h-4 shrink-0" style={{ color: T.subtext }} />
-        </motion.button>
-      )}
-
-      </aside>
       <section className="min-w-0">
       <div className="flex gap-2 mb-4 lg:justify-end">
         <div className="flex-1 relative lg:hidden">
