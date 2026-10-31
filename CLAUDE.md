@@ -15,15 +15,23 @@ App avulso (sem vínculo com a empresa, sem CNPJ/DPO). PWA React+Vite+Tailwind+f
 4. **Toda publicação com mudança visível ao usuário**: adicionar uma entrada NO TOPO de `NOVIDADES` (App.jsx, tela "Sobre o app" + modal pós-atualização), com `ate` por cargo.
 5. **Ao trocar `TERMOS_VERSAO`**: adicionar entrada NO TOPO de `TERMOS_ALTERACOES` (Legal.jsx) com só o que foi acrescentado/alterado por documento (termos, privacidade, direitos, armazenamento). O aceite mostra só isso a quem já aceitou antes; texto completo só para quem é novo.
 
-## MASCOTE — "Condô" (REGRA FIXA: nunca criar outro; qualquer pedido com mascote usa ESTE)
+## MASCOTE — "Bipi" (REGRA FIXA: nunca criar outro; qualquer pedido com mascote usa ESTE; o "Condô", condor, foi substituído a pedido do dono)
 Fonte oficial: `public/mascote.svg` (viewBox 400x400). Reaproveitar o arquivo (ou copiar o SVG) e só mudar pose/cena/fundo quando pedirem; nunca redesenhar do zero.
-- Quem é: um condor-andino cartoon, simpático, gordinho, em pé. Representa o app "Condor · Alerta de Validade": cuida da validade com o funcionário. Nome: Condô. Tom: amigável, direto, confiável (nada de bravo/sério demais).
-- Corpo: azul da marca (#0B4F9E), barriga clara (#EAF1FB), asas azul-escuro (#0A3A75) com contorno azul-claro (#7DB4F0) para aparecer em fundo escuro; cauda azul-escura; pés laranja (#F5A623) com 3 dedinhos.
-- Pescoço: gola de penas BRANCA (marca do condor-andino) + cachecol VERMELHO (#E31E24, ponta #A81419) por cima.
-- Cabeça: redonda, pele cor de pêssego (#F6D2B8), bochechas rosadas, olhos grandes brancos com pupilas pretas e brilho, sobrancelhas arqueadas simpáticas (azul-escuro), penugem azul no topo e uma pequena crista VERMELHA; bico curvo amarelo (#FFC93C) com sorrisinho.
-- Símbolos do app: RELÓGIO/ALARME vermelho e branco na barriga (alerta de validade); asa direita erguida segurando uma ETIQUETA de produto branca com borda vermelha e CHECK verde (#1F9D55) (validade conferida).
-- Cores permitidas: azul #0B4F9E/#082F5E, vermelho #E31E24, branco, verde só no check, amarelo/laranja só em bico e pés. Fundo padrão: `FUNDO_MARCA` (azul degradê) com círculo branco translúcido atrás.
-- Arquivos prontos: `public/bot-perfil.png` (640x640, foto do bot no BotFather → Edit Botpic) e `public/bot-boas-vindas.png` (640x360, banner enviado no /start e usado em "Description Picture"; frase "Oi, eu sou o Condô!"). Foram gerados por HTML+Playwright a partir do SVG.
+- Conceito do dono: "Um robozinho com leitor integrado no rosto, luz verde e pequenos braços. Representa a tecnologia e a agilidade nas rondas de validade."
+- Cabeça: retângulo muito arredondado branco-azulado (#EAF1FB, contorno #7DB4F0), orelhas azuis nas laterais, antena fina azul-clara com bolinha VERMELHA (#E31E24) e um LED verde (#2ECC71) no canto da testa.
+- Rosto = leitor: visor azul-marinho (#082F5E) com dois olhos verdes brilhantes (pílulas, com brilho branco), um FEIXE DE LEITURA vermelho horizontal (com brilho) cruzando o visor, e sorriso branco pequeno.
+- Corpo: azul da marca (#0B4F9E), arredondado; painel branco no peito com CÓDIGO DE BARRAS azul-marinho, LED verde e uma barrinha vermelha. Pés vermelhos arredondados, pernas azul-marinho curtas, sombra no chão.
+- Braços pequenos (azul-marinho, mãos brancas redondas com contorno #7DB4F0): esquerdo caído; direito erguido segurando uma ETIQUETA de produto branca com borda vermelha e CHECK verde (#1F9D55) (validade conferida).
+- Personalidade: ágil, simpático, confiável, tecnológico (nada agressivo). Nome: Bipi (o "bip" do leitor de código de barras). Fala em português, direto.
+- Cores permitidas: azul #0B4F9E/#082F5E, vermelho #E31E24, branco, verde só em luzes/olhos/check. Fundo padrão: `FUNDO_MARCA` (azul degradê) com círculo branco translúcido atrás.
+- Arquivos prontos: `public/bot-perfil.png` (640x640, foto do bot no BotFather → Edit Botpic) e `public/bot-boas-vindas.png` (640x360, banner enviado no /start e usado em "Description Picture"; frase "Oi, eu sou o Bipi!"). Gerados por HTML+Playwright a partir do SVG.
+
+## AUDITORIA (REGRA FIXA: toda ação que muda dado ou acesso precisa deixar rastro na auditoria; vale também para Telegram e qualquer canal novo)
+- Tabela `auditoria` (usuario, acao, detalhe, produto_barcode, loja_id, criado_em): só inserção (ninguém edita/apaga), RLS por loja, limite por minuto. Tela: `AuditoriaView`/`AuditoriaDashboard` (App.jsx). No app, gravar com `logAuditoria(usuario, acao, detalhe, barcode)` (grava e atualiza a lista local; usa `registrarAuditoria`). No banco/função: `insert into public.auditoria`.
+- Outras trilhas só-inserção: `historico` (baixas), `login_auditoria` (logins), `validade_alteracoes` (mudanças de validade). Retenção descrita na Privacidade (até 5 anos).
+- Ações já registradas no app: cadastrou/editou/excluiu produto, deu baixa, registrou perda direta, criou setor/subsetor, aplicou promoção, etc.
+- TELEGRAM (tudo que o bot faz entra na auditoria da loja, com o nome do funcionário ou "Promotor X (Marca)"): `vinculou Telegram` / `(promotor)`, `gerou código do Telegram` (RPC `gerar_codigo_telegram`), `removeu vínculo do Telegram` (RPC `remover_telegram`), `cadastrou produto` com detalhe "(via Telegram) · validade · qtd" (`lancar_validade`), e, pelo bot via RPC `telegram_auditar` (só service_role, lista fixa de ações): `desvinculou o Telegram (/sair)`, `cancelou lançamento no Telegram`, `confirmou lançamento duplicado no Telegram`, `lançamento barrado no Telegram`, `dado barrado no Telegram`, `enviou foto ao Telegram (leitura por IA)`. Sem vínculo (código errado, spam) não há loja: fica só em `telegram_mensagens` (30 dias, com status_proc/erro).
+- Ao criar nova ação no bot: adicionar na lista de `telegram_auditar` (SQL `supabase-auditoria-telegram.sql`) E chamar `auditar()` na Edge Function; atualizar esta lista e a Privacidade/Termos (§ Registros e auditoria).
 
 ## Mapa de arquivos (src/)
 - `App.jsx` (~10,8k linhas, tudo junto). Não ler inteiro: use `grep -n "^function NomeDaTela"` e `sed -n` no trecho.
@@ -60,7 +68,7 @@ Polling 20s (`buscarVersaoPublicada`) → `novaVersao`. Deslogado: overlay `Atua
 - Secrets (Supabase → Edge Functions): `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `GEMINI_API_KEY` (foto). Webhook: abrir no navegador `https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://fbovltxucooeoldjfckk.supabase.co/functions/v1/telegram-bot&secret_token=<SEGREDO>`. Opcional no Vercel: `VITE_TELEGRAM_BOT` (usuário do bot, mostra botão "Abrir o bot").
 - Tabelas: `telegram_vinculos` (1 chat por usuário/convite), `telegram_codigos` (8 dígitos, 10 min), `telegram_sessoes`, `telegram_mensagens` (dedupe por update_id, 30 dias). RPCs app: `gerar_codigo_telegram`, `telegram_status`, `remover_telegram(p_usuario|p_convite)` (próprio, DEV/Diretor, gerência da loja, encarregado do setor). RPCs bot (service_role): `telegram_vincular_funcionario/promotor`, `telegram_contexto`. `lancar_validade` agora tem `p_convite` (promotor só lança produto da própria marca) e origem `telegram`.
 - Promotor: `convites_promotor.codigo` (ex. BAU-7K3QP, gerado por trigger) + link permanente `/promotor/<marca>/<codigo>` (`resgatar_convite_codigo`; rewrite no vercel.json). Duração "Permanente" = 100 anos. Bot nunca cria produto: só lança o que existe no `catalogo` da loja; confirma antes; travas do `validarVoz`.
-- Boas-vindas do bot: `comFoto()` envia `public/bot-boas-vindas.png` (banner com o mascote Condô, 640x360, também serve de "Description Picture" no BotFather) com legenda no /start e na 1ª mensagem; se a imagem falhar, manda só texto. Textos do BotFather (descrição, sobre, comandos) estão na conversa de 2026-10-31.
+- Boas-vindas do bot: `comFoto()` envia `public/bot-boas-vindas.png` (banner com o mascote Bipi, 640x360, também serve de "Description Picture" no BotFather) com legenda no /start e na 1ª mensagem; se a imagem falhar, manda só texto. Textos do BotFather (descrição, sobre, comandos) estão na conversa de 2026-10-31.
 - UI: `TelegramVinculo` (PaginaConta), "Remover Telegram" nos sheets de funcionário/convite. Legal.jsx atualizado (TERMOS_VERSAO 2026-10-31).
 
 ## Voz (regras de segurança)

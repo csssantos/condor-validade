@@ -29,6 +29,11 @@ async function tg(method: string, body: Record<string, unknown>) {
 const falar = (chat: number, texto: string, botoes?: { t: string; d: string }[][]) =>
   tg("sendMessage", { chat_id: chat, text: texto.slice(0, 3500), ...(botoes ? { reply_markup: { inline_keyboard: botoes.map((l) => l.map((b) => ({ text: b.t.slice(0, 60), callback_data: b.d }))) } } : {}) });
 
+// Auditoria: tudo que o bot faz de relevante aparece na Auditoria do app (nunca bloqueia a conversa se falhar)
+const auditar = async (chat: number, acao: string, detalhe?: string, barcode?: string) => {
+  try { await sb.rpc("telegram_auditar", { p_chat_id: chat, p_acao: acao, p_detalhe: detalhe ?? null, p_barcode: barcode ?? null }); }
+  catch (e) { console.error("auditar", String(e)); }
+};
 const FOTO_BV = "https://condor-validade.vercel.app/bot-boas-vindas.png";
 async function comFoto(chat: number, legenda: string) {
   const r = await tg("sendPhoto", { chat_id: chat, photo: FOTO_BV, caption: legenda.slice(0, 1000) });
@@ -115,6 +120,7 @@ async function proximoPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados,
     if (probs.some((p: string) => /validade/i.test(p))) { delete d.validade; delete d.validadeFoto; }
     if (probs.some((p: string) => /quantidade/i.test(p))) delete d.quantidade;
     await salvar(s.id, "aguardando_info", d);
+    await auditar(chat, "dado barrado no Telegram", `${d.nome ?? "produto não definido"}: ${probs.join(" ")}`, d.barcode);
     return falar(chat, "⚠️ " + probs.join("\n") + "\n\nMande o dado certo.");
   }
   const pre = aviso ? aviso + "\n\n" : "";
@@ -194,7 +200,8 @@ async function perguntarCorrecao(chat: number, sid: string) {
   return falar(chat, "O que você quer corrigir?", [[{ t: "Produto", d: `cx:${sid}:p` }, { t: "Validade", d: `cx:${sid}:v` }, { t: "Quantidade", d: `cx:${sid}:q` }]]);
 }
 async function cancelar(chat: number, sid: string) {
-  await sb.from("telegram_sessoes").update({ estado: "cancelado", atualizado_em: new Date().toISOString() }).eq("id", sid).in("estado", ["aguardando_info", "aguardando_confirmacao"]);
+  const { data: cx } = await sb.from("telegram_sessoes").update({ estado: "cancelado", atualizado_em: new Date().toISOString() }).eq("id", sid).in("estado", ["aguardando_info", "aguardando_confirmacao"]).select("dados").maybeSingle();
+  if (cx?.dados?.barcode) await auditar(chat, "cancelou lançamento no Telegram", cx.dados.nome, cx.dados.barcode);
   return falar(chat, "Lançamento cancelado. Quando quiser, é só mandar um novo produto.");
 }
 
@@ -227,11 +234,13 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
       return falar(chat, "Já existe esse produto com essa validade na loja. Quer lançar mesmo assim?", [[{ t: "Lançar mesmo assim", d: `dp:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }]]);
     }
     const chave = Object.keys(ERROS).find((k) => m.includes(k));
+    if (chave) await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? ""}: ${ERROS[chave]}`, d.barcode);
     if (chave && chave !== "usuario_fora_da_loja" && chave !== "limite_excedido") { delete d.validade; if (chave === "quantidade_invalida") delete d.quantidade; await salvar(s.id, "aguardando_info", d); return falar(chat, "⚠️ " + ERROS[chave]); }
     await salvar(s.id, "erro", d, m.slice(0, 300));
     return falar(chat, chave ? "⚠️ " + ERROS[chave] : "Não consegui gravar agora. Nada foi lançado — tente de novo em instantes.");
   }
   await salvar(s.id, "registrado", d);
+  if (forcarDup) await auditar(chat, "confirmou lançamento duplicado no Telegram", `${d.nome} · validade ${fmtData(d.validade)}`, d.barcode);
   return falar(chat, `✅ Lançamento realizado!\n${d.nome}\nValidade ${fmtData(d.validade)} · ${num(d.quantidade)} ${d.porPeso ? "kg" : "un"}`);
 }
 
@@ -247,7 +256,7 @@ const ERRO_VINC: Record<string, string> = {
 };
 async function vincular(chat: number, texto: string) {
   const t = texto.trim().replace(/^\/start(@\w+)?\s*/i, "").trim();
-  if (!t) return comFoto(chat, "👋 Bem-vindo ao Condor Validade!\n\nLance a validade dos produtos sem abrir o app:\n📷 foto da etiqueta\n🔢 código de barras\n✏️ nome do produto\n\nEu confiro tudo com você e só salvo depois do seu “sim”. Nada é lançado sozinho.\n\n🔐 Para liberar seu acesso, envie o seu código:\n🧑‍💼 Funcionário: no app, Mais → Conta → Telegram (8 números)\n🏷️ Promotor: o código da sua marca (ex.: BAU-7K3QP)\n\nO código vale por 10 minutos e é de uso pessoal.");
+  if (!t) return comFoto(chat, "👋 Oi, eu sou o Bipi, o robô de validade do Condor!\n\nLance a validade dos produtos sem abrir o app:\n📷 foto da etiqueta\n🔢 código de barras\n✏️ nome do produto\n\nEu confiro tudo com você e só salvo depois do seu “sim”. Nada é lançado sozinho.\n\n🔐 Para liberar seu acesso, envie o seu código:\n🧑‍💼 Funcionário: no app, Mais → Conta → Telegram (8 números)\n🏷️ Promotor: o código da sua marca (ex.: BAU-7K3QP)\n\nO código vale por 10 minutos e é de uso pessoal.");
   const func = /^\d{4}\s?-?\s?\d{4}$/.test(t);
   const prom = /^[A-Za-z]{3}-[A-Za-z0-9]{5}$/.test(t);
   if (!func && !prom) return falar(chat, "Não reconheci esse código. Funcionário: 8 dígitos do app. Promotor: código tipo BAU-7K3QP.");
@@ -319,7 +328,7 @@ async function processar(up: Record<string, any>) {
   if (/^\/start/i.test(texto)) { await comFoto(chat, `Olá, ${String(ctx.nome).split(" ")[0]}! 👋\n\n${AJUDA}`); await marcar("processada"); return; }
   if (/^\/ajuda/i.test(texto)) { await falar(chat, AJUDA); await marcar("processada"); return; }
   if (/^\/cancelar/i.test(texto)) { const s = await sessaoAtiva(chat); if (s) await cancelar(chat, s.id); else await falar(chat, "Não há lançamento em andamento."); await marcar("processada"); return; }
-  if (/^\/sair/i.test(texto)) { await sb.from("telegram_vinculos").delete().eq("chat_id", chat); await falar(chat, "Telegram desvinculado. Para usar de novo, vincule outra vez com um código."); await marcar("processada"); return; }
+  if (/^\/sair/i.test(texto)) { await auditar(chat, "desvinculou o Telegram (/sair)", ctx.nome); await sb.from("telegram_vinculos").delete().eq("chat_id", chat); await falar(chat, "Telegram desvinculado. Para usar de novo, vincule outra vez com um código."); await marcar("processada"); return; }
   if (texto.startsWith("/")) { await falar(chat, AJUDA); await marcar("processada"); return; }
 
   if (msg.photo?.length) {
@@ -338,6 +347,7 @@ async function processar(up: Record<string, any>) {
     }
     if (!b64) { await falar(chat, "Não consegui abrir a foto agora. Tente de novo ou digite o código de barras."); await marcar("erro", "foto"); return; }
     const lido = await lerFoto(b64);
+    if (GEMINI) await auditar(chat, "enviou foto ao Telegram (leitura por IA)", lido ? "foto lida" : "foto sem leitura");
     const f: Dados = { foto: `data:image/jpeg;base64,${b64}` };
     let achado = false;
     if (lido?.validade) { f.validade = lido.validade; f.validadeFoto = true; achado = true; }

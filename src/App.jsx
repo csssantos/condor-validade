@@ -2580,6 +2580,7 @@ const NOVIDADES = [
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
     { tipo: "adicionado", ate: 7, texto: "Lançar validade pelo Telegram: converse com o bot, mande o código de barras, o nome ou uma foto e confirme. Vincule em Mais → Conta → Telegram." },
     { tipo: "adicionado", ate: 7, texto: "Promotor com código fixo (ex.: ABC-12345) e link permanente: o código vale para um único Telegram." },
+    { tipo: "adicionado", ate: 5, texto: "Auditoria do Telegram: vincular, gerar código, lançar, cancelar, tentativas barradas e envio de foto aparecem na tela Auditoria, como as ações do app." },
     { tipo: "adicionado", ate: 5, texto: "Remover o Telegram de um funcionário ou promotor pelo menu de ações." },
     { tipo: "adicionado", ate: 5, texto: "Pré-cadastro com setor: o encarregado cadastra a equipe já no setor dele; gerência e diretoria escolhem o setor do encarregado." },
     { tipo: "melhorado", ate: 7, texto: "Ao atualizar os Termos, aparece só o que mudou, não o texto inteiro." },

@@ -15,11 +15,13 @@ export const TERMOS_ALTERACOES = [
     termos: [
       "Novo recurso opcional: lançar validade pelo Telegram, conversando com um bot. Nada é lançado sem a sua confirmação.",
       "Promotores ganham um código próprio (ex.: ABC-12345) que vale para um único Telegram e só permite lançar produtos da própria marca.",
+      "As ações feitas pelo Telegram passam a aparecer na auditoria da loja, como as ações do app.",
     ],
     privacidade: [
       "Se você vincular o Telegram, guardamos o identificador da sua conversa (não o seu telefone) e as mensagens enviadas ao bot, por até 30 dias.",
       "Novos fornecedores: Telegram (apenas se você vincular) e Google Gemini (leitura de fotos enviadas ao bot).",
       "Gestores da loja podem remover o vínculo do seu Telegram.",
+      "Ações feitas pelo Telegram (vincular, lançar, cancelar, tentativas barradas e envio de fotos) ficam na auditoria da loja, como as ações do app.",
     ],
   } },
 ];
@@ -82,6 +84,7 @@ export const DOCUMENTOS = [
       ] },
       { t: "5. Registros e auditoria", p: [
         "As ações feitas no app (cadastros, baixas, rondas, alterações de validade, exclusões, logins) ficam registradas com seu nome, data e hora, para controle operacional, prevenção de perdas e segurança. Esses registros não podem ser apagados por quem os fez.",
+        "O mesmo vale para o que é feito pelo Telegram: vincular e desvincular, gerar código, lançamentos, cancelamentos, tentativas barradas pelo sistema e envio de fotos para leitura aparecem na auditoria da loja, com seu nome, data e hora.",
       ] },
       { t: "6. Conteúdo que você envia", p: [
         "Fotos, observações e dados enviados continuam sendo de seus titulares, mas você autoriza o uso deles dentro do app e na operação da sua loja. Não envie fotos de pessoas, documentos pessoais ou informações sensíveis que não sejam necessárias ao trabalho.",
