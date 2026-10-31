@@ -214,3 +214,111 @@ export function descreverData(iso, hoje = new Date()) {
   const quando = dias === 0 ? "hoje" : dias === 1 ? "amanhã" : dias === -1 ? "ontem" : dias < 0 ? `venceu há ${-dias} dias` : `em ${dias} dias`;
   return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${a} · ${NOMES_DIA[alvo.getDay()]} · ${quando}`;
 }
+
+// ───────────── Busca inteligente no catálogo (marca sozinha, vários parecidos, produto novo) ─────────────
+const STOP = new Set(["de", "do", "da", "dos", "das", "com", "e", "sabor", "tipo", "o", "a", "os", "as", "um", "uma"]);
+// falado -> como costuma estar escrito no cadastro (ex.: BISC, CHOC.)
+const ABREV = {
+  biscoito: ["bisc", "BISC"], bolacha: ["bisc", "BISC"], chocolate: ["choc", "CHOC."], linguica: ["ling", "LING."], refrigerante: ["refrig", "REFRIG."],
+  achocolatado: ["achoc", "ACHOC."], iogurte: ["iog", "IOG."], requeijao: ["req", "REQ."], margarina: ["marg", "MARG."], amaciante: ["amac", "AMAC."],
+  desinfetante: ["desinf", "DESINF."], sabonete: ["sab", "SAB."], condicionador: ["cond", "COND."], recheado: ["rech", "RECH."], recheada: ["rech", "RECH."],
+  natural: ["nat", "NAT."], integral: ["integ", "INTEG."], tradicional: ["trad", "TRAD."], apresuntado: ["apres", "APRES."], presunto: ["pres", "PRES."],
+  gramas: null, quilos: null,
+};
+const dobras = (t) => t.replace(/(.)\1+/g, "$1").replace(/[kq]/g, "c").replace(/w/g, "v").replace(/y/g, "i").replace(/h/g, "");
+function tokensDe(s) {
+  return semAcento(s).replace(/[^a-z0-9/ ]/g, " ").split(/\s+/).filter((t) => t && !STOP.has(t));
+}
+const sing = (p) => p.replace(/(es|s)$/, "").replace(/[aeo]$/, "");
+function distancia(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+// quão bem a palavra falada (q) combina com a palavra do cadastro (t): 0 = não combina
+function casaPalavra(q, t) {
+  if (q === t) return 3;
+  if (sing(q) === sing(t) && sing(q).length >= 3) return 3;
+  const ab = ABREV[q];
+  if (ab && (t === ab[0] || t.startsWith(ab[0]))) return 2.5;
+  if (t.length >= 3 && t.length < q.length && q.startsWith(t)) return 2;
+  if (q.length >= 4 && t.length > q.length && t.startsWith(q)) return 2;
+  const cq = dobras(q), ct = dobras(t);
+  if (cq === ct && cq.length >= 4) return 2.5;
+  if (cq.length >= 5 && ct.length >= 5) {
+    const lim = cq.length >= 8 ? 2 : 1;
+    if (distancia(cq, ct) <= lim) return 2;
+  }
+  return 0;
+}
+function pontuar(qs, pts) {
+  let total = 0; let faltou = 0;
+  for (const q of qs) {
+    let melhor = 0;
+    for (const t of pts) melhor = Math.max(melhor, casaPalavra(q, t));
+    if (melhor === 0) faltou++; else total += melhor;
+  }
+  return { total: total - Math.max(0, pts.length - qs.length) * 0.15, faltou };
+}
+
+// Resultado: { tipo: "encontrado" | "varios" | "marca" | "novo", candidatos: [{chave, entrada, exato}], nomeNovo, correcoes }
+export function buscarNoCatalogo(nomeFalado, catalogo) {
+  const qs = tokensDe(nomeFalado);
+  if (qs.length === 0) return { tipo: "novo", candidatos: [], ...formatarNomeNovo(nomeFalado, catalogo) };
+  const lista = [];
+  for (const [chave, e] of Object.entries(catalogo || {})) {
+    if (!e?.nome) continue;
+    const pts = tokensDe(e.nome);
+    if (pts.length === 0) continue;
+    const { total, faltou } = pontuar(qs, pts);
+    const exato = qs.length === pts.length && faltou === 0 && qs.every((q) => pts.includes(q));
+    lista.push({ chave, entrada: e, total, faltou, exato });
+  }
+  const estritos = lista.filter((x) => x.faltou === 0).sort((a, b) => b.total - a.total);
+  const exatos = estritos.filter((x) => x.exato);
+  if (exatos.length === 1) return { tipo: "encontrado", candidatos: [exatos[0]] };
+  if (estritos.length === 1) return { tipo: "encontrado", candidatos: [estritos[0]] };
+  if (estritos.length > 1) {
+    // uma palavra só e nenhum produto com exatamente esse nome => é marca/termo genérico
+    if (qs.length === 1 && exatos.length === 0) return { tipo: "marca", candidatos: estritos.slice(0, 8), total: estritos.length };
+    return { tipo: "varios", candidatos: estritos.slice(0, 8), total: estritos.length };
+  }
+  // ninguém casou com tudo: com 3+ palavras, aceita os que casaram com todas menos uma (e pergunta)
+  if (qs.length >= 3) {
+    const maxFalta = qs.length >= 4 ? 2 : 1;
+    const quase = lista.filter((x) => x.faltou >= 1 && x.faltou <= maxFalta && qs.length - x.faltou >= 2).sort((a, b) => b.total - a.total).slice(0, 6);
+    if (quase.length) return { tipo: "varios", candidatos: quase, total: quase.length, aproximado: true };
+  }
+  return { tipo: "novo", candidatos: [], ...formatarNomeNovo(nomeFalado, catalogo) };
+}
+
+// Produto novo: MAIÚSCULAS, abreviações do cadastro e grafia corrigida pelas palavras que o catálogo já usa (ex.: "Balduco" -> BAUDUCCO)
+export function formatarNomeNovo(nome, catalogo) {
+  const vocab = new Map();
+  for (const e of Object.values(catalogo || {})) {
+    for (const bruto of String(e?.nome || "").toUpperCase().split(/\s+/)) {
+      const limpo = bruto.replace(/[^A-Z0-9ÀÁÂÃÇÉÊÍÓÔÕÚ'&]/g, "");
+      const k = semAcento(limpo);
+      if (k.length >= 6) vocab.set(k, (vocab.get(k) || 0) + 1);
+    }
+  }
+  const correcoes = [];
+  const partes = String(nome || "").trim().split(/\s+/).filter(Boolean).map((w) => {
+    const k = semAcento(w).replace(/[^a-z0-9/]/g, "");
+    if (STOP.has(k) && k !== "e") return w.toUpperCase();
+    if (ABREV[k]) return ABREV[k][1];
+    if (k.length >= 6 && !vocab.has(k)) {
+      const ck = dobras(k); let achou = null;
+      for (const v of vocab.keys()) { if (dobras(v) === ck || (distancia(ck, dobras(v)) <= 1 && v[0] === k[0])) { achou = v; break; } }
+      if (achou) {
+        const orig = Object.values(catalogo).flatMap((e) => String(e?.nome || "").toUpperCase().split(/\s+/)).map((x) => x.replace(/[^A-Z0-9ÀÁÂÃÇÉÊÍÓÔÕÚ'&]/g, "")).find((x) => semAcento(x) === achou) || achou.toUpperCase();
+        correcoes.push([w, orig]);
+        return orig;
+      }
+    }
+    return w.toUpperCase();
+  });
+  return { nomeNovo: partes.join(" "), correcoes };
+}

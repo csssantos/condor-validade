@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Mic, Check, X, RotateCcw, Calendar, Package, Hash, DollarSign, MapPin, AlertTriangle } from "lucide-react";
-import { interpretarVoz, acharNoCatalogo, descreverData } from "./voz";
+import { interpretarVoz, buscarNoCatalogo, formatarNomeNovo, descreverData } from "./voz";
 
 const SR = typeof window !== "undefined" ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
 
@@ -60,8 +60,15 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
 
   const hoje = useMemo(() => new Date(), []);
   const res = useMemo(() => interpretarVoz(texto, hoje), [texto, hoje]);
-  const achado = useMemo(() => (res.nome ? acharNoCatalogo(res.nome, catalog) : null), [res.nome, catalog]);
-  const pode = !!res.nome;
+  const busca = useMemo(() => (res.nome ? buscarNoCatalogo(res.nome, catalog) : { tipo: "vazio", candidatos: [] }), [res.nome, catalog]);
+  const [escolha, setEscolha] = useState(null); // chave do produto escolhido na lista, ou "novo"
+  useEffect(() => { setEscolha(null); }, [res.nome]);
+  const precisaEscolher = busca.tipo === "varios" || busca.tipo === "marca";
+  const escolhido = precisaEscolher && escolha && escolha !== "novo" ? busca.candidatos.find((c) => c.chave === escolha) || null : null;
+  const achado = busca.tipo === "encontrado" ? busca.candidatos[0] : escolhido;
+  const novoFmt = useMemo(() => (busca.tipo === "novo" ? busca : (escolha === "novo" && res.nome ? formatarNomeNovo(res.nome, catalog) : null)), [busca, escolha, res.nome, catalog]);
+  const ehNovo = !achado && !!novoFmt;
+  const pode = !!res.nome && (busca.tipo === "encontrado" || busca.tipo === "novo" || (precisaEscolher && !!escolha && !(busca.tipo === "marca" && escolha === "novo")));
 
   const Linha = ({ Icon, rotulo, valor, vazio }) => (
     <div className="flex items-start gap-3 py-2">
@@ -117,20 +124,45 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
             <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={2} maxLength={200} placeholder="Ex.: iogurte natural vence sexta, 12 unidades"
               style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 resize-none" />
 
+            {precisaEscolher && (
+              <div style={{ background: T.chipBg }} className="rounded-2xl p-3 mt-3">
+                <p style={{ color: T.text }} className="text-[13px] font-bold leading-snug">
+                  {busca.tipo === "marca"
+                    ? <>“{res.nome}” é só uma marca ou termo genérico ({busca.total} produtos). Fale o nome do produto, ou escolha um abaixo.</>
+                    : busca.aproximado ? <>Não achei exatamente isso. Algum destes é o seu?</> : <>Achei {busca.total || busca.candidatos.length} produtos parecidos. Qual é?</>}
+                </p>
+                <div className="flex flex-col gap-1.5 mt-2.5" role="radiogroup">
+                  {busca.candidatos.map((c) => (
+                    <button key={c.chave} role="radio" aria-checked={escolha === c.chave} onClick={() => setEscolha(c.chave)}
+                      style={escolha === c.chave ? { background: accent, color: "#fff" } : { background: T.card, color: T.text }} className="text-left rounded-xl px-3 py-2.5 text-[13px] font-semibold flex items-center gap-2">
+                      <span className="h-4 w-4 rounded-full border-2 shrink-0 flex items-center justify-center" style={{ borderColor: escolha === c.chave ? "#fff" : T.subtext }}>{escolha === c.chave && <span className="h-2 w-2 rounded-full bg-white" />}</span>
+                      <span className="min-w-0">{c.entrada.nome}</span>
+                    </button>
+                  ))}
+                  {busca.tipo === "varios" && (
+                    <button role="radio" aria-checked={escolha === "novo"} onClick={() => setEscolha("novo")}
+                      style={escolha === "novo" ? { background: accent, color: "#fff" } : { background: T.card, color: T.subtext }} className="text-left rounded-xl px-3 py-2.5 text-[13px] font-semibold">Nenhum desses — cadastrar como produto novo</button>
+                  )}
+                </div>
+                {SR && <button onClick={iniciar} style={{ color: accentDark }} className="text-[12.5px] font-bold mt-2.5 flex items-center gap-1.5"><RotateCcw size={13} /> Falar de novo</button>}
+              </div>
+            )}
+
             <div style={{ borderColor: T.border }} className="border-t mt-3 pt-1">
-              <Linha Icon={Package} rotulo={achado ? (achado.exato ? "Produto (já cadastrado)" : "Parece com um produto já cadastrado") : "Produto (novo)"} valor={achado ? achado.entrada.nome : res.nome} vazio="Não entendi o nome" />
+              <Linha Icon={Package} rotulo={achado ? (achado.exato ? "Produto (já cadastrado)" : "Produto já cadastrado") : ehNovo ? "Produto novo (nome no cadastro)" : "Produto"} valor={achado ? achado.entrada.nome : ehNovo ? novoFmt.nomeNovo : precisaEscolher ? "" : res.nome} vazio={precisaEscolher ? "Escolha na lista acima" : "Não entendi o nome"} />
               <Linha Icon={Calendar} rotulo="Validade" valor={res.validade ? descreverData(res.validade, hoje) : ""} vazio="Não entendi a validade — você escolhe na próxima tela" />
               <Linha Icon={Hash} rotulo="Quantidade" valor={res.quantidade != null ? `${String(res.quantidade).replace(".", ",")}${res.porPeso ? " kg" : ""}` : ""} vazio="Não informada" />
               {res.precoUnitario != null && <Linha Icon={DollarSign} rotulo="Preço" valor={`R$ ${res.precoUnitario.toFixed(2).replace(".", ",")}`} />}
-              {!achado && res.setorSugerido && <Linha Icon={MapPin} rotulo="Setor sugerido" valor={res.setorSugerido} />}
+              {ehNovo && res.setorSugerido && <Linha Icon={MapPin} rotulo="Setor sugerido" valor={res.setorSugerido} />}
             </div>
-            {!achado && res.nome && <p style={{ color: T.subtext }} className="text-[11px] mt-2">Produto novo: você completa setor e localização na próxima tela. Ele fica sem código de barras até alguém bipar.</p>}
+            {ehNovo && novoFmt.correcoes?.length > 0 && <p style={{ color: T.subtext }} className="text-[11px] mt-2">Ajustei a grafia pelo cadastro: {novoFmt.correcoes.map(([de, para]) => `${de} → ${para}`).join(", ")}.</p>}
+            {ehNovo && <p style={{ color: T.subtext }} className="text-[11px] mt-2">Produto novo: você completa setor e localização na próxima tela. Ele fica sem código de barras até alguém bipar.</p>}
 
             <div className="flex gap-2 mt-4">
               {SR && (
                 <motion.button whileTap={{ scale: 0.97 }} onClick={iniciar} style={{ background: T.chipBg, color: T.text }} className="flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2"><RotateCcw size={16} /> Falar de novo</motion.button>
               )}
-              <motion.button whileTap={{ scale: 0.97 }} disabled={!pode} onClick={() => onConfirmar({ res, achado })}
+              <motion.button whileTap={{ scale: 0.97 }} disabled={!pode} onClick={() => onConfirmar({ res: ehNovo ? { ...res, nome: novoFmt.nomeNovo } : res, achado })}
                 style={{ background: pode ? accent : "#C7CEDA" }} className="flex-[1.4] py-3 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2"><Check size={16} /> Continuar</motion.button>
             </div>
           </div>
