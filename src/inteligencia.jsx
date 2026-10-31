@@ -1,7 +1,7 @@
 // ============================================================================
 // INTELIGÊNCIA OPERACIONAL
 //   • Previsão Operacional      (PrevisaoOperacionalView)
-//   • Prevenção de Perdas       (PrevencaoPerdasView + RegistrarPerdaSheet)
+//   • Prevenção de Perdas       (PrevencaoPerdasView)
 //   • Assistente de IA          (AssistenteIAView)
 // Todos os dados vêm de funções do banco (analise_*, previsoes_operacionais,
 // indicadores_prevencao, registrar_perda, criar_acao_preventiva...) que aplicam
@@ -304,98 +304,6 @@ export function NovaAcaoPreventivaSheet({ T, lojaAtiva, inicial, setores, showTo
   );
 }
 
-// --------------------------------------------------------------------------- Registrar perda
-export function RegistrarPerdaSheet({ T, perfil, lojaAtiva, catalog, showToast, onClose, onFeito, ScanView, inicial }) {
-  const nivel = perfil?.cargos?.nivel ?? 99;
-  const setoresCatalogo = useMemo(() => [...new Set(Object.values(catalog || {}).map((p) => p?.setor).filter(Boolean))].sort(), [catalog]);
-  const [codigo, setCodigo] = useState(inicial?.barcode || "");
-  const [nome, setNome] = useState(inicial?.nome || "");
-  const [setor, setSetor] = useState(inicial?.setor || (nivel > 5 ? perfil?.setor || "" : ""));
-  const [qtd, setQtd] = useState("1");
-  const [unidade, setUnidade] = useState("UN");
-  const [motivo, setMotivo] = useState("");
-  const [data, setData] = useState(hojeISO());
-  const [obs, setObs] = useState("");
-  const [foto, setFoto] = useState(null);
-  const [scan, setScan] = useState(false);
-  const [ocupado, setOcupado] = useState(false);
-  const arquivo = useRef(null);
-
-  function aplicarCodigo(c) {
-    const limpo = String(c || "").replace(/\D/g, "");
-    setCodigo(limpo);
-    const sem0 = (s) => String(s || "").replace(/^0+/, "");
-    const p = catalog?.[limpo] || Object.entries(catalog || {}).find(([cod]) => sem0(cod) === sem0(limpo))?.[1];
-    if (p) {
-      setNome(p.nome || ""); if (nivel <= 5 || !perfil?.setor) setSetor(p.setor || "");
-      if (p.porPeso || p.por_peso) setUnidade("KG");
-    }
-  }
-  async function escolherFoto(e) {
-    const f = e.target.files?.[0]; e.target.value = "";
-    if (!f) return;
-    try { setFoto(await comprimirFoto(f)); } catch { showToast("Não foi possível ler a foto.", "warn"); }
-  }
-  async function salvar() {
-    setOcupado(true);
-    const { error } = await supabase.rpc("registrar_perda", {
-      p_barcode: codigo, p_nome: nome, p_setor: setor, p_quantidade: Number(String(qtd).replace(",", ".")), p_unidade: unidade,
-      p_tipo: motivo, p_data: data || null, p_foto: foto, p_obs: obs.trim() || null, p_loja: lojaAtiva?.id || null,
-    });
-    setOcupado(false);
-    if (error) { showToast(erroInteligencia(error), "warn"); return; }
-    showToast("Perda registrada.");
-    onFeito?.();
-  }
-  const pronto = codigo && nome.trim() && setor && Number(String(qtd).replace(",", ".")) > 0 && motivo && (motivo !== "outros" || obs.trim());
-  const campo = estiloCampo(T);
-  return (
-    <Folha T={T} titulo="Registrar perda" sub={`Loja ${lojaAtiva?.numero_loja ?? "—"} · não altera o estoque, só registra a ocorrência`} onClose={onClose}>
-      <div className="flex flex-col gap-3.5">
-        <Campo T={T} label="Código de barras">
-          <div className="flex gap-2">
-            <div style={campo} className="flex items-center gap-2 border rounded-xl px-3 flex-1">
-              <Barcode size={16} style={{ color: T.subtext }} />
-              <input value={codigo} onChange={(e) => aplicarCodigo(e.target.value)} inputMode="numeric" placeholder="Bipe ou digite" style={{ color: T.text }} className="bg-transparent outline-none text-sm flex-1 min-w-0 py-2.5" />
-            </div>
-            {ScanView && <button onClick={() => setScan(true)} style={{ background: BLUE, color: "#fff" }} className="px-4 rounded-xl text-sm font-semibold flex items-center gap-1.5"><Camera size={16} /> Bipar</button>}
-          </div>
-        </Campo>
-        <Campo T={T} label="Produto"><input value={nome} onChange={(e) => setNome(e.target.value)} maxLength={140} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none" /></Campo>
-        <Campo T={T} label="Setor" hint={nivel > 5 ? "Funcionários registram perdas do próprio setor." : undefined}>
-          {nivel > 5 ? <input value={setor} disabled style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none opacity-70" />
-            : <select value={setor} onChange={(e) => setSetor(e.target.value)} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none">
-                <option value="">Selecione…</option>{setoresCatalogo.map((s) => <option key={s}>{s}</option>)}
-              </select>}
-        </Campo>
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-          <Campo T={T} label="Quantidade"><input value={qtd} onChange={(e) => setQtd(e.target.value.replace(/[^\d,.]/g, ""))} inputMode="decimal" style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none" /></Campo>
-          <Campo T={T} label="Unidade"><select value={unidade} onChange={(e) => setUnidade(e.target.value)} style={campo} className="border rounded-xl px-3 py-2.5 text-sm outline-none">{UNIDADES.map((u) => <option key={u}>{u}</option>)}</select></Campo>
-        </div>
-        <Campo T={T} label="Motivo da perda">
-          <div className="flex flex-wrap gap-1.5">{MOTIVOS_PERDA.map((m) => (
-            <button key={m.id} onClick={() => setMotivo(m.id)} style={motivo === m.id ? { background: RED, color: "#fff" } : { background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2 text-xs font-semibold">{m.label}</button>
-          ))}</div>
-        </Campo>
-        <Campo T={T} label="Data"><input type="date" value={data} max={hojeISO()} onChange={(e) => setData(e.target.value)} style={{ ...campo, WebkitAppearance: "none", appearance: "none", minWidth: 0, maxWidth: "100%" }} className="block w-full min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none" /></Campo>
-        <Campo T={T} label="Foto (opcional)">
-          <input ref={arquivo} type="file" accept="image/*" capture="environment" className="hidden" onChange={escolherFoto} />
-          {foto ? (
-            <div className="relative"><img src={foto} alt="" className="w-full max-h-48 object-cover rounded-xl" />
-              <button onClick={() => setFoto(null)} className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/60 text-white flex items-center justify-center"><X size={15} /></button></div>
-          ) : <button onClick={() => arquivo.current?.click()} style={{ background: T.chipBg }} className="w-full rounded-xl py-3 text-sm font-semibold flex items-center justify-center gap-2"><ImagePlus size={16} /> Tirar ou escolher foto</button>}
-        </Campo>
-        <Campo T={T} label={motivo === "outros" ? "Observações (obrigatório)" : "Observações (opcional)"}><textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} maxLength={300} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" /></Campo>
-        <p style={{ color: T.subtext }} className="text-[11px]">Responsável pelo registro: <b>{perfil?.nome || "—"}</b></p>
-        <button onClick={salvar} disabled={!pronto || ocupado} style={{ background: pronto ? RED : "#C7CEDA", color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
-          {ocupado ? <Loader2 size={16} className="animate-spin" /> : <PackageX size={16} />} Registrar perda
-        </button>
-      </div>
-      {scan && ScanView && <div className="fixed inset-0 z-[80]" style={{ background: T.bg }}><ScanView T={T} onDetected={(c) => { setScan(false); aplicarCodigo(c); }} onCancel={() => setScan(false)} /></div>}
-    </Folha>
-  );
-}
-
 // --------------------------------------------------------------------------- Produto (histórico)
 function ProdutoAnaliseSheet({ T, barcode, lojaAtiva, onClose, onCriarAcao }) {
   const [d, setD] = useState(null);
@@ -558,7 +466,6 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
   const [erro, setErro] = useState(null);
   const [acoes, setAcoes] = useState(null);
   const [ind, setInd] = useState(null);
-  const [registrar, setRegistrar] = useState(false);
   const [novaAcao, setNovaAcao] = useState(null);
   const [tarefa, setTarefa] = useState(null);
   const [produto, setProduto] = useState(null);
@@ -601,7 +508,6 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
           <p className="text-[11px] font-bold tracking-[0.16em] text-white/75 flex items-center gap-1.5"><Flame size={14} /> PREVENÇÃO DE PERDAS</p>
           <p className="text-lg font-bold mt-1">Onde a loja está perdendo — e o que fazer</p>
         </div>
-        <button onClick={() => setRegistrar(true)} className="bg-white text-[12px] font-bold px-3 py-2 rounded-xl shrink-0 flex items-center gap-1.5" style={{ color: RED_DARK }}><PackageX size={15} /> Registrar perda</button>
       </div>
       <Abas T={T} valor={aba} onChange={setAba} opcoes={[{ id: "painel", label: "Painel" }, { id: "produtos", label: "Produtos" }, { id: "acoes", label: `Ações preventivas${acoes ? ` (${acoes.filter((a) => ["aberta", "em_andamento"].includes(a.status)).length})` : ""}` }, { id: "resultados", label: "Resultados" }]} />
 
@@ -753,8 +659,6 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
           </div>
         </>
       ))}
-
-      {registrar && <RegistrarPerdaSheet T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} showToast={showToast} ScanView={ScanView} onClose={() => setRegistrar(false)} onFeito={() => { setRegistrar(false); carregarPainel(); carregarAcoes(); }} />}
       {novaAcao && <NovaAcaoPreventivaSheet T={T} lojaAtiva={lojaAtiva} inicial={novaAcao} setores={[...new Set([...setoresDoPainel, ...setoresCatalogo.map((s) => s)])].sort()} showToast={showToast} onClose={() => setNovaAcao(null)} onCriada={() => { setNovaAcao(null); carregarAcoes(); setAba("acoes"); }} />}
       {tarefa && <NovaTarefaSheet T={T} perfil={perfil} lojaAtiva={lojaAtiva} inicial={tarefa} showToast={showToast} onClose={() => setTarefa(null)}
         onCriada={async (id) => { if (tarefa.acaoId && id) await supabase.rpc("atualizar_acao_preventiva", { p_id: tarefa.acaoId, p_status: null, p_ronda: null, p_ocorrencia: id }); setTarefa(null); carregarAcoes(); }} />}

@@ -33,7 +33,7 @@ import TelaBiparCracha from "./TelaBiparCracha";
 import { PalcoInicio, PalcoPagina } from "./Inicio";
 import { AceiteCampo, AceiteObrigatorio, LegalLeitor, LinksLegais, PaginaPrivacidade, TERMOS_VERSAO, lerAceiteLocal, gravarAceiteLocal, marcarAceitePendente, temAceitePendente, limparAceitePendente, registrarAceite } from "./Legal";
 import { TelaCarregando, FUNDO_MARCA, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
-import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
+import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
 // Logo oficial da Condor (PNG em base64, embutida direto no bundle — sem depender de asset externo)
@@ -2262,7 +2262,6 @@ function AppInner() {
         {flow === "previsao" && ehEncarregado && <PrevisaoOperacionalView T={T} perfil={perfil} lojaAtiva={lojaAtiva} showToast={showToast} onCriarRonda={abrirRondaInteligente} />}
         {flow === "prevencao" && ehEncarregado && <PrevencaoPerdasView T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} showToast={showToast} onCriarRonda={abrirRondaInteligente} ScanView={ScanView} />}
         {flow === "assistente" && ehEncarregado && <AssistenteIAView T={T} perfil={perfil} lojaAtiva={lojaAtiva} showToast={showToast} onCriarRonda={abrirRondaInteligente} />}
-        {flow === "perda" && <RegistrarPerdaSheet T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} showToast={showToast} ScanView={ScanView} onClose={resetFlow} onFeito={resetFlow} />}
 
         {flow === null && tab === "home" && telaLarga && (
           <DashboardView T={T} items={items} historico={historico} rondas={rondas} auditoria={auditoria} nome={perfil?.nome} lojaNumero={lojaAtiva?.numero_loja}
@@ -2543,7 +2542,6 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-10-30-inteligencia", data: "30/10/2026", itens: [
-    { tipo: "adicionado", ate: 7, texto: "Registrar perda: avaria, quebra, embalagem danificada, produto impróprio ou vencimento, com quantidade, foto e observações. Não mexe no estoque." },
     { tipo: "adicionado", ate: 7, texto: "Na ronda, cada produto mostra um indicador de RISCO (calculado pelo histórico) e os de maior risco aparecem primeiro." },
     { tipo: "adicionado", ate: 5, texto: "Ronda inteligente: conferência completa, priorizada por risco, por amostragem ou só com os produtos que você escolher." },
     { tipo: "adicionado", ate: 5, texto: "Prevenção de Perdas: painel com perdas por setor, motivo e período, produtos que mais perdem, planos de ação e resultado antes x depois." },
@@ -2651,7 +2649,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
     expiry: "Data de validade", historico: "Histórico de baixas", ajustes: "Mais", auditoria: "Auditoria",
     prioridade: "Prioridade de Perda",
     setores: "Setores", torre: "Torre de Controle", rondas: "Rondas", relatorios: "Relatórios", rede: "Painel da Rede", gestao: "Gestão do Aplicativo", convites: "Convites de promotor",
-    previsao: "Previsão Operacional", prevencao: "Prevenção de Perdas", assistente: "Assistente IA", perda: "Registrar perda"
+    previsao: "Previsão Operacional", prevencao: "Prevenção de Perdas", assistente: "Assistente IA"
   };
   const title = flow ? titles[flow] : (telaLarga && tab === "home" ? "Dashboard" : titles[tab]);
   if (!telaLarga && !flow && tab === "home") return null; // celular: a tela inicial tem o próprio palco (logo, tema e notificações)
@@ -6318,6 +6316,236 @@ function TorreDashboard({ T, criticos, atencao, valorEmRisco, previsaoAmanha, ri
   );
 }
 
+// ============ Torre de controle (celular) — refeita do zero: painel de comando ============
+function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoAmanha, riscoPorSetor, setorMaisPerigoso, tendenciaPerdas, reincidentes, rankingResponsaveis, ultimasAcoes, onGerarPDF }) {
+  const situacao = criticos.length > 0
+    ? { rot: "Situação crítica", sub: `${criticos.length} produto(s) vencido(s) pedem retirada agora`, cor: "#FF6B6F" }
+    : atencao.length > 0 ? { rot: "Atenção", sub: `${atencao.length} produto(s) perto de vencer`, cor: "#FFC24B" }
+    : { rot: "Tudo sob controle", sub: "Nenhum produto em risco no momento", cor: "#34C77B" };
+  const maxSetor = Math.max(...riscoPorSetor.map(([, v]) => v), 1);
+  const perdaMax = Math.max(tendenciaPerdas.atual, tendenciaPerdas.anterior || 0, 1);
+  const alertas = [
+    setorMaisPerigoso && { cor: RED_DARK, bg: RED_SOFT, Icone: Flame, t: "Comece por aqui", d: `${setorMaisPerigoso[0]} concentra ${formatarMoeda(setorMaisPerigoso[1])} em valor exposto.` },
+    previsaoAmanha.qtd > 0 && { cor: BLUE_DARK, bg: BLUE_SOFT, Icone: Clock, t: "Amanhã", d: `${previsaoAmanha.qtd} produto(s) entram em alerta${previsaoAmanha.valor > 0 ? ` (${formatarMoeda(previsaoAmanha.valor)})` : ""}.` },
+    reincidentes.length > 0 && { cor: "#8A5A00", bg: "#FCF0DD", Icone: Repeat, t: "Repetidos", d: `${reincidentes.length} produto(s) voltam a vencer nos últimos 60 dias.` },
+  ].filter(Boolean);
+  const cap = (titulo, sub, children, i) => (
+    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 + i * 0.05 }} className="mb-5">
+      <div className="px-1 mb-2"><h3 style={{ color: T.text }} className="text-[15px] font-extrabold leading-tight">{titulo}</h3>{sub && <p style={{ color: T.subtext }} className="text-[11.5px]">{sub}</p>}</div>
+      {children}
+    </motion.section>
+  );
+  return (
+    <div className="px-4 pt-4 pb-8 lg:hidden">
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ background: FUNDO_MARCA, isolation: "isolate", WebkitMaskImage: "-webkit-radial-gradient(white, black)", transform: "translateZ(0)" }}
+        className="relative overflow-hidden rounded-[32px] text-white p-5 shadow-xl shadow-black/15 mb-5">
+        <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+        <div className="relative">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: situacao.cor }} /><span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: situacao.cor }} /></span>
+            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-white/75">Torre de controle · ao vivo</p>
+          </div>
+          <h2 className="text-[26px] font-extrabold leading-tight mt-2">{situacao.rot}</h2>
+          <p className="text-[12.5px] text-white/80 mt-0.5">{situacao.sub}</p>
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            {[["Em risco", formatarMoeda(valorEmRisco), true], ["Vencidos", criticos.length], ["Em atenção", atencao.length]].map(([r, v, grande]) => (
+              <div key={r} className="rounded-2xl py-2.5 px-2 text-center min-w-0" style={{ background: "rgba(255,255,255,.13)", border: "1px solid rgba(255,255,255,.2)" }}>
+                <p className="font-extrabold leading-none tabular-nums truncate" style={{ fontSize: grande ? 15 : 22 }}>{v}</p>
+                <p className="text-[10.5px] font-semibold text-white/80 mt-1.5">{r}</p>
+              </div>
+            ))}
+          </div>
+          <motion.button whileTap={{ scale: 0.97 }} onClick={onGerarPDF} className="mt-3.5 w-full bg-white rounded-2xl py-3 text-[13px] font-extrabold flex items-center justify-center gap-2" style={{ color: BLUE_DARK }}>
+            <FileText size={16} /> Relatório completo para a gerência (PDF)
+          </motion.button>
+        </div>
+      </motion.section>
+
+      {alertas.length > 0 && cap("O que pede sua atenção", "Deslize para ver todos", (
+        <div className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-1">
+          {alertas.map((a) => (
+            <div key={a.t} style={{ background: a.bg }} className="snap-start shrink-0 w-[78%] rounded-[24px] p-4">
+              <span className="h-9 w-9 rounded-2xl flex items-center justify-center bg-white/70"><a.Icone size={18} color={a.cor} /></span>
+              <p style={{ color: a.cor }} className="text-[14px] font-extrabold mt-2.5">{a.t}</p>
+              <p style={{ color: a.cor }} className="text-[12.5px] leading-snug mt-0.5 opacity-90">{a.d}</p>
+            </div>
+          ))}
+        </div>
+      ), 0)}
+
+      {riscoPorSetor.length > 0 && cap("Mapa de risco por setor", "Quanto maior o bloco, mais dinheiro exposto", (
+        <div className="grid grid-cols-2 gap-2.5">
+          {riscoPorSetor.slice(0, 6).map(([setor, valor], i) => {
+            const f = valor / maxSetor;
+            const cor = f > 0.66 ? ["#E5484D", "#B42318"] : f > 0.33 ? ["#F5A524", "#C2670C"] : ["#3B82F6", "#1D4ED8"];
+            return (
+              <div key={setor} className={`relative overflow-hidden rounded-[22px] text-white p-3.5 ${i === 0 ? "col-span-2" : ""}`} style={{ background: `linear-gradient(145deg, ${cor[0]}, ${cor[1]})`, minHeight: i === 0 ? 92 : 78 }}>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-white/80 truncate">#{i + 1} · {setor}</p>
+                <p className={`font-extrabold tabular-nums leading-tight mt-1 ${i === 0 ? "text-[24px]" : "text-[17px]"}`}>{formatarMoeda(valor)}</p>
+                <div className="h-1.5 rounded-full mt-2 bg-white/25 overflow-hidden"><div className="h-full rounded-full bg-white" style={{ width: `${Math.max(6, f * 100)}%` }} /></div>
+              </div>
+            );
+          })}
+        </div>
+      ), 1)}
+
+      {cap("Perdas confirmadas", "Este mês contra o anterior", (
+        <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4">
+          <div className="flex items-end gap-5">
+            <div className="flex-1">
+              <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Este mês</p>
+              <p style={{ color: T.text }} className="text-[26px] font-extrabold leading-tight tabular-nums">{formatarMoeda(tendenciaPerdas.atual)}</p>
+              {tendenciaPerdas.variacao !== null && <p style={{ color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }} className="text-[12px] font-bold mt-1">{tendenciaPerdas.variacao > 0 ? "▲ +" : "▼ "}{tendenciaPerdas.variacao}% vs anterior</p>}
+            </div>
+            <div className="flex items-end gap-3 h-20">
+              {[["Ant.", tendenciaPerdas.anterior || 0, T.chipBg], ["Atual", tendenciaPerdas.atual, RED]].map(([r, v, c]) => (
+                <div key={r} className="flex flex-col items-center justify-end h-full gap-1"><div className="w-8 rounded-lg" style={{ background: c, height: `${Math.max(6, (v / perdaMax) * 100)}%` }} /><span style={{ color: T.subtext }} className="text-[10px] font-semibold">{r}</span></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ), 2)}
+
+      {reincidentes.length > 0 && cap("Produtos que repetem", "Venceram mais de uma vez em 60 dias", (
+        <div className="flex flex-wrap gap-2">
+          {reincidentes.map((pr) => (
+            <span key={pr.nome + pr.setor} style={{ background: T.card, color: T.text }} className="rounded-full pl-3.5 pr-1.5 py-1.5 text-[12px] font-bold shadow-sm flex items-center gap-2 max-w-full">
+              <span className="truncate">{pr.nome}</span><span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-extrabold rounded-full px-2 py-0.5 shrink-0">{pr.datas.length}x</span>
+            </span>
+          ))}
+        </div>
+      ), 3)}
+
+      {rankingResponsaveis.length > 0 && cap("Quem mais registra", "Ações por pessoa", (
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-4 px-4">
+          {rankingResponsaveis.slice(0, 8).map(([nome, qtd], k) => (
+            <div key={nome} style={{ background: T.card }} className="shrink-0 w-[104px] rounded-[22px] shadow-md shadow-black/5 p-3 text-center">
+              <span style={{ background: k === 0 ? `linear-gradient(135deg, ${BLUE}, ${BLUE_DARK})` : T.chipBg, color: k === 0 ? "#fff" : T.text }} className="h-11 w-11 rounded-full mx-auto flex items-center justify-center text-[14px] font-extrabold">{iniciaisDe(nome)}</span>
+              <p style={{ color: T.text }} className="text-[12px] font-bold mt-2 truncate">{String(nome).split(" ")[0]}</p>
+              <p style={{ color: T.subtext }} className="text-[11px] font-semibold tabular-nums">{qtd} ação(ões)</p>
+            </div>
+          ))}
+        </div>
+      ), 4)}
+
+      {ultimasAcoes.length > 0 && cap("Linha do tempo", "Últimas ações registradas", (
+        <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4">
+          <div className="relative pl-5">
+            <span aria-hidden className="absolute left-[5px] top-1 bottom-1 w-0.5 rounded-full" style={{ background: T.chipBg }} />
+            {ultimasAcoes.map((a, k) => (
+              <div key={a.id || k} className="relative pb-3.5 last:pb-0">
+                <span className="absolute -left-5 top-1 h-3 w-3 rounded-full border-2" style={{ background: T.card, borderColor: k === 0 ? RED : BLUE }} />
+                <p style={{ color: T.text }} className="text-[12.5px] leading-snug"><strong>{a.usuario || "Alguém"}</strong> {a.acao}</p>
+                {a.detalhe && <p style={{ color: T.subtext }} className="text-[11.5px] leading-snug">{a.detalhe}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ), 5)}
+    </div>
+  );
+}
+
+// ============ Prioridade de perda (celular) — refeita do zero: fila de ação ============
+function LinhaPrioridade({ T, item, p, pos, podeVerValores, onOpenDetail, aberta, onToggle }) {
+  const cor = p.nivel === "urgente" ? "#D92D33" : p.nivel === "alto" ? "#C2760C" : "#2F6FD6";
+  const soft = p.nivel === "urgente" ? RED_SOFT : p.nivel === "alto" ? "#FCF0DD" : BLUE_SOFT;
+  const quando = p.status.level === "expired" ? `vencido há ${Math.abs(p.dias)}d` : p.dias === 0 ? "vence hoje" : `vence em ${p.dias}d`;
+  return (
+    <div style={{ background: T.card }} className="rounded-[22px] shadow-md shadow-black/5 overflow-hidden">
+      <button onClick={onToggle} aria-expanded={aberta} className="w-full flex items-center gap-3 p-3 text-left">
+        {item.foto ? <img src={item.foto} alt="" className="h-12 w-12 rounded-2xl object-cover shrink-0" /> : <span style={{ background: soft }} className="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0"><Package size={20} color={cor} /></span>}
+        <span className="min-w-0 flex-1">
+          <span style={{ color: T.text }} className="block text-[13.5px] font-extrabold leading-tight line-clamp-2">{item.nome}</span>
+          <span style={{ color: T.subtext }} className="block text-[11.5px] mt-0.5 truncate">{item.setor} · {quando}</span>
+        </span>
+        <span style={{ background: soft, color: cor }} className="h-11 w-11 rounded-full flex flex-col items-center justify-center shrink-0"><span className="text-[14px] font-extrabold leading-none tabular-nums">{p.score}</span><span className="text-[8px] font-bold uppercase">risco</span></span>
+      </button>
+      {aberta && (
+        <div className="px-3 pb-3 -mt-1">
+          <div className="grid grid-cols-3 gap-2">
+            {[["Quantidade", `${item.quantidade || 1} un`], ["Valor", podeVerValores && p.valor > 0 ? formatarMoeda(p.valor) : "—"], ["Troca", p.semTroca ? "Sem troca" : p.comTroca ? "Com troca" : "Não definida"]].map(([r, v]) => (
+              <div key={r} style={{ background: T.chipBg }} className="rounded-xl px-2 py-2 text-center min-w-0"><p style={{ color: T.subtext }} className="text-[9.5px] font-bold uppercase">{r}</p><p style={{ color: T.text }} className="text-[12px] font-extrabold truncate">{v}</p></div>
+            ))}
+          </div>
+          <div style={{ background: soft }} className="rounded-2xl px-3 py-2.5 mt-2"><p style={{ color: cor }} className="text-[10px] font-extrabold uppercase tracking-wide">O que fazer</p><p style={{ color: T.text }} className="text-[12.5px] font-semibold leading-snug">{p.acao}</p></div>
+          {p.reincidencias >= 2 && <p style={{ color: T.subtext }} className="text-[11.5px] mt-2 flex items-center gap-1.5"><Repeat size={12} /> Já foi baixado {p.reincidencias}x nos últimos 60 dias</p>}
+          <button onClick={() => onOpenDetail(item)} style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="w-full mt-2.5 rounded-xl py-2.5 text-[12.5px] font-extrabold text-white">Abrir produto</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PrioridadeMobile({ T, prioridades, valorEmRisco, urgenteCount, semTrocaCount, podeVerValores, onOpenDetail }) {
+  const [filtro, setFiltro] = useState("todos");
+  const [aberto, setAberto] = useState(null);
+  const altoCount = prioridades.filter((x) => x.p.nivel === "alto").length;
+  const reinCount = prioridades.filter((x) => x.p.reincidencias >= 2).length;
+  const lista = prioridades.filter((x) => filtro === "sem_troca" ? x.p.semTroca : filtro === "reinc" ? x.p.reincidencias >= 2 : true);
+  const topo = lista[0];
+  const grupos = [["urgente", "Urgente", "Aja hoje", "#D92D33"], ["alto", "Alto risco", "Esta semana", "#C2760C"], ["atencao", "Atenção", "Acompanhe", "#2F6FD6"]]
+    .map(([id, rot, sub, cor]) => ({ id, rot, sub, cor, itens: lista.filter((x, i) => !(topo && i === 0) && (id === "atencao" ? x.p.nivel !== "urgente" && x.p.nivel !== "alto" : x.p.nivel === id)) }))
+    .filter((g) => g.itens.length > 0);
+  return (
+    <div className="px-4 pt-4 pb-8 lg:hidden">
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ background: FUNDO_MARCA, isolation: "isolate", WebkitMaskImage: "-webkit-radial-gradient(white, black)", transform: "translateZ(0)" }}
+        className="relative overflow-hidden rounded-[32px] text-white p-5 shadow-xl shadow-black/15 mb-4">
+        <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+        <div className="relative">
+          <p className="text-[11px] font-bold uppercase tracking-[.16em] text-white/70">Prioridade de perda</p>
+          <p className="font-extrabold leading-tight tabular-nums mt-1" style={{ fontSize: 32 }}>{podeVerValores ? formatarMoeda(valorEmRisco) : "•••"}</p>
+          <p className="text-[12.5px] text-white/80">em {prioridades.length} produto(s) que podem virar perda</p>
+          <div className="flex h-2.5 rounded-full overflow-hidden mt-3.5" style={{ background: "rgba(255,255,255,.2)" }}>
+            <div style={{ width: `${(urgenteCount / Math.max(1, prioridades.length)) * 100}%`, background: "#FF6B6F" }} /><div style={{ width: `${(altoCount / Math.max(1, prioridades.length)) * 100}%`, background: "#FFC24B" }} /><div style={{ flex: 1, background: "#6CB4FF" }} />
+          </div>
+          <div className="flex gap-4 mt-2.5 text-[11.5px] font-semibold text-white/85">
+            {[["Urgentes", urgenteCount, "#FF6B6F"], ["Alto", altoCount, "#FFC24B"], ["Atenção", Math.max(0, prioridades.length - urgenteCount - altoCount), "#6CB4FF"]].map(([r, v, c]) => <span key={r} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: c }} />{v} {r}</span>)}
+          </div>
+        </div>
+      </motion.section>
+
+      {prioridades.length === 0 ? (
+        <EstadoVazioNovo T={T} Icone={ShieldCheck} titulo="Nenhum produto em risco agora" texto="Quando algo entrar em alerta ou vencer, a fila aparece aqui." />
+      ) : (
+        <>
+          <FaixaChips T={T} valor={filtro} onChange={setFiltro} opcoes={[["todos", "Todos", prioridades.length], ["sem_troca", "Sem troca", semTrocaCount], ["reinc", "Repetem", reinCount]]} />
+          {topo && (
+            <motion.button initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} whileTap={{ scale: 0.985 }} onClick={() => onOpenDetail(topo.item)} style={{ background: T.card }} className="w-full text-left rounded-[28px] shadow-xl shadow-black/10 overflow-hidden mb-5">
+              <div className="relative">
+                {topo.item.foto ? <img src={topo.item.foto} alt="" className="w-full h-40 object-cover" /> : <div style={{ background: FUNDO_MARCA }} className="w-full h-24" />}
+                <span style={{ background: "#D92D33" }} className="absolute top-3 left-3 text-[10.5px] font-extrabold text-white rounded-full px-3 py-1.5 uppercase tracking-wide">Faça isto primeiro</span>
+              </div>
+              <div className="p-4 flex items-center gap-3.5" style={{ color: T.text }}>
+                <AnelRel partes={[{ v: topo.p.score, cor: topo.p.nivel === "urgente" ? "#D92D33" : "#C2760C" }, { v: 100 - topo.p.score, cor: "transparent" }]} tamanho={70} espessura={8} fundo={T.chipBg} centro={topo.p.score} sub="risco" />
+                <div className="min-w-0 flex-1" style={{ color: T.text }}>
+                  <p className="text-[15px] font-extrabold leading-tight line-clamp-2">{topo.item.nome}</p>
+                  <p style={{ color: T.subtext }} className="text-[12px] mt-0.5">{topo.item.setor} · {topo.item.quantidade || 1} un{podeVerValores && topo.p.valor > 0 ? ` · ${formatarMoeda(topo.p.valor)}` : ""}</p>
+                  <p style={{ color: "#D92D33" }} className="text-[12px] font-bold mt-1 leading-snug">{topo.p.acao}</p>
+                </div>
+              </div>
+            </motion.button>
+          )}
+          {lista.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-8">Nenhum produto nesse filtro.</p>}
+          {grupos.map((g) => (
+            <section key={g.id} className="mb-5">
+              <div className="flex items-center gap-2.5 mb-2 px-1">
+                <span className="h-5 w-1.5 rounded-full" style={{ background: g.cor }} />
+                <h3 style={{ color: T.text }} className="text-[14.5px] font-extrabold">{g.rot}</h3>
+                <span style={{ color: T.subtext }} className="text-[11.5px] font-semibold">{g.sub}</span>
+                <span style={{ background: T.chipBg, color: T.subtext }} className="ml-auto text-[11px] font-extrabold rounded-full px-2.5 py-0.5 tabular-nums">{g.itens.length}</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {g.itens.map(({ item, p }) => <LinhaPrioridade key={item.id} T={T} item={item} p={p} podeVerValores={podeVerValores} onOpenDetail={onOpenDetail} aberta={aberto === item.id} onToggle={() => setAberto(aberto === item.id ? null : item.id)} />)}
+              </div>
+            </section>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 function TorreControleView({ T, items, historico, auditoria, usuario, showToast, rondas, lojaNumero }) {
   const {
     criticos, atencao, valorEmRisco, previsaoAmanha, riscoPorSetor, setorMaisPerigoso,
@@ -6336,80 +6564,8 @@ function TorreControleView({ T, items, historico, auditoria, usuario, showToast,
     <TorreDashboard T={T} criticos={criticos} atencao={atencao} valorEmRisco={valorEmRisco} previsaoAmanha={previsaoAmanha} riscoPorSetor={riscoPorSetor}
       setorMaisPerigoso={setorMaisPerigoso} riscoPorCorredor={riscoPorCorredor} tendenciaPerdas={tendenciaPerdas} reincidentes={reincidentes}
       rankingResponsaveis={rankingResponsaveis} ultimasAcoes={ultimasAcoes} onGerarPDF={gerarRelatorioCompleto} />
-    <div className="px-4 pt-4 pb-6 lg:hidden">
-      <PalcoPagina className="mb-4" titulo="Torre de controle" subtitulo="Visão da gerência, em tempo real">
-        <ValorPalco rotulo="Valor em risco" valor={formatarMoeda(valorEmRisco)} />
-        <PilulasPalco itens={[["Críticos", criticos.length, "#E31E24"], ["Em atenção", atencao.length, "#F5A524"], ["Amanhã", previsaoAmanha.qtd, "#6CB4FF"]]} />
-        <motion.button whileTap={{ scale: 0.97 }} onClick={gerarRelatorioCompleto} className="mt-3 w-full bg-white rounded-2xl py-3 text-[13px] font-extrabold flex items-center justify-center gap-2 shadow-md" style={{ color: BLUE_DARK }}>
-          <FileText size={16} /> Relatório completo para a gerência (PDF)
-        </motion.button>
-      </PalcoPagina>
-
-      {setorMaisPerigoso && (
-        <CartaoNovo T={T} idx={0} className="!p-0 overflow-hidden">
-          <div style={{ background: RED_SOFT, color: RED_DARK }} className="px-4 py-3.5 flex items-start gap-2.5">
-            <Flame size={18} className="mt-0.5 shrink-0" />
-            <p className="text-[12.5px] leading-snug"><strong>Setor crítico do dia: {setorMaisPerigoso[0]}.</strong> {formatarMoeda(setorMaisPerigoso[1])} em valor exposto — comece por aqui.</p>
-          </div>
-        </CartaoNovo>
-      )}
-      {previsaoAmanha.qtd > 0 && (
-        <CartaoNovo T={T} idx={1} className="!p-0 overflow-hidden">
-          <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="px-4 py-3.5 flex items-start gap-2.5">
-            <CalendarDaysIcon className="w-[18px] h-[18px] mt-0.5 shrink-0" />
-            <p className="text-[12.5px] leading-snug"><strong>Previsão de amanhã:</strong> {previsaoAmanha.qtd} produto(s) entrarão em alerta.{previsaoAmanha.valor > 0 && ` Se nada for feito hoje, ${formatarMoeda(previsaoAmanha.valor)} ficarão em risco.`}</p>
-          </div>
-        </CartaoNovo>
-      )}
-
-      {riscoPorSetor.length > 0 && (
-        <CartaoNovo T={T} idx={2} titulo="Ações prioritárias por setor" Icone={Target} cor={RED_DARK}>
-          {riscoPorSetor.slice(0, 5).map(([setor, valor], k) => <BarraRank key={setor} T={T} pos={k + 1} rotulo={setor} pct={(valor / (riscoPorSetor[0][1] || 1)) * 100} texto={formatarMoeda(valor)} />)}
-        </CartaoNovo>
-      )}
-
-      <CartaoNovo T={T} idx={3} titulo="Perdas este mês" Icone={TrendingUp} cor={RED_DARK}>
-        <p style={{ color: T.text }} className="text-[26px] font-extrabold leading-tight tabular-nums">{formatarMoeda(tendenciaPerdas.atual)}</p>
-        {tendenciaPerdas.variacao !== null && (
-          <p style={{ color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }} className="text-[12.5px] font-bold mt-1 flex items-center gap-1">
-            {tendenciaPerdas.variacao <= 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
-            {tendenciaPerdas.variacao > 0 ? "+" : ""}{tendenciaPerdas.variacao}% vs mês anterior ({formatarMoeda(tendenciaPerdas.anterior)})
-          </p>
-        )}
-      </CartaoNovo>
-
-      {reincidentes.length > 0 && (
-        <CartaoNovo T={T} idx={4} titulo="Produtos reincidentes (60 dias)" Icone={Repeat} cor={RED_DARK}>
-          <div className="flex flex-col gap-2">
-            {reincidentes.map((pr) => (
-              <div key={pr.nome + pr.setor} style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2">
-                <span style={{ color: T.text }} className="text-[12.5px] font-bold truncate">{pr.nome} <span style={{ color: T.subtext }} className="font-medium">· {pr.setor}</span></span>
-                <span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-extrabold rounded-full px-2 py-0.5 shrink-0">{pr.datas.length}x</span>
-              </div>
-            ))}
-          </div>
-        </CartaoNovo>
-      )}
-
-      {rankingResponsaveis.length > 0 && (
-        <CartaoNovo T={T} idx={5} titulo="Registros por responsável" Icone={Users2} cor={BLUE}>
-          {rankingResponsaveis.map(([nome, qtd], k) => <BarraRank key={nome} T={T} pos={k + 1} rotulo={nome} pct={(qtd / (rankingResponsaveis[0][1] || 1)) * 100} texto={`${qtd}`} cor={BLUE} />)}
-        </CartaoNovo>
-      )}
-
-      {ultimasAcoes.length > 0 && (
-        <CartaoNovo T={T} idx={6} titulo="Últimas ações registradas" Icone={Clock} cor={BLUE}>
-          <div className="flex flex-col gap-2.5">
-            {ultimasAcoes.map((a, k) => (
-              <div key={a.id || k} className="flex items-start gap-2.5">
-                <span style={{ background: BLUE }} className="h-2 w-2 rounded-full mt-1.5 shrink-0" />
-                <div className="min-w-0"><p style={{ color: T.text }} className="text-[12.5px] leading-snug"><strong>{a.usuario || "Alguém"}</strong> {a.acao}</p><p style={{ color: T.subtext }} className="text-[10.5px] font-mono mt-0.5">{formatarDataHoraExtenso(a.criadoEm)}</p></div>
-              </div>
-            ))}
-          </div>
-        </CartaoNovo>
-      )}
-    </div>
+    <TorreMobile T={T} criticos={criticos} atencao={atencao} valorEmRisco={valorEmRisco} previsaoAmanha={previsaoAmanha} riscoPorSetor={riscoPorSetor} setorMaisPerigoso={setorMaisPerigoso}
+      tendenciaPerdas={tendenciaPerdas} reincidentes={reincidentes} rankingResponsaveis={rankingResponsaveis} ultimasAcoes={ultimasAcoes} onGerarPDF={gerarRelatorioCompleto} />
     </>
   );
 }
@@ -6493,7 +6649,6 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
         { flow: "previsao", label: "Previsão operacional", Icon: Radar },
         { flow: "prevencao", label: "Prevenção de perdas", Icon: Flame },
       ] : []),
-      { flow: "perda", label: "Registrar perda", Icon: PackageX },
     ] },
     { titulo: "Gestão", itens: [
       ...(ehEncarregado ? [{ flow: "convites", label: "Convites de promotor", Icon: Ticket }] : []),
@@ -8046,56 +8201,7 @@ function PrioridadeInteligenteView({ T, items, historico, onOpenDetail }) {
   return (
     <>
     <PrioridadeDashboard T={T} prioridades={prioridadesTodas} valorEmRisco={valorEmRisco} urgenteCount={urgenteCount} semTrocaCount={semTrocaCount} filtro={filtro} setFiltro={setFiltro} filtrados={filtrados} onOpenDetail={onOpenDetail} />
-    <div className="px-4 pt-4 pb-6 lg:hidden">
-      <PalcoPagina className="mb-4" titulo="Prioridade de perda" subtitulo="Quem gera mais perda vem primeiro">
-        <ValorPalco rotulo="Valor priorizado em risco" valor={podeVerValores ? formatarMoeda(valorEmRisco) : "•••"} />
-        <PilulasPalco itens={[["Em risco", prioridadesTodas.length, "#F5A524"], ["Urgentes", urgenteCount, "#E31E24"], ["Sem troca", semTrocaCount, "#9AA3B2"]]} />
-        <p className="text-[11.5px] text-white/75 mt-3 leading-snug">Cruza validade, quantidade, valor e política de troca com o fornecedor — não é só “vence primeiro”.</p>
-      </PalcoPagina>
-
-      {prioridadesTodas.length === 0 ? (
-        <EstadoVazioNovo T={T} Icone={ShieldCheck} titulo="Nenhum produto em risco agora" texto="Assim que algo entrar em alerta ou vencer, a prioridade aparece aqui." />
-      ) : (
-        <>
-          <FaixaChips T={T} valor={filtro} onChange={setFiltro} opcoes={[["todos", "Todos", prioridadesTodas.length], ["urgente", "Urgentes", urgenteCount], ["sem_troca", "Sem troca", semTrocaCount]]} />
-          {filtrados.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-8">Nenhum produto nesse filtro.</p>}
-          <div className="flex flex-col gap-3">
-            {filtrados.map(({ item, p }, i) => {
-              const urgente = p.nivel === "urgente";
-              const cor = urgente ? "#E31E24" : "#E0921C";
-              return (
-                <motion.button key={item.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 320, damping: 26, delay: Math.min(i * 0.04, 0.3) }}
-                  whileTap={{ scale: 0.98 }} onClick={() => onOpenDetail(item)} style={{ background: T.card, boxShadow: urgente ? "0 0 0 2px rgba(227,30,36,.35), 0 10px 24px -12px rgba(0,0,0,.2)" : undefined }}
-                  className="rounded-[24px] shadow-lg shadow-black/5 text-left w-full p-3.5">
-                  <div className="flex items-start gap-3">
-                    <span style={{ background: urgente ? "#E31E24" : RED_SOFT, color: urgente ? "#fff" : RED_DARK }} className="h-9 w-9 rounded-full text-[13px] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
-                    <div className="min-w-0 flex-1">
-                      <p style={{ color: T.text }} className="font-extrabold text-[14.5px] leading-tight">{item.nome}</p>
-                      <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5">{item.setor}{gerarCodigoLocalizacao(item) ? ` · ${gerarCodigoLocalizacao(item)}` : ""}</p>
-                    </div>
-                    <span style={{ background: urgente ? RED_SOFT : "#FCF0DD", color: cor }} className="text-[10.5px] font-extrabold rounded-full px-2.5 py-1 shrink-0 flex items-center gap-1">{urgente && <Flame size={10} />}{urgente ? "URGENTE" : "ATENÇÃO"}</span>
-                  </div>
-                  <p style={{ color: T.text }} className="text-[12px] font-semibold mt-2.5">
-                    {item.quantidade || 1} un · {p.status.level === "expired" ? `vencido há ${Math.abs(p.dias)}d` : p.dias === 0 ? "vence hoje" : `vence em ${p.dias}d`}{p.valor > 0 && podeVerValores ? ` · ${formatarMoeda(p.valor)}` : ""}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div style={{ background: T.chipBg }} className="flex-1 h-2 rounded-full overflow-hidden"><div style={{ width: `${p.score}%`, background: cor }} className="h-full rounded-full" /></div>
-                    <span style={{ color: T.subtext }} className="text-[10.5px] font-bold tabular-nums">risco {p.score}/100</span>
-                  </div>
-                  {(p.semTroca || p.reincidencias >= 3) && (
-                    <div className="flex gap-1.5 mt-2.5 flex-wrap">
-                      {p.semTroca && <span style={{ background: "#4A1013", color: "#FFD5D8" }} className="text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><ShieldAlert size={10} /> Sem troca</span>}
-                      {p.reincidencias >= 3 && <span style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><Repeat size={10} /> Reincidente</span>}
-                    </div>
-                  )}
-                  <div style={{ background: T.chipBg }} className="rounded-2xl px-3 py-2 mt-2.5"><p style={{ color: T.text }} className="text-[11.5px] font-bold"><span style={{ color: T.subtext }} className="font-bold">AÇÃO · </span>{p.acao}</p></div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
+    <PrioridadeMobile T={T} prioridades={prioridadesTodas} valorEmRisco={valorEmRisco} urgenteCount={urgenteCount} semTrocaCount={semTrocaCount} podeVerValores={podeVerValores} onOpenDetail={onOpenDetail} />
   </>
   );
 }
@@ -10417,7 +10523,6 @@ function PaginaAtalhos({ T, dark, historico, ehEncarregado, ehCorporativo, ehDev
         { Icon: Radar, cor: BLUE, titulo: "Previsão Operacional", desc: "Riscos com base no histórico", ir: () => acoes.modulo("previsao") },
         { Icon: Flame, cor: RED_DARK, titulo: "Prevenção de Perdas", desc: "Painel de perdas e ações preventivas", ir: () => acoes.modulo("prevencao") },
       ] : []),
-      { Icon: PackageX, cor: RED_DARK, titulo: "Registrar perda", desc: "Avaria, quebra, embalagem danificada…", ir: () => acoes.modulo("perda") },
     ] },
     { t: "Análise", itens: [
       { Icon: Radar, cor: BLUE, titulo: "Torre de Controle", desc: "Visão geral de risco para a liderança", ir: acoes.torre },
