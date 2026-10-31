@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import VozSheet from "./VozSheet";
+import { TelaCarregando, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
@@ -1006,144 +1007,109 @@ function AuthScreen({ T }) {
     setMensagem("Senha alterada com sucesso! Você já pode continuar.");
   }
 
-  const inputCls = "w-full min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2";
-  const inputStyle = { background: T.inputBg, color: T.text, borderColor: T.border, boxSizing: "border-box" };
+  // Layout novo: palco azul animado em cima e "folha" com o formulário embaixo (no PC: duas colunas).
+  const SAI = { opacity: 0, x: -22, transition: { duration: 0.14 } };
+  const formCls = "flex flex-col gap-3.5";
+  const voltarLogin = () => { setModo("login"); setErro(""); setMensagem(""); };
+  const compacto = modo === "cadastro-confirmar" || modo === "nova-senha";
+
+  let conteudo = null;
+  if (modo === "login") {
+    conteudo = (
+      <motion.form key="login" onSubmit={entrar} variants={grupoForm} initial="hidden" animate="show" exit={SAI} className={formCls}>
+        <AuthTitulo T={T} titulo="Bem-vindo de volta" sub="Entre para ver as validades da sua loja." />
+        <AuthCampo T={T} rotulo="E-mail" type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <AuthCampo T={T} rotulo="Senha" type="password" required autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+        <AuthAviso tipo="erro">{erro}</AuthAviso>
+        <AuthAviso tipo="ok">{mensagem}</AuthAviso>
+        <AuthBotao T={T} carregando={carregando}>Entrar</AuthBotao>
+        <AuthLink T={T} forte onClick={() => { setModo("recuperar"); setErro(""); setMensagem(""); }}>Esqueci minha senha</AuthLink>
+        <motion.div variants={itemForm} className="flex items-center gap-3 my-0.5" aria-hidden>
+          <span style={{ background: T.inputBorder }} className="h-px flex-1" />
+          <span style={{ color: T.subtext }} className="text-[11px] font-semibold uppercase tracking-wider">Primeiro acesso?</span>
+          <span style={{ background: T.inputBorder }} className="h-px flex-1" />
+        </motion.div>
+        <AuthBotao T={T} variante="contorno" type="button" onClick={() => { setErro(""); setModo("cadastro-scan"); }}>
+          {ehDesktop ? "Cadastrar com a matrícula do crachá" : "Bipar meu crachá pra cadastrar"}
+        </AuthBotao>
+      </motion.form>
+    );
+  } else if (modo === "recuperar") {
+    conteudo = (
+      <motion.form key="recuperar" onSubmit={enviarRecuperacao} variants={grupoForm} initial="hidden" animate="show" exit={SAI} className={formCls}>
+        <AuthTitulo T={T} titulo="Recuperar senha" sub="Informe seu e-mail. Vamos te enviar um link pra criar uma nova senha." />
+        <AuthCampo T={T} rotulo="E-mail" type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <AuthAviso tipo="erro">{erro}</AuthAviso>
+        <AuthAviso tipo="ok">{mensagem}</AuthAviso>
+        <AuthBotao T={T} carregando={carregando}>Enviar link</AuthBotao>
+        <AuthLink T={T} onClick={voltarLogin}><ArrowLeft size={13} /> Voltar</AuthLink>
+      </motion.form>
+    );
+  } else if (modo === "nova-senha") {
+    conteudo = (
+      <motion.form key="nova-senha" onSubmit={salvarNovaSenha} variants={grupoForm} initial="hidden" animate="show" exit={SAI} className={formCls}>
+        <AuthTitulo T={T} titulo="Nova senha" sub="Escolha uma senha com pelo menos 8 caracteres." />
+        <AuthCampo T={T} rotulo="Nova senha" type="password" required autoComplete="new-password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
+        <AuthCampo T={T} rotulo="Confirmar nova senha" type="password" required autoComplete="new-password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} />
+        <AuthAviso tipo="erro">{erro}</AuthAviso>
+        <AuthAviso tipo="ok">{mensagem}</AuthAviso>
+        <AuthBotao T={T} carregando={carregando}>Salvar senha</AuthBotao>
+      </motion.form>
+    );
+  } else if (modo === "cadastro-info") {
+    conteudo = (
+      <motion.div key="cadastro-info" variants={grupoForm} initial="hidden" animate="show" exit={SAI} className={formCls}>
+        <AuthTitulo T={T} titulo="Cadastro" />
+        <AuthAviso tipo="erro">{erro}</AuthAviso>
+        <motion.p variants={itemForm} style={{ color: T.subtext }} className="text-sm">Você ainda não possui uma conta. Peça pro seu <strong>Encarregado</strong> ou pro <strong>CPD</strong> te pré-cadastrar em "Gestão de Funcionários" antes de continuar.</motion.p>
+        <AuthBotao T={T} type="button" onClick={() => { setErro(""); setModo("cadastro-scan"); }}>{ehDesktop ? "Digitar outra matrícula" : "Tentar bipar de novo"}</AuthBotao>
+        <AuthLink T={T} onClick={() => { setErro(""); setModo("login"); }}><ArrowLeft size={13} /> Voltar pro login</AuthLink>
+      </motion.div>
+    );
+  } else if (modo === "cadastro-scan" && ehDesktop) {
+    conteudo = (
+      <motion.form key="cadastro-scan" onSubmit={(e) => { e.preventDefault(); aoBiparCracha(matriculaDigitada); }} variants={grupoForm} initial="hidden" animate="show" exit={SAI} className={formCls}>
+        <AuthTitulo T={T} titulo="Cadastro" sub="Digite a matrícula do seu crachá. Ela precisa estar pré-cadastrada pelo encarregado ou pelo CPD." />
+        <AuthCampo T={T} rotulo="Matrícula" inputMode="numeric" autoFocus value={matriculaDigitada} onChange={(e) => setMatriculaDigitada(e.target.value.replace(/\D/g, ""))} />
+        <AuthAviso tipo="erro">{erro}</AuthAviso>
+        <AuthBotao T={T} carregando={carregando} disabled={!matriculaDigitada}>Continuar</AuthBotao>
+        <AuthLink T={T} onClick={() => { setErro(""); setModo("login"); }}><ArrowLeft size={13} /> Voltar pro login</AuthLink>
+      </motion.form>
+    );
+  } else if (modo === "cadastro-confirmar" && funcionarioEncontrado) {
+    conteudo = (
+      <motion.form key="cadastro-confirmar" onSubmit={finalizarCadastro} variants={grupoForm} initial="hidden" animate="show" exit={SAI} className={formCls}>
+        <AuthTitulo T={T} titulo="Confirme seus dados" />
+        <motion.div variants={itemForm} style={{ background: BLUE_SOFT }} className="rounded-2xl p-3.5 text-left flex items-center gap-3">
+          <span style={{ background: BLUE, color: "#fff" }} className="h-11 w-11 rounded-full flex items-center justify-center text-base font-extrabold shrink-0">{String(funcionarioEncontrado.nome || "?").trim().charAt(0).toUpperCase()}</span>
+          <div className="min-w-0">
+            <p style={{ color: "#14202B" }} className="text-sm font-bold truncate">{funcionarioEncontrado.nome}</p>
+            <p style={{ color: "#4A5B6A" }} className="text-xs mt-0.5">Matrícula {funcionarioEncontrado.matricula} · {funcionarioEncontrado.cargo_nome_loja || "—"}</p>
+            {funcionarioEncontrado.setor && <p style={{ color: "#4A5B6A" }} className="text-xs">{funcionarioEncontrado.setor}</p>}
+          </div>
+        </motion.div>
+        <motion.p variants={itemForm} style={{ color: T.subtext }} className="text-xs">Não é você? <button type="button" onClick={() => { setFuncionarioEncontrado(null); setModo("cadastro-scan"); }} style={{ color: BLUE }} className="font-semibold">{ehDesktop ? "Trocar matrícula" : "Bipar de novo"}</button></motion.p>
+        <AuthCampo T={T} rotulo="Seu e-mail" type="email" required autoComplete="email" value={cadEmail} onChange={(e) => setCadEmail(e.target.value)} />
+        <AuthCampo T={T} rotulo="Criar senha (mín. 8 caracteres)" type="password" required autoComplete="new-password" value={cadSenha} onChange={(e) => setCadSenha(e.target.value)} />
+        <AuthCampo T={T} rotulo="Confirmar senha" type="password" required autoComplete="new-password" value={cadConfirmarSenha} onChange={(e) => setCadConfirmarSenha(e.target.value)} />
+        <AuthAviso tipo="erro">{erro}</AuthAviso>
+        <AuthBotao T={T} carregando={carregando}>Criar minha conta</AuthBotao>
+        <AuthLink T={T} onClick={() => setModo("login")}>Cancelar</AuthLink>
+      </motion.form>
+    );
+  }
 
   return (
-    <div style={{ background: T.bg }} className="min-h-screen flex flex-col items-center justify-center p-6">
-      <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto mb-6" />
-      <div style={{ background: T.card, borderColor: T.border }} className="w-full max-w-sm border rounded-[28px] p-6 shadow-lg shadow-black/5">
-        {modo === "login" && (
-          <form onSubmit={entrar} className="flex flex-col gap-3">
-            <h1 className="text-lg font-bold text-center mb-1">Entrar</h1>
-            <div>
-              <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1 block">E-mail</label>
-              <input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)}
-                style={inputStyle} className={inputCls} />
-            </div>
-            <div>
-              <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1 block">Senha</label>
-              <input type="password" required autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)}
-                style={inputStyle} className={inputCls} />
-            </div>
-            {erro && <p style={{ color: RED_DARK }} className="text-xs font-medium">{erro}</p>}
-            {mensagem && <p style={{ color: "#1E7D34" }} className="text-xs font-medium">{mensagem}</p>}
-            <button type="submit" disabled={carregando} style={{ background: BLUE, color: "#fff" }}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
-              {carregando && <Loader2 size={16} className="animate-spin" />} Entrar
-            </button>
-            <button type="button" onClick={() => { setModo("recuperar"); setErro(""); setMensagem(""); }}
-              style={{ color: BLUE }} className="text-xs font-medium text-center mt-1">Esqueci minha senha</button>
-            <div style={{ borderColor: T.border }} className="border-t mt-2 pt-3 text-center">
-              <p style={{ color: T.subtext }} className="text-[11px]">Não possui cadastro?</p>
-              <button type="button" onClick={() => { setErro(""); setModo("cadastro-scan"); }} style={{ color: BLUE }} className="text-xs font-semibold mt-1">
-                {ehDesktop ? "Cadastrar com a matrícula do crachá" : "Bipar meu crachá pra cadastrar"}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {modo === "recuperar" && (
-          <form onSubmit={enviarRecuperacao} className="flex flex-col gap-3">
-            <h1 className="text-lg font-bold text-center mb-1">Recuperar senha</h1>
-            <p style={{ color: T.subtext }} className="text-xs text-center mb-1">Informe seu e-mail. Vamos te enviar um link pra criar uma nova senha.</p>
-            <input type="email" required placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)}
-              style={inputStyle} className={inputCls} />
-            {erro && <p style={{ color: RED_DARK }} className="text-xs font-medium">{erro}</p>}
-            {mensagem && <p style={{ color: "#1E7D34" }} className="text-xs font-medium">{mensagem}</p>}
-            <button type="submit" disabled={carregando} style={{ background: BLUE, color: "#fff" }}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
-              {carregando && <Loader2 size={16} className="animate-spin" />} Enviar link
-            </button>
-            <button type="button" onClick={() => { setModo("login"); setErro(""); setMensagem(""); }}
-              style={{ color: T.subtext }} className="text-xs font-medium text-center mt-1 flex items-center justify-center gap-1">
-              <ArrowLeft size={12} /> Voltar
-            </button>
-          </form>
-        )}
-
-        {modo === "nova-senha" && (
-          <form onSubmit={salvarNovaSenha} className="flex flex-col gap-3">
-            <h1 className="text-lg font-bold text-center mb-1">Nova senha</h1>
-            <input type="password" required placeholder="Nova senha" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)}
-              style={inputStyle} className={inputCls} />
-            <input type="password" required placeholder="Confirmar nova senha" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)}
-              style={inputStyle} className={inputCls} />
-            {erro && <p style={{ color: RED_DARK }} className="text-xs font-medium">{erro}</p>}
-            {mensagem && <p style={{ color: "#1E7D34" }} className="text-xs font-medium">{mensagem}</p>}
-            <button type="submit" disabled={carregando} style={{ background: BLUE, color: "#fff" }}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
-              {carregando && <Loader2 size={16} className="animate-spin" />} Salvar senha
-            </button>
-          </form>
-        )}
-
-        {modo === "cadastro-info" && (
-          <div className="flex flex-col gap-3 text-center">
-            <h1 className="text-lg font-bold">Cadastro</h1>
-            {erro && <p style={{ color: RED_DARK }} className="text-xs font-medium">{erro}</p>}
-            <p style={{ color: T.subtext }} className="text-sm">Você ainda não possui uma conta. Peça pro seu <strong>Encarregado</strong> ou pro <strong>CPD</strong> te pré-cadastrar em "Gestão de Funcionários" antes de continuar.</p>
-            <button type="button" onClick={() => { setErro(""); setModo("cadastro-scan"); }} style={{ color: BLUE }} className="text-xs font-semibold mt-1">{ehDesktop ? "Digitar outra matrícula" : "Tentar bipar de novo"}</button>
-            <button type="button" onClick={() => { setErro(""); setModo("login"); }} style={{ color: T.subtext }} className="text-xs font-semibold mt-1 flex items-center justify-center gap-1">
-              <ArrowLeft size={12} /> Voltar pro login
-            </button>
-          </div>
-        )}
-      </div>
-
-      {modo === "cadastro-scan" && (ehDesktop ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: T.bg }}>
-          <form onSubmit={(e) => { e.preventDefault(); aoBiparCracha(matriculaDigitada); }}
-            style={{ background: T.card, borderColor: T.border }} className="w-full max-w-sm border rounded-[28px] p-6 shadow-lg shadow-black/5 flex flex-col gap-3">
-            <h1 className="text-lg font-bold text-center">Cadastro</h1>
-            <p style={{ color: T.subtext }} className="text-xs text-center">Digite a matrícula do seu crachá. Ela precisa estar pré-cadastrada pelo encarregado ou pelo CPD.</p>
-            <input value={matriculaDigitada} onChange={(e) => setMatriculaDigitada(e.target.value.replace(/\D/g, ""))} inputMode="numeric" autoFocus placeholder="Matrícula"
-              style={inputStyle} className={inputCls + " text-center"} />
-            {erro && <p style={{ color: RED_DARK }} className="text-xs font-medium text-center">{erro}</p>}
-            <button type="submit" disabled={carregando || !matriculaDigitada} style={{ background: BLUE, color: "#fff" }}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2">
-              {carregando && <Loader2 size={16} className="animate-spin" />} Continuar
-            </button>
-            <button type="button" onClick={() => { setErro(""); setModo("login"); }} style={{ color: T.subtext }} className="text-xs font-medium text-center">Voltar pro login</button>
-          </form>
+    <div style={{ background: T.bg }} className="min-h-screen lg:grid lg:grid-cols-[1.1fr_1fr]">
+      <AuthPalco logo={LOGO_SRC} compacto={compacto} />
+      <motion.div initial={{ y: 70, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 240, damping: 26, delay: 0.12 }}
+        style={{ background: T.card }}
+        className="relative -mt-8 lg:mt-0 rounded-t-[32px] lg:rounded-none px-6 pt-8 pb-10 lg:px-12 min-h-[calc(100vh-284px)] lg:min-h-screen lg:flex lg:items-center lg:justify-center shadow-[0_-14px_32px_-14px_rgba(0,0,0,.28)] lg:shadow-none">
+        <div className="w-full max-w-sm mx-auto">
+          <AnimatePresence mode="wait" initial={false}>{conteudo}</AnimatePresence>
         </div>
-      ) : (
-        <ScanView T={T} onDetected={aoBiparCracha} onCancel={() => setModo("login")} />
-      ))}
-
-      {modo === "cadastro-confirmar" && funcionarioEncontrado && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto" style={{ background: T.bg }}>
-          <div style={{ background: T.card, borderColor: T.border }} className="w-full max-w-sm border rounded-[28px] p-6 shadow-lg shadow-black/5 mt-10 mx-3 mb-6">
-            <form onSubmit={finalizarCadastro} className="flex flex-col gap-3">
-              <h1 className="text-lg font-bold text-center mb-1">Confirme seus dados</h1>
-              <div style={{ background: BLUE_SOFT }} className="rounded-xl p-3 text-left">
-                <p className="text-sm font-bold">{funcionarioEncontrado.nome}</p>
-                <p style={{ color: T.subtext }} className="text-xs mt-0.5">Matrícula {funcionarioEncontrado.matricula} · {funcionarioEncontrado.cargo_nome_loja || "—"}</p>
-                {funcionarioEncontrado.setor && <p style={{ color: T.subtext }} className="text-xs">{funcionarioEncontrado.setor}</p>}
-              </div>
-              <p style={{ color: T.subtext }} className="text-xs">Não é você? <button type="button" onClick={() => { setFuncionarioEncontrado(null); setModo("cadastro-scan"); }} style={{ color: BLUE }} className="font-semibold">{ehDesktop ? "Trocar matrícula" : "Bipar de novo"}</button></p>
-              <div>
-                <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1 block">Seu e-mail</label>
-                <input type="email" required value={cadEmail} onChange={(e) => setCadEmail(e.target.value)} style={inputStyle} className={inputCls} />
-              </div>
-              <div>
-                <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1 block">Criar senha (mín. 8 caracteres)</label>
-                <input type="password" required value={cadSenha} onChange={(e) => setCadSenha(e.target.value)} style={inputStyle} className={inputCls} />
-              </div>
-              <div>
-                <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1 block">Confirmar senha</label>
-                <input type="password" required value={cadConfirmarSenha} onChange={(e) => setCadConfirmarSenha(e.target.value)} style={inputStyle} className={inputCls} />
-              </div>
-              {erro && <p style={{ color: RED_DARK }} className="text-xs font-medium">{erro}</p>}
-              <button type="submit" disabled={carregando} style={{ background: BLUE, color: "#fff" }}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
-                {carregando && <Loader2 size={16} className="animate-spin" />} Criar minha conta
-              </button>
-              <button type="button" onClick={() => setModo("login")} style={{ color: T.subtext }} className="text-xs font-medium text-center mt-1">Cancelar</button>
-            </form>
-          </div>
-        </div>
-      )}
+      </motion.div>
+      {modo === "cadastro-scan" && !ehDesktop && <ScanView T={T} onDetected={aoBiparCracha} onCancel={() => setModo("login")} />}
     </div>
   );
 }
@@ -2128,10 +2094,7 @@ function AppInner() {
 
   if (loading) {
     return (
-      <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto animate-pulse" />
-        <Loader2 className="animate-spin" size={22} color={BLUE} />
-      </div>
+      <TelaCarregando logo={LOGO_SRC} />
     );
   }
 
@@ -2140,11 +2103,7 @@ function AppInner() {
   // (não deveria acontecer no fluxo normal, mas cobre o caso de alguém logar sem nunca ter biper o crachá).
   if (conviteStatus === "resgatando") {
     return (
-      <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto animate-pulse" />
-        <Loader2 className="animate-spin" size={22} color={BLUE} />
-        <p style={{ color: getTokens(false).subtext }} className="text-xs">Abrindo seu convite...</p>
-      </div>
+      <TelaCarregando logo={LOGO_SRC} mensagem="Abrindo seu convite…" />
     );
   }
   if (conviteStatus?.erro) {
@@ -2173,10 +2132,7 @@ function AppInner() {
   }
   if (sessao && perfil === undefined) {
     return (
-      <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto animate-pulse" />
-        <Loader2 className="animate-spin" size={22} color={BLUE} />
-      </div>
+      <TelaCarregando logo={LOGO_SRC} mensagem="Entrando na sua conta…" />
     );
   }
   if (sessao && perfil === null) {
@@ -2195,11 +2151,7 @@ function AppInner() {
   }
   if (sessao && perfil && !dadosProntos) {
     return (
-      <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto animate-pulse" />
-        <Loader2 className="animate-spin" size={22} color={BLUE} />
-        <p style={{ color: getTokens(false).subtext }} className="text-xs">Carregando dados da loja {lojaAtiva?.numero_loja || ""}...</p>
-      </div>
+      <TelaCarregando logo={LOGO_SRC} mensagem={`Carregando dados da loja ${lojaAtiva?.numero_loja || ""}…`} />
     );
   }
 
