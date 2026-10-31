@@ -11,12 +11,9 @@ export const TERMOS_VERSAO = "2026-10-31";
 const CHAVE_ACEITE_LOCAL = "avdc_aceite_termos";
 const CHAVE_ACEITE_PENDENTE = "avdc_aceite_pendente";
 
-// Preencha quando a empresa definir. Enquanto estiverem vazios, os documentos mandam usar o canal de solicitações dentro do app.
+// Aplicativo avulso: sem CNPJ e sem encarregado (DPO). O contato é pelo canal de solicitações dentro do app.
 export const LEGAL_CONTATO = {
-  controlador: "Condor Supermercados",
-  cnpj: "",
-  encarregado: "",
-  emailEncarregado: "",
+  controlador: "o desenvolvedor do aplicativo Condor · Alerta de Validade",
 };
 
 const AZUL = "#0B4F9E", AZUL_ESC = "#061C3A", VERM = "#E31E24";
@@ -43,9 +40,8 @@ export async function registrarAceite() {
 
 // ───────────────────────── Documentos ─────────────────────────
 const contatoLinha = () => {
-  const partes = [LEGAL_CONTATO.controlador, LEGAL_CONTATO.cnpj ? `CNPJ ${LEGAL_CONTATO.cnpj}` : null].filter(Boolean).join(" · ");
-  const dpo = LEGAL_CONTATO.encarregado ? `Encarregado pelo tratamento de dados (DPO): ${LEGAL_CONTATO.encarregado}${LEGAL_CONTATO.emailEncarregado ? ` — ${LEGAL_CONTATO.emailEncarregado}` : ""}.` : "";
-  return { partes, dpo };
+  const partes = LEGAL_CONTATO.controlador;
+  return { partes };
 };
 
 export const DOCUMENTOS = [
@@ -53,26 +49,27 @@ export const DOCUMENTOS = [
     id: "termos", titulo: "Termos de Uso", resumo: "Regras para usar o app", Icone: ScrollText, cor: "#6D4FC2",
     secoes: () => [
       { t: "1. Quem somos e o que é o app", p: [
-        "O Condor · Alerta de Validade (“app”) é uma ferramenta interna de trabalho para controlar datas de validade, rondas, ocorrências e perdas de produtos nas lojas do Condor Supermercados (“Condor”).",
+        "O Condor · Alerta de Validade (“app”) é um aplicativo avulso e independente, criado para ajudar a controlar datas de validade, rondas, ocorrências e perdas de produtos em lojas. Ele não tem vínculo, parceria, patrocínio ou aprovação de nenhuma empresa, rede de supermercados ou marca, e o nome “Condor” é só o nome do aplicativo.",
+        "Quem oferece o app é o seu desenvolvedor (“nós”). Qualquer loja ou empresa que decida usar o app o faz por conta própria e responde por suas próprias regras internas.",
         "Ao criar sua conta ou entrar no app você declara que leu e concorda com estes Termos de Uso e com a Política de Privacidade. Se não concordar, não use o app.",
       ] },
       { t: "2. Quem pode usar", p: [
-        "O app é para colaboradores do Condor e para promotores/fornecedores autorizados por convite. É preciso ter 18 anos ou mais e ter sido pré-cadastrado pela loja (matrícula) ou convidado por um encarregado.",
-        "O acesso é pessoal e intransferível. O nível de acesso depende do seu cargo e da sua loja, e pode ser alterado, pausado ou bloqueado a qualquer momento pela empresa.",
+        "O app é para pessoas que trabalham com o controle de validades e foram cadastradas (matrícula pré-cadastrada) ou convidadas por quem administra a sua loja no app. É preciso ter 18 anos ou mais.",
+        "O acesso é pessoal e intransferível. O nível de acesso depende do seu cargo e da sua loja, e pode ser alterado, pausado ou bloqueado a qualquer momento por quem administra o app ou a sua loja.",
       ] },
       { t: "3. Sua conta e senha", p: [
         "Você é responsável por manter sua senha em sigilo e por tudo o que for feito com a sua conta. Não empreste seu acesso. Se suspeitar de uso indevido, troque a senha e avise seu encarregado imediatamente.",
         "Cada aparelho e login podem ser registrados para segurança (veja a Política de Privacidade).",
       ] },
       { t: "4. Uso correto", p: [
-        "Use o app só para o trabalho: lançar validades, conferir produtos, registrar baixas, perdas, rondas e ocorrências, com informações verdadeiras. Registrar dado falso ou alterar registros para esconder perdas pode gerar medidas disciplinares e outras responsabilidades previstas em lei e no contrato de trabalho.",
+        "Use o app só para o trabalho: lançar validades, conferir produtos, registrar baixas, perdas, rondas e ocorrências, com informações verdadeiras. Registrar dado falso ou alterar registros para esconder perdas pode gerar medidas disciplinares e outras responsabilidades previstas em lei e nas regras da sua empresa.",
         "É proibido: tentar burlar permissões; acessar dados de outras lojas ou cargos sem autorização; usar robôs ou automações não autorizadas; tentar derrubar, copiar ou fazer engenharia reversa do sistema; enviar conteúdo ilegal, ofensivo ou que viole direitos de terceiros (inclusive em fotos e observações).",
       ] },
       { t: "5. Registros e auditoria", p: [
         "As ações feitas no app (cadastros, baixas, rondas, alterações de validade, exclusões, logins) ficam registradas com seu nome, data e hora, para controle operacional, prevenção de perdas e segurança. Esses registros não podem ser apagados por quem os fez.",
       ] },
       { t: "6. Conteúdo que você envia", p: [
-        "Fotos, observações e dados enviados continuam sendo de seus titulares, mas você autoriza o Condor a usá-los dentro do app e na operação da empresa. Não envie fotos de pessoas, documentos pessoais ou informações sensíveis que não sejam necessárias ao trabalho.",
+        "Fotos, observações e dados enviados continuam sendo de seus titulares, mas você autoriza o uso deles dentro do app e na operação da sua loja. Não envie fotos de pessoas, documentos pessoais ou informações sensíveis que não sejam necessárias ao trabalho.",
       ] },
       { t: "7. Recursos de IA e voz", p: [
         "O app pode ter recursos de assistente de IA e cadastro por voz. As respostas da IA podem conter erros e são apoio à decisão, não substituem o seu julgamento nem as regras da empresa. Nenhuma ação é criada sem a sua confirmação.",
@@ -83,28 +80,28 @@ export const DOCUMENTOS = [
         "Podemos atualizar o app e estes Termos. Quando a mudança for relevante, você será avisado e precisará aceitar a nova versão para continuar usando.",
       ] },
       { t: "9. Propriedade intelectual", p: [
-        "O app, seu código, layout, marcas e conteúdos pertencem ao Condor e/ou aos seus desenvolvedores e são protegidos por lei. O uso do app não transfere nenhum direito de propriedade a você.",
+        "O app, seu código, layout, marcas e conteúdos pertencem ao desenvolvedor do app e são protegidos por lei. O uso do app não transfere nenhum direito de propriedade a você.",
       ] },
       { t: "10. Limitação de responsabilidade", p: [
-        "O app é uma ferramenta de apoio. As datas, quantidades e valores dependem do que é lançado pelas pessoas; conferir os produtos fisicamente continua sendo responsabilidade da operação. Na extensão permitida em lei, o Condor não responde por danos indiretos decorrentes de dados lançados incorretamente, de indisponibilidade de internet ou de uso fora das regras destes Termos.",
+        "O app é uma ferramenta de apoio. As datas, quantidades e valores dependem do que é lançado pelas pessoas; conferir os produtos fisicamente continua sendo responsabilidade da operação. Na extensão permitida em lei, o desenvolvedor não responde por danos indiretos decorrentes de dados lançados incorretamente, de indisponibilidade de internet ou de uso fora das regras destes Termos.",
       ] },
       { t: "11. Encerramento do acesso", p: [
-        "O acesso pode ser suspenso ou encerrado, por exemplo, em caso de desligamento, troca de função, descumprimento destes Termos ou suspeita de fraude. Os registros já feitos permanecem conforme a Política de Privacidade e a lei.",
+        "O acesso pode ser suspenso ou encerrado, por exemplo, em caso de desligamento da loja ou empresa, troca de função, descumprimento destes Termos ou suspeita de fraude. Os registros já feitos permanecem conforme a Política de Privacidade e a lei.",
       ] },
       { t: "12. Lei aplicável e contato", p: [
-        "Estes Termos seguem as leis do Brasil. Fica eleito o foro da comarca do domicílio do titular ou, quando aplicável, o da sede do Condor, para resolver qualquer conflito, sem prejuízo de direitos garantidos pela legislação.",
-        "Dúvidas, reclamações ou pedidos: use Mais → Privacidade e termos → Falar com o encarregado, dentro do app.",
+        "Estes Termos seguem as leis do Brasil. Fica eleito o foro da comarca do domicílio do titular para resolver qualquer conflito, sem prejuízo de direitos garantidos pela legislação.",
+        "Dúvidas, reclamações ou pedidos: use Mais → Privacidade e termos → Falar com o responsável, dentro do app.",
       ] },
     ],
   },
   {
     id: "privacidade", titulo: "Política de Privacidade", resumo: "Como tratamos seus dados (LGPD)", Icone: ShieldCheck, cor: "#0B4F9E",
     secoes: () => {
-      const { partes, dpo } = contatoLinha();
+      const { partes } = contatoLinha();
       return [
         { t: "1. Quem é o controlador dos dados", p: [
-          `${partes || "Condor Supermercados"} é o controlador dos dados tratados neste app, nos termos da Lei Geral de Proteção de Dados (Lei 13.709/2018 — LGPD).`,
-          dpo || "Os canais para falar sobre seus dados estão em Mais → Privacidade e termos → Falar com o encarregado.",
+          `Somos ${partes}, o controlador dos dados tratados neste app, nos termos da Lei Geral de Proteção de Dados (Lei 13.709/2018 — LGPD).`,
+          "Este é um aplicativo avulso, sem CNPJ e sem encarregado (DPO) formal. Para falar sobre seus dados use Mais → Privacidade e termos → Solicitar um direito (Falar com o responsável).",
         ] },
         { t: "2. Quais dados coletamos", p: [
           "Dados de cadastro: nome, matrícula, e-mail, cargo, setor, loja e, quando informado, telefone. Para promotores: nome e marca.",
@@ -121,13 +118,13 @@ export const DOCUMENTOS = [
           "Melhorar o app e dar suporte. Não usamos seus dados para publicidade nem os vendemos.",
         ] },
         { t: "4. Bases legais", p: [
-          "Execução do contrato de trabalho ou da relação com o fornecedor/promotor e cumprimento de obrigações legais e regulatórias (LGPD art. 7º, II e V).",
-          "Legítimo interesse do Condor em controlar perdas, proteger o patrimônio e a segurança do sistema, sempre limitado ao necessário e respeitando seus direitos (art. 7º, IX).",
+          "Execução do serviço que você pediu ao criar a conta e cumprimento de obrigações legais e regulatórias (LGPD art. 7º, II e V).",
+          "Legítimo interesse em manter o controle de perdas do app, a segurança do sistema e a prevenção de fraudes, sempre limitado ao necessário e respeitando seus direitos (art. 7º, IX).",
           "Consentimento, quando aplicável, para o que não for necessário ao trabalho (por exemplo, ativar notificações no aparelho). Você pode revogar quando quiser.",
           "Exercício regular de direitos em processos judiciais, administrativos ou arbitrais (art. 7º, VI).",
         ] },
         { t: "5. Com quem compartilhamos", p: [
-          "Dentro do Condor: gestores e áreas autorizadas, de acordo com o cargo e a loja. Os valores financeiros podem ser ocultados de alguns cargos.",
+          "Dentro da sua loja/empresa: gestores e pessoas autorizadas no app, de acordo com o cargo e a loja. Os valores financeiros podem ser ocultados de alguns cargos.",
           "Fornecedores de tecnologia (operadores) que armazenam e entregam o app: Supabase (banco de dados, autenticação e arquivos) e Vercel (hospedagem do site), além dos serviços de notificação push do seu aparelho (Apple, Google ou Microsoft). Eles tratam os dados só para prestar o serviço, sob contrato.",
           "Autoridades públicas e judiciais, quando houver obrigação legal ou ordem válida.",
           "Não vendemos nem alugamos dados pessoais.",
@@ -136,7 +133,7 @@ export const DOCUMENTOS = [
           "Alguns fornecedores podem armazenar ou processar dados fora do Brasil. Nesses casos, adotamos as garantias previstas na LGPD (art. 33), como cláusulas contratuais e fornecedores com padrões de segurança reconhecidos.",
         ] },
         { t: "7. Por quanto tempo guardamos", p: [
-          "Conta e dados de cadastro: enquanto você tiver vínculo com o Condor e acesso ao app. Depois do desligamento, o acesso é encerrado e os dados de cadastro são eliminados ou anonimizados quando deixarem de ser necessários.",
+          "Conta e dados de cadastro: enquanto você tiver conta e acesso ao app. Depois do desligamento ou da exclusão da conta, o acesso é encerrado e os dados de cadastro são eliminados ou anonimizados quando deixarem de ser necessários.",
           "Registros de auditoria, baixas, rondas e perdas: mantidos pelo prazo necessário para controle operacional, contábil e fiscal e para defesa em processos (em regra, até 5 anos), podendo ser anonimizados antes.",
           "Registros de login e aceite dos termos: mantidos por pelo menos 6 meses (Marco Civil da Internet) e enquanto necessários para comprovar o aceite.",
           "Conversas com o assistente de IA: mantidas pelo tempo necessário à operação e ao suporte e eliminadas quando não forem mais úteis.",
@@ -177,7 +174,7 @@ export const DOCUMENTOS = [
       ] },
       { t: "Prazos e limites", p: [
         "Respondemos em até 15 dias. Alguns dados não podem ser apagados na hora porque a lei ou o contrato exige guardá-los (por exemplo, registros fiscais, trabalhistas e de segurança). Nesse caso, explicamos o motivo e o prazo.",
-        "Pedidos de eliminação de conta de colaborador dependem do encerramento do vínculo e seguem o fluxo de desligamento do Condor.",
+        "Pedidos de eliminação de conta podem depender de quem administra a sua loja no app; avisaremos o que for possível.",
       ] },
       { t: "Se não ficar satisfeito", p: [
         "Você pode reclamar diretamente à Autoridade Nacional de Proteção de Dados (ANPD) em gov.br/anpd e procurar os órgãos de defesa do consumidor ou a Justiça.",
@@ -239,7 +236,7 @@ export function LegalLeitor({ T, docId, onFechar }) {
               </div>
             </motion.section>
           ))}
-          <p style={{ color: T.subtext }} className="text-[11px] text-center mt-4 px-4">Texto de referência para o uso do app. Em caso de dúvida, fale com o encarregado pelo próprio app.</p>
+          <p style={{ color: T.subtext }} className="text-[11px] text-center mt-4 px-4">Texto de referência para o uso do app. Em caso de dúvida, fale com o responsável pelo próprio app.</p>
         </div>
       </div>
     </motion.div>,
@@ -324,7 +321,7 @@ export function AceiteObrigatorio({ T, nome, onAceitar, onSair }) {
 // ───────────────────────── Página “Privacidade e termos” (Mais) ─────────────────────────
 const TIPOS_PEDIDO = [
   ["acesso", "Acessar meus dados"], ["correcao", "Corrigir dados"], ["exclusao", "Eliminar dados"], ["portabilidade", "Portabilidade"],
-  ["informacao", "Com quem compartilham"], ["oposicao", "Oposição ao tratamento"], ["revogacao", "Revogar consentimento"], ["encarregado", "Falar com o encarregado"],
+  ["informacao", "Com quem compartilham"], ["oposicao", "Oposição ao tratamento"], ["revogacao", "Revogar consentimento"], ["encarregado", "Falar com o responsável"],
 ];
 const STATUS_PEDIDO = { aberta: ["Aberta", "#C2760C", "#FCF0DD"], em_analise: ["Em análise", "#1F5FBF", "#E6F0FF"], respondida: ["Respondida", "#1F9D55", "#E4F7EC"], negada: ["Negada", "#A81419", "#FDECEE"] };
 
@@ -421,7 +418,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
 
       <section style={cartao} className="rounded-[24px] shadow-lg shadow-black/5 p-4">
         <p style={{ color: T.text }} className="text-[14px] font-extrabold">Solicitar um direito</p>
-        <p style={{ color: T.subtext }} className="text-[12.5px] mt-1 leading-snug">Corrigir, eliminar, revogar consentimento ou falar com o encarregado. Respondemos em até 15 dias.</p>
+        <p style={{ color: T.subtext }} className="text-[12.5px] mt-1 leading-snug">Corrigir, eliminar, revogar consentimento ou falar com o responsável. Respondemos em até 15 dias.</p>
         <div className="flex flex-wrap gap-1.5 mt-3">
           {TIPOS_PEDIDO.map(([id, rot]) => (
             <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => setTipo(id)} aria-pressed={tipo === id} className="text-[12px] font-bold rounded-full px-3 py-2"
