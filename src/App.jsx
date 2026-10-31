@@ -2878,29 +2878,37 @@ function SetoresView({ T, items, catalog, rondas, onIniciarRonda, onOpenDetail, 
         const totalProdutos = grupos.reduce((a, [, d]) => a + d.total, 0);
         const valorRisco = grupos.reduce((a, [, d]) => a + d.valor, 0);
         const n = grupos.length || 1;
-        const Tile = ({ g, idx, grande }) => {
+        const Tile = ({ g, idx }) => {
           const Icone = iconeDoSetor(g.setor);
+          const cor = g.nivel === "crit" ? "#D92D33" : g.nivel === "atencao" ? "#C2760C" : "#1F9D55";
+          const soft = g.nivel === "crit" ? RED_SOFT : g.nivel === "atencao" ? "#FCF0DD" : "#E4F7EC";
+          const comData = Math.max(1, g.comData);
+          const celulas = [["Vencidos", g.dados.vencido, "#D92D33"], ["Atenção", g.dados.alerta, "#C2760C"], ["Em dia", g.ok, "#1F9D55"]];
           return (
-            <motion.button initial={{ opacity: 0, y: 16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 26, delay: Math.min(idx * 0.05, 0.35) }}
-              whileTap={{ scale: 0.97 }} onClick={() => onAbrirSetor(g.setor)} style={{ background: g.grad, isolation: "isolate", WebkitMaskImage: "-webkit-radial-gradient(white, black)", transform: "translateZ(0)" }}
-              className={`relative overflow-hidden rounded-[28px] text-white text-left shadow-lg shadow-black/15 ${grande ? "col-span-2 p-5" : "p-4"}`}>
-              <div aria-hidden className="absolute inset-0 opacity-[.12]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "18px 18px" }} />
-              <Icone aria-hidden size={grande ? 120 : 86} strokeWidth={1.3} className="absolute -right-3 -bottom-3 opacity-[.17]" />
-              <div className="relative">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10.5px] font-extrabold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: "rgba(255,255,255,.2)" }}>{g.rotulo}</span>
-                  <span className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,.2)" }}><ChevronRightIcon className="w-4 h-4" /></span>
+            <motion.button initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 26, delay: Math.min(idx * 0.04, 0.3) }}
+              whileTap={{ scale: 0.985 }} onClick={() => onAbrirSetor(g.setor)} style={{ background: T.card }} className="w-full rounded-[26px] shadow-lg shadow-black/5 text-left p-4">
+              <div className="flex items-center gap-3">
+                <span style={{ background: soft }} className="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0"><Icone size={22} color={cor} /></span>
+                <div className="min-w-0 flex-1">
+                  <p style={{ color: T.text }} className="font-extrabold text-[16px] leading-tight break-words">{g.setor}</p>
+                  <p style={{ color: T.subtext }} className="text-[12px] mt-0.5">{g.dados.total} produto{g.dados.total !== 1 ? "s" : ""}{g.dados.semValidadeCount > 0 ? ` · ${g.dados.semValidadeCount} sem data` : ""}</p>
                 </div>
-                <p className={`font-extrabold leading-tight mt-3 ${grande ? "text-[22px]" : "text-[16px]"}`}>{g.setor}</p>
-                <p className="text-[12px] text-white/80 mt-0.5">{g.dados.total} produto{g.dados.total !== 1 ? "s" : ""}{g.dados.semValidadeCount > 0 ? ` · ${g.dados.semValidadeCount} sem data` : ""}</p>
-                <div className="flex items-end gap-4 mt-3">
-                  <div><p className={`font-extrabold leading-none tabular-nums ${grande ? "text-[38px]" : "text-[30px]"}`}>{g.dados.vencido + g.dados.alerta}</p><p className="text-[11px] text-white/80 mt-1 font-semibold whitespace-nowrap">pedem ação</p></div>
-                  {g.dados.valor > 0 && <div><p className={`font-extrabold leading-none tabular-nums ${grande ? "text-[19px]" : "text-[15px]"}`}>{formatarMoeda(g.dados.valor)}</p><p className="text-[11px] text-white/80 mt-1 font-semibold whitespace-nowrap">em risco</p></div>}
-                </div>
-                <div className="mt-3.5">
-                  <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,.25)" }}><motion.div initial={{ width: 0 }} animate={{ width: `${g.pctOk}%` }} transition={{ duration: 0.9, delay: 0.2 }} className="h-full rounded-full bg-white" /></div>
-                  <p className="text-[11px] text-white/85 mt-1.5 font-semibold">{g.pctOk}% em dia · {g.ur ? `ronda ${tempoDesde(g.ur)}` : "sem ronda"}</p>
-                </div>
+                <span style={{ background: soft, color: cor }} className="text-[10.5px] font-extrabold rounded-full px-2.5 py-1 shrink-0">{g.rotulo}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-3.5">
+                {celulas.map(([rot, n, c]) => (
+                  <div key={rot} style={{ background: T.chipBg }} className="rounded-2xl py-2 text-center">
+                    <p style={{ color: n > 0 ? c : T.subtext }} className="text-[19px] font-extrabold leading-none tabular-nums">{n}</p>
+                    <p style={{ color: T.subtext }} className="text-[10.5px] font-semibold mt-1">{rot}</p>
+                  </div>
+                ))}
+              </div>
+              <div style={{ background: T.chipBg }} className="flex h-2 rounded-full overflow-hidden mt-3.5">
+                <div style={{ width: `${(g.dados.vencido / comData) * 100}%`, background: "#D92D33" }} /><div style={{ width: `${(g.dados.alerta / comData) * 100}%`, background: "#F5A524" }} /><div style={{ width: `${(g.ok / comData) * 100}%`, background: "#34C77B" }} />
+              </div>
+              <div className="flex items-center justify-between gap-2 mt-3 text-[11.5px]">
+                <span style={{ color: T.subtext }} className="font-semibold">{g.dados.valor > 0 ? <>Em risco: <b style={{ color: T.text }}>{formatarMoeda(g.dados.valor)}</b></> : "Sem valor em risco"}</span>
+                <span style={{ color: g.atrasada ? "#C2760C" : T.subtext }} className="font-semibold flex items-center gap-1">{g.ur ? `Ronda ${tempoDesde(g.ur)}` : "Sem ronda"}<ChevronRightIcon className="w-3.5 h-3.5" /></span>
               </div>
             </motion.button>
           );
@@ -2929,8 +2937,8 @@ function SetoresView({ T, items, catalog, rondas, onIniciarRonda, onOpenDetail, 
             </motion.section>
             <FaixaChips T={T} valor={filtroSetor} onChange={setFiltroSetor} opcoes={[["todos", "Todos", grupos.length], ["crit", "Críticos", resumo.criticos], ["atencao", "Atenção", resumo.atencao], ["ok", "Em dia", resumo.controlados]]} />
             {lista.length === 0 ? <EstadoVazioNovo T={T} Icone={LayoutGrid} titulo="Nenhum setor aqui" texto="Troque o filtro para ver os outros." /> : (
-              <div className="grid grid-cols-2 gap-3">
-                {lista.map((g, idx) => <React.Fragment key={g.setor}>{Tile({ g, idx, grande: idx === 0 && filtroSetor === "todos" && g.nivel !== "ok" })}</React.Fragment>)}
+              <div className="flex flex-col gap-3">
+                {lista.map((g, idx) => <React.Fragment key={g.setor}>{Tile({ g, idx })}</React.Fragment>)}
               </div>
             )}
           </>
