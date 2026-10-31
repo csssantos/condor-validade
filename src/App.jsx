@@ -30,7 +30,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import VozSheet from "./VozSheet";
 import TelaBiparCracha from "./TelaBiparCracha";
 import { PalcoInicio } from "./Inicio";
-import { TelaCarregando, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
+import { TelaCarregando, FUNDO_MARCA, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
@@ -2127,7 +2127,12 @@ function AppInner() {
     );
   }
   if (sessao === null) {
-    return comBanner(<AuthScreen T={T} />);
+    return (
+      <>
+        <AuthScreen T={T} />
+        {!!novaVersao && <AtualizacaoObrigatoria logo={LOGO_SRC} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} />}
+      </>
+    );
   }
   if (sessao?.user?.is_anonymous && perfil === null && !perfilErro) {
     return comBanner(
@@ -2338,6 +2343,7 @@ function AppInner() {
       )}
       {toast && <Toast msg={toast.msg} tone={toast.tone} />}
       {desfazer && <DesfazerToast T={T} mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} />}
+      {!!novaVersao && !mostrarBannerVersao && <PilulaAtualizacao onClick={() => setVersaoDispensada(null)} />}
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
         {avisoAtual && <AvisoModal T={T} aviso={avisoAtual} onFechar={() => marcarAvisoVisto(avisoAtual.id)} />}
@@ -2456,6 +2462,42 @@ function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar, s
         )}
       </div>
     </motion.div>
+  );
+}
+
+// Depois de tocar em "Depois": fica uma notificação pendente no topo; ao tocar, o aviso de atualizar volta.
+function PilulaAtualizacao({ onClick }) {
+  return (
+    <motion.button type="button" onClick={onClick} initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} whileTap={{ scale: 0.95 }}
+      aria-label="Há uma atualização do app pendente. Toque para atualizar."
+      className="fixed left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[70] flex items-center gap-1.5 rounded-full bg-white text-[11.5px] font-bold pl-2.5 pr-3 py-1.5 shadow-lg shadow-black/25"
+      style={{ color: BLUE_DARK, border: `1.5px solid ${RED}` }}>
+      <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: RED, opacity: 0.6 }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: RED }} /></span>
+      Atualização
+    </motion.button>
+  );
+}
+
+// Deslogado: não dá pra entrar com o app velho. Tela cheia por cima do login até atualizar.
+function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) {
+  const baixando = estado === "baixando";
+  const pct = Math.round((progresso || 0) * 100);
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Atualização necessária" className="fixed inset-0 z-[80] flex flex-col items-center justify-center px-8 text-center text-white" style={{ background: FUNDO_MARCA }}>
+      <div className="bg-white rounded-2xl px-6 py-4 shadow-xl shadow-black/25"><img src={logo} alt="Condor" className="h-9 w-auto" /></div>
+      <Sparkles size={30} color="#fff" className="mt-8" />
+      <h1 className="text-[24px] font-extrabold mt-3">Nova versão disponível</h1>
+      <p className="text-[14px] text-white/80 mt-2 max-w-xs">Para entrar no app, atualize primeiro. É rapidinho.</p>
+      {erro && !baixando && <p className="text-[12.5px] mt-3 font-semibold" style={{ color: "#FFD27A" }}>Não deu pra baixar. Confira a internet e tente de novo.</p>}
+      {baixando ? (
+        <div className="w-full max-w-xs mt-7">
+          <p className="text-[13px] font-semibold">{pct >= 100 ? "Pronto! Reiniciando…" : `Baixando… ${pct}%`}</p>
+          <div className="h-2 rounded-full bg-white/20 mt-2 overflow-hidden"><div className="h-full rounded-full bg-white" style={{ width: `${pct}%`, transition: "width .25s ease" }} /></div>
+        </div>
+      ) : (
+        <button onClick={onAtualizar} className="mt-7 bg-white font-extrabold text-[15px] px-9 py-3.5 rounded-2xl shadow-lg" style={{ color: BLUE_DARK }}>{erro ? "Tentar de novo" : "Atualizar agora"}</button>
+      )}
+    </div>
   );
 }
 
