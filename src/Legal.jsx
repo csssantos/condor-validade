@@ -8,6 +8,21 @@ import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
 export const TERMOS_VERSAO = "2026-11-01";
+// A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
+// (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
+export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-01", docs: {
+    termos: [
+      "Novo recurso opcional: lançar validade pelo Telegram, conversando com um bot. Nada é lançado sem a sua confirmação.",
+      "Promotores ganham um código próprio (ex.: ABC-12345) que vale para um único Telegram e só permite lançar produtos da própria marca.",
+    ],
+    privacidade: [
+      "Se você vincular o Telegram, guardamos o identificador da sua conversa (não o seu telefone) e as mensagens enviadas ao bot, por até 30 dias.",
+      "Novos fornecedores: Telegram (apenas se você vincular) e Google Gemini (leitura de fotos enviadas ao bot).",
+      "Gestores da loja podem remover o vínculo do seu Telegram.",
+    ],
+  } },
+];
 const CHAVE_ACEITE_LOCAL = "avdc_aceite_termos";
 const CHAVE_ACEITE_PENDENTE = "avdc_aceite_pendente";
 
@@ -287,6 +302,16 @@ export function AceiteObrigatorio({ T, nome, onAceitar, onSair }) {
   const [tentou, setTentou] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [leitor, setLeitor] = useState(null);
+  const [anterior, setAnterior] = useState(() => { try { return localStorage.getItem(CHAVE_ACEITE_LOCAL); } catch { return null; } });
+  useEffect(() => {
+    // última versão que a pessoa aceitou (no banco); se não achar, usa a do aparelho
+    supabase.from("consentimentos").select("versao").order("aceito_em", { ascending: false }).limit(1)
+      .then(({ data }) => { if (data?.[0]?.versao) setAnterior((a) => (a && a > data[0].versao ? a : data[0].versao)); });
+  }, []);
+  // só o que entrou depois da versão que ela já aceitou (null = primeira vez: mostra os documentos completos)
+  const mudancas = anterior && anterior !== TERMOS_VERSAO
+    ? DOCUMENTOS.map((d) => ({ d, itens: TERMOS_ALTERACOES.filter((a) => a.versao > anterior).flatMap((a) => a.docs[d.id] || []) })).filter((x) => x.itens.length)
+    : null;
   async function confirmar() {
     if (!aceito) { setTentou(true); return; }
     setOcupado(true);
@@ -299,9 +324,26 @@ export function AceiteObrigatorio({ T, nome, onAceitar, onSair }) {
         <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "22px 22px" }} />
         <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 18 }} className="relative mx-auto h-16 w-16 rounded-[22px] bg-white flex items-center justify-center shadow-xl shadow-black/25"><Lock size={28} color={AZUL} /></motion.div>
         <h1 className="relative text-[24px] font-extrabold mt-4 leading-tight">Antes de continuar{nome ? `, ${String(nome).trim().split(/\s+/)[0]}` : ""}</h1>
-        <p className="relative text-[13.5px] text-white/80 mt-1.5 max-w-xs mx-auto">Atualizamos os Termos de Uso e a Política de Privacidade (LGPD). Leia e aceite para usar o app.</p>
+        <p className="relative text-[13.5px] text-white/80 mt-1.5 max-w-xs mx-auto">{mudancas?.length ? "Atualizamos os Termos e a Privacidade. Veja só o que mudou e aceite para continuar." : "Atualizamos os Termos de Uso e a Política de Privacidade (LGPD). Leia e aceite para usar o app."}</p>
       </div>
       <div className="flex-1 px-4 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-w-md w-full mx-auto">
+        {mudancas?.length ? (
+          <div className="flex flex-col gap-2.5 mb-4">
+            {mudancas.map(({ d, itens }) => (
+              <div key={d.id} style={{ background: T.card }} className="rounded-[20px] shadow-md shadow-black/5 p-3.5">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${d.cor}1F` }}><d.Icone size={16} color={d.cor} /></span>
+                  <span className="text-[14px] font-extrabold" style={{ color: T.text }}>{d.titulo}</span>
+                  <span style={{ background: "#E4F7EC", color: "#1F9D55" }} className="ml-auto text-[10.5px] font-bold px-2 py-0.5 rounded-full">Novo</span>
+                </div>
+                <ul className="flex flex-col gap-1.5">
+                  {itens.map((t, i) => <li key={i} style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed pl-3 relative"><span style={{ background: AZUL }} className="absolute left-0 top-[7px] h-1.5 w-1.5 rounded-full" />{t}</li>)}
+                </ul>
+                <button onClick={() => setLeitor(d.id)} style={{ color: AZUL }} className="text-[12px] font-bold mt-2.5">Ler o documento completo</button>
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="flex flex-col gap-2.5 mb-4">
           {DOCUMENTOS.map((d) => (
             <motion.button key={d.id} whileTap={{ scale: 0.98 }} onClick={() => setLeitor(d.id)} style={{ background: T.card }} className="rounded-[20px] shadow-md shadow-black/5 p-3.5 flex items-center gap-3 text-left">
@@ -311,6 +353,7 @@ export function AceiteObrigatorio({ T, nome, onAceitar, onSair }) {
             </motion.button>
           ))}
         </div>
+        )}
         <AceiteCampo T={T} aceito={aceito} onChange={setAceito} onAbrir={setLeitor} erro={tentou} />
         <motion.button whileTap={{ scale: 0.98 }} onClick={confirmar} disabled={ocupado} className="w-full mt-4 rounded-2xl py-3.5 text-[15px] font-extrabold text-white flex items-center justify-center gap-2 disabled:opacity-60"
           style={{ background: aceito ? `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` : "#8A97A8" }}>

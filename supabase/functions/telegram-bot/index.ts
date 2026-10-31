@@ -240,7 +240,7 @@ const ERRO_VINC: Record<string, string> = {
 };
 async function vincular(chat: number, texto: string) {
   const t = texto.trim().replace(/^\/start(@\w+)?\s*/i, "").trim();
-  if (!t) return falar(chat, "Olá! Eu lanço validade de produtos.\n\nPara começar, envie seu código:\n• Funcionário: o código de 8 dígitos gerado no app (Mais → Conta → Telegram)\n• Promotor: o código da sua marca (ex.: BAU-7K3QP)");
+  if (!t) return falar(chat, "👋 Oi! Eu sou o assistente de validade do Condor.\n\nAqui você lança a validade dos produtos sem abrir o app: é só me mandar o código de barras, o nome do produto ou uma foto da etiqueta. Eu confiro tudo com você antes de salvar.\n\nPra liberar o seu acesso, me envie o seu código:\n\n🧑‍💼 Funcionário: gere no app em Mais → Conta → Telegram (8 números)\n🏷️ Promotor: use o código da sua marca (ex.: BAU-7K3QP)");
   const func = /^\d{4}\s?-?\s?\d{4}$/.test(t);
   const prom = /^[A-Za-z]{3}-[A-Za-z0-9]{5}$/.test(t);
   if (!func && !prom) return falar(chat, "Não reconheci esse código. Funcionário: 8 dígitos do app. Promotor: código tipo BAU-7K3QP.");
@@ -256,10 +256,10 @@ async function vincular(chat: number, texto: string) {
     const k = Object.keys(ERRO_VINC).find((x) => (error.message || "").includes(x));
     return falar(chat, k ? "⚠️ " + ERRO_VINC[k] : "Não consegui vincular agora. Tente de novo.");
   }
-  return falar(chat, `✅ Pronto, ${data?.nome}! Telegram vinculado.\n\nAgora é só mandar o código de barras, o nome do produto ou uma foto — eu pergunto o que faltar e peço sua confirmação antes de lançar.`);
+  return falar(chat, `✅ Pronto, ${String(data?.nome || "").split(" ")[0]}! Seu Telegram está vinculado.\n\nAgora é só me mandar o código de barras, o nome do produto ou uma foto. Eu pergunto o que faltar e só lanço depois do seu “sim”.`);
 }
 
-const AJUDA = "Como usar:\n• Mande o código de barras, o nome do produto ou uma foto.\n• Ex.: “7891234567890 validade 20/11/2026 quantidade 8”\n• Eu pergunto o que faltar e peço confirmação.\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
+const AJUDA = "Como usar:\n\n📷 Mande uma foto, o código de barras ou o nome do produto\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n✅ Eu pergunto o que faltar e só lanço depois do seu “sim”\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
 
 // ---------- Entrada ----------
 async function processar(up: Record<string, any>) {
@@ -309,7 +309,7 @@ async function processar(up: Record<string, any>) {
   }
 
   if (!msg) return;
-  if (/^\/start/i.test(texto) || /^\/ajuda/i.test(texto)) { await falar(chat, `Olá, ${ctx.nome}!\n\n${AJUDA}`); await marcar("processada"); return; }
+  if (/^\/start/i.test(texto) || /^\/ajuda/i.test(texto)) { await falar(chat, `Olá, ${String(ctx.nome).split(" ")[0]}! 👋\n\n${AJUDA}`); await marcar("processada"); return; }
   if (/^\/cancelar/i.test(texto)) { const s = await sessaoAtiva(chat); if (s) await cancelar(chat, s.id); else await falar(chat, "Não há lançamento em andamento."); await marcar("processada"); return; }
   if (/^\/sair/i.test(texto)) { await sb.from("telegram_vinculos").delete().eq("chat_id", chat); await falar(chat, "Telegram desvinculado. Para usar de novo, vincule outra vez com um código."); await marcar("processada"); return; }
   if (texto.startsWith("/")) { await falar(chat, AJUDA); await marcar("processada"); return; }

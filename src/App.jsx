@@ -2577,6 +2577,13 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-01-telegram", data: "01/11/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Lançar validade pelo Telegram: converse com o bot, mande o código de barras, o nome ou uma foto e confirme. Vincule em Mais → Conta → Telegram." },
+    { tipo: "adicionado", ate: 7, texto: "Promotor com código fixo (ex.: ABC-12345) e link permanente: o código vale para um único Telegram." },
+    { tipo: "adicionado", ate: 5, texto: "Remover o Telegram de um funcionário ou promotor pelo menu de ações." },
+    { tipo: "adicionado", ate: 5, texto: "Pré-cadastro com setor: o encarregado cadastra a equipe já no setor dele; gerência e diretoria escolhem o setor do encarregado." },
+    { tipo: "melhorado", ate: 7, texto: "Ao atualizar os Termos, aparece só o que mudou, não o texto inteiro." },
+  ] },
   { id: "2026-10-30-inteligencia", data: "30/10/2026", itens: [
     { tipo: "adicionado", ate: 7, texto: "Na ronda, cada produto mostra um indicador de RISCO (calculado pelo histórico) e os de maior risco aparecem primeiro." },
     { tipo: "adicionado", ate: 5, texto: "Ronda inteligente: conferência completa, priorizada por risco, por amostragem ou só com os produtos que você escolher." },
@@ -10366,6 +10373,10 @@ function TelegramVinculo({ T, showToast }) {
     setCod(null); showToast("Telegram desvinculado."); carregar();
   }
   const fmt = (c) => String(c).replace(/^(\d{4})(\d{4})$/, "$1 $2");
+  async function copiarCodigo(c) {
+    try { await navigator.clipboard.writeText(String(c)); showToast("Código copiado. Cole no bot do Telegram."); }
+    catch { showToast("Não deu pra copiar. Segure o código para copiar manualmente.", "warn"); }
+  }
   if (!st) return null;
   return (
     <MaisBloco T={T} titulo="Telegram">
@@ -10379,12 +10390,14 @@ function TelegramVinculo({ T, showToast }) {
         ) : st.tipo === "promotor" ? (
           <>
             <p style={{ color: T.subtext }} className="text-xs">Abra o bot, toque em Iniciar e envie o seu código:</p>
-            <p style={{ background: T.chipBg, color: T.text }} className="text-lg font-mono font-bold text-center rounded-xl py-3 select-all">{st.codigo}</p>
+            <button onClick={() => copiarCodigo(st.codigo)} style={{ background: T.chipBg, color: T.text }} className="text-lg font-mono font-bold text-center rounded-xl py-3 w-full flex items-center justify-center gap-2 active:scale-[.98]">{st.codigo}<Copy size={16} color={T.subtext} /></button>
+            <p style={{ color: T.subtext }} className="text-[11px] text-center -mt-1.5">Toque no código para copiar</p>
           </>
         ) : cod ? (
           <>
             <p style={{ color: T.subtext }} className="text-xs">Abra o bot, toque em Iniciar e envie este código (vale 10 minutos):</p>
-            <p style={{ background: T.chipBg, color: T.text }} className="text-2xl font-mono font-bold text-center rounded-xl py-3 select-all tracking-widest">{fmt(cod.codigo)}</p>
+            <button onClick={() => copiarCodigo(cod.codigo)} style={{ background: T.chipBg, color: T.text }} className="text-2xl font-mono font-bold text-center rounded-xl py-3 w-full flex items-center justify-center gap-2.5 tracking-widest active:scale-[.98]">{fmt(cod.codigo)}<Copy size={18} color={T.subtext} /></button>
+            <p style={{ color: T.subtext }} className="text-[11px] text-center -mt-1.5">Toque no código para copiar</p>
           </>
         ) : (
           <button onClick={gerar} disabled={busy} style={{ background: BLUE, color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold disabled:opacity-60">{busy ? "Gerando…" : "Gerar código para vincular"}</button>

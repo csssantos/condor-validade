@@ -12,6 +12,8 @@ App avulso (sem vínculo com a empresa, sem CNPJ/DPO). PWA React+Vite+Tailwind+f
 1. Mudou algo que envolva usuário, login, senha, cadastro, dados pessoais, permissões, câmera/mic/notificações, IA, terceiros (novo serviço/fornecedor) ou coleta de dado novo → atualizar `src/Legal.jsx` (Termos, Privacidade, Direitos, Armazenamento/permissões) NO MESMO commit. Se a mudança for relevante, trocar `TERMOS_VERSAO` (data de hoje) para todos aceitarem de novo. Se precisar de tabela/RPC nova, atualizar `exportar_meus_dados` e a retenção descrita na Privacidade.
 2. Ao terminar cada pedido, atualizar este `CLAUDE.md` (mapa, regras, pendências) e, se for decisão/preferência do dono, a memória (`/areas/condor-validade-app.md`). Assim a próxima sessão não relê o app inteiro.
 3. Ler só o trecho necessário (grep + sed); nunca o App.jsx inteiro.
+4. **Toda publicação com mudança visível ao usuário**: adicionar uma entrada NO TOPO de `NOVIDADES` (App.jsx, tela "Sobre o app" + modal pós-atualização), com `ate` por cargo.
+5. **Ao trocar `TERMOS_VERSAO`**: adicionar entrada NO TOPO de `TERMOS_ALTERACOES` (Legal.jsx) com só o que foi acrescentado/alterado por documento (termos, privacidade, direitos, armazenamento). O aceite mostra só isso a quem já aceitou antes; texto completo só para quem é novo.
 
 ## Mapa de arquivos (src/)
 - `App.jsx` (~10,8k linhas, tudo junto). Não ler inteiro: use `grep -n "^function NomeDaTela"` e `sed -n` no trecho.
