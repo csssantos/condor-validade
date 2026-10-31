@@ -29,7 +29,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import VozSheet from "./VozSheet";
 import TelaBiparCracha from "./TelaBiparCracha";
-import { PalcoInicio } from "./Inicio";
+import { PalcoInicio, PalcoPagina } from "./Inicio";
 import { TelaCarregando, FUNDO_MARCA, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
@@ -4466,7 +4466,17 @@ function RondasView({ T, perfil, lojaAtiva, catalog, showToast, intent, onIntent
     : [{ id: "minhas", label: "Minhas rondas" }, { id: "tarefas", label: "Minhas tarefas" }];
   return (
     <div className="px-4 pt-4 pb-6 lg:px-0 lg:pt-0">
-      <div className="flex items-center justify-between gap-3 mb-4">
+      <PalcoPagina className="lg:hidden mb-4" titulo="Rondas" subtitulo={`Loja ${lojaAtiva?.numero_loja ?? "—"}${gestor ? "" : " · só o que foi designado a você"}`}
+        acao={gestor && <motion.button whileTap={{ scale: 0.95 }} onClick={() => setNova({ setor: null })} className="bg-white px-4 py-2.5 rounded-2xl text-xs font-extrabold flex items-center gap-1.5 shadow-md shrink-0" style={{ color: BLUE_DARK }}><Plus size={14} /> Iniciar ronda</motion.button>}>
+        <div className="grid grid-cols-3 gap-2">
+          {[["Em curso", lista.filter(emCurso).length], ["Minhas", minhasRondas.length], ["Encerradas", lista.length - lista.filter(emCurso).length]].map(([r, n]) => (
+            <div key={r} className="rounded-2xl py-2 text-center" style={{ background: "rgba(255,255,255,.13)", border: "1px solid rgba(255,255,255,.2)" }}>
+              <p className="text-[20px] font-extrabold leading-none tabular-nums">{n}</p><p className="text-[10.5px] font-semibold text-white/80 mt-1">{r}</p>
+            </div>
+          ))}
+        </div>
+      </PalcoPagina>
+      <div className="hidden lg:flex items-center justify-between gap-3 mb-4">
         <div><h2 className="text-lg font-extrabold">Ronda</h2><p style={{ color: T.subtext }} className="text-xs">Loja {lojaAtiva?.numero_loja ?? "—"}{gestor ? "" : " · só o que foi designado a você"}</p></div>
         {gestor && <button onClick={() => setNova({ setor: null })} style={{ background: "#1F9D55", color: "#fff" }} className="px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5"><Plus size={14} /> Iniciar ronda</button>}
       </div>
@@ -4480,7 +4490,7 @@ function RondasView({ T, perfil, lojaAtiva, catalog, showToast, intent, onIntent
               const st = RONDA_STATUS[r.status] || RONDA_STATUS.finalizada; const Icone = iconeDoSetor(r.setor);
               const pr = progresso[r.id]; const conf = pr ? pr.c : (r.encerrada_conferidos ?? 0); const tot = pr ? pr.t : r.total_itens;
               return (
-                <button key={r.id} onClick={() => abrir(r)} style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-3.5 text-left">
+                <button key={r.id} onClick={() => abrir(r)} style={{ background: T.card, borderColor: T.border }} className="border rounded-[22px] p-3.5 text-left shadow-md shadow-black/5">
                   <div className="flex items-start gap-3">
                     <div style={{ background: st.bg }} className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"><Icone size={18} color={st.color} /></div>
                     <div className="min-w-0 flex-1">
@@ -5787,11 +5797,11 @@ function DashPageHeader({ T, title, subtitle, right }) {
 
 function DashTabs({ T, value, onChange, options }) {
   return (
-    <div style={{ background: T.chipBg, scrollbarWidth: "none" }} className="inline-flex max-w-full overflow-x-auto rounded-xl p-1 gap-0.5">
+    <div style={{ background: T.chipBg, scrollbarWidth: "none" }} className="inline-flex max-w-full overflow-x-auto rounded-full p-1 gap-0.5">
       {options.map((o) => (
         <button key={o.id} onClick={() => onChange(o.id)}
-          style={value === o.id ? { background: T.card, color: o.color || RED_DARK, boxShadow: "0 1px 2px rgba(0,0,0,.08)" } : { color: T.subtext }}
-          className="text-xs font-semibold px-3.5 py-1.5 rounded-lg transition whitespace-nowrap shrink-0">{o.label}</button>
+          style={value === o.id ? { background: o.color || BLUE_DARK, color: "#fff", boxShadow: "0 2px 6px rgba(6,28,58,.25)" } : { color: T.subtext }}
+          className="text-xs font-bold px-3.5 py-1.5 rounded-full transition whitespace-nowrap shrink-0">{o.label}</button>
       ))}
     </div>
   );
@@ -7047,13 +7057,15 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [modoEmergencia, setModoEmergencia] = useState(false);
 
-  const valorEmRisco = enriched
-    .filter((i) => i.status.level === "alert" || i.status.level === "expired")
+  // Modo emergência: o valor em risco e os contadores passam a considerar só o que vence em até 2 dias (ou já venceu).
+  const baseNumeros = modoEmergencia ? enriched.filter((i) => i.status.d <= 2) : enriched;
+  const valorEmRisco = baseNumeros
+    .filter((i) => modoEmergencia || i.status.level === "alert" || i.status.level === "expired")
     .reduce((acc, i) => acc + (Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0), 0);
 
-  const vencidos = enriched.filter((i) => i.status.level === "expired").length;
-  const emAlerta = enriched.filter((i) => i.status.level === "alert").length;
-  const total = enriched.length;
+  const vencidos = baseNumeros.filter((i) => i.status.level === "expired").length;
+  const emAlerta = modoEmergencia ? baseNumeros.length - vencidos : baseNumeros.filter((i) => i.status.level === "alert").length;
+  const total = baseNumeros.length;
 
   // "PRIORIDADE DE PERDA": resumo pro card do dashboard — a lista completa mora na aba Prioridade Inteligente
   const resumoPrioridade = useMemo(() => {
@@ -7459,7 +7471,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
         style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-xl lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[28px] overflow-hidden max-h-[88vh] overflow-y-auto sm:rounded-[28px]">
         <div className="relative">
           {item.foto ? <img src={item.foto} alt="" className="w-full h-44 object-cover" /> : (
-            <div style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 100%)` }} className="w-full h-36 flex items-center justify-center"><Package size={40} color="#fff" className="opacity-80" /></div>
+            <div style={{ background: FUNDO_MARCA }} className="relative w-full h-36 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={44} color="#fff" className="relative opacity-90" /></div>
           )}
           <button onClick={onClose} className="absolute top-3 left-3 h-9 w-9 rounded-full bg-black/40 flex items-center justify-center"><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
           <span style={{ background: s.bg, color: s.fg }} className="absolute bottom-3 left-4 text-[11px] font-bold px-2.5 py-1 rounded-lg">{status.label}</span>

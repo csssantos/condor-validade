@@ -57,7 +57,7 @@ function Anel({ vencidos, alerta, ok, total, children }) {
             initial={{ strokeDasharray: `0 ${C}` }} animate={{ strokeDasharray: `${s.len} ${C - s.len}` }} transition={{ duration: 1.1, delay: 0.25 + k * 0.18, ease: "easeOut" }} />
         ))}
       </svg>
-      <div className="relative text-center px-6">{children}</div>
+      <div className="relative text-center px-5 max-w-[190px]">{children}</div>
     </div>
   );
 }
@@ -85,7 +85,10 @@ export function PalcoInicio({
   const hojeTxt = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
   const hoje = hojeTxt.charAt(0).toUpperCase() + hojeTxt.slice(1);
   const atencao = vencidos + alerta;
-  const recado = emergencia ? "Modo emergência: só o que vence em até 2 dias."
+  // o valor tem que caber dentro do anel (~170px): quanto mais dígitos, menor a letra
+  const textoValor = formatarMoeda(valor);
+  const tamanhoValor = Math.max(17, Math.min(32, Math.floor(168 / (formatarMoeda(valorNum).length * 0.58))));
+  const recado = emergencia ? "Emergência: só o que vence em até 2 dias"
     : vencidos > 0 ? (vencidos > 1 ? `${vencidos} vencidos pedem ação agora` : "1 vencido pede ação agora")
     : alerta > 0 ? `${alerta} perto de vencer`
     : total > 0 ? "Tudo sob controle" : "Nenhum produto monitorado ainda";
@@ -128,8 +131,8 @@ export function PalcoInicio({
         {/* anel de status com o valor em risco no centro */}
         <div className="mt-3">
           <Anel vencidos={vencidos} alerta={alerta} ok={ok} total={total}>
-            <p className="text-[10.5px] font-bold uppercase tracking-[.14em] text-white/70">Valor em risco</p>
-            <p className="text-[32px] font-extrabold leading-tight tabular-nums mt-0.5">{formatarMoeda(valor)}</p>
+            <p className="text-[10.5px] font-bold uppercase tracking-[.14em] text-white/70">{emergencia ? "Risco imediato" : "Valor em risco"}</p>
+            <p className="font-extrabold leading-tight tabular-nums mt-0.5 whitespace-nowrap" style={{ fontSize: tamanhoValor }}>{textoValor}</p>
             <p className="text-[11.5px] font-semibold mt-1 text-white/85 flex items-center justify-center gap-1.5 leading-snug">
               {atencao === 0 && total > 0 && !emergencia && <CheckCircle2 size={13} color={VERDE} />}{recado}
             </p>
@@ -144,5 +147,24 @@ export function PalcoInicio({
         </div>
       </div>
     </section>
+  );
+}
+
+
+// Cartão de abertura das páginas internas (celular): mesmo degradê, pontos e vidro da tela de carregamento.
+export function PalcoPagina({ titulo, subtitulo, acao, children, className = "" }) {
+  return (
+    <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 26 }}
+      className={`relative overflow-hidden rounded-[28px] text-white p-4 shadow-lg shadow-black/10 ${className}`} style={{ background: FUNDO_MARCA }}>
+      <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+      <div className="relative flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[22px] font-extrabold leading-tight tracking-tight">{titulo}</h2>
+          {subtitulo && <p className="text-[12.5px] text-white/75 mt-0.5">{subtitulo}</p>}
+        </div>
+        {acao}
+      </div>
+      {children && <div className="relative mt-3">{children}</div>}
+    </motion.section>
   );
 }
