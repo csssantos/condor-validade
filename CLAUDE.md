@@ -40,6 +40,10 @@ Polling 20s (`buscarVersaoPublicada`) → `novaVersao`. Deslogado: overlay `Atua
 - `vercel.json`: CSP, HSTS, X-Frame DENY etc. Se algo novo externo for chamado (fetch/script/img), liberar na CSP. `supabaseClient.js` tem freio no cliente (150 chamadas/10 s, pausa em 429/503).
 - Só no painel (não dá por código): ativar "Leaked password protection" (Auth → Providers → Email), limites/captcha de Auth (Auth → Rate limits), WAF/rate limit da Vercel (Firewall). `pg_net` está no schema public (aviso leve).
 
+## Pré-cadastro e setor (2026-10-31) — `supabase-preCadastro-setor.sql` (usuário roda)
+- `GestaoFuncionarios`: encarregado (nível 5) cadastra → setor travado no dele (`usuarios.setor`); gerência/diretoria/dev escolhem (padrão = `cargos.setor_padrao`); cargo nível 6 exige setor; encarregado (nível 5) não precisa de vínculo. `_vincular_pendente` copia o setor para a conta no 1º login.
+- Trigger `trg_pendente_regra_setor` em `funcionarios_pendentes` repete a regra no banco (erro 22023 mostrado na tela).
+
 ## Voz (regras de segurança)
 - `validarVoz` (voz.js) barra: validade passada (hoje vale), >5 anos, quantidade ≤0/absurda (5000 un, 500 kg), unidade fracionada, preço fora de 0,01–5000, nome inválido. VozSheet mostra os problemas e desabilita "Continuar"; `aplicarVoz` revalida. Palavra solta que não existe no cadastro vira `incompleto` (não cria produto); produto novo só com marca + produto. Busca é fonética (l→u, que→co, junta "bal duco"). Microfone: `garantirMicrofone` consulta Permissions API e guarda `condor_mic_liberado`.
 

@@ -5388,6 +5388,7 @@ function LojaFormSheet({ T, loja, onClose, onSalvo, showToast }) {
     if (error) {
       console.error(error);
       showToast(error.code === "23505" ? `Já existe a loja ${n}.` :
+        error.code === "22023" ? (error.message || "Setor inválido.") :
         error.code === "42501" ? "Sem permissão pra criar/editar lojas. Rode o SQL supabase-gestao-lojas.sql no Supabase." :
         "Não foi possível salvar a loja.", "warn");
       return;
@@ -5489,11 +5490,15 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
   const [meuId, setMeuId] = useState(null);
   const [acaoUsuario, setAcaoUsuario] = useState(null); // funcionário aberto no menu de ações
   const [acaoConvite, setAcaoConvite] = useState(null); // convite aberto no menu de ações
+  const [meuSetor, setMeuSetor] = useState(null);
   useEffect(() => { supabase.auth.getUser().then(({ data }) => setMeuId(data?.user?.id || null)); }, []);
+  useEffect(() => { if (meuId) supabase.from("usuarios").select("setor").eq("id", meuId).maybeSingle().then(({ data }) => setMeuSetor((data?.setor || "").trim() || null)); }, [meuId]);
+  const souEncarregado = nivelUsuario === 5;
 
   // Sem loja escolhida (ex.: dev sem loja própria) => assume a primeira da lista, pra nunca travar o pré-cadastro.
   useEffect(() => { if (!lojaSel && lojas.length) setLojaSel(lojaAtiva?.id || lojas[0].id); }, [lojas, lojaAtiva?.id]);
   const lojaObj = lojas.find((l) => l.id === lojaSel);
+  const cgSel = cargos.find((c) => String(c.id) === String(f.cargoId));
 
   async function carregar() {
     if (!lojaSel) { setAtivos([]); setPendentes([]); return; }
@@ -5536,10 +5541,14 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
     const mat = f.matricula.replace(/\D/g, "");
     if (!lojaSel) { showToast("Escolha a loja do funcionário.", "warn"); return; }
     if (!f.nome.trim() || !mat || !f.cargoId) { showToast("Preencha nome, matrícula (só números) e cargo no app.", "warn"); return; }
+    const cg = cargos.find((c) => String(c.id) === String(f.cargoId));
+    const setorFinal = souEncarregado ? (meuSetor || "") : f.setor.trim();
+    if (souEncarregado && !meuSetor) { showToast("Seu usuário não tem setor. Peça à gerência para definir o seu setor.", "warn"); return; }
+    if (cg && cg.nivel >= 6 && !setorFinal) { showToast("Escolha o setor do funcionário.", "warn"); return; }
     setSalvando(true);
     const { error } = await supabase.from("funcionarios_pendentes").insert({
       matricula: mat, nome: f.nome.trim(), cargo_nome_loja: f.cargoLoja.trim() || null, cargo_id: Number(f.cargoId),
-      setor: f.setor.trim() || null, loja_id: lojaSel, criado_por: "gestao-app",
+      setor: setorFinal || null, loja_id: lojaSel, criado_por: "gestao-app",
     });
     setSalvando(false);
     if (error) {
@@ -5661,12 +5670,14 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
             <GestaoCampo T={T} label="Nome completo"><input value={f.nome} onChange={(e) => setF((p) => ({ ...p, nome: e.target.value }))} style={inp} className={cls} /></GestaoCampo>
             <GestaoCampo T={T} label="Matrícula (crachá)" hint="Só números."><input value={f.matricula} onChange={(e) => setF((p) => ({ ...p, matricula: e.target.value.replace(/\D/g, "") }))} inputMode="numeric" style={inp} className={cls} /></GestaoCampo>
             <GestaoCampo T={T} label="Cargo no app (nível de acesso)">
-              <select value={f.cargoId} onChange={(e) => setF((p) => ({ ...p, cargoId: e.target.value }))} style={inp} className={cls}>
+              <select value={f.cargoId} onChange={(e) => { const cg = cargos.find((c) => String(c.id) === e.target.value); setF((p) => ({ ...p, cargoId: e.target.value, setor: souEncarregado ? "" : (cg?.setor_padrao || p.setor) })); }} style={inp} className={cls}>
                 <option value="">Selecione…</option>{cargos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </GestaoCampo>
             <GestaoCampo T={T} label="Cargo na loja (opcional)"><input value={f.cargoLoja} onChange={(e) => setF((p) => ({ ...p, cargoLoja: e.target.value }))} placeholder="Ex.: CPD, Repositor" style={inp} className={cls} /></GestaoCampo>
-            <GestaoCampo T={T} label="Setor (opcional)"><select value={f.setor} onChange={(e) => setF((p) => ({ ...p, setor: e.target.value }))} style={inp} className={cls}><option value="">Sem setor</option>{[...SETORES.filter((s) => s !== "Outro"), "Frente Caixa", ...(f.setor && !SETORES.includes(f.setor) && f.setor !== "Frente Caixa" ? [f.setor] : [])].map((s) => <option key={s} value={s}>{s}</option>)}</select></GestaoCampo>
+            {souEncarregado
+              ? <GestaoCampo T={T} label="Setor" hint="O funcionário entra no seu setor automaticamente."><div style={inp} className={cls}>{meuSetor || "Seu usuário está sem setor"}</div></GestaoCampo>
+              : <GestaoCampo T={T} label={cgSel && cgSel.nivel >= 6 ? "Setor (obrigatório)" : "Setor (opcional)"} hint={cgSel && cgSel.nivel === 5 ? "A conta do encarregado já começa com este setor." : undefined}><select value={f.setor} onChange={(e) => setF((p) => ({ ...p, setor: e.target.value }))} style={inp} className={cls}><option value="">{cgSel && cgSel.nivel >= 6 ? "Escolha o setor…" : "Sem setor"}</option>{[...SETORES.filter((s) => s !== "Outro"), "Frente Caixa", ...(f.setor && !SETORES.includes(f.setor) && f.setor !== "Frente Caixa" ? [f.setor] : [])].map((s) => <option key={s} value={s}>{s}</option>)}</select></GestaoCampo>}
             <button onClick={criarPendente} disabled={salvando} style={{ background: "#1F9D55" }} className="text-white font-bold text-sm py-3 rounded-2xl mt-1 flex items-center justify-center gap-2 disabled:opacity-60">
               {salvando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Pré-cadastrar
             </button>
