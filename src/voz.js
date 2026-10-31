@@ -181,7 +181,7 @@ export function interpretarVoz(texto, hoje = new Date()) {
   res.nome = nome ? titulo(nome) : "";
   res.setorSugerido = res.nome ? adivinharSetor(res.nome) : null;
   // "frango 500 gramas" (sem outra quantidade) em produto vendido a peso: os gramas são a quantidade, não o tamanho da embalagem
-  const gm = /\b(\d+(?:[.,]\d+)?)G\b/.exec(res.nome);
+  const gm = /\b(\d+(?:[.,]\d+)?)G\b/i.exec(res.nome);
   if (gm && res.quantidade == null && (res.setorSugerido === "Açougue" || res.setorSugerido === "Hortifruti")) {
     res.quantidade = Number(gm[1].replace(",", ".")) / 1000; res.porPeso = true;
     res.nome = res.nome.replace(gm[0], "").replace(/\s+/g, " ").trim();
