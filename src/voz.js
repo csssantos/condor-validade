@@ -50,7 +50,7 @@ function acharData(f, hoje) {
   let m;
 
   // 15/11, 15/11/2026, 15-11-26
-  if ((m = f.achar(/\b(\d{1,2})\s*[\/.\-]\s*(\d{1,2})(?:\s*[\/.\-]\s*(\d{2,4}))?\b/))) {
+  if ((m = f.achar(/\b(?:dia\s+)?(\d{1,2})\s*(?:[\/.\-]|\s+de\s+)\s*(\d{1,2})(?:\s*(?:[\/.\-]|\s+de\s+)\s*(\d{2,4}))?\b/))) {
     const dia = +m[1], mes = +m[2]; let ano = m[3] ? +m[3] : null;
     if (ano != null && ano < 100) ano += 2000;
     const d = resolverDiaMes(dia, mes, ano, h);
@@ -149,18 +149,17 @@ export function interpretarVoz(texto, hoje = new Date()) {
     f.tirar(m);
   }
 
-  // 3) quantidade: "12 unidades", "2 kg", "500 gramas", "quantidade 12", ou número no começo ("12 iogurtes")
-  m = f.achar(new RegExp(`\\b(\\d+(?:[.,]\\d+)?)\\s*(${UNID_QTD})\\b`));
-  if (m) {
-    let q = Number(m[1].replace(",", "."));
-    const un = m[2];
-    if (/^(kg|quilo|quilos|quilograma|quilogramas)$/.test(un)) res.porPeso = true;
-    else if (/^(g|grama|gramas)$/.test(un)) { res.porPeso = true; q = q / 1000; }
-    res.quantidade = q;
-    f.tirar(m);
-  } else if ((m = f.achar(/\bquantidade\s+(?:de\s+)?(\d+)\b/))) {
-    res.quantidade = Number(m[1]); f.tirar(m);
-  } else if ((m = f.achar(/^\s*(?:(?:cadastrar|adicionar|lancar|registrar|cadastra|adiciona|lanca|registra|cadastre|adicione|lance|registre)\s+)?(\d{1,4})\s+(?!de\b)/))) {
+  // 3) quantidade: "tem 40", "40 unidades/un/u", "2 kg", "quantidade 12", ou número no começo ("12 iogurtes").
+  // Gramas/ml/litros NÃO são quantidade: "90 g" é o tamanho da embalagem e fica no nome.
+  const UN_CONTA = "unidades?|unids?|un|u|caixas?|pacotes?|pecas?|garrafas?|latas?|potes?|bandejas?|sacos?|sache?s?|fardos?";
+  const num = (x) => Number(String(x).replace(",", "."));
+  if ((m = f.achar(/\b(?:tem|temos|quantidade|total|sao)\s+(?:de\s+)?(\d+(?:[.,]\d+)?)(?:\s*(kg|quilos?|quilogramas?)\b|\s*(?:unidades?|unids?|un|u|caixas?|pacotes?|pecas?)\b)?/))) {
+    res.quantidade = num(m[1]); if (m[2]) res.porPeso = true; f.tirar(m);
+  } else if ((m = f.achar(new RegExp(`\\b(\\d+(?:[.,]\\d+)?)\\s*(?:${UN_CONTA})\\b`)))) {
+    res.quantidade = num(m[1]); f.tirar(m);
+  } else if ((m = f.achar(/\b(\d+(?:[.,]\d+)?)\s*(?:kg|quilos?|quilogramas?)\b/))) {
+    res.quantidade = num(m[1]); res.porPeso = true; f.tirar(m);
+  } else if ((m = f.achar(/^\s*(?:(?:cadastrar|adicionar|lancar|registrar|cadastra|adiciona|lanca|registra|cadastre|adicione|lance|registre)\s+)?(\d{1,4})\s+(?!de\b|g\b|gr\b|ml\b|l\b|gramas?\b)/))) {
     res.quantidade = Number(m[1]);
     f.orig = f.orig.slice(0, m.index) + " " + f.orig.slice(m.index + m[0].length);
   }
@@ -178,8 +177,15 @@ export function interpretarVoz(texto, hoje = new Date()) {
   while (ps.length && conectores.has(semAcento(ps[0]))) ps.shift();
   while (ps.length && conectores.has(semAcento(ps[ps.length - 1]))) ps.pop();
   nome = ps.join(" ");
+  nome = nome.replace(/\bcom\s+(?=\d)/gi, "").replace(/\b(\d+(?:[.,]\d+)?)\s*(g|gr|gramas?|ml|l|litros?)\b/gi, (_, n, u) => n + (/^l/i.test(u) && u.length > 1 ? "L" : u.toUpperCase().replace(/^GR.*$/, "G")));
   res.nome = nome ? titulo(nome) : "";
   res.setorSugerido = res.nome ? adivinharSetor(res.nome) : null;
+  // "frango 500 gramas" (sem outra quantidade) em produto vendido a peso: os gramas são a quantidade, não o tamanho da embalagem
+  const gm = /\b(\d+(?:[.,]\d+)?)G\b/.exec(res.nome);
+  if (gm && res.quantidade == null && (res.setorSugerido === "Açougue" || res.setorSugerido === "Hortifruti")) {
+    res.quantidade = Number(gm[1].replace(",", ".")) / 1000; res.porPeso = true;
+    res.nome = res.nome.replace(gm[0], "").replace(/\s+/g, " ").trim();
+  }
   return res;
 }
 
@@ -227,7 +233,7 @@ const ABREV = {
 };
 const dobras = (t) => t.replace(/(.)\1+/g, "$1").replace(/[kq]/g, "c").replace(/w/g, "v").replace(/y/g, "i").replace(/h/g, "");
 function tokensDe(s) {
-  return semAcento(s).replace(/[^a-z0-9/ ]/g, " ").split(/\s+/).filter((t) => t && !STOP.has(t));
+  return semAcento(s).replace(/(\d)\s*(?:g|gr|gramas?|ml|kg|l|litros?)\b/g, "$1").replace(/[^a-z0-9/ ]/g, " ").split(/\s+/).filter((t) => t && !STOP.has(t));
 }
 const sing = (p) => p.replace(/(es|s)$/, "").replace(/[aeo]$/, "");
 function distancia(a, b) {
