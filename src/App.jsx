@@ -313,7 +313,8 @@ function produtoFromRow(r) {
     diasAlertaExtras: Array.isArray(r.dias_alerta_extras) ? r.dias_alerta_extras : [],
     emPromocao: !!r.em_promocao, precoPromocional: r.preco_promocional != null ? Number(r.preco_promocional) : null,
     criadoEm: r.criado_em, cadastradoPor: r.cadastrado_por || null, atualizadoPor: r.atualizado_por || null,
-    notificado10d: !!r.notificado_10d, familia: r.familia || null
+    notificado10d: !!r.notificado_10d, familia: r.familia || null,
+    lote: r.lote || null, semLote: !!r.sem_lote
   };
 }
 function produtoToRow(item) {
@@ -330,7 +331,8 @@ function produtoToRow(item) {
     em_promocao: !!item.emPromocao, preco_promocional: item.precoPromocional != null ? item.precoPromocional : null,
     criado_em: item.criadoEm || new Date().toISOString(),
     cadastrado_por: item.cadastradoPor || null, atualizado_por: item.atualizadoPor || null,
-    notificado_10d: !!item.notificado10d, familia: item.familia || detectarFamilia(item.nome) || null
+    notificado_10d: !!item.notificado10d, familia: item.familia || detectarFamilia(item.nome) || null,
+    lote: item.lote || null, sem_lote: !item.lote && !!item.semLote
   };
 }
 function historicoFromRow(r) {
@@ -398,7 +400,11 @@ async function supaFetchHistorico() {
   return (data || []).map(historicoFromRow);
 }
 async function supaUpsertProduto(item) {
-  const { error } = await supabase.from("produtos").upsert({ ...produtoToRow(item), loja_id: LOJA_ID_ATIVA });
+  let { error } = await supabase.from("produtos").upsert({ ...produtoToRow(item), loja_id: LOJA_ID_ATIVA });
+  if (error && /lote/i.test(error.message || "")) { // banco ainda sem a coluna de lote: salva sem ela
+    const { lote, sem_lote, ...semLote } = produtoToRow(item);
+    ({ error } = await supabase.from("produtos").upsert({ ...semLote, loja_id: LOJA_ID_ATIVA }));
+  }
   if (error) console.error("Erro ao salvar produto no Supabase:", error);
 }
 async function supaDeleteProduto(id) {
@@ -2578,6 +2584,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Lote real: ao lançar uma validade (no app ou no Telegram) você informa o número do lote impresso na embalagem, ou marca que não tem lote. O app mostra os lotes já lançados do produto e cria um lote novo quando o número é diferente. O lote aparece no detalhe do produto e nas listas." },
     { tipo: "adicionado", ate: 5, texto: "Aprovar produtos novos: produto que não existe na loja e foi lançado pelo Telegram agora espera a aprovação de um encarregado ou superior (Mais → Aprovar produtos novos). Você edita nome, setor e imagem, aprova (cadastra o produto e lança a validade) ou recusa com motivo. A validade lançada não muda." },
     { tipo: "adicionado", ate: 7, texto: "Telegram: produto novo vai para aprovação de um encarregado e você recebe o aviso no bot (aprovado ou recusado, com o motivo). Novos banners do Bipi: validade lançada, aguardando aprovação, aprovado e rejeitado." },
     { tipo: "adicionado", ate: 7, texto: "Lançar validade pelo Telegram: converse com o bot, mande o código de barras ou o nome e confirme. Produto que não está no app? O bot busca a imagem na internet, você confirma e ele cadastra. Vincule em Mais → Conta → Telegram." },
@@ -3259,7 +3266,7 @@ function LinhaProduto({ T, item, idx = 0, lotes, totalQuantidade, piorStatus, se
         <div className="px-3 pb-3 flex flex-col gap-1.5">
           {lotes.map((l) => { const cl = corDoNivel(l.status.level); return (
             <button key={l.id} onClick={() => onOpenDetail(l)} style={{ background: T.chipBg }} className="w-full text-left rounded-2xl px-3 py-2.5 flex items-center justify-between gap-2">
-              <span style={{ color: T.text }} className="text-[12.5px] font-bold">{formatarData(l.validade)} <span style={{ color: T.subtext }} className="font-medium">· {l.quantidade || 1} un</span></span>
+              <span style={{ color: T.text }} className="text-[12.5px] font-bold">{formatarData(l.validade)} <span style={{ color: T.subtext }} className="font-medium">· {l.lote ? `Lote ${l.lote} · ` : ""}{l.quantidade || 1} un</span></span>
               <span style={{ background: cl.soft, color: cl.cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1">{l.status.label}</span>
             </button>
           ); })}
@@ -7938,6 +7945,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             <div className="text-right">
               <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-0.5">Validade</p>
               <p className="text-[13px] font-bold">{formatarData(item.validade)}</p>
+              {(item.lote || item.semLote) && <p style={{ color: T.subtext }} className="text-[10.5px] font-semibold mt-0.5">{item.lote ? `Lote ${item.lote}` : "Sem lote"}</p>}
             </div>
             <div className="col-span-2 pt-2.5 border-t" style={{ borderColor: T.border }}>
               <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-0.5 flex items-center gap-1"><Barcode size={11} /> Código do produto</p>
@@ -8013,7 +8021,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                         <div className="flex items-center gap-1.5">
                           <span style={{ background: sl.bg, color: sl.fg }} className="text-[9px] font-bold px-1.5 py-0.5 rounded">{sl.label}</span>
                           <span className="text-xs font-semibold">{formatarData(l.validade)}</span>
-                          <span style={{ color: T.subtext }} className="text-[10px]">· {l.quantidade || 1}{l.porPeso ? "kg" : "un"}</span>
+                          <span style={{ color: T.subtext }} className="text-[10px]">· {l.lote ? `Lote ${l.lote} · ` : ""}{l.quantidade || 1}{l.porPeso ? "kg" : "un"}</span>
                         </div>
                         {gerarCodigoLocalizacao(l) && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5 font-mono">{gerarCodigoLocalizacao(l)}</p>}
                       </div>
@@ -9167,6 +9175,8 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
     : (product.unidadeMedida || unidadeSugeridaPeloSetor(product.setor)));
   const [observacoes, setObservacoes] = useState(editing ? editing.observacoes || "" : "");
   const [confirmarDuplicado, setConfirmarDuplicado] = useState(false);
+  const [lote, setLote] = useState(editing ? editing.lote || "" : "");
+  const [semLote, setSemLote] = useState(editing ? !!editing.semLote : false);
   const [local, setLocal] = useState(editing ? editing.local || "loja" : "loja");
   const [corredorDeposito, setCorredorDeposito] = useState(editing ? editing.corredorDeposito || "" : product.corredorDeposito || "");
   const [moduloDeposito, setModuloDeposito] = useState(editing ? editing.moduloDeposito || "" : product.moduloDeposito || "");
@@ -9190,15 +9200,19 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
     });
   }
 
-  const podeSalvar = !!validade && opcoes.length > 0 && !!tamanho.trim();
+  const loteNorm = lote.trim().toUpperCase();
+  const loteValido = /^[A-Z0-9][A-Z0-9./ -]{0,19}$/.test(loteNorm);
+  const loteOk = !!editing || porPeso || semLote || loteValido; // lançamento novo exige o lote impresso (ou "sem lote" dito de propósito)
+  const podeSalvar = !!validade && opcoes.length > 0 && !!tamanho.trim() && loteOk;
   const jaVencido = !!validade && diasRestantesAtual !== null && diasRestantesAtual <= 0;
   const podeRegistrarPerda = jaVencido && !!tamanho.trim() && !!motivoBaixaDireta && Number(quantidade) > 0;
   const valorTotal = (Number(quantidade) || 0) * (Number(precoUnitario) || 0);
 
   // Itens por peso costumam repetir o mesmo código de barras (etiqueta da balança) com pesos diferentes —
   // não é duplicidade real, então não bloqueia/avisa nesse caso.
+  const lotesDoProduto = items.filter((i) => i.barcode === barcode && (!editing || i.id !== editing.id)).sort((a, b) => String(a.validade).localeCompare(String(b.validade)));
   const duplicado = !editing && validade && !porPeso
-    ? items.some((i) => i.barcode === barcode && i.validade === validade)
+    ? (loteNorm ? lotesDoProduto.some((i) => i.lote === loteNorm) : lotesDoProduto.some((i) => i.validade === validade && !i.lote))
     : false;
 
   function handleRegistrarPerda() {
@@ -9219,6 +9233,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
       precoUnitario: clampNumero(precoUnitario, 0, 999999),
       porPeso,
       tamanho: sanitizarTexto(tamanho.trim(), 20), unidadeMedida,
+      lote: !porPeso && loteValido ? loteNorm : null, semLote: !porPeso && !loteValido && semLote,
       observacoes: sanitizarTexto(observacoes.trim(), 300),
       local, corredorDeposito: local === "deposito" ? (corredorDeposito || null) : null,
       moduloDeposito: local === "deposito" ? (moduloDeposito || null) : null,
@@ -9247,6 +9262,29 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
             style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder, boxSizing: "border-box", maxWidth: "100%", WebkitAppearance: "none", appearance: "none" }}
             className="w-full min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
         </div>
+
+        {!porPeso && (
+          <div>
+            <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 flex items-center gap-1.5"><Barcode size={13} /> Lote <span style={{ color: RED }}>*</span></label>
+            <input value={lote} maxLength={20} disabled={semLote} autoCapitalize="characters"
+              onChange={(e) => { setLote(e.target.value.replace(/[^A-Za-z0-9./ -]/g, "").toUpperCase().slice(0, 20)); setSemLote(false); }}
+              placeholder="Número do lote impresso na embalagem (ex.: L2410A)"
+              style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder, opacity: semLote ? 0.5 : 1 }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 uppercase" />
+            <button type="button" onClick={() => { setSemLote(!semLote); if (!semLote) setLote(""); }} style={{ color: semLote ? BLUE : T.subtext }} className="mt-1.5 flex items-center gap-1.5 text-[12px] font-semibold">
+              <span style={{ borderColor: semLote ? BLUE : T.inputBorder, background: semLote ? BLUE : "transparent" }} className="h-4 w-4 rounded border flex items-center justify-center">{semLote && <Check size={11} color="#fff" />}</span>
+              Esta embalagem não tem lote impresso
+            </button>
+            {lotesDoProduto.length > 0 && (
+              <div style={{ background: T.chipBg }} className="mt-2 rounded-xl p-2.5">
+                <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide mb-1">Já lançados deste produto ({lotesDoProduto.length})</p>
+                {lotesDoProduto.slice(0, 5).map((l) => (
+                  <p key={l.id} style={{ color: T.text }} className="text-[12px]">{l.lote ? `Lote ${l.lote}` : "Sem lote"} · vence {formatarData(l.validade)} · {l.quantidade || 1} {l.porPeso ? "kg" : "un"}</p>
+                ))}
+                <p style={{ color: T.subtext }} className="text-[11px] mt-1">Se o lote da embalagem for diferente, ele entra como um lote novo.</p>
+              </div>
+            )}
+          </div>
+        )}
 
         <div>
           <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Tamanho / quantidade da embalagem <span style={{ color: RED }}>*</span></label>
@@ -9391,7 +9429,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
         {duplicado && (
           <div style={{ background: RED_SOFT, color: RED_DARK }} className="text-xs font-medium px-3 py-2 rounded-xl flex items-start gap-2">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-            <span>Já existe um produto com este código e esta mesma validade cadastrado. Confirme novamente para salvar mesmo assim.</span>
+            <span>{loteNorm ? `O lote ${loteNorm} já está lançado neste produto.` : "Já existe um lançamento deste produto com esta validade e sem lote."} Confirme novamente para salvar mesmo assim.</span>
           </div>
         )}
       </div>

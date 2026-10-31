@@ -21,6 +21,7 @@ GLIFOS = {
  "x": f'<circle cx="334" cy="150" r="15" fill="{RED}"/><path d="M327 143 L341 157 M341 143 L327 157" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/>',
  "plus": f'<circle cx="334" cy="150" r="15" fill="{GREEN}"/><path d="M334 141 V159 M325 150 H343" stroke="#fff" stroke-width="5" stroke-linecap="round"/>',
  "clock": f'<circle cx="334" cy="150" r="15" fill="{AMBER}"/><circle cx="334" cy="150" r="10.5" fill="#fff"/><path d="M334 143 V150 L339 153" fill="none" stroke="{NAVY}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>',
+ "lote": f'<rect x="316" y="136" width="36" height="28" rx="5" fill="#fff" stroke="{BLUE}" stroke-width="2.6"/><text x="334" y="149" font-family="Helvetica,Arial,sans-serif" font-size="9" font-weight="800" text-anchor="middle" fill="{RED}">LOTE</text><path d="M322 155 H346 M322 159 H339" stroke="{NAVY}" stroke-width="2.2" stroke-linecap="round"/>',
  "info": f'<circle cx="334" cy="150" r="15" fill="{BLUE}"/><circle cx="334" cy="142" r="2.4" fill="#fff"/><path d="M334 148 V159" stroke="#fff" stroke-width="4" stroke-linecap="round"/>',
 }
 OLHOS_OK = "#2ECC71"
@@ -38,6 +39,7 @@ ESTADOS = {
  "produto":    ("barcode",  OLHOS_OK, "sorriso", "Qual é o produto?", "Envie o código de barras ou o nome do produto.", BLUE, "PRODUTO"),
  "validade":   ("calendar", OLHOS_OK, "sorriso", "Qual a validade?", "Escreva a data, por exemplo 15/12/2026.", BLUE, "VALIDADE"),
  "quantidade": ("qty",      OLHOS_OK, "sorriso", "Quantas unidades?", "Se for peso, diga os quilos, por exemplo 2,5.", BLUE, "QUANTIDADE"),
+ "lote":       ("lote",     OLHOS_OK, "sorriso", "Qual o lote?", "Número impresso na embalagem, perto da validade.", BLUE, "LOTE"),
  "conferir":   ("lupa",     OLHOS_OK, "sorriso", "Confira os dados", "Só salvo depois do seu “sim”.", BLUE, "CONFERÊNCIA"),
  "sucesso":    ("check",    OLHOS_OK, "sorriso", "Lançado!", "Validade registrada no app.", GREEN, "CONCLUÍDO"),
  "atencao":    ("warn",     AMBER,    "o",       "Atenção", "Veja o aviso abaixo e tente de novo.", AMBER, "AVISO"),
