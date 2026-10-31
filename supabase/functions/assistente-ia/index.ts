@@ -18,10 +18,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// CORS: só o site do app (e previews/localhost) pode chamar do navegador
+const ORIGEM_OK = /^https:\/\/condor-validade[a-z0-9-]*\.vercel\.app$|^http:\/\/localhost(:\d+)?$/;
+let CORS: Record<string, string> = { "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
@@ -313,6 +312,7 @@ async function conversar(contents: any[], c: Ctx) {
 
 // ---------------------------------------------------------------- handler
 Deno.serve(async (req) => {
+  { const o = req.headers.get("origin") || ""; CORS = { "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin", ...(ORIGEM_OK.test(o) ? { "Access-Control-Allow-Origin": o } : {}) }; }
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ erro: "método não permitido" }, 405);
   let body: any = {};
@@ -321,6 +321,21 @@ Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL")!, anon = Deno.env.get("SUPABASE_ANON_KEY")!;
   const auth = req.headers.get("Authorization") || "";
   const sb = createClient(url, anon, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
+
+  // segurança: nada abaixo roda sem usuário logado; diagnósticos só para DEV/DIRETOR; máx. 8 chamadas/min por usuário
+  {
+    const { data: uu } = await sb.auth.getUser();
+    if (!uu?.user) return json({ erro: "Faça login novamente." }, 401);
+    try {
+      const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+      const { data: okRl, error: eRl } = await admin.rpc("rl_servico", { p_chave: uu.user.id, p_bucket: "assistente", p_max: 8 });
+      if (!eRl && okRl === false) return json({ erro: "Muitas perguntas seguidas. Aguarde 1 minuto.", codigo: "limite" }, 429);
+    } catch (_) { /* sem o SQL de segurança, segue sem limite por minuto */ }
+    if (["modelos", "status", "teste_ferramentas"].includes(body?.acao)) {
+      const { data: nv } = await sb.rpc("nivel_do_usuario");
+      if (nv == null || nv > 2) return json({ erro: "Sem permissão." }, 403);
+    }
+  }
 
   // diagnóstico: confirma que a chave está configurada e que a API responde (sem dados da loja)
   if (body?.acao === "modelos") {

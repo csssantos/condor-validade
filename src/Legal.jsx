@@ -140,6 +140,7 @@ export const DOCUMENTOS = [
         ] },
         { t: "8. Como protegemos", p: [
           "Conexão criptografada (HTTPS), senhas protegidas pelo serviço de autenticação, controle de acesso por cargo e loja no banco de dados (RLS), trilha de auditoria e registro de login.",
+          "Proteção contra abuso: limitamos quantas requisições cada conta (ou, sem login, cada endereço IP) pode fazer por minuto. Esses contadores são temporários (apagados em poucas horas) e servem só para evitar sobrecarga e ataques. Também usamos cabeçalhos de segurança no site, bloqueio de acesso de quem não está logado e funções internas trancadas.",
           "Nenhum sistema é 100% seguro. Se houver incidente que possa causar risco relevante, avisaremos você e a Autoridade Nacional de Proteção de Dados (ANPD) nos termos da lei.",
         ] },
         { t: "9. Seus direitos", p: [

@@ -810,8 +810,9 @@ async function inscreverPush(usuario) {
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
     const { data: au } = await supabase.auth.getUser();
     const base = { endpoint: sub.endpoint, subscription: sub.toJSON(), usuario: usuario || null, loja_id: LOJA_ID_ATIVA };
-    const { error: errPush } = await supabase.from("push_subscriptions").upsert({ ...base, usuario_id: au?.user?.id || null });
-    if (errPush) await supabase.from("push_subscriptions").upsert(base); // banco sem a coluna usuario_id ainda
+    if (!au?.user?.id) return;
+    const { error: errPush } = await supabase.rpc("salvar_push", { p_endpoint: base.endpoint, p_subscription: base.subscription, p_usuario: base.usuario, p_loja: base.loja_id });
+    if (errPush) console.error("Falha ao salvar push:", errPush.message);
   } catch (e) { console.error("Falha ao inscrever push:", e); }
 }
 
@@ -8651,58 +8652,6 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
     e.target.value = "";
   }
 
-  // Lista de modelos a tentar em ordem — o Google aposenta modelos do Gemini com frequência (o
-  // gemini-2.0-flash usado antes foi desativado). Se o primeiro da lista não existir mais (erro 404),
-  // tenta automaticamente o próximo, então uma futura aposentadoria não derruba a função de novo.
-  // IMPORTANTE: "pro" é o modelo mais lento da família (feito pra raciocínio complexo) — pra uma
-  // tarefa simples de identificar produto numa foto, "flash" já resolve muito mais rápido com
-  // qualidade equivalente. Por isso ele vai por último, só como último recurso.
-  const GEMINI_MODELOS = ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-pro"];
-  const TIMEOUT_POR_MODELO_MS = 8000;
-
-  async function chamarGemini(apiKey, base64) {
-    let ultimoErro = null;
-    for (const modelo of GEMINI_MODELOS) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_POR_MODELO_MS);
-      try {
-        const resp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            signal: controller.signal,
-            body: JSON.stringify({
-              contents: [{
-                parts: [
-                  {
-                    text: `Identifique o produto de supermercado nesta foto (nome comercial completo, com marca se visível). ` +
-                      `Escolha o setor mais adequado dentre exatamente estas opções: ${SETORES.join(", ")}. ` +
-                      `Responda SOMENTE com um JSON válido, sem markdown, no formato exato: {"nome": "...", "setor": "..."}`
-                  },
-                  { inline_data: { mime_type: "image/jpeg", data: base64 } }
-                ]
-              }]
-            })
-          }
-        );
-        clearTimeout(timeoutId);
-        if (resp.status === 404) { ultimoErro = new Error(`modelo ${modelo} indisponível`); continue; }
-        const data = await resp.json();
-        if (data.error) { ultimoErro = new Error(data.error.message || "erro na API do Gemini"); continue; }
-        const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-        const limpo = texto.replace(/```json|```/g, "").trim();
-        const resultado = JSON.parse(limpo);
-        if (!resultado.nome) { ultimoErro = new Error("resposta sem nome"); continue; }
-        return resultado;
-      } catch (e) {
-        clearTimeout(timeoutId);
-        ultimoErro = e.name === "AbortError" ? new Error(`modelo ${modelo} demorou mais de ${TIMEOUT_POR_MODELO_MS / 1000}s`) : e;
-      }
-    }
-    throw ultimoErro || new Error("Gemini indisponível");
-  }
-
   async function identificarComIA() {
     if (!foto) return;
     setCarregandoIA(true);
@@ -8710,9 +8659,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
     const base64 = foto.split(",")[1];
     const erros = [];
 
-    // Caminho preferido: Edge Function "identificar-produto" (roda no servidor, não expõe
-    // chave de API no navegador). Se ela falhar por qualquer motivo, cai pro Gemini direto do
-    // cliente como reforço, pra não deixar a função inteira fora do ar.
+    // Só a Edge Function "identificar-produto" (a chave da IA fica no servidor, nunca no navegador).
     try {
       const { data, error } = await supabase.functions.invoke("identificar-produto", { body: { imagemBase64: base64 } });
       if (error) throw error;
@@ -8730,18 +8677,8 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
       console.warn("Edge Function identificar-produto falhou, tentando Gemini direto:", e);
     }
 
-    try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("VITE_GEMINI_API_KEY não configurada no app");
-      const resultado = await chamarGemini(apiKey, base64);
-      setNome(formatarNomeProfissional(resultado.nome));
-      if (resultado.setor && SETORES.includes(resultado.setor)) setSetor(resultado.setor);
-      setOrigem("ia");
-    } catch (e) {
-      erros.push(`Gemini direto: ${e?.message || e}`);
-      console.error("Falha ao identificar com IA:", erros.join(" | "));
-      setErroIA(erros.join(" | "));
-    }
+    console.error("Falha ao identificar com IA:", erros.join(" | "));
+    setErroIA(erros.join(" | "));
     setCarregandoIA(false);
   }
 

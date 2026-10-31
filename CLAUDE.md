@@ -26,6 +26,14 @@ Polling 20s (`buscarVersaoPublicada`) → `novaVersao`. Deslogado: overlay `Atua
 - `apply_migration` costuma ser cancelado pelo cliente: gerar arquivo .sql, enviar com SendUserFile e o usuário roda; depois conferir com `execute_sql`.
 - Tabelas novas legais: `consentimentos`, `solicitacoes_lgpd` + RPCs `registrar_aceite`, `criar_solicitacao_lgpd`, `exportar_meus_dados`. Catálogo: `catalogo` (nomes em CAIXA ALTA abreviados: BISC, CHOC., LING.).
 
+## Segurança (2026-10-31) — arquivo `supabase-seguranca.sql` (usuário roda; tem AUTO-TESTE que desfaz tudo se falhar)
+- RLS por loja (`loja_ok(loja_id)`), por cargo (`nivel_do_usuario()`); `anon` só lê `lojas`/`cargos` e chama `buscar_funcionario_pendente`. Trilhas (historico, auditoria, login_auditoria, validade_alteracoes) só inserção. `usuarios` sem escrita direta (cargo/loja só via RPC) — isso fechou o furo de o usuário editar o próprio cargo.
+- Funções: revoke de PUBLIC/anon em todas; internas (`_*`, `condor_*`, triggers) trancadas. Nova função pública do app → `grant execute ... to authenticated` (o padrão agora é SEM permissão).
+- Limite por minuto: `rl_checar(bucket,max)` (triggers `trg_limite` em produtos/catalogo/historico/auditoria/validade_alteracoes/login_auditoria/convites/pendentes) e RPCs sensíveis embrulhadas (original renomeada `_rl_<nome>`; ao editar uma delas, editar a `_rl_`). DEV/DIRETOR (nível<=2) isentos. Edge Functions usam `rl_servico` (fail-open se o SQL não foi aplicado). Contadores em `limite_uso` (limpa por cron).
+- Push: cliente grava inscrição via RPC `salvar_push` (tabela sem escrita direta). `enviar-push` v8 só aceita `{id}`/`{avisoId}` e lê tudo do banco, envia só para a loja do produto. `identificar-produto` v8 exige login + limite; Gemini no cliente REMOVIDO (não usar VITE_GEMINI_API_KEY). `assistente-ia`: versão do repo endurecida (login antes de tudo, diagnósticos só nível<=2, CORS restrito) — PRECISA SER PUBLICADA (arquivo grande, copiar do repo).
+- `vercel.json`: CSP, HSTS, X-Frame DENY etc. Se algo novo externo for chamado (fetch/script/img), liberar na CSP. `supabaseClient.js` tem freio no cliente (150 chamadas/10 s, pausa em 429/503).
+- Só no painel (não dá por código): ativar "Leaked password protection" (Auth → Providers → Email), limites/captcha de Auth (Auth → Rate limits), WAF/rate limit da Vercel (Firewall). `pg_net` está no schema public (aviso leve).
+
 ## Teste e publicação (economiza tokens)
 - Sintaxe: `/opt/npm-tools/node_modules/esbuild/bin/esbuild src/App.jsx --loader:.js=jsx --log-level=error`.
 - Voz: `node teste-voz.mjs` (25 casos devem passar).
