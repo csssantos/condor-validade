@@ -71,6 +71,11 @@ function acharData(f, hoje) {
     else d = new Date(h.getFullYear(), h.getMonth() + n, h.getDate());
     f.tirar(m); return d;
   }
+  // datas no passado: entendidas de propósito para a trava (validarVoz) barrar
+  if ((m = f.achar(/\banteontem\b/))) { f.tirar(m); return somarDias(h, -2); }
+  if ((m = f.achar(/\bontem\b/))) { f.tirar(m); return somarDias(h, -1); }
+  if ((m = f.achar(/\b(?:ha|faz)\s+(\d{1,3})\s+dias?\b/))) { f.tirar(m); return somarDias(h, -Number(m[1])); }
+  if ((m = f.achar(/\bsemana\s+passada\b/))) { f.tirar(m); return somarDias(h, -7); }
   if ((m = f.achar(/\bdepois\s+de\s+amanha\b/))) { f.tirar(m); return somarDias(h, 2); }
   if ((m = f.achar(/\bamanha\b/))) { f.tirar(m); return somarDias(h, 1); }
   if ((m = f.achar(/\bhoje\b/))) { f.tirar(m); return h; }
@@ -231,7 +236,7 @@ const ABREV = {
   natural: ["nat", "NAT."], integral: ["integ", "INTEG."], tradicional: ["trad", "TRAD."], apresuntado: ["apres", "APRES."], presunto: ["pres", "PRES."],
   gramas: null, quilos: null,
 };
-const dobras = (t) => t.replace(/(.)\1+/g, "$1").replace(/[kq]/g, "c").replace(/w/g, "v").replace(/y/g, "i").replace(/h/g, "");
+const dobras = (t) => t.replace(/l(?=[^aeiou ])/g, "u").replace(/(.)\1+/g, "$1").replace(/[kq]/g, "c").replace(/w/g, "v").replace(/y/g, "i").replace(/h/g, "").replace(/[aeiou]$/, (v) => (v === "e" ? "o" : v));
 function tokensDe(s) {
   return semAcento(s).replace(/(\d)\s*(?:g|gr|gramas?|ml|kg|l|litros?)\b/g, "$1").replace(/[^a-z0-9/ ]/g, " ").split(/\s+/).filter((t) => t && !STOP.has(t));
 }
@@ -271,6 +276,22 @@ function pontuar(qs, pts) {
 
 // Resultado: { tipo: "encontrado" | "varios" | "marca" | "novo", candidatos: [{chave, entrada, exato}], nomeNovo, correcoes }
 export function buscarNoCatalogo(nomeFalado, catalogo) {
+  const r = buscaBase(nomeFalado, catalogo);
+  if (r.tipo === "novo") {
+    // "bal duco" -> "balduco": tenta juntar palavras vizinhas antes de desistir
+    const qs = tokensDe(nomeFalado);
+    for (let i = 0; i < qs.length - 1; i++) {
+      const juntas = [...qs.slice(0, i), qs[i] + qs[i + 1], ...qs.slice(i + 2)].join(" ");
+      const r2 = buscaBase(juntas, catalogo);
+      if (r2.tipo !== "novo") return r2;
+    }
+    // palavra solta que não existe no cadastro NÃO vira produto novo: pede nome completo (marca + produto)
+    const letras = semAcento(String(nomeFalado || "")).replace(/[^a-z]/g, "");
+    if (qs.length < 2 || letras.length < 5) return { tipo: "incompleto", candidatos: [] };
+  }
+  return r;
+}
+function buscaBase(nomeFalado, catalogo) {
   const qs = tokensDe(nomeFalado);
   if (qs.length === 0) return { tipo: "novo", candidatos: [], ...formatarNomeNovo(nomeFalado, catalogo) };
   const lista = [];
@@ -327,4 +348,27 @@ export function formatarNomeNovo(nome, catalogo) {
     return w.toUpperCase();
   });
   return { nomeNovo: partes.join(" "), correcoes };
+}
+
+
+// Trava de sanidade: o que é impossível/absurdo no app nunca passa (data passada, quantidade, preço, nome).
+// Devolve a lista de problemas em português; vazia = pode seguir.
+export function validarVoz(res, hoje = new Date()) {
+  const p = [];
+  const h0 = inicioDoDia(hoje);
+  if (res.validade) {
+    const [a, m, d] = res.validade.split("-").map(Number);
+    const dv = new Date(a, m - 1, d);
+    if (dv < h0) p.push(`A validade entendida (${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${a}) já passou. Só lanço produto com validade de hoje em diante.`);
+    else if (dv > new Date(h0.getFullYear() + 5, h0.getMonth(), h0.getDate())) p.push("Essa validade está a mais de 5 anos. Confira a data falada.");
+  }
+  if (res.quantidade != null) {
+    const q = Number(res.quantidade);
+    if (!Number.isFinite(q) || q <= 0) p.push("A quantidade precisa ser maior que zero.");
+    else if (res.porPeso ? q > 500 : q > 5000) p.push(`Quantidade absurda (${String(q).replace(".", ",")}${res.porPeso ? " kg" : ""}). Confira o que foi falado.`);
+    else if (!res.porPeso && !Number.isInteger(q)) p.push("Quantidade em unidades precisa ser um número inteiro.");
+  }
+  if (res.precoUnitario != null && (!(res.precoUnitario > 0) || res.precoUnitario > 5000)) p.push("Preço fora do possível (de R$ 0,01 a R$ 5.000,00).");
+  if (res.nome && (res.nome.length > 120 || !/[A-Za-zÀ-ÿ]{3}/.test(res.nome))) p.push("Não entendi o nome do produto. Fale de novo.");
+  return p;
 }

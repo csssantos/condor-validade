@@ -194,6 +194,7 @@ export const DOCUMENTOS = [
       ] },
       { t: "Microfone e voz", p: [
         "Usado só quando você toca no botão de voz. O reconhecimento é feito pelo seu navegador/aparelho e pode ser enviado ao fornecedor dele para virar texto. Você pode digitar no lugar.",
+        "Para não pedir a permissão toda hora, guardamos neste aparelho só um aviso de que você já liberou o microfone. O app não grava áudio: o microfone só fica ativo enquanto você fala. Por segurança, o app também recusa por voz datas já passadas, quantidades e preços impossíveis.",
       ] },
       { t: "Notificações", p: [
         "Só enviamos alertas de validade, avisos e rondas depois que você autorizar. Para desligar: sino no topo do app ou nas configurações do aparelho.",

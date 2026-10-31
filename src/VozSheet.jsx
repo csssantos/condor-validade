@@ -4,7 +4,28 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Mic, Check, X, RotateCcw, Calendar, Package, Hash, DollarSign, MapPin, AlertTriangle } from "lucide-react";
-import { interpretarVoz, buscarNoCatalogo, formatarNomeNovo, descreverData } from "./voz";
+import { interpretarVoz, buscarNoCatalogo, formatarNomeNovo, descreverData, validarVoz } from "./voz";
+
+// Microfone: pede a permissão uma vez e lembra (neste aparelho) que a pessoa liberou, pra não pedir toda hora.
+const CHAVE_MIC = "condor_mic_liberado";
+let micAquecido = false;
+async function garantirMicrofone() {
+  try {
+    if (navigator.permissions?.query) {
+      const st = await navigator.permissions.query({ name: "microphone" });
+      if (st.state === "denied") return "negado";
+      if (st.state === "granted") { micAquecido = true; try { localStorage.setItem(CHAVE_MIC, "1"); } catch { /* sem storage */ } return "ok"; }
+    }
+  } catch { /* navegador sem a consulta (iPhone): segue */ }
+  if (micAquecido) return "ok";
+  if (!navigator.mediaDevices?.getUserMedia) return "ok";
+  try {
+    const fluxo = await navigator.mediaDevices.getUserMedia({ audio: true });
+    fluxo.getTracks().forEach((t) => t.stop()); // só confirma a permissão; não fica gravando
+    micAquecido = true; try { localStorage.setItem(CHAVE_MIC, "1"); } catch { /* sem storage */ }
+    return "ok";
+  } catch (e) { return e?.name === "NotAllowedError" || e?.name === "SecurityError" ? "negado" : "ok"; }
+}
 
 const SR = typeof window !== "undefined" ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
 
@@ -24,8 +45,10 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
     try { abortar ? r.abort() : r.stop(); } catch { /* já parado */ } // parada normal: o onend leva pra conferência
   }
 
-  function iniciar() {
+  async function iniciar() {
     if (!SR) return;
+    const mic = await garantirMicrofone();
+    if (mic === "negado") { setErro("O microfone está bloqueado. Libere nas permissões do navegador/aparelho (uma vez só) ou digite abaixo."); setFase("revisar"); return; }
     setErro(""); setParcial(""); setTexto(""); textoRef.current = ""; setFase("ouvindo");
     const rec = new SR();
     rec.lang = "pt-BR"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
@@ -63,12 +86,13 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
   const busca = useMemo(() => (res.nome ? buscarNoCatalogo(res.nome, catalog) : { tipo: "vazio", candidatos: [] }), [res.nome, catalog]);
   const [escolha, setEscolha] = useState(null); // chave do produto escolhido na lista, ou "novo"
   useEffect(() => { setEscolha(null); }, [res.nome]);
+  const problemas = useMemo(() => validarVoz(res, hoje), [res, hoje]);
   const precisaEscolher = busca.tipo === "varios" || busca.tipo === "marca";
   const escolhido = precisaEscolher && escolha && escolha !== "novo" ? busca.candidatos.find((c) => c.chave === escolha) || null : null;
   const achado = busca.tipo === "encontrado" ? busca.candidatos[0] : escolhido;
   const novoFmt = useMemo(() => (busca.tipo === "novo" ? busca : (escolha === "novo" && res.nome ? formatarNomeNovo(res.nome, catalog) : null)), [busca, escolha, res.nome, catalog]);
   const ehNovo = !achado && !!novoFmt;
-  const pode = !!res.nome && (busca.tipo === "encontrado" || busca.tipo === "novo" || (precisaEscolher && !!escolha && !(busca.tipo === "marca" && escolha === "novo")));
+  const pode = problemas.length === 0 && !!res.nome && (busca.tipo === "encontrado" || busca.tipo === "novo" || (precisaEscolher && !!escolha && !(busca.tipo === "marca" && escolha === "novo")));
 
   const Linha = ({ Icon, rotulo, valor, vazio }) => (
     <div className="flex items-start gap-3 py-2">
@@ -124,6 +148,14 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
             <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={2} maxLength={200} placeholder="Ex.: iogurte natural vence sexta, 12 unidades"
               style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 resize-none" />
 
+            {busca.tipo === "incompleto" && res.nome && (
+              <div style={{ background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2.5 text-[13px] font-semibold mt-3 flex gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" /> Não achei “{res.nome}” no cadastro. Fale o nome completo do produto (marca + produto), ex.: “Bauducco panetone”.</div>
+            )}
+            {problemas.length > 0 && (
+              <div style={{ background: "#E31E2415", color: "#B3141A" }} className="rounded-xl px-3 py-2.5 text-[13px] font-semibold mt-3 space-y-1">
+                {problemas.map((m) => <p key={m} className="flex gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" /> {m}</p>)}
+              </div>
+            )}
             {precisaEscolher && (
               <div style={{ background: T.chipBg }} className="rounded-2xl p-3 mt-3">
                 <p style={{ color: T.text }} className="text-[13px] font-bold leading-snug">

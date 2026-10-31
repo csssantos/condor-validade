@@ -1,5 +1,11 @@
 # Condor · Alerta de Validade — guia rápido (leia isto em vez de abrir arquivos grandes)
 
+## PROTOCOLO OBRIGATÓRIO — fazer ANTES de qualquer pedido do dono (nesta ordem)
+1. **Memória**: ler `/areas/condor-validade-app.md` (e a listagem da memória) com as ferramentas de memória. Depois ler este arquivo. Só então executar o pedido.
+2. **Jurídico**: o pedido mexe com usuário, login, senha, cadastro, dado pessoal, permissão, câmera/mic/notificação, IA, terceiro ou coleta nova de dado? Se sim, atualizar `src/Legal.jsx` (e `TERMOS_VERSAO` se for relevante) no MESMO commit.
+3. **Segurança**: pensar "isso pode virar uma brecha?" (acesso sem login, dado de outra loja, escalonamento de cargo, entrada gigante/absurda, spam de requisições, segredo no navegador, funcionalidade que o usuário poderia abusar). Se sim: fazer o que foi pedido do jeito SEGURO (RLS por loja/cargo, validação no servidor e no cliente, limites, função com checagem interna). Se não der para ser seguro, entregar o pedido E construir a proteção junto (limite, trava, validação, auditoria). Nunca confiar só na tela: toda regra vale também no banco/função de servidor.
+4. **Ao terminar**: atualizar este CLAUDE.md e a memória; testar (`esbuild` + `node teste-voz.mjs`); publicar e conferir o status da Vercel; mandar os .sql ao usuário com SendUserFile quando houver.
+
 App avulso (sem vínculo com a empresa, sem CNPJ/DPO). PWA React+Vite+Tailwind+framer-motion, Supabase (projeto `fbovltxucooeoldjfckk`). Deploy: Vercel publica `main` em produção (outras branches = preview). Repo `csssantos/condor-validade`. Falar com o usuário SEMPRE em português, direto, sem enrolação. Quando ele diz "refaça do zero": nada do layout antigo, visual novo.
 
 ## REGRAS FIXAS (pedido do dono, valem para todo pedido futuro)
@@ -33,6 +39,9 @@ Polling 20s (`buscarVersaoPublicada`) → `novaVersao`. Deslogado: overlay `Atua
 - Push: cliente grava inscrição via RPC `salvar_push` (tabela sem escrita direta). `enviar-push` v8 só aceita `{id}`/`{avisoId}` e lê tudo do banco, envia só para a loja do produto. `identificar-produto` v8 exige login + limite; Gemini no cliente REMOVIDO (não usar VITE_GEMINI_API_KEY). `assistente-ia`: versão do repo endurecida (login antes de tudo, diagnósticos só nível<=2, CORS restrito) — PRECISA SER PUBLICADA (arquivo grande, copiar do repo).
 - `vercel.json`: CSP, HSTS, X-Frame DENY etc. Se algo novo externo for chamado (fetch/script/img), liberar na CSP. `supabaseClient.js` tem freio no cliente (150 chamadas/10 s, pausa em 429/503).
 - Só no painel (não dá por código): ativar "Leaked password protection" (Auth → Providers → Email), limites/captcha de Auth (Auth → Rate limits), WAF/rate limit da Vercel (Firewall). `pg_net` está no schema public (aviso leve).
+
+## Voz (regras de segurança)
+- `validarVoz` (voz.js) barra: validade passada (hoje vale), >5 anos, quantidade ≤0/absurda (5000 un, 500 kg), unidade fracionada, preço fora de 0,01–5000, nome inválido. VozSheet mostra os problemas e desabilita "Continuar"; `aplicarVoz` revalida. Palavra solta que não existe no cadastro vira `incompleto` (não cria produto); produto novo só com marca + produto. Busca é fonética (l→u, que→co, junta "bal duco"). Microfone: `garantirMicrofone` consulta Permissions API e guarda `condor_mic_liberado`.
 
 ## Teste e publicação (economiza tokens)
 - Sintaxe: `/opt/npm-tools/node_modules/esbuild/bin/esbuild src/App.jsx --loader:.js=jsx --log-level=error`.

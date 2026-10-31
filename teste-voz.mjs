@@ -33,4 +33,23 @@ for (const [q, esp] of [["Iogurte Natural", "a"], ["iogurtes", "a"], ["leite int
 }
 console.log(descreverData("2026-11-06", hoje));
 console.log(`${ok} ok, ${falha} falhas`);
+// --- travas de segurança da voz ---
+import { validarVoz as V, buscarNoCatalogo as BC } from "./src/voz.js";
+{
+  let ok2 = 0, f2 = 0; const chk = (nome, cond) => { cond ? ok2++ : (f2++, console.log("FALHOU:", nome)); };
+  chk("data passada barrada", V(I("leite vence 10/10/2026", hoje), hoje).length > 0);
+  chk("ontem barrado", V(I("leite vence ontem", hoje), hoje).length > 0);
+  chk("hoje liberado", V(I("leite vence hoje", hoje), hoje).length === 0);
+  chk("quantidade absurda", V(I("leite vence amanhã 99999 unidades", hoje), hoje).length > 0);
+  chk("quantidade ok", V(I("leite vence amanhã 12 unidades", hoje), hoje).length === 0);
+  chk("kg absurdo", V(I("frango vence amanhã 900 kg", hoje), hoje).length > 0);
+  chk("preço absurdo", V({ nome: "Leite", precoUnitario: 99999 }, hoje).length > 0);
+  chk("data 10 anos", V({ nome: "Leite", validade: "2036-01-01" }, hoje).length > 0);
+  const cat = { 1: { nome: "BAUDUCCO - COOKIE TRAD. 100G" }, 2: { nome: "BAUDUCCO - WAFER MORANGO" } };
+  chk("palavra solta desconhecida não vira produto novo", BC("Xablau", cat).tipo === "incompleto");
+  chk("balduque é marca", BC("Balduque", cat).tipo === "marca");
+  chk("bal duco junta", BC("Bal duco", cat).tipo === "marca");
+  chk("produto novo com marca+produto", BC("Panetone Xablau Gourmet", cat).tipo === "novo");
+  console.log(`travas: ${ok2} ok, ${f2} falhas`);
+}
 process.exit(falha ? 1 : 0);

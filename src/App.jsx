@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import VozSheet from "./VozSheet";
+import { validarVoz } from "./voz";
 import TelaBiparCracha from "./TelaBiparCracha";
 import { PalcoInicio, PalcoPagina } from "./Inicio";
 import { AceiteCampo, AceiteObrigatorio, LegalLeitor, LinksLegais, PaginaPrivacidade, TERMOS_VERSAO, lerAceiteLocal, gravarAceiteLocal, marcarAceitePendente, temAceitePendente, limparAceitePendente, registrarAceite } from "./Legal";
@@ -2001,6 +2002,7 @@ function AppInner() {
 
   // Cadastro por voz: produto já cadastrado (achado pelo nome) vai direto pra validade; produto novo passa pela tela de dados.
   function aplicarVoz({ res, achado }) {
+    if (validarVoz(res).length) { showToast("Dados da voz inválidos. Confira e tente de novo."); return; }
     setVozAberta(false);
     setEditingItemId(null);
     setVozPre({ validade: res.validade || "", quantidade: res.quantidade, porPeso: !!res.porPeso });
