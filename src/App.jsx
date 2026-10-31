@@ -9609,6 +9609,20 @@ function CapituloRel({ T, id, n, titulo, sub, children }) {
   );
 }
 
+function ExportarCapitulo({ T, titulo, itens }) {
+  return (
+    <div style={{ background: T.card }} className="rounded-[22px] shadow-md shadow-black/5 p-3 mt-3">
+      <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wider mb-2 px-0.5">{titulo}</p>
+      <div className="flex flex-wrap gap-2">
+        {itens.map(([rot, Icone, fn, forte]) => (
+          <motion.button key={rot} whileTap={{ scale: 0.95 }} onClick={fn} className="rounded-full px-3.5 py-2.5 text-[12px] font-extrabold flex items-center gap-1.5"
+            style={forte ? { background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)`, color: "#fff" } : { background: T.chipBg, color: T.text }}><Icone size={14} />{rot}</motion.button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RelatoriosMobile(p) {
   const { T, lojaNumero, items, criticos, atencao, valorEmRisco, valorTotalMonitorado, tendenciaPerdas, perdaUltimos6Meses, faixasRisco, porPoliticaTroca, topRisco,
     resumoPorSetor, porUsuarioAuditoria, porTipoAcao, rondasResumo, taxaExecucaoRonda, indicePerda, faturamentoMensal, faturamentoInput, setFaturamentoInput, salvarFaturamento,
@@ -9631,7 +9645,7 @@ function RelatoriosMobile(p) {
     <motion.button whileTap={{ scale: 0.96 }} onClick={fn} className="rounded-2xl py-3 px-3 text-[12.5px] font-extrabold flex items-center justify-center gap-2"
       style={destaque ? { background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)`, color: "#fff" } : { background: T.chipBg, color: T.text }}><Icone size={15} />{rot}</motion.button>
   );
-  const chips = [["rel-saude", "Saúde"], ["rel-dinheiro", "Dinheiro"], ["rel-perdas", "Perdas"], ["rel-setores", "Setores"], ["rel-equipe", "Equipe"], ["rel-riscos", "Maiores riscos"], ["rel-exportar", "Exportar"]];
+  const chips = [["rel-saude", "Saúde"], ["rel-dinheiro", "Dinheiro"], ["rel-perdas", "Perdas"], ["rel-setores", "Setores"], ["rel-equipe", "Equipe"], ["rel-riscos", "Maiores riscos"]];
   return (
     <div className="px-4 pt-4 pb-8 lg:hidden">
       {/* Capa */}
@@ -9665,6 +9679,10 @@ function RelatoriosMobile(p) {
             </div>
           ))}
         </div>
+        <ExportarCapitulo T={T} titulo="Exportar este relatório" itens={[
+          ["Relatório gerencial (PDF)", Download, onGerarPDF, true],
+          ...(proximosAVencer.length > 0 ? [[`Próximos do vencimento (${proximosAVencer.length}) PDF`, AlertTriangle, () => gerarPDFProximosAVencer(proximosAVencer, { usuario, lojaNumero })]] : []),
+        ]} />
       </CapituloRel>
 
       <CapituloRel T={T} id="rel-dinheiro" n={2} titulo="Dinheiro exposto" sub="Quanto vence em cada faixa de prazo">
@@ -9691,6 +9709,9 @@ function RelatoriosMobile(p) {
             ))}
           </div>
         </div>
+        <ExportarCapitulo T={T} titulo="Exportar financeiro" itens={[
+          ["PDF", FileText, gerarPDFFinanceiro, true], ["CSV", Download, () => exportarFinanceiro("csv")], ["Excel", FileSpreadsheet, () => exportarFinanceiro("xlsx")],
+        ]} />
       </CapituloRel>
 
       <CapituloRel T={T} id="rel-perdas" n={3} titulo="Perdas confirmadas" sub="Últimos 6 meses">
@@ -9754,6 +9775,9 @@ function RelatoriosMobile(p) {
           </div>}
           {porTipoAcao.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{porTipoAcao.slice(0, 8).map(([t, q]) => <span key={t} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-bold rounded-full px-2.5 py-1 capitalize">{t} · {q}</span>)}</div>}
         </div>
+        <ExportarCapitulo T={T} titulo="Exportar atividade e rondas" itens={[
+          ["PDF", FileText, gerarPDFAtividade, true], ["CSV", Download, () => exportarAtividade("csv")], ["Excel", FileSpreadsheet, () => exportarAtividade("xlsx")],
+        ]} />
       </CapituloRel>
 
       <CapituloRel T={T} id="rel-riscos" n={6} titulo="Maiores riscos" sub="Os itens que mais custam se vencerem">
@@ -9771,18 +9795,6 @@ function RelatoriosMobile(p) {
         </div>
       </CapituloRel>
 
-      <CapituloRel T={T} id="rel-exportar" n={7} titulo="Exportar" sub="Levar para a gerência ou abrir na planilha">
-        <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4 grid grid-cols-2 gap-2">
-          <div className="col-span-2">{botaoExp("Relatório gerencial (PDF)", Download, onGerarPDF, true)}</div>
-          {botaoExp("Financeiro PDF", FileText, gerarPDFFinanceiro)}
-          {botaoExp("Atividade PDF", FileText, gerarPDFAtividade)}
-          {botaoExp("Financeiro CSV", Download, () => exportarFinanceiro("csv"))}
-          {botaoExp("Financeiro Excel", FileSpreadsheet, () => exportarFinanceiro("xlsx"))}
-          {botaoExp("Atividade CSV", Download, () => exportarAtividade("csv"))}
-          {botaoExp("Atividade Excel", FileSpreadsheet, () => exportarAtividade("xlsx"))}
-          {proximosAVencer.length > 0 && <div className="col-span-2">{botaoExp(`Próximos do vencimento (${proximosAVencer.length}) PDF`, AlertTriangle, () => gerarPDFProximosAVencer(proximosAVencer, { usuario, lojaNumero }))}</div>}
-        </div>
-      </CapituloRel>
     </div>
   );
 }

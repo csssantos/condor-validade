@@ -10,7 +10,7 @@ App avulso (sem vínculo com a empresa, sem CNPJ/DPO). PWA React+Vite+Tailwind+f
 ## Mapa de arquivos (src/)
 - `App.jsx` (~10,8k linhas, tudo junto). Não ler inteiro: use `grep -n "^function NomeDaTela"` e `sed -n` no trecho.
 - `Inicio.jsx` PalcoInicio/PalcoPagina (topo azul). `TelasEntrada.jsx` carregamento+login (FUNDO_MARCA). `Legal.jsx` Termos/Privacidade/LGPD/aceite (trocar `TERMOS_VERSAO` pede novo aceite). `voz.js` interpreta fala + `buscarNoCatalogo`/`formatarNomeNovo`; `VozSheet.jsx` tela da voz. `inteligencia.jsx` IA/prevenção/rede.
-- Telas em App.jsx: AuthScreen, AppInner (estado global, `flow`/`tab`), HomeView, SetoresView/SetorDetalheView, RondasView, MaisView (+ Pagina*), RelatoriosView→`RelatoriosMobile`, Torre/Auditoria/Historico/Prioridade, ProductDetailModal, ExpiryView/ConfirmProductView.
+- Telas em App.jsx: AuthScreen, AppInner (estado global, `flow`/`tab`), HomeView, SetoresView/SetorDetalheView, RondasView, MaisView (+ Pagina*), RelatoriosView→`RelatoriosMobile` (6 capítulos; botões de exportar ficam DENTRO do capítulo do assunto, via `ExportarCapitulo`), Torre/Auditoria/Historico/Prioridade, ProductDetailModal, ExpiryView/ConfirmProductView.
 - Helpers de UI no App.jsx: PilulasPalco, ValorPalco, CartaoNovo, BarraRank, FaixaChips, EstadoVazioNovo, LinhaProduto, CartaoGrade, `getTokens(dark)` (T.card/T.chipBg/T.inputBorder; não usar T.border, é transparente), cores RED/RED_DARK/BLUE/BLUE_DARK/RED_SOFT.
 
 ## Regras de UI (iPhone)
