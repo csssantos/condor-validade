@@ -2577,7 +2577,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
-  { id: "2026-11-01-telegram", data: "01/11/2026", itens: [
+  { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
     { tipo: "adicionado", ate: 7, texto: "Lançar validade pelo Telegram: converse com o bot, mande o código de barras, o nome ou uma foto e confirme. Vincule em Mais → Conta → Telegram." },
     { tipo: "adicionado", ate: 7, texto: "Promotor com código fixo (ex.: ABC-12345) e link permanente: o código vale para um único Telegram." },
     { tipo: "adicionado", ate: 5, texto: "Remover o Telegram de um funcionário ou promotor pelo menu de ações." },
@@ -2663,7 +2663,7 @@ function AtualizacaoModal({ T, novidades, cargoNome, onFechar }) {
                   return (
                     <div key={i} style={{ background: T.chipBg }} className="rounded-xl p-3">
                       <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                        <DashBadge bg={t.bg} color={t.color}>{t.rotulo}</DashBadge>
+                        <DashBadge bg={t.bg} color={t.cor}>{t.rotulo}</DashBadge>
                         <span style={{ color: T.subtext }} className="text-[10px] font-semibold">{rotuloPublico(it.ate)}</span>
                       </div>
                       <p className="text-[12.5px] leading-snug">{it.texto}</p>

@@ -15,6 +15,16 @@ App avulso (sem vínculo com a empresa, sem CNPJ/DPO). PWA React+Vite+Tailwind+f
 4. **Toda publicação com mudança visível ao usuário**: adicionar uma entrada NO TOPO de `NOVIDADES` (App.jsx, tela "Sobre o app" + modal pós-atualização), com `ate` por cargo.
 5. **Ao trocar `TERMOS_VERSAO`**: adicionar entrada NO TOPO de `TERMOS_ALTERACOES` (Legal.jsx) com só o que foi acrescentado/alterado por documento (termos, privacidade, direitos, armazenamento). O aceite mostra só isso a quem já aceitou antes; texto completo só para quem é novo.
 
+## MASCOTE — "Condô" (REGRA FIXA: nunca criar outro; qualquer pedido com mascote usa ESTE)
+Fonte oficial: `public/mascote.svg` (viewBox 400x400). Reaproveitar o arquivo (ou copiar o SVG) e só mudar pose/cena/fundo quando pedirem; nunca redesenhar do zero.
+- Quem é: um condor-andino cartoon, simpático, gordinho, em pé. Representa o app "Condor · Alerta de Validade": cuida da validade com o funcionário. Nome: Condô. Tom: amigável, direto, confiável (nada de bravo/sério demais).
+- Corpo: azul da marca (#0B4F9E), barriga clara (#EAF1FB), asas azul-escuro (#0A3A75) com contorno azul-claro (#7DB4F0) para aparecer em fundo escuro; cauda azul-escura; pés laranja (#F5A623) com 3 dedinhos.
+- Pescoço: gola de penas BRANCA (marca do condor-andino) + cachecol VERMELHO (#E31E24, ponta #A81419) por cima.
+- Cabeça: redonda, pele cor de pêssego (#F6D2B8), bochechas rosadas, olhos grandes brancos com pupilas pretas e brilho, sobrancelhas arqueadas simpáticas (azul-escuro), penugem azul no topo e uma pequena crista VERMELHA; bico curvo amarelo (#FFC93C) com sorrisinho.
+- Símbolos do app: RELÓGIO/ALARME vermelho e branco na barriga (alerta de validade); asa direita erguida segurando uma ETIQUETA de produto branca com borda vermelha e CHECK verde (#1F9D55) (validade conferida).
+- Cores permitidas: azul #0B4F9E/#082F5E, vermelho #E31E24, branco, verde só no check, amarelo/laranja só em bico e pés. Fundo padrão: `FUNDO_MARCA` (azul degradê) com círculo branco translúcido atrás.
+- Arquivos prontos: `public/bot-perfil.png` (640x640, foto do bot no BotFather → Edit Botpic) e `public/bot-boas-vindas.png` (640x360, banner enviado no /start e usado em "Description Picture"; frase "Oi, eu sou o Condô!"). Foram gerados por HTML+Playwright a partir do SVG.
+
 ## Mapa de arquivos (src/)
 - `App.jsx` (~10,8k linhas, tudo junto). Não ler inteiro: use `grep -n "^function NomeDaTela"` e `sed -n` no trecho.
 - `Inicio.jsx` PalcoInicio/PalcoPagina (topo azul). `TelasEntrada.jsx` carregamento+login (FUNDO_MARCA). `Legal.jsx` Termos/Privacidade/LGPD/aceite (trocar `TERMOS_VERSAO` pede novo aceite). `voz.js` interpreta fala + `buscarNoCatalogo`/`formatarNomeNovo`; `VozSheet.jsx` tela da voz. `inteligencia.jsx` IA/prevenção/rede.
@@ -46,12 +56,12 @@ Polling 20s (`buscarVersaoPublicada`) → `novaVersao`. Deslogado: overlay `Atua
 - `GestaoFuncionarios`: encarregado (nível 5) cadastra → setor travado no dele (`usuarios.setor`); gerência/diretoria/dev escolhem (padrão = `cargos.setor_padrao`); cargo nível 6 exige setor; encarregado (nível 5) não precisa de vínculo. `_vincular_pendente` copia o setor para a conta no 1º login.
 - Trigger `trg_pendente_regra_setor` em `funcionarios_pendentes` repete a regra no banco (erro 22023 mostrado na tela).
 
-## Telegram (2026-11-01) — substitui o agente de WhatsApp (pausado). `supabase-telegram.sql` (usuário roda) + Edge Function `telegram-bot` v1 (verify_jwt=false; copia de `src/voz.js` em `supabase/functions/telegram-bot/voz.js` — recopiar ao mudar voz.js)
+## Telegram (2026-10-31) — substitui o agente de WhatsApp (pausado). `supabase-telegram.sql` (usuário roda) + Edge Function `telegram-bot` v1 (verify_jwt=false; copia de `src/voz.js` em `supabase/functions/telegram-bot/voz.js` — recopiar ao mudar voz.js)
 - Secrets (Supabase → Edge Functions): `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `GEMINI_API_KEY` (foto). Webhook: abrir no navegador `https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://fbovltxucooeoldjfckk.supabase.co/functions/v1/telegram-bot&secret_token=<SEGREDO>`. Opcional no Vercel: `VITE_TELEGRAM_BOT` (usuário do bot, mostra botão "Abrir o bot").
 - Tabelas: `telegram_vinculos` (1 chat por usuário/convite), `telegram_codigos` (8 dígitos, 10 min), `telegram_sessoes`, `telegram_mensagens` (dedupe por update_id, 30 dias). RPCs app: `gerar_codigo_telegram`, `telegram_status`, `remover_telegram(p_usuario|p_convite)` (próprio, DEV/Diretor, gerência da loja, encarregado do setor). RPCs bot (service_role): `telegram_vincular_funcionario/promotor`, `telegram_contexto`. `lancar_validade` agora tem `p_convite` (promotor só lança produto da própria marca) e origem `telegram`.
 - Promotor: `convites_promotor.codigo` (ex. BAU-7K3QP, gerado por trigger) + link permanente `/promotor/<marca>/<codigo>` (`resgatar_convite_codigo`; rewrite no vercel.json). Duração "Permanente" = 100 anos. Bot nunca cria produto: só lança o que existe no `catalogo` da loja; confirma antes; travas do `validarVoz`.
-- Boas-vindas do bot: `comFoto()` envia `public/bot-boas-vindas.png` (640x360, também serve de "Description Picture" no BotFather) com legenda no /start e na 1ª mensagem; se a imagem falhar, manda só texto. Textos do BotFather (descrição, sobre, comandos) estão na conversa de 2026-10-31.
-- UI: `TelegramVinculo` (PaginaConta), "Remover Telegram" nos sheets de funcionário/convite. Legal.jsx atualizado (TERMOS_VERSAO 2026-11-01).
+- Boas-vindas do bot: `comFoto()` envia `public/bot-boas-vindas.png` (banner com o mascote Condô, 640x360, também serve de "Description Picture" no BotFather) com legenda no /start e na 1ª mensagem; se a imagem falhar, manda só texto. Textos do BotFather (descrição, sobre, comandos) estão na conversa de 2026-10-31.
+- UI: `TelegramVinculo` (PaginaConta), "Remover Telegram" nos sheets de funcionário/convite. Legal.jsx atualizado (TERMOS_VERSAO 2026-10-31).
 
 ## Voz (regras de segurança)
 - `validarVoz` (voz.js) barra: validade passada (hoje vale), >5 anos, quantidade ≤0/absurda (5000 un, 500 kg), unidade fracionada, preço fora de 0,01–5000, nome inválido. VozSheet mostra os problemas e desabilita "Continuar"; `aplicarVoz` revalida. Palavra solta que não existe no cadastro vira `incompleto` (não cria produto); produto novo só com marca + produto. Busca é fonética (l→u, que→co, junta "bal duco"). Microfone: `garantirMicrofone` consulta Permissions API e guarda `condor_mic_liberado`.

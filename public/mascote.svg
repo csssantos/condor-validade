@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Condô, o mascote do Condor · Alerta de Validade (descrição oficial no CLAUDE.md) -->
+  <!-- cauda -->
+  <path d="M168 340 L158 384 L190 372 L200 388 L212 372 L242 384 L232 340Z" fill="#082F5E"/>
+  <!-- asa esquerda (baixa) -->
+  <path d="M120 218 C70 240 62 318 86 352 C98 336 108 330 116 338 C122 322 134 316 140 322 C150 290 148 250 140 222Z" fill="#0A3A75" stroke="#7DB4F0" stroke-width="3" stroke-linejoin="round"/>
+  <!-- corpo -->
+  <ellipse cx="200" cy="278" rx="92" ry="96" fill="#0B4F9E"/>
+  <ellipse cx="200" cy="296" rx="60" ry="68" fill="#EAF1FB"/>
+  <!-- relógio de alerta na barriga -->
+  <circle cx="200" cy="296" r="34" fill="#fff" stroke="#E31E24" stroke-width="7"/>
+  <circle cx="200" cy="296" r="2.5" fill="#12131A"/>
+  <path d="M200 296 L200 276 M200 296 L214 304" stroke="#12131A" stroke-width="5" stroke-linecap="round"/>
+  <path d="M178 260 L188 266 M222 260 L212 266" stroke="#E31E24" stroke-width="6" stroke-linecap="round"/>
+  <!-- asa direita (erguida, segurando a etiqueta) -->
+  <path d="M286 236 C330 214 352 178 340 142 C326 154 316 150 312 158 C302 144 290 146 286 154 C268 180 270 214 280 240Z" fill="#0A3A75" stroke="#7DB4F0" stroke-width="3" stroke-linejoin="round"/>
+  <!-- etiqueta de produto com check -->
+  <g transform="translate(-6 34) rotate(12 340 112)">
+    <path d="M308 78 H358 Q372 78 372 92 V134 Q372 148 358 148 H322 Q308 148 308 134Z" fill="#fff" stroke="#E31E24" stroke-width="5"/>
+    <circle cx="322" cy="92" r="4.5" fill="#EAF1FB" stroke="#E31E24" stroke-width="2.5"/>
+    <circle cx="346" cy="120" r="15" fill="#1F9D55"/>
+    <path d="M338 120 L344 126 L355 113" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- golinha branca (marca do condor-andino) -->
+  <ellipse cx="200" cy="196" rx="84" ry="30" fill="#fff"/>
+  <g fill="#fff"><circle cx="128" cy="196" r="17"/><circle cx="152" cy="216" r="17"/><circle cx="176" cy="224" r="17"/><circle cx="200" cy="228" r="17"/><circle cx="224" cy="224" r="17"/><circle cx="248" cy="216" r="17"/><circle cx="272" cy="196" r="17"/></g>
+  <!-- cachecol vermelho -->
+  <path d="M150 204 Q200 232 250 204 L246 224 Q200 250 154 224Z" fill="#E31E24"/>
+  <path d="M224 230 L238 266 L220 258 L214 240Z" fill="#A81419"/>
+  <!-- cabeça -->
+  <circle cx="200" cy="128" r="62" fill="#F6D2B8"/>
+  <!-- penugem azul no topo -->
+  <path d="M158 92 Q164 62 180 74 Q186 52 202 68 Q218 50 224 76 Q242 66 244 96 Q200 76 158 92Z" fill="#0B4F9E"/>
+  <!-- crista vermelha -->
+  <path d="M184 72 Q200 36 216 72 Q200 62 184 72Z" fill="#E31E24"/>
+  <!-- bochechas -->
+  <circle cx="158" cy="148" r="11" fill="#F4A9A0" opacity=".75"/><circle cx="242" cy="148" r="11" fill="#F4A9A0" opacity=".75"/>
+  <!-- olhos -->
+  <circle cx="175" cy="124" r="19" fill="#fff"/><circle cx="225" cy="124" r="19" fill="#fff"/>
+  <circle cx="179" cy="126" r="10" fill="#12131A"/><circle cx="221" cy="126" r="10" fill="#12131A"/>
+  <circle cx="183" cy="121" r="3.8" fill="#fff"/><circle cx="225" cy="121" r="3.8" fill="#fff"/>
+  <path d="M158 98 Q173 90 189 96 M211 96 Q227 90 242 98" fill="none" stroke="#082F5E" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- bico curvado -->
+  <path d="M178 142 Q200 128 222 142 Q226 168 206 190 Q204 178 196 180 Q192 184 190 188 Q172 166 178 142Z" fill="#FFC93C"/>
+  <path d="M184 158 Q200 172 216 158" fill="none" stroke="#C98A0E" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- pés -->
+  <g fill="#F5A623"><ellipse cx="166" cy="372" rx="30" ry="12"/><ellipse cx="234" cy="372" rx="30" ry="12"/></g><g stroke="#C98A0E" stroke-width="3" stroke-linecap="round"><path d="M150 372 v8 M166 374 v8 M182 372 v8 M218 372 v8 M234 374 v8 M250 372 v8"/></g>
+</svg>
