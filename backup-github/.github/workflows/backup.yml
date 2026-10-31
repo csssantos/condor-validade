@@ -1,0 +1,69 @@
+# Backup diário do banco do Condor Validade (Supabase) — roda todo dia às 23:59 de Brasília.
+# 23:59 em Brasília (UTC-3) = 02:59 UTC. O GitHub pode atrasar alguns minutos; "Run workflow" roda na hora (teste).
+# Guarda o banco inteiro (estrutura + dados + usuários do login) COMPRIMIDO e CRIPTOGRAFADO em backups/AAAA-MM-DD.sql.gz.gpg.
+# Secrets necessários (Settings → Secrets and variables → Actions): SUPABASE_DB_URL e BACKUP_PASSPHRASE.
+name: Backup diário do banco
+
+on:
+  schedule:
+    - cron: "59 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar o pg_dump 17 (mesma versão do banco)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl ca-certificates gnupg lsb-release
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Gerar o backup (comprimido e criptografado)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          [ -n "$SUPABASE_DB_URL" ] || { echo "Falta o secret SUPABASE_DB_URL"; exit 1; }
+          [ -n "$BACKUP_PASSPHRASE" ] || { echo "Falta o secret BACKUP_PASSPHRASE"; exit 1; }
+          DATA=$(TZ=America/Sao_Paulo date +%F)
+          mkdir -p backups
+          umask 077
+          printf '%s' "$BACKUP_PASSPHRASE" > "$RUNNER_TEMP/pp"
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges \
+            -N pgbouncer -N extensions -N vault -N graphql -N graphql_public -N net -N realtime -N cron \
+            | gzip -9 \
+            | gpg --batch --yes --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/pp" \
+                  --symmetric --cipher-algo AES256 -o "backups/$DATA.sql.gz.gpg"
+          # confere: abre o arquivo de volta e procura uma tabela do app (se falhar, o job falha e o GitHub avisa por e-mail)
+          gpg --batch --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/pp" -d "backups/$DATA.sql.gz.gpg" | gunzip | grep -q "CREATE TABLE public.produtos"
+          shred -u "$RUNNER_TEMP/pp"
+          TAM=$(stat -c %s "backups/$DATA.sql.gz.gpg")
+          [ "$TAM" -gt 10000 ] || { echo "Backup pequeno demais ($TAM bytes)"; exit 1; }
+          echo "Backup $DATA: $TAM bytes"
+          # guarda os últimos 60 dias na pasta (o histórico do Git guarda o resto, também criptografado)
+          ls -1 backups/*.gpg | sort | head -n -60 | xargs -r rm -f
+
+      - name: Salvar no GitHub
+        run: |
+          git config user.name "backup-bot"
+          git config user.email "backup-bot@users.noreply.github.com"
+          git add backups
+          git diff --cached --quiet && { echo "Nada novo para salvar"; exit 0; }
+          git commit -m "Backup do banco — $(TZ=America/Sao_Paulo date '+%d/%m/%Y %H:%M')"
+          git push
