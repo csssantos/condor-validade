@@ -108,11 +108,12 @@ begin
   ) v(n, b, m) loop
     continue when exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = '_rl_' || r.n);
     select p.oid, pg_get_function_arguments(p.oid) a, pg_get_function_identity_arguments(p.oid) ida,
-           pg_get_function_result(p.oid) res, p.proargnames pn, p.proretset rs
+           pg_get_function_result(p.oid) res, p.proargnames pn, p.proargmodes pm, p.proretset rs
       into f from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = r.n;
     continue when f.oid is null;
     execute format('alter function public.%I(%s) rename to %I', r.n, f.ida, '_rl_' || r.n);
-    select coalesce(string_agg(format('%I => %I', a, a), ', '), '') into callargs from unnest(coalesce(f.pn, '{}')) a;
+    select coalesce(string_agg(format('%I => %I', f.pn[i], f.pn[i]), ', ' order by i), '') into callargs
+      from generate_subscripts(f.pn, 1) i where f.pm is null or f.pm[i]::text in ('i', 'b', 'v');
     if f.rs then corpo := format('return query select * from public.%I(%s);', '_rl_' || r.n, callargs);
     elsif f.res = 'void' then corpo := format('perform public.%I(%s);', '_rl_' || r.n, callargs);
     else corpo := format('return public.%I(%s);', '_rl_' || r.n, callargs); end if;
@@ -296,7 +297,7 @@ begin
     begin perform * from public.buscar_funcionario_pendente('123');
     exception when others then falhas := falhas || ' [buscar_funcionario_pendente logado: ' || sqlerrm || ']'; end;
     begin
-      insert into public.historico(barcode, nome, setor, quantidade, loja_id) values ('1', 't', 'Mercearia', 1, 1);
+      insert into public.historico(barcode, nome, setor, quantidade, loja_id, motivo) values ('1', 't', 'Mercearia', 1, 1, 'teste');
     exception when others then falhas := falhas || ' [historico insert: ' || sqlerrm || ']'; end;
     begin delete from public.historico; falhas := falhas || ' [historico ainda pode ser apagado]';
     exception when others then null; end;
