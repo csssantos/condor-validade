@@ -26,9 +26,9 @@ export function TelaCarregando({ logo, mensagem }) {
   })), []);
 
   const orbitas = [
-    { raio: 104, dur: 7, cor: CORES_STATUS[0], tam: 12, sentido: 1 },
-    { raio: 84, dur: 9, cor: CORES_STATUS[1], tam: 10, sentido: -1 },
-    { raio: 64, dur: 5.5, cor: CORES_STATUS[2], tam: 9, sentido: 1 },
+    { raio: 146, dur: 8, cor: CORES_STATUS[0], tam: 12, sentido: 1 },
+    { raio: 126, dur: 10, cor: CORES_STATUS[1], tam: 10, sentido: -1 },
+    { raio: 110, dur: 6, cor: CORES_STATUS[2], tam: 9, sentido: 1 },
   ];
   const texto = mensagem || FRASES[i];
 
@@ -50,34 +50,34 @@ export function TelaCarregando({ logo, mensagem }) {
       ))}
 
       {/* radar de validade */}
-      <div className="relative h-[240px] w-[240px] flex items-center justify-center">
+      <div className="relative h-[330px] w-[330px] flex items-center justify-center">
         {!reduzir && [0, 1].map((k) => (
-          <motion.span key={k} aria-hidden className="absolute h-[110px] w-[110px] rounded-full border border-white/40"
+          <motion.span key={k} aria-hidden className="absolute h-[150px] w-[150px] rounded-full border border-white/40"
             initial={{ scale: 0.8, opacity: 0.6 }} animate={{ scale: 2.2, opacity: 0 }} transition={{ duration: 2.6, repeat: Infinity, delay: k * 1.3, ease: "easeOut" }} />
         ))}
 
         {/* régua de dias girando devagar */}
-        <motion.svg aria-hidden viewBox="0 0 240 240" className="absolute inset-0" animate={reduzir ? undefined : { rotate: -360 }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }}>
-          <circle cx="120" cy="120" r="112" fill="none" stroke="rgba(255,255,255,.28)" strokeWidth="6" strokeDasharray="1.5 9.2" />
+        <motion.svg aria-hidden viewBox="0 0 330 330" className="absolute inset-0" animate={reduzir ? undefined : { rotate: -360 }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }}>
+          <circle cx="165" cy="165" r="160" fill="none" stroke="rgba(255,255,255,.28)" strokeWidth="6" strokeDasharray="1.5 9.2" />
         </motion.svg>
         {/* arco de progresso que varre */}
-        <motion.svg aria-hidden viewBox="0 0 240 240" className="absolute inset-0" animate={reduzir ? undefined : { rotate: 360 }} transition={{ duration: 1.7, repeat: Infinity, ease: "linear" }}>
+        <motion.svg aria-hidden viewBox="0 0 330 330" className="absolute inset-0" animate={reduzir ? undefined : { rotate: 360 }} transition={{ duration: 1.7, repeat: Infinity, ease: "linear" }}>
           <defs><linearGradient id="arcoCarga" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#fff" /></linearGradient></defs>
-          <motion.circle cx="120" cy="120" r="96" fill="none" stroke="url(#arcoCarga)" strokeWidth="4" strokeLinecap="round"
+          <motion.circle cx="165" cy="165" r="136" fill="none" stroke="url(#arcoCarga)" strokeWidth="4" strokeLinecap="round"
             initial={{ pathLength: 0 }} animate={{ pathLength: 0.32 }} transition={{ duration: 1.1, ease: "easeOut" }} />
         </motion.svg>
 
         {/* produtos em órbita */}
         {orbitas.map((o, k) => (
           <motion.div key={k} aria-hidden className="absolute inset-0 flex justify-center" animate={reduzir ? undefined : { rotate: 360 * o.sentido }} transition={{ duration: o.dur, repeat: Infinity, ease: "linear" }}>
-            <span style={{ marginTop: 120 - o.raio - o.tam / 2, width: o.tam, height: o.tam, background: o.cor, boxShadow: `0 0 14px 2px ${o.cor}` }} className="block rounded-full" />
+            <span style={{ marginTop: 165 - o.raio - o.tam / 2, width: o.tam, height: o.tam, background: o.cor, boxShadow: `0 0 14px 2px ${o.cor}` }} className="block rounded-full" />
           </motion.div>
         ))}
 
         {/* logo */}
         <motion.div initial={{ scale: 0, rotate: -12 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.1 }}
-          className="relative h-[104px] w-[104px] rounded-[30px] bg-white flex items-center justify-center shadow-[0_18px_40px_-10px_rgba(0,0,0,.5)]">
-          <motion.img src={logo} alt="Condor" className="h-9 w-auto max-w-[76px]" animate={reduzir ? undefined : { y: [0, -3, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }} />
+          className="relative h-[92px] w-[196px] rounded-[28px] bg-white flex items-center justify-center shadow-[0_18px_40px_-10px_rgba(0,0,0,.5)]">
+          <motion.img src={logo} alt="Condor" className="w-[158px] h-auto" animate={reduzir ? undefined : { y: [0, -3, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }} />
         </motion.div>
       </div>
 
@@ -101,8 +101,8 @@ export function TelaCarregando({ logo, mensagem }) {
 
 // ───────────────────────── Login: palco (parte de cima) ─────────────────────────
 const CHIPS = [
-  { t: "Vence hoje", c: CORES_STATUS[0], pos: "top-[9%] left-[5%]", d: 0.5, dur: 3.4 },
-  { t: "Vence em 3 dias", c: CORES_STATUS[1], pos: "top-[16%] right-[4%]", d: 0.7, dur: 4 },
+  { t: "Vence hoje", c: CORES_STATUS[0], pos: "top-[3%] left-[4%] lg:top-[9%] lg:left-[5%]", d: 0.5, dur: 3.4 },
+  { t: "Vence em 3 dias", c: CORES_STATUS[1], pos: "top-[3%] right-[4%] lg:top-[16%] lg:right-[4%]", d: 0.7, dur: 4 },
   { t: "Validade ok", c: CORES_STATUS[2], pos: "hidden lg:block bottom-[24%] left-[4%]", d: 0.9, dur: 3.8 },
   { t: "Ronda concluída", c: "#6CB4FF", pos: "hidden lg:block bottom-[31%] right-[5%]", d: 1.1, dur: 4.4 },
 ];
@@ -137,8 +137,8 @@ export function AuthPalco({ logo, compacto }) {
       {/* marca + frase */}
       <div className="absolute inset-0 flex flex-col items-center justify-center px-6 pb-8 lg:pb-0 text-center">
         <motion.div initial={{ scale: 0, rotate: -14 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 280, damping: 16, delay: 0.1 }}
-          className={`rounded-[22px] bg-white flex items-center justify-center shadow-[0_16px_36px_-10px_rgba(0,0,0,.55)] ${compacto ? "h-14 w-14" : "h-[68px] w-[68px] lg:h-24 lg:w-24 lg:rounded-[30px]"} transition-all duration-500`}>
-          <img src={logo} alt="Condor" className={`${compacto ? "h-6" : "h-7 lg:h-10"} w-auto max-w-[78%] transition-all duration-500`} />
+          className={`bg-white flex items-center justify-center shadow-[0_16px_36px_-10px_rgba(0,0,0,.55)] ${compacto ? "h-[58px] w-[156px] rounded-[20px]" : "h-[80px] w-[210px] rounded-[26px] lg:h-[120px] lg:w-[320px] lg:rounded-[34px]"} transition-all duration-500`}>
+          <img src={logo} alt="Condor" className={`${compacto ? "w-[122px]" : "w-[170px] lg:w-[256px]"} h-auto transition-all duration-500`} />
         </motion.div>
         <div className={`overflow-hidden transition-all duration-500 ${compacto ? "max-h-0 opacity-0" : "max-h-48 opacity-100 mt-4"}`}>
           <h2 className="text-[28px] lg:text-5xl font-extrabold leading-tight tracking-tight">
