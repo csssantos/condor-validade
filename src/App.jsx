@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import VozSheet from "./VozSheet";
+import TelaBiparCracha from "./TelaBiparCracha";
 import { TelaCarregando, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
@@ -1109,7 +1110,7 @@ function AuthScreen({ T }) {
           <AnimatePresence mode="wait" initial={false}>{conteudo}</AnimatePresence>
         </div>
       </motion.div>
-      {modo === "cadastro-scan" && !ehDesktop && <ScanView T={T} onDetected={aoBiparCracha} onCancel={() => setModo("login")} />}
+      {modo === "cadastro-scan" && !ehDesktop && <ScanView variante="cracha" ocupado={carregando} T={T} onDetected={aoBiparCracha} onCancel={() => setModo("login")} />}
     </div>
   );
 }
@@ -1156,7 +1157,7 @@ function ContaSemVinculo({ T, onVinculado, onSair }) {
       </button>
       {!ehDesktop && <button onClick={() => setLendo(true)} style={{ color: BLUE }} className="text-xs font-semibold">Bipar crachá</button>}
       <button onClick={onSair} style={{ color: T.subtext }} className="text-xs font-semibold mt-1">Sair</button>
-      {lendo && <ScanView T={T} onDetected={(c) => { setLendo(false); vincular(c); }} onCancel={() => setLendo(false)} />}
+      {lendo && <ScanView variante="cracha" T={T} onDetected={(c) => { setLendo(false); vincular(c); }} onCancel={() => setLendo(false)} />}
     </div>
   );
 }
@@ -7974,7 +7975,7 @@ function InfoTile({ T, icon: Icon, label, value, mono }) {
 }
 
 // ============ Scan (câmera com leitor nativo + ZXing de reforço) ============
-function ScanView({ T, onDetected, onCancel }) {
+function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const detectorRef = useRef(null);
@@ -8218,6 +8219,16 @@ function ScanView({ T, onDetected, onCancel }) {
     if (code.length < 4) return;
     pararTudo();
     onDetected(code);
+  }
+
+  // Crachá (cadastro/vínculo): tela cheia própria, mesma leitura de código por baixo.
+  if (variante === "cracha") {
+    return (
+      <TelaBiparCracha status={status} erroMsg={erroMsg} videoRef={videoRef} manualMode={manualMode} setManualMode={setManualMode}
+        manualCode={manualCode} setManualCode={setManualCode} torchDisponivel={torchDisponivel} torchOn={torchOn} onTorch={alternarTorch}
+        onTrocarCamera={() => setFacing((f) => (f === "environment" ? "user" : "environment"))} onConfirmarManual={submitManual}
+        onVoltar={() => { pararTudo(); onCancel(); }} onTentarDeNovo={() => { setErroMsg(""); setManualMode(false); }} ocupado={ocupado} />
+    );
   }
 
   return (
