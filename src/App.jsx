@@ -1558,6 +1558,14 @@ function AppInner() {
   const novidadesDoCargo = useMemo(() => (mostrarAtualizacao ? novidadesParaCargo(perfil?.cargos?.nivel, lerNovidadeVista()) : []), [mostrarAtualizacao, perfil?.cargos?.nivel]);
   useEffect(() => { if (mostrarAtualizacao && perfil && novidadesDoCargo.length === 0) { gravarNovidadeVista(NOVIDADES[0].id); setMostrarAtualizacao(false); } }, [mostrarAtualizacao, perfil, novidadesDoCargo.length]);
   const mostrarBannerVersao = !!novaVersao && (estadoAtualizacao === "baixando" || versaoDispensada !== novaVersao.assinatura);
+  // O aviso de versão nova também aparece nas telas de carregamento, login e erro (antes só aparecia logado,
+  // então quem estava deslogado ficava preso na versão antiga até limpar o cache).
+  const comBanner = (tela) => (
+    <>
+      {tela}
+      {mostrarBannerVersao && <NovaVersaoBanner solto T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
+    </>
+  );
 
   // ---------- Deep link: abrir o app direto no produto quando vem de uma notificação ----------
   useEffect(() => {
@@ -2094,7 +2102,7 @@ function AppInner() {
   }
 
   if (loading) {
-    return (
+    return comBanner(
       <TelaCarregando logo={LOGO_SRC} />
     );
   }
@@ -2103,12 +2111,12 @@ function AppInner() {
   // ainda não carregou → loading; sessao existe e perfil veio null → conta sem vínculo em "usuarios"
   // (não deveria acontecer no fluxo normal, mas cobre o caso de alguém logar sem nunca ter biper o crachá).
   if (conviteStatus === "resgatando") {
-    return (
+    return comBanner(
       <TelaCarregando logo={LOGO_SRC} mensagem="Abrindo seu convite…" />
     );
   }
   if (conviteStatus?.erro) {
-    return (
+    return comBanner(
       <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
         <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
         <Ticket size={28} color={RED} />
@@ -2118,10 +2126,10 @@ function AppInner() {
     );
   }
   if (sessao === null) {
-    return <AuthScreen T={T} />;
+    return comBanner(<AuthScreen T={T} />);
   }
   if (sessao?.user?.is_anonymous && perfil === null && !perfilErro) {
-    return (
+    return comBanner(
       <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
         <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
         <Ticket size={28} color={RED} />
@@ -2132,13 +2140,13 @@ function AppInner() {
     );
   }
   if (sessao && perfil === undefined) {
-    return (
+    return comBanner(
       <TelaCarregando logo={LOGO_SRC} mensagem="Entrando na sua conta…" />
     );
   }
   if (sessao && perfil === null) {
     if (perfilErro) {
-      return (
+      return comBanner(
         <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
           <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
           <p className="text-sm font-semibold">Não foi possível carregar seu perfil.</p>
@@ -2148,10 +2156,10 @@ function AppInner() {
         </div>
       );
     }
-    return <ContaSemVinculo T={T} onVinculado={() => { setPerfil(undefined); setPerfilTick((n) => n + 1); }} onSair={() => supabase.auth.signOut()} />;
+    return comBanner(<ContaSemVinculo T={T} onVinculado={() => { setPerfil(undefined); setPerfilTick((n) => n + 1); }} onSair={() => supabase.auth.signOut()} />);
   }
   if (sessao && perfil && !dadosProntos) {
-    return (
+    return comBanner(
       <TelaCarregando logo={LOGO_SRC} mensagem={`Carregando dados da loja ${lojaAtiva?.numero_loja || ""}…`} />
     );
   }
@@ -2422,12 +2430,12 @@ async function baixarVersaoNova(versao, aoProgredir) {
 }
 
 // ============ Banner "Nova versão disponível" — aparece na hora, sem precisar fechar o app ============
-function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar }) {
+function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar, solto }) {
   const baixando = estado === "baixando";
   const pct = Math.round((progresso || 0) * 100);
   return (
     <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-      className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] lg:bottom-6 left-0 right-0 lg:left-64 z-[70] px-3">
+      className={`fixed ${solto ? "bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-0 right-0" : "bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] lg:bottom-6 left-0 right-0 lg:left-64"} z-[70] px-3`}>
       <div style={{ background: BLUE_DARK }} className="max-w-md mx-auto rounded-2xl px-4 py-3 shadow-lg shadow-black/20">
         <div className="flex items-center gap-3">
           <Sparkles size={18} color="#fff" className="shrink-0" />
