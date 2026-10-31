@@ -1222,6 +1222,8 @@ function AppInner() {
   const [perfilTick, setPerfilTick] = useState(0); // incrementar força recarregar o perfil
   // Aceite dos Termos/Privacidade: null = verificando, true = ok, false = precisa aceitar (bloqueia o app)
   const [aceiteOk, setAceiteOk] = useState(null);
+  const [maisPagina, setMaisPagina] = useState(null); // página aberta em Mais (lembra ao voltar de uma tela aberta pelos Atalhos)
+  useEffect(() => { if (flow === null && tab !== "ajustes") setMaisPagina(null); }, [tab, flow]);
   const idDoUsuario = sessao?.user?.id || null;
   useEffect(() => {
     if (!idDoUsuario || !perfil) { return; }
@@ -2310,7 +2312,7 @@ function AppInner() {
             onAbrirPrioridade={() => setFlow("prioridade")} onAbrirTorre={() => setFlow("torre")} onAbrirRelatorios={() => setFlow("relatorios")}
             ehCorporativo={ehCorporativo} onAbrirRede={() => setFlow("rede")} ehEncarregado={ehEncarregado}
             configBalanca={configBalanca} onBalancaSalva={(cfg) => setConfigBalanca(cfg)}
-            ehDev={ehDev} onAbrirGestao={() => setFlow("gestao")} perfil={perfil} onAbrirConvites={() => setFlow("convites")} onAbrirModulo={(f) => setFlow(f)} />
+            ehDev={ehDev} paginaInicial={maisPagina} onPaginaMais={setMaisPagina} onAbrirGestao={() => setFlow("gestao")} perfil={perfil} onAbrirConvites={() => setFlow("convites")} onAbrirModulo={(f) => setFlow(f)} />
         )}
       </main>
 
@@ -2801,6 +2803,7 @@ function SetoresDashboard({ T, grupos, resumo, ultimaRondaPorSetor, onAbrirSetor
 
 function SetoresView({ T, items, catalog, rondas, onIniciarRonda, onOpenDetail, onLancarValidade, onAbrirSetor }) {
   const ehDesktop = useDesktop();
+  const [filtroSetor, setFiltroSetor] = useState("todos");
   const enriched = items.map((it) => ({ ...it, status: getStatus(it) }));
   const barcodesComItemAtivo = new Set(items.map((it) => it.barcode));
 
@@ -2858,52 +2861,81 @@ function SetoresView({ T, items, catalog, rondas, onIniciarRonda, onOpenDetail, 
   return (
     <>
     <SetoresDashboard T={T} grupos={grupos} resumo={resumo} ultimaRondaPorSetor={ultimaRondaPorSetor} onAbrirSetor={onAbrirSetor} />
-    <div className="px-4 pt-4 lg:hidden">
-      <PalcoPagina className="mb-4" titulo="Setores" subtitulo={`${grupos.length} setor${grupos.length !== 1 ? "es" : ""} · toque para abrir`}>
-        <div className="grid grid-cols-3 gap-2">
-          {[["Críticos", resumo.criticos, "#E31E24"], ["Atenção", resumo.atencao, "#F5A524"], ["Em dia", resumo.controlados, "#34C77B"]].map(([rot, n, cor]) => (
-            <div key={rot} className="rounded-2xl py-2.5 text-center" style={{ background: "rgba(255,255,255,.13)", border: "1px solid rgba(255,255,255,.2)" }}>
-              <p className="text-[22px] font-extrabold leading-none tabular-nums">{n}</p>
-              <p className="text-[10.5px] font-semibold text-white/85 mt-1.5 flex items-center justify-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: cor, boxShadow: `0 0 8px ${cor}` }} />{rot}</p>
-            </div>
-          ))}
-        </div>
-      </PalcoPagina>
-
-      <div className="flex flex-col gap-3">
-        {grupos.map(([setor, dados], idx) => {
-          const ultimaRonda = ultimaRondaPorSetor[setor];
-          const rondaAtrasada = !ultimaRonda || Date.now() - new Date(ultimaRonda).getTime() > 24 * 3600000;
-          let cor, bgIcone, rotulo;
-          if (dados.vencido > 0) { cor = "#E31E24"; bgIcone = RED_SOFT; rotulo = "Crítico"; }
-          else if (dados.alerta > 0 || rondaAtrasada) { cor = "#E0921C"; bgIcone = "#FCF0DD"; rotulo = dados.alerta > 0 ? "Atenção" : "Ronda atrasada"; }
-          else { cor = "#1F9D55"; bgIcone = "#E4F7EC"; rotulo = "Em dia"; }
-          const Icone = iconeDoSetor(setor);
+    <div className="px-4 pt-4 pb-6 lg:hidden">
+      {(() => {
+        const info = (setor, dados) => {
+          const ur = ultimaRondaPorSetor[setor];
+          const atrasada = !ur || Date.now() - new Date(ur).getTime() > 24 * 3600000;
           const comData = dados.total - dados.semValidadeCount;
           const ok = Math.max(0, comData - dados.vencido - dados.alerta);
-          const pct = (n) => (comData > 0 ? `${(n / comData) * 100}%` : "0%");
+          let nivel = "ok", rotulo = "Em dia", grad = "linear-gradient(145deg,#1F9D55 0%,#0F6B3A 100%)";
+          if (dados.vencido > 0) { nivel = "crit"; rotulo = "Crítico"; grad = "linear-gradient(145deg,#F0343A 0%,#A81419 100%)"; }
+          else if (dados.alerta > 0 || atrasada) { nivel = "atencao"; rotulo = dados.alerta > 0 ? "Atenção" : "Sem ronda"; grad = "linear-gradient(145deg,#F5A524 0%,#C2670C 100%)"; }
+          return { nivel, rotulo, grad, comData, ok, atrasada, pctOk: comData ? Math.round((ok / comData) * 100) : 100, ur };
+        };
+        const lista = grupos.map(([setor, dados]) => ({ setor, dados, ...info(setor, dados) }))
+          .filter((g) => filtroSetor === "todos" || g.nivel === filtroSetor);
+        const totalProdutos = grupos.reduce((a, [, d]) => a + d.total, 0);
+        const valorRisco = grupos.reduce((a, [, d]) => a + d.valor, 0);
+        const n = grupos.length || 1;
+        const Tile = ({ g, idx, grande }) => {
+          const Icone = iconeDoSetor(g.setor);
           return (
-            <motion.button key={setor} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 320, damping: 26, delay: Math.min(idx * 0.045, 0.35) }}
-              whileTap={{ scale: 0.98 }} onClick={() => onAbrirSetor(setor)} style={{ background: T.card }}
-              className="rounded-[24px] shadow-lg shadow-black/5 text-left p-3.5 flex items-center gap-3.5">
-              <span style={{ background: bgIcone }} className="h-[52px] w-[52px] rounded-[18px] flex items-center justify-center shrink-0"><Icone size={24} color={cor} /></span>
-              <div className="min-w-0 flex-1">
+            <motion.button initial={{ opacity: 0, y: 16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 26, delay: Math.min(idx * 0.05, 0.35) }}
+              whileTap={{ scale: 0.97 }} onClick={() => onAbrirSetor(g.setor)} style={{ background: g.grad, isolation: "isolate", WebkitMaskImage: "-webkit-radial-gradient(white, black)", transform: "translateZ(0)" }}
+              className={`relative overflow-hidden rounded-[28px] text-white text-left shadow-lg shadow-black/15 ${grande ? "col-span-2 p-5" : "p-4"}`}>
+              <div aria-hidden className="absolute inset-0 opacity-[.12]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "18px 18px" }} />
+              <Icone aria-hidden size={grande ? 120 : 86} strokeWidth={1.3} className="absolute -right-3 -bottom-3 opacity-[.17]" />
+              <div className="relative">
                 <div className="flex items-center justify-between gap-2">
-                  <p style={{ color: T.text }} className="font-extrabold text-[15px] leading-tight truncate">{setor}</p>
-                  <span style={{ background: bgIcone, color: cor }} className="text-[10px] font-bold rounded-full px-2 py-0.5 shrink-0">{rotulo}</span>
+                  <span className="text-[10.5px] font-extrabold uppercase tracking-wide rounded-full px-2.5 py-1" style={{ background: "rgba(255,255,255,.2)" }}>{g.rotulo}</span>
+                  <span className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,.2)" }}><ChevronRightIcon className="w-4 h-4" /></span>
                 </div>
-                <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5">
-                  {dados.total} produto{dados.total !== 1 ? "s" : ""}{dados.vencido > 0 ? ` · ${dados.vencido} vencido${dados.vencido > 1 ? "s" : ""}` : ""}{dados.alerta > 0 ? ` · ${dados.alerta} em alerta` : ""}
-                </p>
-                <div className="flex h-1.5 rounded-full overflow-hidden mt-2" style={{ background: T.chipBg }}>
-                  <div style={{ width: pct(dados.vencido), background: "#E31E24" }} /><div style={{ width: pct(dados.alerta), background: "#F5A524" }} /><div style={{ width: pct(ok), background: "#34C77B" }} />
+                <p className={`font-extrabold leading-tight mt-3 ${grande ? "text-[22px]" : "text-[16px]"}`}>{g.setor}</p>
+                <p className="text-[12px] text-white/80 mt-0.5">{g.dados.total} produto{g.dados.total !== 1 ? "s" : ""}{g.dados.semValidadeCount > 0 ? ` · ${g.dados.semValidadeCount} sem data` : ""}</p>
+                <div className="flex items-end gap-4 mt-3">
+                  <div><p className={`font-extrabold leading-none tabular-nums ${grande ? "text-[38px]" : "text-[30px]"}`}>{g.dados.vencido + g.dados.alerta}</p><p className="text-[11px] text-white/80 mt-1 font-semibold whitespace-nowrap">pedem ação</p></div>
+                  {g.dados.valor > 0 && <div><p className={`font-extrabold leading-none tabular-nums ${grande ? "text-[19px]" : "text-[15px]"}`}>{formatarMoeda(g.dados.valor)}</p><p className="text-[11px] text-white/80 mt-1 font-semibold whitespace-nowrap">em risco</p></div>}
+                </div>
+                <div className="mt-3.5">
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,.25)" }}><motion.div initial={{ width: 0 }} animate={{ width: `${g.pctOk}%` }} transition={{ duration: 0.9, delay: 0.2 }} className="h-full rounded-full bg-white" /></div>
+                  <p className="text-[11px] text-white/85 mt-1.5 font-semibold">{g.pctOk}% em dia · {g.ur ? `ronda ${tempoDesde(g.ur)}` : "sem ronda"}</p>
                 </div>
               </div>
-              <ChevronRightIcon className="w-4 h-4 shrink-0" style={{ color: T.subtext }} />
             </motion.button>
           );
-        })}
-      </div>
+        };
+        return (
+          <>
+            <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ background: FUNDO_MARCA, isolation: "isolate", WebkitMaskImage: "-webkit-radial-gradient(white, black)", transform: "translateZ(0)" }}
+              className="relative overflow-hidden rounded-[32px] text-white p-5 shadow-xl shadow-black/15 mb-4">
+              <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+              <div className="relative">
+                <p className="text-[11px] font-bold uppercase tracking-[.16em] text-white/70">Setores da loja</p>
+                <div className="flex items-end justify-between gap-3 mt-2">
+                  <div>
+                    <p className="font-extrabold leading-none tabular-nums text-[44px]">{resumo.criticos + resumo.atencao}<span className="text-[18px] text-white/70 font-bold"> / {grupos.length}</span></p>
+                    <p className="text-[12.5px] text-white/80 mt-1.5">setores precisam de você agora</p>
+                  </div>
+                  <div className="text-right"><p className="text-[11px] text-white/70 font-semibold">{totalProdutos} produtos</p>{valorRisco > 0 && <p className="text-[14px] font-extrabold tabular-nums">{formatarMoeda(valorRisco)}</p>}{valorRisco > 0 && <p className="text-[10.5px] text-white/70">em risco</p>}</div>
+                </div>
+                <div className="flex h-2.5 rounded-full overflow-hidden mt-4" style={{ background: "rgba(255,255,255,.2)" }}>
+                  <div style={{ width: `${(resumo.criticos / n) * 100}%`, background: "#FF5A5F" }} /><div style={{ width: `${(resumo.atencao / n) * 100}%`, background: "#FFC24B" }} /><div style={{ width: `${(resumo.controlados / n) * 100}%`, background: "#34C77B" }} />
+                </div>
+                <div className="flex gap-4 mt-2.5 text-[11.5px] font-semibold text-white/85">
+                  {[["Críticos", resumo.criticos, "#FF5A5F"], ["Atenção", resumo.atencao, "#FFC24B"], ["Em dia", resumo.controlados, "#34C77B"]].map(([r, v, c]) => <span key={r} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: c }} />{v} {r}</span>)}
+                </div>
+              </div>
+            </motion.section>
+            <FaixaChips T={T} valor={filtroSetor} onChange={setFiltroSetor} opcoes={[["todos", "Todos", grupos.length], ["crit", "Críticos", resumo.criticos], ["atencao", "Atenção", resumo.atencao], ["ok", "Em dia", resumo.controlados]]} />
+            {lista.length === 0 ? <EstadoVazioNovo T={T} Icone={LayoutGrid} titulo="Nenhum setor aqui" texto="Troque o filtro para ver os outros." /> : (
+              <div className="grid grid-cols-2 gap-3">
+                {lista.map((g, idx) => <React.Fragment key={g.setor}>{Tile({ g, idx, grande: idx === 0 && filtroSetor === "todos" && g.nivel !== "ok" })}</React.Fragment>)}
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
     </>
   );
@@ -9530,6 +9562,222 @@ function RelatoriosDashboard({ T, lojaNumero, items, criticos, atencao, valorEmR
   );
 }
 
+// ============ Relatórios (celular) — refeito do zero: uma página só, em capítulos ============
+function AnelRel({ partes, tamanho = 132, espessura = 14, centro, sub, fundo = "rgba(255,255,255,.18)" }) {
+  const r = (tamanho - espessura) / 2, c = 2 * Math.PI * r;
+  const total = partes.reduce((a, p) => a + p.v, 0) || 1;
+  let acc = 0;
+  return (
+    <div className="relative shrink-0" style={{ width: tamanho, height: tamanho }}>
+      <svg width={tamanho} height={tamanho} viewBox={`0 0 ${tamanho} ${tamanho}`} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={tamanho / 2} cy={tamanho / 2} r={r} fill="none" stroke={fundo} strokeWidth={espessura} />
+        {partes.filter((p) => p.v > 0).map((p, i) => {
+          const len = (p.v / total) * c; const off = -acc; acc += len;
+          return <motion.circle key={i} cx={tamanho / 2} cy={tamanho / 2} r={r} fill="none" stroke={p.cor} strokeWidth={espessura} strokeLinecap="butt"
+            initial={{ strokeDasharray: `0 ${c}` }} animate={{ strokeDasharray: `${Math.max(0, len - 2)} ${c - Math.max(0, len - 2)}` }} transition={{ duration: 0.9, delay: 0.1 + i * 0.12, ease: "easeOut" }} strokeDashoffset={off} />;
+        })}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="font-extrabold leading-none tabular-nums" style={{ fontSize: tamanho * 0.22 }}>{centro}</span>
+        {sub && <span className="font-semibold opacity-75 mt-1" style={{ fontSize: Math.max(9.5, tamanho * 0.085) }}>{sub}</span>}
+      </div>
+    </div>
+  );
+}
+
+function CapituloRel({ T, id, n, titulo, sub, children }) {
+  return (
+    <motion.section id={id} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 280, damping: 28 }}
+      className="mb-7 scroll-mt-4">
+      <div className="flex items-end gap-3 mb-3 px-1">
+        <span className="font-extrabold leading-none tabular-nums" style={{ fontSize: 44, color: T.chipBg, WebkitTextStroke: `1.5px ${T.inputBorder}` }}>{String(n).padStart(2, "0")}</span>
+        <div className="pb-0.5 min-w-0">
+          <h3 style={{ color: T.text }} className="text-[17px] font-extrabold leading-tight">{titulo}</h3>
+          {sub && <p style={{ color: T.subtext }} className="text-[12px] leading-snug">{sub}</p>}
+        </div>
+      </div>
+      {children}
+    </motion.section>
+  );
+}
+
+function RelatoriosMobile(p) {
+  const { T, lojaNumero, items, criticos, atencao, valorEmRisco, valorTotalMonitorado, tendenciaPerdas, perdaUltimos6Meses, faixasRisco, porPoliticaTroca, topRisco,
+    resumoPorSetor, porUsuarioAuditoria, porTipoAcao, rondasResumo, taxaExecucaoRonda, indicePerda, faturamentoMensal, faturamentoInput, setFaturamentoInput, salvarFaturamento,
+    onGerarPDF, gerarPDFFinanceiro, gerarPDFAtividade, exportarFinanceiro, exportarAtividade, onOpenDetail, proximosAVencer, usuario } = p;
+  const [editFat, setEditFat] = useState(false);
+  const ok = Math.max(0, items.length - criticos.length - atencao.length);
+  const pctOk = items.length ? Math.round((ok / items.length) * 100) : 100;
+  const ir = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const cores = ["#E31E24", "#F5A524", "#F2D14B", "#5BB5E8", "#34C77B"];
+  const totalFaixas = faixasRisco.reduce((a, f) => a + f.valor, 0);
+  const maxMes = Math.max(...perdaUltimos6Meses.map((m) => m.valor), 1);
+  const W = 300, H = 96, passo = W / (perdaUltimos6Meses.length - 1);
+  const pts = perdaUltimos6Meses.map((m, i) => [i * passo, H - 10 - (m.valor / maxMes) * (H - 28)]);
+  const linha = pts.map((q, i) => `${i ? "L" : "M"}${q[0].toFixed(1)} ${q[1].toFixed(1)}`).join(" ");
+  const area = `${linha} L${W} ${H} L0 ${H} Z`;
+  const maxSetor = Math.max(...resumoPorSetor.map(([, d]) => d.valorEmRisco || d.criticos * 1000 + d.atencao), 1);
+  const maxPessoa = Math.max(...porUsuarioAuditoria.map(([, q]) => q), 1);
+  const sub = lojaNumero != null ? `Loja ${lojaNumero}` : "Sua loja";
+  const botaoExp = (rot, Icone, fn, destaque) => (
+    <motion.button whileTap={{ scale: 0.96 }} onClick={fn} className="rounded-2xl py-3 px-3 text-[12.5px] font-extrabold flex items-center justify-center gap-2"
+      style={destaque ? { background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)`, color: "#fff" } : { background: T.chipBg, color: T.text }}><Icone size={15} />{rot}</motion.button>
+  );
+  const chips = [["rel-saude", "Saúde"], ["rel-dinheiro", "Dinheiro"], ["rel-perdas", "Perdas"], ["rel-setores", "Setores"], ["rel-equipe", "Equipe"], ["rel-riscos", "Maiores riscos"], ["rel-exportar", "Exportar"]];
+  return (
+    <div className="px-4 pt-4 pb-8 lg:hidden">
+      {/* Capa */}
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ background: FUNDO_MARCA, isolation: "isolate", WebkitMaskImage: "-webkit-radial-gradient(white, black)", transform: "translateZ(0)" }}
+        className="relative overflow-hidden rounded-[32px] text-white p-5 shadow-xl shadow-black/15 mb-4">
+        <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+        <div className="relative">
+          <p className="text-[11px] font-bold uppercase tracking-[.16em] text-white/70">{sub} · Relatório gerencial</p>
+          <div className="flex items-center justify-between gap-3 mt-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-white/70">Em risco agora</p>
+              <p className="font-extrabold leading-tight tabular-nums whitespace-nowrap mt-0.5" style={{ fontSize: Math.max(22, Math.min(34, Math.floor(150 / (formatarMoeda(valorEmRisco).length * 0.6)))) }}>{formatarMoeda(valorEmRisco)}</p>
+              <p className="text-[12px] text-white/75 mt-1">de {formatarMoeda(valorTotalMonitorado)} monitorados</p>
+            </div>
+            <AnelRel partes={[{ v: criticos.length, cor: "#FF5A5F" }, { v: atencao.length, cor: "#FFC24B" }, { v: ok, cor: "#34C77B" }]} tamanho={118} espessura={13} centro={`${pctOk}%`} sub="em dia" />
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar mt-4 -mx-1 px-1">
+            {chips.map(([id, rot]) => (
+              <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => ir(id)} className="shrink-0 rounded-full px-3.5 py-2 text-[12px] font-bold" style={{ background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)" }}>{rot}</motion.button>
+            ))}
+          </div>
+        </div>
+      </motion.section>
+
+      <CapituloRel T={T} id="rel-saude" n={1} titulo="Saúde do estoque" sub="Como estão os itens monitorados hoje">
+        <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4 flex flex-col gap-3">
+          {[["Vencidos", criticos.length, "#E31E24"], ["Em atenção", atencao.length, "#F5A524"], ["Em dia", ok, "#1F9D55"]].map(([rot, n, cor]) => (
+            <div key={rot}>
+              <div className="flex items-center justify-between"><span style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: cor }} />{rot}</span><span style={{ color: T.text }} className="text-[13px] font-extrabold tabular-nums">{n}<span style={{ color: T.subtext }} className="font-semibold"> · {items.length ? Math.round((n / items.length) * 100) : 0}%</span></span></div>
+              <div style={{ background: T.chipBg }} className="h-2.5 rounded-full overflow-hidden mt-1.5"><motion.div initial={{ width: 0 }} animate={{ width: `${items.length ? (n / items.length) * 100 : 0}%` }} transition={{ duration: 0.8 }} className="h-full rounded-full" style={{ background: cor }} /></div>
+            </div>
+          ))}
+        </div>
+      </CapituloRel>
+
+      <CapituloRel T={T} id="rel-dinheiro" n={2} titulo="Dinheiro exposto" sub="Quanto vence em cada faixa de prazo">
+        <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4">
+          <div className="flex h-5 rounded-full overflow-hidden" style={{ background: T.chipBg }}>
+            {faixasRisco.map((f, i) => f.valor > 0 && <motion.div key={f.label} initial={{ width: 0 }} animate={{ width: `${(f.valor / (totalFaixas || 1)) * 100}%` }} transition={{ duration: 0.8, delay: i * 0.08 }} style={{ background: cores[i] }} />)}
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            {faixasRisco.map((f, i) => (
+              <div key={f.label} className="flex items-center gap-2.5">
+                <span className="h-3 w-3 rounded-md shrink-0" style={{ background: cores[i] }} />
+                <span style={{ color: T.text }} className="text-[12.5px] font-bold flex-1">{f.label} <span style={{ color: T.subtext }} className="font-medium">· {f.qtd} item(ns)</span></span>
+                <span style={{ color: T.text }} className="text-[12.5px] font-extrabold tabular-nums">{formatarMoeda(f.valor)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            {[["Com troca", porPoliticaTroca.com_troca, "#1F9D55"], ["Sem troca", porPoliticaTroca.sem_troca, RED]].map(([rot, d, cor]) => (
+              <div key={rot} style={{ background: T.chipBg }} className="rounded-2xl p-3">
+                <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">{rot}</p>
+                <p style={{ color: cor }} className="text-[15px] font-extrabold tabular-nums mt-0.5">{formatarMoeda(d.valor)}</p>
+                <p style={{ color: T.subtext }} className="text-[11px]">{d.qtd} item(ns)</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CapituloRel>
+
+      <CapituloRel T={T} id="rel-perdas" n={3} titulo="Perdas confirmadas" sub="Últimos 6 meses">
+        <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Este mês</p>
+              <p style={{ color: T.text }} className="text-[24px] font-extrabold leading-tight tabular-nums">{formatarMoeda(tendenciaPerdas.atual)}</p>
+            </div>
+            {tendenciaPerdas.variacao !== null && (
+              <span className="rounded-full px-3 py-1.5 text-[11.5px] font-extrabold" style={{ background: tendenciaPerdas.variacao <= 0 ? "#E4F7EC" : RED_SOFT, color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }}>
+                {tendenciaPerdas.variacao > 0 ? "▲ +" : "▼ "}{tendenciaPerdas.variacao}% vs mês anterior
+              </span>
+            )}
+          </div>
+          <svg viewBox={`0 0 ${W} ${H + 18}`} className="w-full mt-3" aria-label="Perda por mês">
+            <defs><linearGradient id="gradPerda" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={RED} stopOpacity=".35" /><stop offset="100%" stopColor={RED} stopOpacity="0" /></linearGradient></defs>
+            <path d={area} fill="url(#gradPerda)" />
+            <path d={linha} fill="none" stroke={RED} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            {pts.map((q, i) => <circle key={i} cx={q[0]} cy={q[1]} r={i === pts.length - 1 ? 4.5 : 3} fill={i === pts.length - 1 ? RED : T.card} stroke={RED} strokeWidth="2" />)}
+            {perdaUltimos6Meses.map((m, i) => <text key={i} x={i * passo} y={H + 13} fontSize="10" fontWeight="600" fill={T.subtext} textAnchor={i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle"} style={{ textTransform: "capitalize" }}>{m.label}</text>)}
+          </svg>
+          <div style={{ background: T.chipBg }} className="rounded-2xl p-3 mt-3">
+            <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Índice de perda (perda ÷ faturamento)</p>
+            {indicePerda != null ? (
+              <p style={{ color: T.text }} className="text-[20px] font-extrabold tabular-nums">{indicePerda.toFixed(2)}% <span style={{ color: T.subtext }} className="text-[11px] font-semibold">de {formatarMoeda(faturamentoMensal)}/mês</span></p>
+            ) : <p style={{ color: T.subtext }} className="text-[12px] mt-0.5">Informe o faturamento mensal para calcular.</p>}
+            {!editFat ? (
+              <button onClick={() => setEditFat(true)} style={{ color: BLUE }} className="text-[12px] font-bold mt-1.5">{faturamentoMensal ? "Atualizar faturamento" : "+ Informar faturamento"}</button>
+            ) : (
+              <div className="flex gap-2 mt-2">
+                <input type="number" inputMode="decimal" autoFocus value={faturamentoInput} onChange={(e) => setFaturamentoInput(e.target.value)} placeholder="R$ por mês" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="flex-1 min-w-0 border rounded-xl px-3 py-2 text-sm outline-none" />
+                <button onClick={() => { salvarFaturamento(); setEditFat(false); }} style={{ background: BLUE_DARK }} className="text-white text-[12px] font-bold px-4 rounded-xl">Salvar</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </CapituloRel>
+
+      <CapituloRel T={T} id="rel-setores" n={4} titulo="Setores" sub="Onde está o maior valor em risco">
+        <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4">
+          {resumoPorSetor.length === 0 ? <p style={{ color: T.subtext }} className="text-xs text-center py-4">Nenhum setor com itens ainda.</p> : resumoPorSetor.slice(0, 8).map(([setor, d], i) => (
+            <BarraRank key={setor} T={T} pos={i + 1} rotulo={setor} pct={((d.valorEmRisco || d.criticos * 1000 + d.atencao) / maxSetor) * 100}
+              texto={d.valorEmRisco > 0 ? formatarMoeda(d.valorEmRisco) : `${d.criticos} venc. · ${d.atencao} atenç.`} cor={d.criticos > 0 ? RED : "#F5A524"} />
+          ))}
+        </div>
+      </CapituloRel>
+
+      <CapituloRel T={T} id="rel-equipe" n={5} titulo="Equipe e rondas" sub="Quem registra e se as rondas estão sendo feitas">
+        <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4">
+          <div className="flex items-center gap-4" style={{ color: T.text }}>
+            <AnelRel partes={[{ v: rondasResumo.concluidas, cor: "#1F9D55" }, { v: rondasResumo.parciais, cor: "#F5A524" }]} tamanho={96} espessura={11} fundo={T.chipBg} centro={taxaExecucaoRonda != null ? `${taxaExecucaoRonda}%` : "—"} sub="rondas" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-extrabold">Execução de rondas</p>
+              <p style={{ color: T.subtext }} className="text-[12px] mt-0.5">{rondasResumo.concluidas} concluída(s) · {rondasResumo.parciais} parcial(is)</p>
+              <p style={{ color: T.subtext }} className="text-[12px]">{porUsuarioAuditoria.reduce((a, [, q]) => a + q, 0)} ações registradas</p>
+            </div>
+          </div>
+          {porUsuarioAuditoria.length > 0 && <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${T.chipBg}` }}>
+            {porUsuarioAuditoria.slice(0, 6).map(([nome, q], i) => <BarraRank key={nome} T={T} pos={i + 1} rotulo={nome} pct={(q / maxPessoa) * 100} texto={`${q}`} cor={BLUE} />)}
+          </div>}
+          {porTipoAcao.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{porTipoAcao.slice(0, 8).map(([t, q]) => <span key={t} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-bold rounded-full px-2.5 py-1 capitalize">{t} · {q}</span>)}</div>}
+        </div>
+      </CapituloRel>
+
+      <CapituloRel T={T} id="rel-riscos" n={6} titulo="Maiores riscos" sub="Os itens que mais custam se vencerem">
+        <div className="flex flex-col gap-2">
+          {topRisco.length === 0 ? <p style={{ color: T.subtext }} className="text-xs text-center py-4">Nenhum item monitorado ainda.</p> : topRisco.slice(0, 6).map((i, k) => {
+            const c = corDoNivel(getStatus(i).level);
+            return (
+              <motion.button key={i.id} whileTap={{ scale: 0.98 }} onClick={() => onOpenDetail(i)} style={{ background: T.card }} className="rounded-[20px] shadow-md shadow-black/5 p-3 flex items-center gap-3 text-left">
+                <span style={{ background: c.soft, color: c.cor }} className="h-9 w-9 rounded-full text-[13px] font-extrabold flex items-center justify-center shrink-0">{k + 1}</span>
+                <span className="min-w-0 flex-1"><span style={{ color: T.text }} className="block text-[13px] font-extrabold truncate">{i.nome}</span><span style={{ color: T.subtext }} className="block text-[11.5px] truncate">{i.setor} · vence {formatarData(i.validade)}</span></span>
+                <span style={{ color: RED_DARK }} className="text-[13px] font-extrabold tabular-nums shrink-0">{formatarMoeda(i.valorRisco)}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </CapituloRel>
+
+      <CapituloRel T={T} id="rel-exportar" n={7} titulo="Exportar" sub="Levar para a gerência ou abrir na planilha">
+        <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4 grid grid-cols-2 gap-2">
+          <div className="col-span-2">{botaoExp("Relatório gerencial (PDF)", Download, onGerarPDF, true)}</div>
+          {botaoExp("Financeiro PDF", FileText, gerarPDFFinanceiro)}
+          {botaoExp("Atividade PDF", FileText, gerarPDFAtividade)}
+          {botaoExp("Financeiro CSV", Download, () => exportarFinanceiro("csv"))}
+          {botaoExp("Financeiro Excel", FileSpreadsheet, () => exportarFinanceiro("xlsx"))}
+          {botaoExp("Atividade CSV", Download, () => exportarAtividade("csv"))}
+          {botaoExp("Atividade Excel", FileSpreadsheet, () => exportarAtividade("xlsx"))}
+          {proximosAVencer.length > 0 && <div className="col-span-2">{botaoExp(`Próximos do vencimento (${proximosAVencer.length}) PDF`, AlertTriangle, () => gerarPDFProximosAVencer(proximosAVencer, { usuario, lojaNumero }))}</div>}
+        </div>
+      </CapituloRel>
+    </div>
+  );
+}
 function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, onOpenDetail, rondas, lojaNumero }) {
   const [aba, setAba] = useState("resumo"); // resumo | setores | itens | financeiro | atividade
   const telaLargaRel = useTelaLarga();
@@ -9550,9 +9798,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
   // Auditoria completa (a prop "auditoria" que o app carrega no início vem limitada a 40 registros;
   // pro relatório de atividade buscamos uma janela bem maior direto do Supabase).
   const [auditoriaCompleta, setAuditoriaCompleta] = useState(auditoria || []);
-  useEffect(() => {
-    if (aba === "atividade") supaFetchAuditoria(1000).then(setAuditoriaCompleta);
-  }, [aba]);
+  useEffect(() => { supaFetchAuditoria(1000).then(setAuditoriaCompleta); }, []);
 
   const valorTotalMonitorado = useMemo(
     () => items.reduce((acc, i) => acc + (Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0), 0),
@@ -9634,7 +9880,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
   const [faturamentoInput, setFaturamentoInput] = useState("");
   const [editandoFaturamento, setEditandoFaturamento] = useState(false);
   useEffect(() => {
-    if ((aba === "roi" || telaLargaRel) && lojaNumero) {
+    if (lojaNumero) {
       supaFetchConfigLoja(lojaNumero).then((cfg) => {
         if (cfg?.faturamentoMensal != null) { setFaturamentoMensal(cfg.faturamentoMensal); setFaturamentoInput(String(cfg.faturamentoMensal)); }
       });
@@ -9711,293 +9957,12 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
       resumoPorSetor={resumoPorSetor} porUsuarioAuditoria={porUsuarioAuditoria} porTipoAcao={porTipoAcao} rondasResumo={rondasResumo} taxaExecucaoRonda={taxaExecucaoRonda}
       indicePerda={indicePerda} faturamentoMensal={faturamentoMensal} faturamentoInput={faturamentoInput} setFaturamentoInput={setFaturamentoInput} salvarFaturamento={salvarFaturamento}
       onGerarPDF={() => setExportarAberto(true)} gerarPDFFinanceiro={gerarPDFFinanceiro} gerarPDFAtividade={gerarPDFAtividade} exportarFinanceiro={exportarFinanceiro} exportarAtividade={exportarAtividade} onOpenDetail={onOpenDetail} />
-    <div className="px-4 pt-4 pb-6 lg:hidden">
-      <PalcoPagina className="mb-4" titulo="Relatórios" subtitulo={`Loja ${lojaNumero ?? "—"} · atualizado ${formatarDataHoraExtenso(new Date().toISOString())}`}>
-        <ValorPalco rotulo="Valor em risco agora" valor={formatarMoeda(valorEmRisco)} />
-        <PilulasPalco itens={[["Vencidos", criticos.length, "#E31E24"], ["Em atenção", atencao.length, "#F5A524"], ["Monitorados", items.length, "#34C77B"]]} />
-        <motion.button whileTap={{ scale: 0.97 }} onClick={() => setExportarAberto(true)} className="mt-3 w-full bg-white rounded-2xl py-3 text-[13px] font-extrabold flex items-center justify-center gap-2 shadow-md" style={{ color: BLUE_DARK }}>
-          <Download size={16} /> Gerar relatório em PDF para a gerência
-        </motion.button>
-      </PalcoPagina>
-
-      <FaixaChips T={T} valor={aba} onChange={setAba} opcoes={ABAS.map((x) => [x.id, x.label])} />
-
-      {aba === "resumo" && (
-        <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-3 gap-2">
-            <StatCard T={T} label="Vencidos" value={criticos.length} color={RED_DARK} />
-            <StatCard T={T} label="Em atenção" value={atencao.length} color="#C98A0C" />
-            <StatCard T={T} label="Monitorados" value={items.length} color={BLUE} />
-          </div>
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 uppercase tracking-wide">Valor em risco agora</p>
-            <p style={{ color: RED_DARK }} className="text-2xl font-extrabold">{formatarMoeda(valorEmRisco)}</p>
-          </div>
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 uppercase tracking-wide">Perdas confirmadas este mês</p>
-            <p className="text-lg font-extrabold">{formatarMoeda(tendenciaPerdas.atual)}</p>
-            {tendenciaPerdas.variacao !== null && (
-              <p style={{ color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }} className="text-xs font-semibold mt-1">
-                {tendenciaPerdas.variacao > 0 ? "+" : ""}{tendenciaPerdas.variacao}% vs mês anterior ({formatarMoeda(tendenciaPerdas.anterior)})
-              </p>
-            )}
-          </div>
-          {rankingResponsaveis.length > 0 && (
-            <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-              <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Registros por responsável</p>
-              <div className="flex flex-col gap-1.5">
-                {rankingResponsaveis.map(([nome, qtd]) => (
-                  <div key={nome} className="flex items-center justify-between">
-                    <span className="text-xs">{nome}</span>
-                    <span className="text-xs font-bold">{qtd}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {aba === "roi" && (
-        <div className="flex flex-col gap-3">
-          <div style={{ background: FUNDO_MARCA }} className="rounded-[24px] p-4 shadow-lg shadow-black/5 text-white">
-            <p className="text-white/70 text-[10px] font-bold uppercase tracking-wide mb-2">Índice de perda (perda ÷ faturamento)</p>
-            {indicePerda != null ? (
-              <>
-                <p className="text-white text-3xl font-extrabold leading-none">{indicePerda.toFixed(2)}%</p>
-                <p className="text-white/70 text-[11px] mt-1.5">{formatarMoeda(tendenciaPerdas.atual)} de perda sobre {formatarMoeda(faturamentoMensal)} de faturamento/mês</p>
-              </>
-            ) : (
-              <p className="text-white/80 text-xs">Cadastre o faturamento mensal abaixo pra calcular esse índice.</p>
-            )}
-            {!editandoFaturamento ? (
-              <button onClick={() => setEditandoFaturamento(true)} className="text-white text-[11px] font-semibold underline mt-2.5">
-                {faturamentoMensal ? "Atualizar faturamento mensal" : "+ Informar faturamento mensal"}
-              </button>
-            ) : (
-              <div className="flex gap-1.5 mt-2.5">
-                <input type="number" inputMode="decimal" autoFocus value={faturamentoInput} onChange={(e) => setFaturamentoInput(e.target.value)}
-                  placeholder="Faturamento mensal (R$)" className="flex-1 min-w-0 rounded-xl px-2.5 py-2 text-xs text-slate-900 outline-none" />
-                <button onClick={salvarFaturamento} style={{ background: "#fff", color: BLUE_DARK }} className="text-[11px] font-bold px-4 py-2 rounded-xl shrink-0">Salvar</button>
-              </div>
-            )}
-          </div>
-
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 uppercase tracking-wide">Perda mês atual x anterior</p>
-            <p className="text-lg font-extrabold">{formatarMoeda(tendenciaPerdas.atual)}</p>
-            {tendenciaPerdas.variacao !== null && (
-              <p style={{ color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }} className="text-xs font-semibold mt-1">
-                {tendenciaPerdas.variacao > 0 ? "+" : ""}{tendenciaPerdas.variacao}% vs mês anterior ({formatarMoeda(tendenciaPerdas.anterior)})
-              </p>
-            )}
-          </div>
-
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2.5 uppercase tracking-wide">Perda nos últimos 6 meses</p>
-            {(() => {
-              const maxValor = Math.max(...perdaUltimos6Meses.map((m) => m.valor), 1);
-              return (
-                <div className="flex items-end justify-between gap-1.5 h-28">
-                  {perdaUltimos6Meses.map((m, i) => (
-                    <div key={i} className="flex-1 flex flex-col items-center justify-end h-full gap-1">
-                      <p style={{ color: T.subtext }} className="text-[8.5px] font-semibold">{m.valor > 0 ? formatarMoeda(m.valor).replace("R$", "").trim() : ""}</p>
-                      <div style={{ background: i === 5 ? BLUE : T.chipBg, height: `${Math.max(4, (m.valor / maxValor) * 100)}%` }} className="w-full rounded-md" />
-                      <p style={{ color: T.subtext }} className="text-[9.5px] font-medium capitalize">{m.label}</p>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
-
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 uppercase tracking-wide">Execução de rondas (todo o histórico)</p>
-            {taxaExecucaoRonda != null ? (
-              <>
-                <p className="text-lg font-extrabold">{taxaExecucaoRonda}% concluídas</p>
-                <p style={{ color: T.subtext }} className="text-[11px] mt-1">{rondasResumo.concluidas} concluídas · {rondasResumo.parciais} parciais/pendentes</p>
-              </>
-            ) : (
-              <p style={{ color: T.subtext }} className="text-xs">Nenhuma ronda registrada ainda.</p>
-            )}
-          </div>
-
-          <p style={{ color: T.subtext }} className="text-[10px] text-center px-4">
-            Esse painel serve pra justificar o investimento no app pra diretoria — mostra se a perda está caindo mês a mês e se as rondas estão sendo cumpridas.
-          </p>
-        </div>
-      )}
-
-      {aba === "setores" && (
-        <div className="flex flex-col gap-2.5">
-          {resumoPorSetor.length === 0 ? (
-            <EmptyState T={T} hasItems={false} />
-          ) : resumoPorSetor.map(([setor, d]) => (
-            <div key={setor} style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold">{setor}</p>
-                <span className="text-[10px] font-semibold" style={{ color: T.subtext }}>{d.total} item(ns)</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                <div className="text-center rounded-xl py-2" style={{ background: RED_SOFT, color: RED_DARK }}>
-                  <p className="text-sm font-extrabold leading-none">{d.criticos}</p>
-                  <p className="text-[9px] mt-1 font-semibold">Vencidos</p>
-                </div>
-                <div className="text-center rounded-xl py-2" style={{ background: "#FEF3E0", color: "#C98A0C" }}>
-                  <p className="text-sm font-extrabold leading-none">{d.atencao}</p>
-                  <p className="text-[9px] mt-1 font-semibold">Atenção</p>
-                </div>
-                <div className="text-center rounded-xl py-2" style={{ background: "#E6F7ED", color: "#1F9D55" }}>
-                  <p className="text-sm font-extrabold leading-none">{d.ok}</p>
-                  <p className="text-[9px] mt-1 font-semibold">OK</p>
-                </div>
-              </div>
-              {d.valorEmRisco > 0 && (
-                <p className="text-xs" style={{ color: T.subtext }}>Valor em risco: <strong style={{ color: RED_DARK }}>{formatarMoeda(d.valorEmRisco)}</strong></p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {aba === "itens" && (
-        <div className="flex flex-col gap-2">
-          {(() => {
-            const proximosAVencer = enriched.filter((i) => i.status.level === "alert").sort((a, b) => a.status.d - b.status.d);
-            if (proximosAVencer.length === 0) return null;
-            return (
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <p style={{ color: T.subtext }} className="text-[11px] font-medium">{proximosAVencer.length} próximo(s) do vencimento</p>
-                <div className="flex gap-1.5">
-                  <button onClick={() => gerarPDFProximosAVencer(proximosAVencer, { usuario, lojaNumero })}
-                    style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1">
-                    <FileText size={12} /> PDF
-                  </button>
-                  <button onClick={() => downloadCSV(
-                    proximosAVencer.map((i) => [i.nome, i.setor, formatarData(i.validade), `${i.status.d}d`, String(i.quantidade || 1), formatarMoeda((Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0))]),
-                    ["Produto", "Setor", "Validade", "Faltam", "Quantidade", "Valor"],
-                    `itens-proximos-vencer-${new Date().toISOString().slice(0, 10)}.csv`
-                  )} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-medium px-2.5 py-1.5 rounded-full flex items-center gap-1">
-                    <Download size={12} /> CSV
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
-          {enriched.length === 0 ? (
-            <EmptyState T={T} hasItems={false} />
-          ) : agruparItensPorProduto(enriched).map((g, i) => (
-            <LinhaProduto key={g.unico ? g.item.id : `grupo-${i}`} T={T} idx={i} mostrarSetor
-              item={g.unico ? g.item : g.base} lotes={g.unico ? null : g.lotes} totalQuantidade={g.totalQuantidade} piorStatus={g.unico ? g.item.status : g.piorStatus} onOpenDetail={onOpenDetail} />
-          ))}
-        </div>
-      )}
-
-      {aba === "financeiro" && (
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-1.5 justify-end">
-            <button onClick={gerarPDFFinanceiro} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1"><FileText size={12} /> PDF</button>
-            <button onClick={() => exportarFinanceiro("csv")} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-medium px-2.5 py-1.5 rounded-full flex items-center gap-1"><Download size={12} /> CSV</button>
-            <button onClick={() => exportarFinanceiro("ods")} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-medium px-2.5 py-1.5 rounded-full flex items-center gap-1"><FileSpreadsheet size={12} /> ODS</button>
-            <button onClick={() => exportarFinanceiro("xlsx")} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-medium px-2.5 py-1.5 rounded-full flex items-center gap-1"><FileSpreadsheet size={12} /> XLSX</button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-              <p style={{ color: T.subtext }} className="text-[10.5px] font-semibold mb-1 uppercase tracking-wide">Valor monitorado</p>
-              <p className="text-lg font-extrabold">{formatarMoeda(valorTotalMonitorado)}</p>
-            </div>
-            <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-              <p style={{ color: T.subtext }} className="text-[10.5px] font-semibold mb-1 uppercase tracking-wide">Valor em risco</p>
-              <p style={{ color: RED_DARK }} className="text-lg font-extrabold">{formatarMoeda(valorEmRisco)}</p>
-            </div>
-          </div>
-
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Valor exposto por faixa de vencimento</p>
-            <div className="flex flex-col gap-1.5">
-              {faixasRisco.map((f) => (
-                <div key={f.label} className="flex items-center justify-between">
-                  <span className="text-xs">{f.label} <span style={{ color: T.subtext }}>· {f.qtd} item(ns)</span></span>
-                  <span className="text-xs font-bold">{formatarMoeda(f.valor)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Política de troca</p>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between"><span className="text-xs">Com troca · {porPoliticaTroca.com_troca.qtd} item(ns)</span><span className="text-xs font-bold">{formatarMoeda(porPoliticaTroca.com_troca.valor)}</span></div>
-              <div className="flex items-center justify-between"><span className="text-xs">Sem troca · {porPoliticaTroca.sem_troca.qtd} item(ns)</span><span className="text-xs font-bold">{formatarMoeda(porPoliticaTroca.sem_troca.valor)}</span></div>
-            </div>
-          </div>
-
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Top 10 itens com maior valor em risco</p>
-            <div className="flex flex-col gap-2">
-              {topRisco.map((i) => (
-                <button key={i.id} onClick={() => onOpenDetail(i)} className="flex items-center justify-between text-left">
-                  <span className="text-xs truncate pr-2">{i.nome} <span style={{ color: T.subtext }}>· {i.setor}</span></span>
-                  <span className="text-xs font-bold shrink-0" style={{ color: RED_DARK }}>{formatarMoeda(i.valorRisco)}</span>
-                </button>
-              ))}
-              {topRisco.length === 0 && <p style={{ color: T.subtext }} className="text-xs">Nenhum item monitorado ainda.</p>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {aba === "atividade" && (
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-1.5 justify-end">
-            <button onClick={gerarPDFAtividade} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1"><FileText size={12} /> PDF</button>
-            <button onClick={() => exportarAtividade("csv")} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-medium px-2.5 py-1.5 rounded-full flex items-center gap-1"><Download size={12} /> CSV</button>
-            <button onClick={() => exportarAtividade("ods")} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-medium px-2.5 py-1.5 rounded-full flex items-center gap-1"><FileSpreadsheet size={12} /> ODS</button>
-            <button onClick={() => exportarAtividade("xlsx")} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-medium px-2.5 py-1.5 rounded-full flex items-center gap-1"><FileSpreadsheet size={12} /> XLSX</button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <StatCard T={T} label="Ações" value={porUsuarioAuditoria.reduce((a, [, q]) => a + q, 0)} color={BLUE} />
-            <StatCard T={T} label="Rondas OK" value={rondasResumo.concluidas} color="#1F9D55" />
-            <StatCard T={T} label="Rondas parciais" value={rondasResumo.parciais} color="#C98A0C" />
-          </div>
-
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Ações por responsável</p>
-            <div className="flex flex-col gap-1.5">
-              {porUsuarioAuditoria.map(([n, q]) => (
-                <div key={n} className="flex items-center justify-between"><span className="text-xs">{n}</span><span className="text-xs font-bold">{q}</span></div>
-              ))}
-              {porUsuarioAuditoria.length === 0 && <p style={{ color: T.subtext }} className="text-xs">Sem registros de auditoria ainda.</p>}
-            </div>
-          </div>
-
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Ações por tipo</p>
-            <div className="flex flex-col gap-1.5">
-              {porTipoAcao.map(([t, q]) => (
-                <div key={t} className="flex items-center justify-between"><span className="text-xs capitalize">{t}</span><span className="text-xs font-bold">{q}</span></div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Rondas por setor</p>
-            <div className="flex flex-col gap-1.5">
-              {rondasResumo.porSetor.map(([s, d]) => (
-                <div key={s} className="flex items-center justify-between">
-                  <span className="text-xs">{s}</span>
-                  <span className="text-xs font-bold">{d.concluidas} concluída(s) · {d.parciais} parcial(is)</span>
-                </div>
-              ))}
-              {rondasResumo.porSetor.length === 0 && <p style={{ color: T.subtext }} className="text-xs">Nenhuma ronda registrada ainda.</p>}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <RelatoriosMobile T={T} lojaNumero={lojaNumero} items={items} criticos={criticos} atencao={atencao} valorEmRisco={valorEmRisco} valorTotalMonitorado={valorTotalMonitorado}
+      tendenciaPerdas={tendenciaPerdas} perdaUltimos6Meses={perdaUltimos6Meses} faixasRisco={faixasRisco} porPoliticaTroca={porPoliticaTroca} topRisco={topRisco}
+      resumoPorSetor={resumoPorSetor} porUsuarioAuditoria={porUsuarioAuditoria} porTipoAcao={porTipoAcao} rondasResumo={rondasResumo} taxaExecucaoRonda={taxaExecucaoRonda}
+      indicePerda={indicePerda} faturamentoMensal={faturamentoMensal} faturamentoInput={faturamentoInput} setFaturamentoInput={setFaturamentoInput} salvarFaturamento={salvarFaturamento}
+      onGerarPDF={() => setExportarAberto(true)} gerarPDFFinanceiro={gerarPDFFinanceiro} gerarPDFAtividade={gerarPDFAtividade} exportarFinanceiro={exportarFinanceiro} exportarAtividade={exportarAtividade}
+      onOpenDetail={onOpenDetail} usuario={usuario} proximosAVencer={enriched.filter((i) => i.status.level === "alert")} />
       {exportarAberto && (
         <SelecionarSecoesRelatorioSheet T={T} secoesDisponiveis={SECOES_RELATORIO} selecionadas={secoesSelecionadas}
           onAlternar={(id) => setSecoesSelecionadas((prev) => {
@@ -10776,7 +10741,8 @@ function MaisView(props) {
   const { T, dark, tema, setTema, perfil, usuario, ehDev, ehEncarregado, ehCorporativo, historico, secao } = props;
   const telaLarga = useTelaLarga();
   const reduzir = useReducedMotion();
-  const [pagina, setPagina] = useState(null);
+  const [pagina, setPaginaLocal] = useState(props.paginaInicial ?? null);
+  const setPagina = (v) => { setPaginaLocal(v); props.onPaginaMais?.(v); };
   const [onda, setOnda] = useState(null);
 
   const PAGINAS = [
