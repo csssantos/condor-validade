@@ -7,7 +7,7 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-10-31";
+export const TERMOS_VERSAO = "2026-11-01";
 const CHAVE_ACEITE_LOCAL = "avdc_aceite_termos";
 const CHAVE_ACEITE_PENDENTE = "avdc_aceite_pendente";
 
@@ -74,6 +74,8 @@ export const DOCUMENTOS = [
       { t: "7. Recursos de IA e voz", p: [
         "O app pode ter recursos de assistente de IA e cadastro por voz. As respostas da IA podem conter erros e são apoio à decisão, não substituem o seu julgamento nem as regras da empresa. Nenhuma ação é criada sem a sua confirmação.",
         "O cadastro por voz usa o reconhecimento de voz do seu navegador/aparelho, que pode ser processado pelo fornecedor dele (por exemplo, Google ou Apple). Você escolhe quando usar.",
+        "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. Fotos enviadas ao bot podem ser lidas por IA (Google Gemini) para identificar código de barras e validade. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
+        "Promotores: o código do promotor (ex.: ABC-12345) vale para um único Telegram por vez e só permite lançar produtos da própria marca enquanto o acesso estiver ativo.",
       ] },
       { t: "8. Disponibilidade e mudanças", p: [
         "Nos esforçamos para manter o app disponível, mas ele pode ficar indisponível por manutenção, falhas de internet ou de terceiros. O app guarda algumas ações offline e envia quando a conexão volta.",
@@ -125,7 +127,7 @@ export const DOCUMENTOS = [
         ] },
         { t: "5. Com quem compartilhamos", p: [
           "Dentro da sua loja/empresa: gestores e pessoas autorizadas no app, de acordo com o cargo e a loja. Os valores financeiros podem ser ocultados de alguns cargos.",
-          "Fornecedores de tecnologia (operadores) que armazenam e entregam o app: Supabase (banco de dados, autenticação e arquivos) e Vercel (hospedagem do site), além dos serviços de notificação push do seu aparelho (Apple, Google ou Microsoft). Eles tratam os dados só para prestar o serviço, sob contrato.",
+          "Fornecedores de tecnologia (operadores) que armazenam e entregam o app: Supabase (banco de dados, autenticação e arquivos) e Vercel (hospedagem do site), além dos serviços de notificação push do seu aparelho (Apple, Google ou Microsoft), o Telegram (apenas se você vincular, para o bot de lançamento) e o Google Gemini (leitura de fotos e assistente de IA). Eles tratam os dados só para prestar o serviço, sob contrato.",
           "Autoridades públicas e judiciais, quando houver obrigação legal ou ordem válida.",
           "Não vendemos nem alugamos dados pessoais.",
         ] },
@@ -136,6 +138,7 @@ export const DOCUMENTOS = [
           "Conta e dados de cadastro: enquanto você tiver conta e acesso ao app. Depois do desligamento ou da exclusão da conta, o acesso é encerrado e os dados de cadastro são eliminados ou anonimizados quando deixarem de ser necessários.",
           "Registros de auditoria, baixas, rondas e perdas: mantidos pelo prazo necessário para controle operacional, contábil e fiscal e para defesa em processos (em regra, até 5 anos), podendo ser anonimizados antes.",
           "Registros de login e aceite dos termos: mantidos por pelo menos 6 meses (Marco Civil da Internet) e enquanto necessários para comprovar o aceite.",
+          "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos.",
           "Conversas com o assistente de IA: mantidas pelo tempo necessário à operação e ao suporte e eliminadas quando não forem mais úteis.",
         ] },
         { t: "8. Como protegemos", p: [

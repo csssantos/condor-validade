@@ -1318,15 +1318,24 @@ function AppInner() {
 
   // Convite de promotor: o link (?convite=TOKEN) funciona como login. Cria uma sessão anônima no
   // Supabase e o banco (resgatar_convite) amarra essa sessão ao nome/marca/loja/validade do convite.
-  const [conviteStatus, setConviteStatus] = useState(() =>
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("convite") ? "resgatando" : null);
+  // Link permanente do promotor: /promotor/<marca>/<CODIGO> (resgatar_convite_codigo); o antigo ?convite=TOKEN continua valendo.
+  const conviteDaUrl = () => {
+    if (typeof window === "undefined") return null;
+    const t = new URLSearchParams(window.location.search).get("convite");
+    if (t) return { token: t };
+    const m = window.location.pathname.match(/^\/promotor\/[^/]*\/([A-Za-z0-9-]{6,20})\/?$/);
+    return m ? { codigo: m[1].toUpperCase() } : null;
+  };
+  const [conviteStatus, setConviteStatus] = useState(() => (conviteDaUrl() ? "resgatando" : null));
   useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get("convite");
-    if (!token) return;
+    const alvo = conviteDaUrl();
+    if (!alvo) return;
+    const token = alvo.token;
     const limparUrl = () => {
       const url = new URL(window.location.href);
       url.searchParams.delete("convite");
-      window.history.replaceState({}, "", url.pathname + (url.search || "") + url.hash);
+      const caminho = alvo.codigo ? "/" : url.pathname;
+      window.history.replaceState({}, "", caminho + (url.search || "") + url.hash);
     };
     (async () => {
       const { data: atual } = await supabase.auth.getSession();
@@ -1345,7 +1354,7 @@ function AppInner() {
           return;
         }
       }
-      const { error } = await supabase.rpc("resgatar_convite", { p_token: token });
+      const { error } = alvo.codigo ? await supabase.rpc("resgatar_convite_codigo", { p_codigo: alvo.codigo }) : await supabase.rpc("resgatar_convite", { p_token: token });
       limparUrl();
       if (error) {
         const m = error.message || "";
@@ -5516,7 +5525,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
   async function carregarExtras() {
     if (!lojaSel) { setConvites([]); setPedidos([]); return; }
     const [{ data: cv }, { data: pr }, { data: pd }] = await Promise.all([
-      supabase.from("convites_promotor").select("id, token, nome, marca, expira_em, criado_em, revogado, pausado, usos, ultimo_uso").eq("loja_id", lojaSel).order("criado_em", { ascending: false }).limit(100),
+      supabase.from("convites_promotor").select("id, token, codigo, nome, marca, expira_em, criado_em, revogado, pausado, usos, ultimo_uso").eq("loja_id", lojaSel).order("criado_em", { ascending: false }).limit(100),
       supabase.from("usuarios").select("id, convite_id, ativo").eq("loja_id", lojaSel).eq("promotor", true),
       supabase.from("solicitacoes_exclusao").select("*").eq("loja_id", lojaSel).eq("status", "pendente").order("criado_em", { ascending: false }),
     ]);
@@ -5748,6 +5757,8 @@ function AcoesFuncionarioSheet({ T, u, nivelUsuario, cargos, showToast, onClose,
         <div className="flex flex-col gap-2.5">
           <BotaoAcao T={T} ocupado={ocupado} Icon={u.ativo ? Lock : Check} titulo={u.ativo ? "Bloquear acesso" : "Desbloquear acesso"} desc={u.ativo ? "A pessoa perde o acesso ao app na hora." : "Devolve o acesso ao app."}
             cor={u.ativo ? "#C98A0C" : "#1F9D55"} bg={u.ativo ? "#FCF0DD" : "#E6F7ED"} confirmaTexto={u.ativo ? "Toque de novo para bloquear" : "Toque de novo para desbloquear"} onConfirmar={alternar} />
+          <BotaoAcao T={T} ocupado={ocupado} Icon={Send} titulo="Remover Telegram" desc="Desvincula o Telegram desta pessoa (se houver)." cor={BLUE_DARK} bg={BLUE_SOFT}
+            confirmaTexto="Toque de novo para remover" onConfirmar={() => executar(() => supabase.rpc("remover_telegram", { p_usuario: u.id }), "Telegram removido.")} />
           {admin && (
             <>
               <button onClick={() => setModo("editar")} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
@@ -5828,14 +5839,17 @@ function AcoesConviteSheet({ T, c, showToast, onClose, onFeito }) {
     showToast(msgOk); onFeito();
   }
   async function copiar() {
-    try { await navigator.clipboard.writeText(linkDoConvite(c.token)); showToast("Link copiado."); } catch { showToast("Não deu pra copiar.", "warn"); }
+    try { await navigator.clipboard.writeText(linkDoConvite(c)); showToast("Link copiado."); } catch { showToast("Não deu pra copiar.", "warn"); }
   }
   return (
     <GestaoSheet T={T} title={c.nome} subtitle={`${c.marca} · ${st.label}`} onClose={onClose}>
       <div className="flex flex-col gap-2.5">
+        {c.codigo && <p style={{ background: T.chipBg, color: T.text }} className="text-xs rounded-xl px-3 py-2">Código do promotor: <b className="font-mono select-all">{c.codigo}</b></p>}
         {st.id === "ativo" && (
           <button onClick={copiar} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left"><Copy size={18} /><span className="text-sm font-bold">Copiar link do convite</span></button>
         )}
+        <BotaoAcao T={T} ocupado={ocupado} Icon={Send} titulo="Remover Telegram do promotor" desc="Desvincula o Telegram deste código. O promotor pode vincular outro depois." cor={BLUE_DARK} bg={BLUE_SOFT}
+          confirmaTexto="Toque de novo para remover" onConfirmar={() => executar(() => supabase.rpc("remover_telegram", { p_convite: c.id }), "Telegram do promotor removido.")} />
         {!c.revogado && (
           <BotaoAcao T={T} ocupado={ocupado} Icon={c.pausado ? Check : Clock} titulo={c.pausado ? "Retomar convite" : "Pausar convite"}
             desc={c.pausado ? "Devolve o acesso ao promotor." : "Suspende o acesso por enquanto. Dá pra retomar depois."} cor={c.pausado ? "#1F9D55" : "#C2760C"} bg={c.pausado ? "#E6F7ED" : "#FCF0DD"}
@@ -5895,8 +5909,12 @@ const DURACOES_CONVITE = [
   { id: "7d", label: "7 dias", horas: 168 },
   { id: "15d", label: "15 dias", horas: 360 },
   { id: "30d", label: "30 dias", horas: 720 },
+  { id: "perm", label: "Permanente (link fixo)", horas: 876000 },
 ];
-const linkDoConvite = (token) => `${SITE_URL}/?convite=${token}`;
+const slugMarca = (m) => String(m || "marca").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "marca";
+const linkDoConvite = (c) => c.codigo ? `${SITE_URL}/promotor/${slugMarca(c.marca)}/${c.codigo}` : `${SITE_URL}/?convite=${c.token}`;
+const conviteSemPrazo = (c) => new Date(c.expira_em).getTime() - Date.now() > 50 * 365 * 864e5;
+const validadeConvite = (c) => conviteSemPrazo(c) ? "sem prazo (link permanente)" : `vale até ${formatarDataHoraExtenso(c.expira_em)}`;
 
 function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
   const [nome, setNome] = useState("");
@@ -5909,7 +5927,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
   async function carregar() {
     if (!lojaAtiva?.id) return;
     const { data, error } = await supabase.from("convites_promotor")
-      .select("id, token, nome, marca, expira_em, criado_em, revogado, pausado, usos, ultimo_uso")
+      .select("id, token, codigo, nome, marca, expira_em, criado_em, revogado, pausado, usos, ultimo_uso")
       .eq("loja_id", lojaAtiva.id).order("criado_em", { ascending: false }).limit(100);
     if (error) { console.error(error); showToast("Erro ao carregar convites.", "warn"); setConvites([]); return; }
     setConvites(data || []);
@@ -5923,7 +5941,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
     const { data, error } = await supabase.from("convites_promotor").insert({
       nome: nome.trim(), marca: marca.trim(), loja_id: lojaAtiva.id,
       expira_em: new Date(Date.now() + horas * 3600000).toISOString(),
-    }).select("id, token, nome, marca, expira_em, criado_em, revogado, usos, ultimo_uso").single();
+    }).select("id, token, codigo, nome, marca, expira_em, criado_em, revogado, pausado, usos, ultimo_uso").single();
     setGerando(false);
     if (error) { console.error(error); showToast("Não foi possível gerar o convite.", "warn"); return; }
     setRecente(data);
@@ -5932,11 +5950,11 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
   }
 
   async function copiar(c) {
-    try { await navigator.clipboard.writeText(linkDoConvite(c.token)); showToast("Link copiado."); }
+    try { await navigator.clipboard.writeText(linkDoConvite(c)); showToast("Link copiado."); }
     catch { showToast("Não deu pra copiar. Segure o link pra copiar manualmente.", "warn"); }
   }
   function mensagem(c) {
-    return `Olá, ${c.nome}! Este é seu acesso ao app da Condor (${c.marca}). Abra o link pra entrar — vale até ${formatarDataHoraExtenso(c.expira_em)}:\n${linkDoConvite(c.token)}`;
+    return `Olá, ${c.nome}! Este é seu acesso ao app da Condor (${c.marca}). Abra o link pra entrar — ${validadeConvite(c)}.${c.codigo ? ` Seu código do promotor: ${c.codigo} (envie no Telegram do bot para lançar validade).` : ""}\n${linkDoConvite(c)}`;
   }
   async function compartilhar(c) {
     if (navigator.share) {
@@ -5988,8 +6006,8 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
             </div>
           </DashCard>
           {recente && (
-            <DashCard T={T} title={`Convite de ${recente.nome} pronto`} subtitle={`${recente.marca} · vale até ${formatarDataHoraExtenso(recente.expira_em)}`}>
-              <p style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-mono break-all rounded-xl px-3 py-2 select-all mb-3">{linkDoConvite(recente.token)}</p>
+            <DashCard T={T} title={`Convite de ${recente.nome} pronto`} subtitle={`${recente.marca} · ${validadeConvite(recente)}`}>
+              <p style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-mono break-all rounded-xl px-3 py-2 select-all mb-3">{linkDoConvite(recente)}</p>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => copiar(recente)} style={{ background: T.chipBg, color: T.text }} className="py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"><Copy size={13} /> Copiar link</button>
                 <button onClick={() => compartilhar(recente)} style={{ background: "#1F9D55", color: "#fff" }} className="py-2 rounded-xl text-xs font-semibold">WhatsApp / enviar</button>
@@ -6033,8 +6051,8 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
       {recente && (
         <div style={{ background: BLUE_SOFT, borderColor: BLUE }} className="rounded-2xl p-4 border flex flex-col gap-2">
           <p className="text-sm font-bold">Convite de {recente.nome} pronto</p>
-          <p style={{ color: T.subtext }} className="text-[11px]">{recente.marca} · vale até {formatarDataHoraExtenso(recente.expira_em)}</p>
-          <p style={{ background: T.card, color: T.text }} className="text-[11px] font-mono break-all rounded-xl px-3 py-2 select-all">{linkDoConvite(recente.token)}</p>
+          <p style={{ color: T.subtext }} className="text-[11px]">{recente.marca} · {validadeConvite(recente)}</p>
+          <p style={{ background: T.card, color: T.text }} className="text-[11px] font-mono break-all rounded-xl px-3 py-2 select-all">{linkDoConvite(recente)}</p>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={() => copiar(recente)} style={{ background: T.card, color: T.text }} className="py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"><Copy size={14} /> Copiar link</button>
             <button onClick={() => compartilhar(recente)} style={{ background: "#1F9D55", color: "#fff" }} className="py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"><Share2 size={14} /> Enviar</button>
@@ -10325,6 +10343,58 @@ function MaisTile({ T, dark, i, icon: Icon, cor, titulo, desc, onClick }) {
 }
 
 // ---------------- Páginas ----------------
+// Vincular o Telegram: funcionário gera um código de 8 dígitos; promotor usa o código fixo da marca.
+function TelegramVinculo({ T, showToast }) {
+  const [st, setSt] = useState(null);
+  const [cod, setCod] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const bot = String(import.meta.env.VITE_TELEGRAM_BOT || "").replace(/^@/, "");
+  const carregar = async () => { const { data, error } = await supabase.rpc("telegram_status"); if (!error) setSt(data); };
+  useEffect(() => { carregar(); }, []);
+  async function gerar() {
+    setBusy(true);
+    const { data, error } = await supabase.rpc("gerar_codigo_telegram");
+    setBusy(false);
+    if (error) { console.error(error); showToast(error.message?.includes("ja_vinculado") ? "Você já tem um Telegram vinculado." : "Não foi possível gerar o código agora.", "warn"); return; }
+    setCod(data);
+  }
+  async function remover() {
+    setBusy(true);
+    const { error } = await supabase.rpc("remover_telegram");
+    setBusy(false);
+    if (error) { console.error(error); showToast("Não foi possível desvincular.", "warn"); return; }
+    setCod(null); showToast("Telegram desvinculado."); carregar();
+  }
+  const fmt = (c) => String(c).replace(/^(\d{4})(\d{4})$/, "$1 $2");
+  if (!st) return null;
+  return (
+    <MaisBloco T={T} titulo="Telegram">
+      <div className="p-4 flex flex-col gap-3">
+        <p style={{ color: T.subtext }} className="text-xs">Lance validade conversando com o bot do Telegram: mande o código de barras, o nome ou uma foto. Ele pergunta o que faltar e só grava depois do seu "sim".</p>
+        {st.vinculado ? (
+          <>
+            <p style={{ color: "#1F9D55" }} className="text-sm font-bold">✓ Telegram vinculado</p>
+            <button onClick={remover} disabled={busy} style={{ background: T.chipBg, color: T.text }} className="py-2.5 rounded-xl text-xs font-bold disabled:opacity-60">Desvincular este Telegram</button>
+          </>
+        ) : st.tipo === "promotor" ? (
+          <>
+            <p style={{ color: T.subtext }} className="text-xs">Abra o bot, toque em Iniciar e envie o seu código:</p>
+            <p style={{ background: T.chipBg, color: T.text }} className="text-lg font-mono font-bold text-center rounded-xl py-3 select-all">{st.codigo}</p>
+          </>
+        ) : cod ? (
+          <>
+            <p style={{ color: T.subtext }} className="text-xs">Abra o bot, toque em Iniciar e envie este código (vale 10 minutos):</p>
+            <p style={{ background: T.chipBg, color: T.text }} className="text-2xl font-mono font-bold text-center rounded-xl py-3 select-all tracking-widest">{fmt(cod.codigo)}</p>
+          </>
+        ) : (
+          <button onClick={gerar} disabled={busy} style={{ background: BLUE, color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold disabled:opacity-60">{busy ? "Gerando…" : "Gerar código para vincular"}</button>
+        )}
+        {!st.vinculado && bot && <a href={`https://t.me/${bot}`} target="_blank" rel="noopener noreferrer" style={{ color: BLUE_DARK }} className="text-xs font-bold text-center">Abrir o bot no Telegram</a>}
+      </div>
+    </MaisBloco>
+  );
+}
+
 function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
   const [emailAtual, setEmailAtual] = useState(perfil?.email || "");
   const [aberta, setAberta] = useState(null); // "senha" | "email" | null
@@ -10487,6 +10557,7 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
           )}
         </AnimatePresence>
       </MaisBloco>
+      <TelegramVinculo T={T} showToast={showToast} />
     </>
   );
 }
