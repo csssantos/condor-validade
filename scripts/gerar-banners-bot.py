@@ -20,6 +20,7 @@ GLIFOS = {
  "warn": f'<path d="M334 134 L350 162 H318Z" fill="{AMBER}" stroke="{AMBER}" stroke-width="3" stroke-linejoin="round"/><path d="M334 142 V153" stroke="{NAVY}" stroke-width="3.4" stroke-linecap="round"/><circle cx="334" cy="158" r="2" fill="{NAVY}"/>',
  "x": f'<circle cx="334" cy="150" r="15" fill="{RED}"/><path d="M327 143 L341 157 M341 143 L327 157" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/>',
  "plus": f'<circle cx="334" cy="150" r="15" fill="{GREEN}"/><path d="M334 141 V159 M325 150 H343" stroke="#fff" stroke-width="5" stroke-linecap="round"/>',
+ "clock": f'<circle cx="334" cy="150" r="15" fill="{AMBER}"/><circle cx="334" cy="150" r="10.5" fill="#fff"/><path d="M334 143 V150 L339 153" fill="none" stroke="{NAVY}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>',
  "info": f'<circle cx="334" cy="150" r="15" fill="{BLUE}"/><circle cx="334" cy="142" r="2.4" fill="#fff"/><path d="M334 148 V159" stroke="#fff" stroke-width="4" stroke-linecap="round"/>',
 }
 OLHOS_OK = "#2ECC71"
@@ -42,6 +43,10 @@ ESTADOS = {
  "atencao":    ("warn",     AMBER,    "o",       "Atenção", "Veja o aviso abaixo e tente de novo.", AMBER, "AVISO"),
  "cancelado":  ("x",        "#9FB6D1","reta",    "Cancelado", "Nada foi salvo. Quando quiser, é só recomeçar.", RED, "CANCELADO"),
  "novo":       ("plus",     OLHOS_OK, "sorriso", "Produto novo", "Não está no app. Eu busco a imagem na internet.", GREEN, "NOVO"),
+ "lancada":    ("check",    OLHOS_OK, "sorriso", "Validade lançada!", "Registrada no app. Pode mandar o próximo.", GREEN, "LANÇADA"),
+ "aprovacao":  ("clock",    OLHOS_OK, "sorriso", "Aguardando aprovação", "Um encarregado vai conferir o produto novo.", AMBER, "EM ANÁLISE"),
+ "aprovado":   ("check",    OLHOS_OK, "sorriso", "Produto aprovado!", "Cadastrado no app, com a sua validade.", GREEN, "APROVADO"),
+ "rejeitado":  ("x",        "#9FB6D1","reta",    "Produto rejeitado", "O encarregado não aprovou. Veja o motivo abaixo.", RED, "REJEITADO"),
  "ajuda":      ("info",     OLHOS_OK, "sorriso", "Como posso ajudar", "Lanço validades com você, passo a passo.", BLUE, "AJUDA"),
 }
 def html(k):

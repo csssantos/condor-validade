@@ -2578,6 +2578,8 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
+    { tipo: "adicionado", ate: 5, texto: "Aprovar produtos novos: produto que não existe na loja e foi lançado pelo Telegram agora espera a aprovação de um encarregado ou superior (Mais → Aprovar produtos novos). Você edita nome, setor e imagem, aprova (cadastra o produto e lança a validade) ou recusa com motivo. A validade lançada não muda." },
+    { tipo: "adicionado", ate: 7, texto: "Telegram: produto novo vai para aprovação de um encarregado e você recebe o aviso no bot (aprovado ou recusado, com o motivo). Novos banners do Bipi: validade lançada, aguardando aprovação, aprovado e rejeitado." },
     { tipo: "adicionado", ate: 7, texto: "Lançar validade pelo Telegram: converse com o bot, mande o código de barras ou o nome e confirme. Produto que não está no app? O bot busca a imagem na internet, você confirma e ele cadastra. Vincule em Mais → Conta → Telegram." },
     { tipo: "adicionado", ate: 7, texto: "Promotor com código fixo (ex.: ABC-12345) e link permanente: o código vale para um único Telegram." },
     { tipo: "adicionado", ate: 5, texto: "Auditoria do Telegram: vincular, gerar código, lançar, cancelar, tentativas barradas, consultas e produto novo cadastrado aparecem na tela Auditoria, como as ações do app." },
@@ -2688,7 +2690,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
   const telaLarga = useTelaLarga();
   const titles = {
     produtos: "Produtos monitorados", "cfg-conta": "Conta", "cfg-aparencia": "Aparência", "cfg-notificacoes": "Notificações e som",
-    "cfg-avisos": "Avisos", "cfg-balanca": "Código de balança", "cfg-privacidade": "Privacidade e termos", "cfg-sobre": "Sobre o app",
+    "cfg-aprovacoes": "Aprovar produtos novos", "cfg-avisos": "Avisos", "cfg-balanca": "Código de balança", "cfg-privacidade": "Privacidade e termos", "cfg-sobre": "Sobre o app",
     home: "Alerta de Validade", scan: "Bipar produto", confirm: "Dados do produto",
     expiry: "Data de validade", historico: "Histórico de baixas", ajustes: "Mais", auditoria: "Auditoria",
     prioridade: "Prioridade de Perda",
@@ -6800,6 +6802,7 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
       { tab: "cfg-conta", label: "Conta", Icon: KeyRound },
       { tab: "cfg-aparencia", label: "Aparência", Icon: Palette },
       { tab: "cfg-notificacoes", label: "Notificações e som", Icon: Bell },
+      ...(ehEncarregado ? [{ tab: "cfg-aprovacoes", label: "Aprovar produtos novos", Icon: Package }] : []),
       ...(ehDev ? [
         { tab: "cfg-avisos", label: "Avisos", Icon: Megaphone },
         { tab: "cfg-balanca", label: "Código de balança", Icon: Barcode },
@@ -10187,7 +10190,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
 const APP_VERSAO = "4.1";
 const MOLA = { type: "spring", stiffness: 420, damping: 34 };
 const MOLA_SUAVE = { type: "spring", stiffness: 260, damping: 26 };
-const COR_MAIS = { conta: "#6D4FC2", aparencia: "#C2570C", notificacoes: "#0B4F9E", atalhos: "#1F7A4D", avisos: "#A81419", balanca: "#0E7C86", privacidade: "#1F7A4D", sobre: "#4A5B6A" };
+const COR_MAIS = { conta: "#6D4FC2", aparencia: "#C2570C", notificacoes: "#0B4F9E", atalhos: "#1F7A4D", aprovacoes: "#1F7A4D", avisos: "#A81419", balanca: "#0E7C86", privacidade: "#1F7A4D", sobre: "#4A5B6A" };
 const COR_TEMA = { claro: "#EEF2F9", escuro: "#0B1220" };
 
 function clarearCor(hex, f) {
@@ -10997,6 +11000,138 @@ function PaginaSobre({ T, dark, perfil }) {
   );
 }
 
+// ---------------- Aprovação de produto novo (lançado pelo Telegram) ----------------
+const SETORES_APROVACAO = SETORES.slice(0, 10);
+const ERROS_APROVACAO = {
+  sem_permissao: "Só encarregado ou superior pode decidir.", ja_decidido: "Esse pedido já foi decidido por outra pessoa.", nao_encontrado: "Pedido não encontrado.",
+  nome_invalido: "Nome inválido (5 a 80 caracteres, com letras).", setor_invalido: "Escolha um setor.", foto_invalida: "Imagem inválida ou grande demais.",
+  motivo_invalido: "Escreva o motivo (5 a 300 caracteres).", validade_vencida: "A validade lançada já venceu. Recuse o pedido e explique o motivo.",
+  produto_nao_encontrado: "Produto não encontrado.", usuario_fora_da_loja: "Quem lançou não está mais ativo nesta loja. Recuse o pedido.",
+};
+function PaginaAprovacoes({ T, dark, perfil, showToast }) {
+  const [lista, setLista] = useState(null);
+  const [aberto, setAberto] = useState(null);
+  const [ed, setEd] = useState({});            // edição do produto aberto: nome, setor, foto, trocouFoto
+  const [recusando, setRecusando] = useState(null);
+  const [motivo, setMotivo] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [aba, setAba] = useState("pendente");
+
+  const carregar = useCallback(async () => {
+    const { data, error } = await supabase.from("aprovacoes_produto")
+      .select("id, solicitante, barcode, nome, setor, foto, validade, quantidade, status, motivo, decidido_por, decidido_em, criado_em, notificado, decidido_por_id")
+      .order("criado_em", { ascending: false }).limit(60);
+    if (error) { setLista([]); return; }
+    setLista(data || []);
+  }, []);
+  useEffect(() => { carregar(); const t = setInterval(carregar, 20000); return () => clearInterval(t); }, [carregar]);
+
+  const avisar = (id) => supabase.functions.invoke("telegram-avisar", { body: { id } }).catch(() => {});
+  // se uma decisão minha ficou sem aviso (falha de rede), tenta de novo
+  useEffect(() => { (lista || []).filter((a) => a.status !== "pendente" && !a.notificado && a.decidido_por_id === perfil?.id).forEach((a) => avisar(a.id)); }, [lista, perfil?.id]);
+
+  const msgErro = (e) => { const m = e?.message || ""; const k = Object.keys(ERROS_APROVACAO).find((x) => m.includes(x)); return k ? ERROS_APROVACAO[k] : "Não consegui agora. Tente de novo."; };
+  const abrir = (a) => { if (aberto === a.id) { setAberto(null); return; } setAberto(a.id); setRecusando(null); setMotivo(""); setEd({ nome: a.nome, setor: a.setor, foto: a.foto, trocouFoto: false }); };
+  async function trocarFoto(file) {
+    if (!file) return;
+    try { const d = await compressImage(file, 480, 0.62); setEd((e) => ({ ...e, foto: d, trocouFoto: true })); } catch { showToast?.("Não consegui ler a imagem", "warn"); }
+  }
+  async function aprovar(a) {
+    setOcupado(true);
+    const { error } = await supabase.rpc("aprovar_produto_novo", { p_id: a.id, p_nome: ed.nome, p_setor: ed.setor, p_foto: ed.trocouFoto ? ed.foto : null, p_trocar_foto: !!ed.trocouFoto });
+    setOcupado(false);
+    if (error) { showToast?.(msgErro(error), "warn"); carregar(); return; }
+    avisar(a.id); showToast?.("Produto aprovado e validade lançada", "ok"); setAberto(null); carregar();
+  }
+  async function recusar(a) {
+    setOcupado(true);
+    const { error } = await supabase.rpc("recusar_produto_novo", { p_id: a.id, p_motivo: motivo });
+    setOcupado(false);
+    if (error) { showToast?.(msgErro(error), "warn"); carregar(); return; }
+    avisar(a.id); showToast?.("Lançamento recusado. Motivo enviado pelo Telegram", "ok"); setAberto(null); setRecusando(null); setMotivo(""); carregar();
+  }
+
+  const pend = (lista || []).filter((a) => a.status === "pendente");
+  const hist = (lista || []).filter((a) => a.status !== "pendente");
+  const itens = aba === "pendente" ? pend : hist;
+  const fmt = (iso) => { const [y, m, d] = String(iso).split("-"); return `${d}/${m}/${y}`; };
+  const campo = { background: T.chipBg, color: T.text, border: `1px solid ${T.inputBorder}` };
+
+  return (
+    <>
+      <MaisBloco T={T} i={0}>
+        <div className="p-4">
+          <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">Produto novo lançado pelo Telegram só entra no catálogo depois da sua aprovação. Você pode corrigir nome, setor e imagem. A validade e a quantidade lançadas não mudam. Se recusar, o motivo volta para quem lançou.</p>
+          <div className="flex gap-2 mt-3">
+            {[["pendente", `Pendentes (${pend.length})`], ["historico", "Decididos"]].map(([k, t]) => (
+              <button key={k} onClick={() => setAba(k)} style={{ background: aba === k ? BLUE : T.chipBg, color: aba === k ? "#fff" : T.subtext }} className="px-3.5 py-1.5 rounded-full text-[12.5px] font-bold">{t}</button>
+            ))}
+          </div>
+        </div>
+      </MaisBloco>
+      {lista === null && <div className="flex justify-center py-8"><Loader2 size={22} className="animate-spin" style={{ color: T.subtext }} /></div>}
+      {lista !== null && itens.length === 0 && (
+        <MaisBloco T={T} i={1}><p style={{ color: T.subtext }} className="text-[13px] text-center py-8 px-4">{aba === "pendente" ? "Nenhum produto novo aguardando aprovação." : "Nada decidido ainda."}</p></MaisBloco>
+      )}
+      {itens.map((a, k) => (
+        <MaisBloco T={T} key={a.id} i={k + 1}>
+          <button onClick={() => a.status === "pendente" && abrir(a)} className="w-full flex items-center gap-3 p-3.5 text-left">
+            <div style={{ background: T.chipBg }} className="h-14 w-14 rounded-2xl overflow-hidden flex items-center justify-center shrink-0">
+              {a.foto ? <img src={a.foto} alt="" className="h-full w-full object-cover" /> : <Package size={22} style={{ color: T.subtext }} />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p style={{ color: T.text }} className="text-[13.5px] font-bold leading-tight break-words">{a.nome}</p>
+              <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5">{a.setor} · {a.barcode}</p>
+              <p style={{ color: T.subtext }} className="text-[11.5px]">Validade {fmt(a.validade)} · {a.quantidade} un · por {a.solicitante}</p>
+              {a.status !== "pendente" && (
+                <p style={{ color: a.status === "aprovado" ? "#1F7A4D" : RED }} className="text-[11.5px] font-bold mt-1">{a.status === "aprovado" ? "Aprovado" : "Recusado"} por {a.decidido_por}{a.status === "recusado" && a.motivo ? ` · ${a.motivo}` : ""}</p>
+              )}
+            </div>
+            {a.status === "pendente" && <ChevronRight size={16} style={{ color: T.subtext }} />}
+          </button>
+          <AnimatePresence initial={false}>
+            {aberto === a.id && a.status === "pendente" && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={MOLA_SUAVE} className="overflow-hidden">
+                <div className="px-3.5 pb-4 flex flex-col gap-3" style={{ borderTop: `1px solid ${T.chipBg}` }}>
+                  <label className="pt-3 text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Nome do produto
+                    <input value={ed.nome || ""} maxLength={80} onChange={(e) => setEd({ ...ed, nome: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal uppercase" />
+                  </label>
+                  <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Setor
+                    <select value={ed.setor || ""} onChange={(e) => setEd({ ...ed, setor: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
+                      {SETORES_APROVACAO.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <label style={{ background: T.chipBg, color: BLUE }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-bold cursor-pointer"><ImagePlus size={15} />Trocar imagem
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => { trocarFoto(e.target.files?.[0]); e.target.value = ""; }} />
+                    </label>
+                    {ed.foto && <button onClick={() => setEd({ ...ed, foto: null, trocouFoto: true })} style={{ background: T.chipBg, color: T.subtext }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-bold"><ImageOff size={15} />Sem imagem</button>}
+                    {ed.foto && <img src={ed.foto} alt="" className="h-10 w-10 rounded-lg object-cover ml-auto" />}
+                  </div>
+                  {recusando === a.id ? (
+                    <div className="flex flex-col gap-2">
+                      <textarea value={motivo} maxLength={300} rows={3} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo da recusa (volta para quem lançou)" style={campo} className="w-full rounded-xl px-3 py-2.5 text-[14px]" />
+                      <div className="flex gap-2">
+                        <button disabled={ocupado || motivo.trim().length < 5} onClick={() => recusar(a)} style={{ background: RED }} className="flex-1 py-2.5 rounded-xl text-white text-[13.5px] font-bold disabled:opacity-40">{ocupado ? "Enviando…" : "Confirmar recusa"}</button>
+                        <button onClick={() => { setRecusando(null); setMotivo(""); }} style={{ background: T.chipBg, color: T.text }} className="px-4 py-2.5 rounded-xl text-[13.5px] font-bold">Voltar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button disabled={ocupado || (ed.nome || "").trim().length < 5} onClick={() => aprovar(a)} style={{ background: "#1F7A4D" }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-[13.5px] font-bold disabled:opacity-40"><Check size={16} />{ocupado ? "Aprovando…" : "Aprovar e lançar"}</button>
+                      <button disabled={ocupado} onClick={() => setRecusando(a.id)} style={{ background: RED_SOFT, color: RED }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13.5px] font-bold"><X size={16} />Recusar</button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </MaisBloco>
+      ))}
+    </>
+  );
+}
+
 // ---------------- Tela principal da aba ----------------
 function MaisView(props) {
   const { T, dark, tema, setTema, perfil, usuario, ehDev, ehEncarregado, ehCorporativo, historico, secao } = props;
@@ -11011,6 +11146,7 @@ function MaisView(props) {
     { id: "aparencia", titulo: "Aparência", desc: "Claro, escuro ou automático", Icon: Palette, cor: COR_MAIS.aparencia },
     { id: "notificacoes", titulo: "Notificações e som", desc: "Alertas e beep ao bipar", Icon: Bell, cor: COR_MAIS.notificacoes },
     { id: "atalhos", titulo: "Atalhos", desc: "Análises, rondas e gestão", Icon: LayoutGrid, cor: COR_MAIS.atalhos, soMobile: true },
+    ...(ehEncarregado ? [{ id: "aprovacoes", titulo: "Aprovar produtos novos", desc: "Produtos lançados pelo Telegram aguardando você", Icon: Package, cor: COR_MAIS.aprovacoes }] : []),
     ...(ehDev ? [
       { id: "avisos", titulo: "Avisos", desc: "Enviar para a rede, uma loja, setor ou pessoas", Icon: Megaphone, cor: COR_MAIS.avisos },
       { id: "balanca", titulo: "Código de balança", desc: "Prefixos e o que o código embute", Icon: Barcode, cor: COR_MAIS.balanca },
@@ -11042,6 +11178,7 @@ function MaisView(props) {
       case "aparencia": return <PaginaAparencia T={T} dark={dark} tema={tema} onTema={trocarTema} />;
       case "notificacoes": return <PaginaNotificacoes T={T} dark={dark} som={props.som} setSom={props.setSom} notifPermission={props.notifPermission} onToggleNotif={props.onToggleNotif} />;
       case "atalhos": return <PaginaAtalhos T={T} dark={dark} historico={historico} ehEncarregado={ehEncarregado} ehCorporativo={ehCorporativo} ehDev={ehDev} acoes={acoes} />;
+      case "aprovacoes": return ehEncarregado ? <PaginaAprovacoes T={T} dark={dark} perfil={perfil} showToast={props.showToast} /> : null;
       case "avisos": return ehDev ? <PaginaAvisos T={T} dark={dark} perfil={perfil} showToast={props.showToast} /> : null;
       case "balanca": return ehDev ? <PaginaBalanca T={T} dark={dark} perfil={perfil} configBalanca={props.configBalanca} onSalvou={props.onBalancaSalva} showToast={props.showToast} /> : null;
       case "privacidade": return <PaginaPrivacidade T={T} dark={dark} perfil={perfil} showToast={props.showToast} />;

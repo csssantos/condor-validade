@@ -21,7 +21,7 @@ const num = (n: number) => String(n).replace(".", ",");
 const SETORES = ["Hortifruti", "Açougue", "Padaria", "Frios e Laticínios", "Mercearia", "Bebidas", "Congelados", "Limpeza", "Higiene e Perfumaria", "Bazar"];
 
 // ---------- Telegram (toda mensagem leva banner do Bipi) ----------
-type Banner = "codigo" | "vinculado" | "produto" | "validade" | "quantidade" | "conferir" | "sucesso" | "atencao" | "cancelado" | "novo" | "ajuda";
+type Banner = "codigo" | "vinculado" | "produto" | "validade" | "quantidade" | "conferir" | "sucesso" | "lancada" | "aprovacao" | "atencao" | "cancelado" | "novo" | "ajuda";
 const SITE = "https://condor-validade.vercel.app";
 async function tg(method: string, body: Record<string, unknown>) {
   try {
@@ -150,8 +150,8 @@ async function proximoPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados,
   if (d.quantidade == null) { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + `Produto: ${d.nome}\nValidade: ${fmtData(d.validade)}\n${d.porPeso ? "Quantos kg? (ex.: 2,5)" : "Quantas unidades?"}`, undefined, "quantidade"); }
   await salvar(s.id, "aguardando_confirmacao", d);
   const { data: loja } = await sb.from("lojas").select("numero_loja").eq("id", ctx.loja_id).maybeSingle();
-  const novoTxt = d.novo ? `\n🆕 Produto novo: será cadastrado no app\nSetor: ${d.novo.setor}\nImagem: ${d.novo.foto ? "da internet (confirmada por você)" : "sem imagem"}` : "";
-  const resumo = `${pre}Confira os dados:\n\nProduto: ${d.nome}\nCódigo: ${d.barcode}\nValidade: ${fmtData(d.validade)}\nQuantidade: ${num(d.quantidade)} ${d.porPeso ? "kg" : "unidades"}\nLoja: ${loja?.numero_loja ?? "—"}${novoTxt}\n\nConfirma o lançamento?`;
+  const novoTxt = d.novo ? `\n🆕 Produto novo: vai para aprovação de um encarregado\nSetor: ${d.novo.setor}\nImagem: ${d.novo.foto ? "da internet (confirmada por você)" : "sem imagem"}` : "";
+  const resumo = `${pre}Confira os dados:\n\nProduto: ${d.nome}\nCódigo: ${d.barcode}\nValidade: ${fmtData(d.validade)}\nQuantidade: ${num(d.quantidade)} ${d.porPeso ? "kg" : "unidades"}\nLoja: ${loja?.numero_loja ?? "—"}${novoTxt}\n\n${d.novo ? "Confirma o envio para aprovação?" : "Confirma o lançamento?"}`;
   return falar(chat, resumo, [[{ t: "✅ Confirmar", d: `ok:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }], [{ t: "✏️ Corrigir", d: `fx:${s.id}` }]], "conferir");
 }
 
@@ -286,6 +286,12 @@ const ERROS_NOVO: Record<string, string> = {
   foto_invalida: "A imagem não pôde ser usada. Corrija o produto para seguir sem imagem.",
   usuario_fora_da_loja: "Seu acesso não está mais ativo nesta loja. Fale com o encarregado.",
   limite_excedido: "Muitos produtos novos em pouco tempo. Aguarde um pouco.",
+  pendente_ja_existe: "Esse produto novo já está aguardando aprovação de um encarregado.",
+  muitas_pendencias: "Você já tem 10 produtos novos aguardando aprovação. Espere a resposta do encarregado.",
+  fila_cheia: "A fila de aprovação da loja está cheia. Avise o encarregado.",
+  validade_vencida: "A validade informada já passou.",
+  validade_invalida: "A validade está longe demais. Confira a data.",
+  quantidade_invalida: "Quantidade inválida. Confira o número.",
 };
 async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean) {
   // "pega" a sessão de forma atômica: confirmação repetida não grava duas vezes
@@ -295,17 +301,21 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
   const d: Dados = s.dados || {};
   if (!d.barcode || !d.validade || d.quantidade == null) { await salvar(s.id, "aguardando_info", d); return proximoPasso(ctx, chat, s, d); }
 
-  // produto novo: cadastra no app (com a imagem confirmada) antes de lançar a validade
-  if (d.novo && !d.criouProduto) {
-    const { error: ec } = await sb.rpc("telegram_criar_produto", { p_chat_id: chat, p_barcode: d.novo.barcode, p_nome: d.novo.nome, p_setor: d.novo.setor, p_foto: d.novo.foto });
+  // produto novo: NÃO entra direto. Vai para a fila de aprovação de um encarregado+ (que pode editar o produto, aprovar ou recusar com motivo)
+  if (d.novo) {
+    const { error: ec } = await sb.rpc("telegram_enviar_aprovacao", { p_chat_id: chat, p_barcode: d.novo.barcode, p_nome: d.novo.nome, p_setor: d.novo.setor, p_foto: d.novo.foto, p_validade: d.validade, p_quantidade: d.quantidade });
     const mc = ec?.message || "";
-    if (ec && !mc.includes("produto_ja_existe")) {
+    if (!ec) {
+      await salvar(s.id, "registrado", d);
+      return falar(chat, `⏳ Enviado para aprovação!\n${d.nome}\nValidade ${fmtData(d.validade)} · ${num(d.quantidade)} un\n\nUm encarregado vai conferir o produto novo. Eu aviso aqui quando ele aprovar ou se recusar.`, undefined, "aprovacao");
+    }
+    if (mc.includes("produto_ja_existe")) { delete d.novo; await salvar(s.id, "confirmado", d); } // alguém cadastrou nesse meio tempo: lança direto
+    else {
       await salvar(s.id, "aguardando_confirmacao", d);
       const k = Object.keys(ERROS_NOVO).find((x) => mc.includes(x));
-      await auditar(chat, "lançamento barrado no Telegram", `${d.novo.nome}: ${k ? ERROS_NOVO[k] : "erro ao cadastrar produto novo"}`, d.novo.barcode);
-      return falar(chat, "⚠️ " + (k ? ERROS_NOVO[k] : "Não consegui cadastrar o produto novo agora. Nada foi lançado, tente de novo em instantes."), [[{ t: "✅ Tentar de novo", d: `ok:${s.id}` }, { t: "✏️ Corrigir", d: `fx:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }]], "atencao");
+      await auditar(chat, "lançamento barrado no Telegram", `${d.novo.nome}: ${k ? ERROS_NOVO[k] : "erro ao enviar produto novo"}`, d.novo.barcode);
+      return falar(chat, "⚠️ " + (k ? ERROS_NOVO[k] : "Não consegui enviar o produto novo agora. Nada foi lançado, tente de novo em instantes."), [[{ t: "✅ Tentar de novo", d: `ok:${s.id}` }, { t: "✏️ Corrigir", d: `fx:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }]], "atencao");
     }
-    d.criouProduto = true; await salvar(s.id, "confirmado", d);
   }
 
   const { error } = await sb.rpc("lancar_validade", {
@@ -327,7 +337,7 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
   }
   await salvar(s.id, "registrado", d);
   if (forcarDup) await auditar(chat, "confirmou lançamento duplicado no Telegram", `${d.nome} · validade ${fmtData(d.validade)}`, d.barcode);
-  return falar(chat, `✅ Lançamento realizado!\n${d.nome}\nValidade ${fmtData(d.validade)} · ${num(d.quantidade)} ${d.porPeso ? "kg" : "un"}${d.criouProduto ? "\n🆕 Produto novo cadastrado no app." : ""}`, undefined, "sucesso");
+  return falar(chat, `✅ Validade lançada!\n${d.nome}\nValidade ${fmtData(d.validade)} · ${num(d.quantidade)} ${d.porPeso ? "kg" : "un"}`, undefined, "lancada");
 }
 
 // ---------- Vínculo ----------
@@ -361,7 +371,7 @@ async function vincular(chat: number, texto: string) {
   return falar(chat, `✅ Pronto, ${String(data?.nome || "").split(" ")[0]}! Seu Telegram está vinculado.\n\nAgora é só me mandar o código de barras ou o nome do produto.`, undefined, "vinculado");
 }
 
-const AJUDA = "Como usar:\n\n🔢 Mande o código de barras ou o nome do produto\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n🆕 Produto que não está no app? Mande o código de barras: eu busco a imagem na internet e você confirma\n✅ Só lanço depois do seu “sim”\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
+const AJUDA = "Como usar:\n\n🔢 Mande o código de barras ou o nome do produto\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n🆕 Produto que não está no app? Mande o código de barras: eu busco a imagem na internet, você confirma e o produto vai para aprovação de um encarregado\n✅ Só lanço depois do seu “sim”\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
 
 // ---------- Entrada ----------
 async function processar(up: Record<string, any>) {

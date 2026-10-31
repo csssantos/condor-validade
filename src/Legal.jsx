@@ -16,13 +16,13 @@ export const TERMOS_ALTERACOES = [
       "Novo recurso opcional: lançar validade pelo Telegram, conversando com um bot. Nada é lançado sem a sua confirmação.",
       "Promotores ganham um código próprio (ex.: ABC-12345) que vale para um único Telegram e só permite lançar produtos da própria marca.",
       "As ações feitas pelo Telegram passam a aparecer na auditoria da loja, como as ações do app.",
-      "Pelo Telegram, o funcionário pode cadastrar produto novo: o bot busca a imagem na internet e só cadastra depois da sua confirmação. O bot não recebe fotos.",
+      "Pelo Telegram, o funcionário pode cadastrar produto novo: o bot busca a imagem na internet e, depois da sua confirmação, envia o pedido (produto, validade e quantidade) para aprovação de um encarregado ou superior, que pode corrigir o produto, aprovar ou recusar com um motivo; o motivo é enviado a você pelo Telegram. O bot não recebe fotos.",
     ],
     privacidade: [
       "Se você vincular o Telegram, guardamos o identificador da sua conversa (não o seu telefone) e as mensagens enviadas ao bot, por até 30 dias.",
       "Novos fornecedores: Telegram (apenas se você vincular) e Open Food Facts (base pública de produtos: recebe só o código de barras para buscar nome e imagem de produto novo).",
       "Gestores da loja podem remover o vínculo do seu Telegram.",
-      "Ações feitas pelo Telegram (vincular, lançar, cancelar, tentativas barradas, consultas e cadastro de produto novo) ficam na auditoria da loja, como as ações do app.",
+      "Ações feitas pelo Telegram (vincular, lançar, cancelar, tentativas barradas, consultas, envio de produto novo para aprovação, aprovação e recusa com motivo) ficam na auditoria da loja, como as ações do app.",
     ],
   } },
 ];
@@ -93,7 +93,7 @@ export const DOCUMENTOS = [
       { t: "7. Recursos de IA e voz", p: [
         "O app pode ter recursos de assistente de IA e cadastro por voz. As respostas da IA podem conter erros e são apoio à decisão, não substituem o seu julgamento nem as regras da empresa. Nenhuma ação é criada sem a sua confirmação.",
         "O cadastro por voz usa o reconhecimento de voz do seu navegador/aparelho, que pode ser processado pelo fornecedor dele (por exemplo, Google ou Apple). Você escolhe quando usar.",
-        "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. O bot não recebe fotos. Para um produto que ainda não está no app, o bot consulta o código de barras no Open Food Facts (base pública na internet, que recebe apenas esse número), mostra a imagem encontrada e, se você confirmar, cadastra o produto no app com essa imagem. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
+        "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. O bot não recebe fotos. Para um produto que ainda não está no app, o bot consulta o código de barras no Open Food Facts (base pública na internet, que recebe apenas esse número), mostra a imagem encontrada e, se você confirmar, envia o pedido para aprovação de um encarregado ou superior da loja, que pode editar o produto, aprovar (o produto entra no app com essa imagem e a sua validade é lançada) ou recusar com um motivo, que o bot envia a você. O pedido (produto, código, validade, quantidade, seu nome, decisão, motivo e quem decidiu) fica guardado e é apagado 90 dias depois de decidido. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
         "Promotores: o código do promotor (ex.: ABC-12345) vale para um único Telegram por vez e só permite lançar produtos da própria marca enquanto o acesso estiver ativo.",
       ] },
       { t: "8. Disponibilidade e mudanças", p: [
@@ -157,7 +157,7 @@ export const DOCUMENTOS = [
           "Conta e dados de cadastro: enquanto você tiver conta e acesso ao app. Depois do desligamento ou da exclusão da conta, o acesso é encerrado e os dados de cadastro são eliminados ou anonimizados quando deixarem de ser necessários.",
           "Registros de auditoria, baixas, rondas e perdas: mantidos pelo prazo necessário para controle operacional, contábil e fiscal e para defesa em processos (em regra, até 5 anos), podendo ser anonimizados antes.",
           "Registros de login e aceite dos termos: mantidos por pelo menos 6 meses (Marco Civil da Internet) e enquanto necessários para comprovar o aceite.",
-          "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos.",
+          "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos; pedidos de produto novo (com decisão e motivo) são apagados 90 dias após a decisão.",
           "Conversas com o assistente de IA: mantidas pelo tempo necessário à operação e ao suporte e eliminadas quando não forem mais úteis.",
         ] },
         { t: "8. Como protegemos", p: [
