@@ -2180,9 +2180,7 @@ function AppInner() {
     );
   }
   if (sessao && perfil === undefined) {
-    return comBanner(
-      <TelaCarregando logo={LOGO_SRC} mensagem="Entrando na sua conta…" />
-    );
+    return <TelaCarregando logo={LOGO_SRC} mensagem="Entrando na sua conta…" />;
   }
   if (sessao && perfil === null) {
     if (perfilErro) {
@@ -2202,9 +2200,7 @@ function AppInner() {
     return comBanner(<AceiteObrigatorio T={getTokens(false)} nome={perfil.nome} onAceitar={async () => { await registrarAceite(); setAceiteOk(true); }} onSair={() => { setAceiteOk(null); supabase.auth.signOut(); }} />);
   }
   if (sessao && perfil && !dadosProntos) {
-    return comBanner(
-      <TelaCarregando logo={LOGO_SRC} mensagem={`Carregando dados da loja ${lojaAtiva?.numero_loja || ""}…`} />
-    );
+    return <TelaCarregando logo={LOGO_SRC} mensagem={`Carregando dados da loja ${lojaAtiva?.numero_loja || ""}…`} />;
   }
 
   const showBottomNav = flow === null;
