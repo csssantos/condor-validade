@@ -71,7 +71,18 @@ const SETORES_PERECIVEIS = ["Hortifruti", "Açougue", "Padaria", "Frios e Latic�
 function ehPerecivel(setor) { return SETORES_PERECIVEIS.includes(setor) || SETORES_PERECIVEIS_EXTRA.includes(setor); }
 let SETORES_PERECIVEIS_EXTRA = []; // atualizado pelo App conforme setores customizados são carregados/criados
 // Item 5: subsetores de Mercearia
-const SUBSETORES_MERCEARIA = ["Leve", "Mundo Saudável", "Pesados", "Salgados e Doces", "Bolachas", "Perfumaria"];
+const SUBSETORES_PADRAO = {
+  "Mercearia": ["Seca leve", "Seca pesada", "Seca doce", "Seca salgada", "Saudáveis", "Bolachas", "Perfumaria"],
+  "Hortifruti": ["Frutas", "Verduras", "Legumes", "Ovos"],
+  "Açougue": ["Bovinos", "Suínos", "Aves", "Linguiças e embutidos"],
+  "Padaria": ["Pães", "Bolos e doces", "Salgados"],
+  "Frios e Laticínios": ["Queijos", "Frios fatiados", "Iogurtes e leites", "Manteiga e margarina"],
+  "Bebidas": ["Refrigerantes", "Sucos", "Águas", "Cervejas e vinhos"],
+  "Congelados": ["Pratos prontos", "Sorvetes", "Carnes congeladas"],
+  "Limpeza": ["Roupas", "Casa", "Cozinha"],
+  "Higiene e Perfumaria": ["Cabelo", "Corpo", "Higiene bucal"],
+  "Bazar": ["Utilidades", "Papelaria"],
+};
 
 // Item 11/28: hierarquia de localização — Setor -> Subsetor -> Corredor | Lado -> Módulo -> Prateleira
 const CATEGORIAS_GIRO = ["Alto giro", "Médio giro", "Baixo giro"];
@@ -1396,7 +1407,9 @@ function AppInner() {
   const [intencaoFluxo, setIntencaoFluxo] = useState("validade"); // "validade" | "cadastro"
   const [vozAberta, setVozAberta] = useState(false);
   const [vozPre, setVozPre] = useState(null); // o que a voz já preencheu na tela de validade { validade, quantidade, porPeso }
-  const [setorAtivo, setSetorAtivo] = useState(null); // controla a página de detalhe do setor
+  const [setorAtivo, setSetorAtivoBruto] = useState(null); // controla a página de detalhe do setor
+  const [subAtivo, setSubAtivo] = useState(null); // subcategoria escolhida dentro do setor (null = tela de subcategorias; "__todos__" / "__sem__" = atalhos)
+  const setSetorAtivo = (v) => { setSetorAtivoBruto(v); setSubAtivo(null); };
 
   const [pendingBarcode, setPendingBarcode] = useState(null);
   // Item 8: config de código de balança desta loja (peso/preço embutido) — carregada uma vez do Supabase
@@ -2289,9 +2302,20 @@ function AppInner() {
           <SetoresView T={T} items={items} catalog={catalog} rondas={rondas}
             onOpenDetail={setDetalheItem} onLancarValidade={ehDesktop ? null : lancarValidadeDoCadastro} onAbrirSetor={setSetorAtivo} />
         )}
-        {flow === null && tab === "setores" && setorAtivo && (
-          <SetorDetalheView T={T} setor={setorAtivo} items={items} catalog={catalog} rondas={rondas}
-            onVoltar={() => setSetorAtivo(null)} onIniciarRonda={iniciarRonda} onOpenDetail={setDetalheItem}
+        {flow === null && tab === "setores" && setorAtivo && !subAtivo && (() => {
+          const nomesExtra = subsetoresExtra.filter((x) => x.setor === setorAtivo).map((x) => x.nome);
+          const dosProdutos = [...items, ...Object.values(catalog || {})].filter((i) => i.setor === setorAtivo && i.subsetor).map((i) => i.subsetor);
+          const tem = (SUBSETORES_PADRAO[setorAtivo] || []).length + nomesExtra.length + dosProdutos.length > 0;
+          if (!tem) { setTimeout(() => setSubAtivo("__todos__"), 0); return null; }
+          return (
+            <SetorSubcategoriasView T={T} setor={setorAtivo} items={items} catalog={catalog} extras={nomesExtra}
+              onVoltar={() => setSetorAtivo(null)} onEscolher={setSubAtivo} onCriarSubsetor={ehEncarregado ? criarSubsetorCustomizado : null}
+              onCadastrarNoSetor={ehDesktop ? null : (sx) => abrirCadastroDireto(sx)} />
+          );
+        })()}
+        {flow === null && tab === "setores" && setorAtivo && subAtivo && (
+          <SetorDetalheView T={T} setor={setorAtivo} items={items} catalog={catalog} rondas={rondas} subInicial={subAtivo}
+            onVoltar={() => setSubAtivo(null)} onIniciarRonda={iniciarRonda} onOpenDetail={setDetalheItem}
             onLancarValidade={ehDesktop ? null : lancarValidadeDoCadastro} onCadastrarNoSetor={ehDesktop ? null : (s) => abrirCadastroDireto(s)}
             onExcluir={excluirProduto} usuario={usuario} ehEncarregado={ehEncarregado} perfil={perfil} />
         )}
@@ -3287,12 +3311,89 @@ function SetorDetalheDashboard({ T, setor, itensDoSetor, filtrados, contagens, u
   );
 }
 
-function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onIniciarRonda, onOpenDetail, onLancarValidade, onCadastrarNoSetor, onExcluir, usuario, ehEncarregado, perfil }) {
+// Tela intermediária: setor -> subcategorias (ex.: Mercearia -> Seca leve, Seca doce...) -> produtos
+function SetorSubcategoriasView({ T, setor, items, catalog, extras, onVoltar, onEscolher, onCriarSubsetor, onCadastrarNoSetor }) {
+  const podeVerValores = useValoresVisiveis();
+  const [criando, setCriando] = useState(false);
+  const [novoNome, setNovoNome] = useState("");
+  const Icone = iconeDoSetor(setor);
+  const todos = useMemo(() => {
+    const ativos = items.filter((i) => i.setor === setor).map((i) => ({ ...i, status: getStatus(i) }));
+    const com = new Set(ativos.map((i) => i.barcode));
+    const sem = Object.entries(catalog || {}).filter(([b, d]) => d.setor === setor && !com.has(b)).map(([b, d]) => ({ id: `catalogo-${b}`, barcode: b, semValidade: true, ...d }));
+    return [...ativos, ...sem];
+  }, [items, catalog, setor]);
+  const nomes = useMemo(() => {
+    const base = [...(SUBSETORES_PADRAO[setor] || []), ...extras];
+    todos.forEach((i) => { if (i.subsetor && !base.some((n) => n.toLowerCase() === i.subsetor.toLowerCase())) base.push(i.subsetor); });
+    return base;
+  }, [setor, extras, todos]);
+  const resumo = (lista) => {
+    const ativos = lista.filter((i) => !i.semValidade);
+    return {
+      total: lista.length,
+      vencidos: ativos.filter((i) => i.status.level === "expired").length,
+      alerta: ativos.filter((i) => i.status.level === "alert").length,
+      risco: ativos.filter((i) => i.status.level === "expired" || i.status.level === "alert").reduce((a, i) => a + (Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0), 0),
+    };
+  };
+  const linhas = nomes.map((n) => ({ id: n, nome: n, ...resumo(todos.filter((i) => (i.subsetor || "").toLowerCase() === n.toLowerCase())) }));
+  const semSub = resumo(todos.filter((i) => !i.subsetor));
+  const geral = resumo(todos);
+  const Cartao = ({ id, nome, total, vencidos, alerta, risco, destaque }) => (
+    <motion.button whileTap={{ scale: 0.98 }} onClick={() => onEscolher(id)} style={{ background: T.card, borderColor: T.inputBorder }}
+      className="w-full text-left rounded-2xl border px-4 py-3.5 flex items-center gap-3 shadow-sm">
+      <span className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: destaque ? BLUE : T.chipBg, color: destaque ? "#fff" : BLUE }}><Icone size={20} /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-extrabold truncate" style={{ color: T.text }}>{nome}</span>
+        <span className="block text-[12px] font-semibold mt-0.5" style={{ color: T.subtext }}>{total} produto{total !== 1 ? "s" : ""}</span>
+        {(vencidos > 0 || alerta > 0 || (risco > 0 && podeVerValores)) && (
+          <span className="flex flex-wrap gap-1.5 mt-1.5">
+            {vencidos > 0 && <span className="text-[10.5px] font-bold rounded-full px-2 py-0.5" style={{ background: "#E31E2418", color: "#E31E24" }}>{vencidos} vencido{vencidos !== 1 ? "s" : ""}</span>}
+            {alerta > 0 && <span className="text-[10.5px] font-bold rounded-full px-2 py-0.5" style={{ background: "#F5A52422", color: "#B87400" }}>{alerta} em alerta</span>}
+            {risco > 0 && podeVerValores && <span className="text-[10.5px] font-bold rounded-full px-2 py-0.5" style={{ background: T.chipBg, color: T.text }}>{formatarMoeda(risco)} em risco</span>}
+          </span>
+        )}
+      </span>
+      <ChevronRight size={18} color={T.subtext} className="shrink-0" />
+    </motion.button>
+  );
+  return (
+    <div className="px-4 pt-4 lg:px-0 lg:pt-0">
+      <motion.button whileTap={{ scale: 0.95 }} onClick={onVoltar} style={{ background: T.card, color: T.text }} className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold rounded-full pl-2.5 pr-3.5 py-2 shadow-md">
+        <ArrowLeft size={15} /> Todos os setores
+      </motion.button>
+      <PalcoPagina className="mb-4" titulo={setor} subtitulo={`${nomes.length} subcategoria${nomes.length !== 1 ? "s" : ""} · ${geral.total} produto${geral.total !== 1 ? "s" : ""}`}
+        acao={onCadastrarNoSetor ? (
+          <motion.button whileTap={{ scale: 0.9 }} onClick={() => onCadastrarNoSetor(setor)} aria-label="Cadastrar produto neste setor" className="h-11 w-11 rounded-full bg-white flex items-center justify-center shadow-md shrink-0" style={{ color: BLUE_DARK }}><Plus size={20} /></motion.button>
+        ) : <span className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,.15)" }}><Icone size={22} color="#fff" /></span>}>
+        <p className="text-[12.5px] text-white/80 font-semibold">Escolha uma subcategoria para ver os produtos.</p>
+      </PalcoPagina>
+      <div className="space-y-2.5 pb-6">
+        <Cartao id="__todos__" nome={`Todos os produtos de ${setor}`} {...geral} destaque />
+        {linhas.map((l) => <Cartao key={l.id} {...l} />)}
+        {semSub.total > 0 && <Cartao id="__sem__" nome="Sem subcategoria" {...semSub} />}
+        {onCriarSubsetor && (criando ? (
+          <div className="flex gap-2">
+            <input value={novoNome} onChange={(e) => setNovoNome(e.target.value)} maxLength={40} placeholder="Nome da subcategoria" autoFocus
+              style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="flex-1 rounded-2xl border px-4 py-3 text-sm outline-none" />
+            <button onClick={() => { if (novoNome.trim()) { onCriarSubsetor(setor, novoNome); setNovoNome(""); setCriando(false); } }} style={{ background: BLUE, color: "#fff" }} className="px-4 rounded-2xl text-sm font-bold">Criar</button>
+            <button onClick={() => { setCriando(false); setNovoNome(""); }} style={{ color: T.subtext }} className="px-2 text-sm">✕</button>
+          </div>
+        ) : (
+          <button onClick={() => setCriando(true)} style={{ borderColor: T.inputBorder, color: BLUE }} className="w-full rounded-2xl border-2 border-dashed py-3 text-[13px] font-bold flex items-center justify-center gap-1.5"><Plus size={16} /> Nova subcategoria</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SetorDetalheView({ T, setor, items, catalog, rondas, subInicial, onVoltar, onIniciarRonda, onOpenDetail, onLancarValidade, onCadastrarNoSetor, onExcluir, usuario, ehEncarregado, perfil }) {
   const podeVerValores = useValoresVisiveis();
   const [itemParaExcluir, setItemParaExcluir] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFiltro, setStatusFiltro] = useState("todos"); // todos | alerta | vencido
-  const [subsetorFiltro, setSubsetorFiltro] = useState("todos");
+  const [subsetorFiltro, setSubsetorFiltro] = useState(!subInicial || subInicial === "__todos__" ? "todos" : subInicial);
   const [ordenarPor, setOrdenarPor] = useState("urgencia"); // urgencia | nome | valor
   const barcodesComItemAtivo = new Set(items.filter((i) => i.setor === setor).map((it) => it.barcode));
 
@@ -3323,7 +3424,7 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onInicia
   let filtrados = itensDoSetor.filter((i) => {
     const matchBusca = i.nome.toLowerCase().includes(search.toLowerCase()) || i.barcode.includes(search);
     if (!matchBusca) return false;
-    if (subsetorFiltro !== "todos" && i.subsetor !== subsetorFiltro) return false;
+    if (subsetorFiltro === "__sem__" ? !!i.subsetor : (subsetorFiltro !== "todos" && i.subsetor !== subsetorFiltro)) return false;
     if (i.semValidade) return statusFiltro === "todos";
     if (statusFiltro === "alerta") return i.status.level === "alert";
     if (statusFiltro === "vencido") return i.status.level === "expired";
@@ -3355,7 +3456,7 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onInicia
         onVoltar={onVoltar} onOpenDetail={onOpenDetail} ehEncarregado={ehEncarregado} onDesignar={() => onIniciarRonda(setor)} />
       <div className="lg:hidden">
         <motion.button whileTap={{ scale: 0.95 }} onClick={onVoltar} style={{ background: T.card, color: T.text }} className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold rounded-full pl-2.5 pr-3.5 py-2 shadow-md shadow-black/5">
-          <ArrowLeft size={15} /> Todos os setores
+          <ArrowLeft size={15} /> {subInicial ? setor : "Todos os setores"}
         </motion.button>
         {(() => {
           const IconeSetor = iconeDoSetor(setor);
@@ -3364,7 +3465,7 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onInicia
           const rondaAtrasada = !ultimaRonda || Date.now() - new Date(ultimaRonda).getTime() > 24 * 3600000;
           const nOk = itensDoSetor.filter((i) => !i.semValidade).length - contagens.vencido - contagens.alerta;
           return (
-            <PalcoPagina className="mb-4" titulo={setor} subtitulo={`${itensDoSetor.length} produto${itensDoSetor.length !== 1 ? "s" : ""}`}
+            <PalcoPagina className="mb-4" titulo={subsetorFiltro === "todos" ? setor : `${setor} · ${subsetorFiltro === "__sem__" ? "Sem subcategoria" : subsetorFiltro}`} subtitulo={`${itensDoSetor.length} produto${itensDoSetor.length !== 1 ? "s" : ""}`}
               acao={onCadastrarNoSetor ? (
                 <motion.button whileTap={{ scale: 0.9 }} onClick={() => onCadastrarNoSetor(setor)} aria-label="Cadastrar produto neste setor" className="h-11 w-11 rounded-full bg-white flex items-center justify-center shadow-md shrink-0" style={{ color: BLUE_DARK }}><Plus size={22} /></motion.button>
               ) : <span className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,.15)" }}><IconeSetor size={22} color="#fff" /></span>}>
@@ -8910,7 +9011,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
                 </div>
               ) : (
                 (() => {
-                  const opcoes = [...(setor === "Mercearia" ? SUBSETORES_MERCEARIA : []), ...subsetoresExtra.filter((s) => s.setor === setor).map((s) => s.nome)];
+                  const opcoes = [...(SUBSETORES_PADRAO[setor] || []), ...subsetoresExtra.filter((s) => s.setor === setor && !(SUBSETORES_PADRAO[setor] || []).includes(s.nome)).map((s) => s.nome)];
                   return opcoes.length > 0 ? (
                     <div className="grid grid-cols-2 gap-1.5">
                       {opcoes.map((s) => (
