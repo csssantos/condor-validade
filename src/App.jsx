@@ -3016,6 +3016,99 @@ function ItemCardGridAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onO
   );
 }
 
+// ===== Peças novas das páginas internas (celular): mesmo palco, vidro e cartões da tela inicial =====
+function PilulasPalco({ itens }) {
+  return (
+    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${itens.length}, minmax(0, 1fr))` }}>
+      {itens.map(([rot, n, cor]) => (
+        <div key={rot} className="rounded-2xl py-2.5 px-1 text-center" style={{ background: "rgba(255,255,255,.13)", border: "1px solid rgba(255,255,255,.2)" }}>
+          <p className="text-[21px] font-extrabold leading-none tabular-nums">{n}</p>
+          <p className="text-[10.5px] font-semibold text-white/85 mt-1.5 flex items-center justify-center gap-1.5">{cor && <span className="h-2 w-2 rounded-full" style={{ background: cor, boxShadow: `0 0 8px ${cor}` }} />}{rot}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+function ValorPalco({ rotulo, valor }) {
+  const tam = Math.max(22, Math.min(36, Math.floor(260 / (String(valor).length * 0.6))));
+  return (
+    <div className="mb-3">
+      <p className="text-[10.5px] font-bold uppercase tracking-[.14em] text-white/70">{rotulo}</p>
+      <p className="font-extrabold leading-tight tabular-nums mt-0.5 whitespace-nowrap" style={{ fontSize: tam }}>{valor}</p>
+    </div>
+  );
+}
+function CartaoNovo({ T, titulo, Icone, cor, children, className = "", idx = 0 }) {
+  return (
+    <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 320, damping: 26, delay: Math.min(idx * 0.05, 0.3) }}
+      style={{ background: T.card }} className={`rounded-[24px] shadow-lg shadow-black/5 p-4 mb-3.5 ${className}`}>
+      {titulo && (
+        <div className="flex items-center gap-2.5 mb-3">
+          {Icone && <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: T.chipBg }}><Icone size={16} color={cor || BLUE_DARK} /></span>}
+          <p style={{ color: T.text }} className="text-[13px] font-extrabold leading-tight">{titulo}</p>
+        </div>
+      )}
+      {children}
+    </motion.section>
+  );
+}
+function BarraRank({ T, pos, rotulo, pct, texto, cor = RED }) {
+  return (
+    <div className="flex items-center gap-2.5 py-1">
+      <span style={{ background: T.chipBg, color: T.subtext }} className="h-6 w-6 rounded-full text-[10.5px] font-extrabold flex items-center justify-center shrink-0">{pos}</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2"><span style={{ color: T.text }} className="text-[12.5px] font-bold truncate">{rotulo}</span><span style={{ color: T.subtext }} className="text-[11.5px] font-bold tabular-nums shrink-0">{texto}</span></div>
+        <div style={{ background: T.chipBg }} className="h-2 rounded-full overflow-hidden mt-1"><motion.div initial={{ width: 0 }} animate={{ width: `${Math.max(2, Math.min(100, pct))}%` }} transition={{ duration: 0.8, ease: "easeOut" }} style={{ background: cor }} className="h-full rounded-full" /></div>
+      </div>
+    </div>
+  );
+}
+function FaixaChips({ T, opcoes, valor, onChange }) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 mb-3.5">
+      {opcoes.map(([id, rot, n]) => {
+        const ativo = valor === id;
+        return (
+          <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => onChange(id)} aria-pressed={ativo}
+            style={ativo ? { background: BLUE_DARK, color: "#fff" } : { background: T.card, color: T.text }} className="shrink-0 rounded-full px-3.5 py-2 text-xs font-bold shadow-sm flex items-center gap-1.5">
+            {rot}{n != null && <span style={ativo ? { background: "rgba(255,255,255,.22)" } : { background: T.chipBg, color: T.subtext }} className="text-[10.5px] rounded-full px-1.5 min-w-[20px] text-center tabular-nums">{n}</span>}
+          </motion.button>
+        );
+      })}
+    </div>
+  );
+}
+function EstadoVazioNovo({ T, Icone, titulo, texto }) {
+  return (
+    <div className="text-center py-12 px-6">
+      <div style={{ background: T.card }} className="h-16 w-16 rounded-[22px] mx-auto flex items-center justify-center mb-3 shadow-md shadow-black/5"><Icone size={26} color={BLUE} /></div>
+      <p style={{ color: T.text }} className="font-extrabold text-[15px]">{titulo}</p>
+      {texto && <p style={{ color: T.subtext }} className="text-xs mt-1">{texto}</p>}
+    </div>
+  );
+}
+
+// Cartão de produto em grade (celular): foto grande, situação, nome e validade
+function CartaoGrade({ T, item, idx = 0, onOpenDetail }) {
+  const c = corDoNivel(item.status?.level);
+  return (
+    <motion.button initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 320, damping: 26, delay: Math.min(idx * 0.03, 0.3) }}
+      whileTap={{ scale: 0.97 }} onClick={() => onOpenDetail(item)} style={{ background: T.card }} className="rounded-[24px] shadow-lg shadow-black/5 text-left overflow-hidden">
+      <div className="relative">
+        {item.foto ? <img src={item.foto} alt="" className="w-full h-28 object-cover" /> : (
+          <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "16px 16px" }} /><Package size={30} color="#fff" className="relative opacity-90" /></div>
+        )}
+        <span style={{ background: c.soft, color: c.cor }} className="absolute top-2 left-2 text-[10px] font-bold rounded-full px-2.5 py-1 shadow-sm">{item.status?.label}</span>
+      </div>
+      <div className="p-3">
+        <p style={{ color: T.text }} className="font-extrabold text-[13px] leading-tight line-clamp-2 min-h-[32px]">{item.nome}</p>
+        <p style={{ color: T.subtext }} className="text-[11px] mt-1.5 truncate">{item.setor}</p>
+        <p style={{ color: T.text }} className="text-[11.5px] font-bold mt-0.5">{formatarData(item.validade)} <span style={{ color: T.subtext }} className="font-medium">· {item.quantidade || 1} un</span></p>
+      </div>
+    </motion.button>
+  );
+}
+
 // Linha de produto (celular): foto, nome, validade, quantidade e situação. Serve para produto único, grupo de lotes e produto sem validade.
 function corDoNivel(level) {
   if (level === "expired") return { cor: "#E31E24", soft: RED_SOFT };
@@ -6181,112 +6274,78 @@ function TorreControleView({ T, items, historico, auditoria, usuario, showToast,
     <TorreDashboard T={T} criticos={criticos} atencao={atencao} valorEmRisco={valorEmRisco} previsaoAmanha={previsaoAmanha} riscoPorSetor={riscoPorSetor}
       setorMaisPerigoso={setorMaisPerigoso} riscoPorCorredor={riscoPorCorredor} tendenciaPerdas={tendenciaPerdas} reincidentes={reincidentes}
       rankingResponsaveis={rankingResponsaveis} ultimasAcoes={ultimasAcoes} onGerarPDF={gerarRelatorioCompleto} />
-    <div className="px-4 pt-4 flex flex-col gap-3 lg:hidden">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 75%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5">
-        <p className="text-white/70 text-[11px] font-bold uppercase tracking-wide mb-3 flex items-center gap-1.5">
-          <SignalIconSolid className="w-3.5 h-3.5" /> Torre de Controle
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white/10 rounded-2xl px-3 py-3">
-            <p className="text-white text-2xl font-extrabold leading-none">{criticos.length}</p>
-            <p className="text-white/70 text-[10px] mt-1">Produtos críticos</p>
-          </div>
-          <div className="bg-white/10 rounded-2xl px-3 py-3">
-            <p className="text-white text-2xl font-extrabold leading-none">{atencao.length}</p>
-            <p className="text-white/70 text-[10px] mt-1">Em atenção</p>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.button whileTap={{ scale: 0.98 }} onClick={gerarRelatorioCompleto}
-        style={{ background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)` }}
-        className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 text-sm font-bold text-white shadow-lg shadow-red-900/20">
-        <FileText size={17} /> Gerar relatório completo pra gerência (PDF)
-      </motion.button>
-
-      {riscoPorSetor.length > 0 && (
-        <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
-          <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide flex items-center gap-1.5"><ExclamationTriangleIcon className="w-3.5 h-3.5" /> Ações prioritárias por setor</p>
-          <div className="flex flex-col gap-1.5">
-            {riscoPorSetor.slice(0, 5).map(([setor, valor], i) => (
-              <div key={setor} className="flex items-center justify-between">
-                <span className="text-xs">{i + 1}. {setor}</span>
-                <span style={{ color: RED_DARK }} className="text-xs font-bold">{formatarMoeda(valor)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className="px-4 pt-4 pb-6 lg:hidden">
+      <PalcoPagina className="mb-4" titulo="Torre de controle" subtitulo="Visão da gerência, em tempo real">
+        <ValorPalco rotulo="Valor em risco" valor={formatarMoeda(valorEmRisco)} />
+        <PilulasPalco itens={[["Críticos", criticos.length, "#E31E24"], ["Em atenção", atencao.length, "#F5A524"], ["Amanhã", previsaoAmanha.qtd, "#6CB4FF"]]} />
+        <motion.button whileTap={{ scale: 0.97 }} onClick={gerarRelatorioCompleto} className="mt-3 w-full bg-white rounded-2xl py-3 text-[13px] font-extrabold flex items-center justify-center gap-2 shadow-md" style={{ color: BLUE_DARK }}>
+          <FileText size={16} /> Relatório completo para a gerência (PDF)
+        </motion.button>
+      </PalcoPagina>
 
       {setorMaisPerigoso && (
-        <div style={{ background: RED_SOFT, color: RED_DARK }} className="rounded-2xl px-3.5 py-3 flex items-start gap-2.5">
-          <FireIconSolid className="w-4 h-4 mt-0.5 shrink-0" />
-          <p className="text-xs leading-relaxed"><strong>Setor crítico do dia: {setorMaisPerigoso[0]}.</strong> {formatarMoeda(setorMaisPerigoso[1])} em valor exposto — comece por aqui.</p>
-        </div>
+        <CartaoNovo T={T} idx={0} className="!p-0 overflow-hidden">
+          <div style={{ background: RED_SOFT, color: RED_DARK }} className="px-4 py-3.5 flex items-start gap-2.5">
+            <Flame size={18} className="mt-0.5 shrink-0" />
+            <p className="text-[12.5px] leading-snug"><strong>Setor crítico do dia: {setorMaisPerigoso[0]}.</strong> {formatarMoeda(setorMaisPerigoso[1])} em valor exposto — comece por aqui.</p>
+          </div>
+        </CartaoNovo>
       )}
-
       {previsaoAmanha.qtd > 0 && (
-        <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="rounded-2xl px-3.5 py-3 flex items-start gap-2.5">
-          <CalendarDaysIcon className="w-4 h-4 mt-0.5 shrink-0" />
-          <p className="text-xs leading-relaxed">
-            <strong>Previsão de amanhã:</strong> {previsaoAmanha.qtd} produto(s) entrarão em alerta.
-            {previsaoAmanha.valor > 0 && ` Se nada for feito hoje, ${formatarMoeda(previsaoAmanha.valor)} ficarão em risco.`}
-          </p>
-        </div>
+        <CartaoNovo T={T} idx={1} className="!p-0 overflow-hidden">
+          <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="px-4 py-3.5 flex items-start gap-2.5">
+            <CalendarDaysIcon className="w-[18px] h-[18px] mt-0.5 shrink-0" />
+            <p className="text-[12.5px] leading-snug"><strong>Previsão de amanhã:</strong> {previsaoAmanha.qtd} produto(s) entrarão em alerta.{previsaoAmanha.valor > 0 && ` Se nada for feito hoje, ${formatarMoeda(previsaoAmanha.valor)} ficarão em risco.`}</p>
+          </div>
+        </CartaoNovo>
       )}
 
-      <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
-        <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide flex items-center gap-1.5"><TrendingUp size={12} /> Perdas este mês</p>
-        <p className="text-lg font-extrabold">{formatarMoeda(tendenciaPerdas.atual)}</p>
+      {riscoPorSetor.length > 0 && (
+        <CartaoNovo T={T} idx={2} titulo="Ações prioritárias por setor" Icone={Target} cor={RED_DARK}>
+          {riscoPorSetor.slice(0, 5).map(([setor, valor], k) => <BarraRank key={setor} T={T} pos={k + 1} rotulo={setor} pct={(valor / (riscoPorSetor[0][1] || 1)) * 100} texto={formatarMoeda(valor)} />)}
+        </CartaoNovo>
+      )}
+
+      <CartaoNovo T={T} idx={3} titulo="Perdas este mês" Icone={TrendingUp} cor={RED_DARK}>
+        <p style={{ color: T.text }} className="text-[26px] font-extrabold leading-tight tabular-nums">{formatarMoeda(tendenciaPerdas.atual)}</p>
         {tendenciaPerdas.variacao !== null && (
-          <p style={{ color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }} className="text-xs font-semibold mt-1 flex items-center gap-1">
-            {tendenciaPerdas.variacao <= 0 ? <ArrowTrendingDownIcon className="w-3.5 h-3.5" /> : <TrendingUp size={13} />}
+          <p style={{ color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }} className="text-[12.5px] font-bold mt-1 flex items-center gap-1">
+            {tendenciaPerdas.variacao <= 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
             {tendenciaPerdas.variacao > 0 ? "+" : ""}{tendenciaPerdas.variacao}% vs mês anterior ({formatarMoeda(tendenciaPerdas.anterior)})
           </p>
         )}
-      </div>
+      </CartaoNovo>
 
       {reincidentes.length > 0 && (
-        <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
-          <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide flex items-center gap-1.5"><Repeat size={12} /> Produtos reincidentes (60 dias)</p>
-          <div className="flex flex-col gap-1.5">
-            {reincidentes.map((p) => (
-              <div key={p.nome + p.setor} className="flex items-center justify-between">
-                <span className="text-xs truncate pr-2">{p.nome} <span style={{ color: T.subtext }}>· {p.setor}</span></span>
-                <span style={{ color: RED_DARK }} className="text-xs font-bold shrink-0">{p.datas.length}x</span>
+        <CartaoNovo T={T} idx={4} titulo="Produtos reincidentes (60 dias)" Icone={Repeat} cor={RED_DARK}>
+          <div className="flex flex-col gap-2">
+            {reincidentes.map((pr) => (
+              <div key={pr.nome + pr.setor} style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2">
+                <span style={{ color: T.text }} className="text-[12.5px] font-bold truncate">{pr.nome} <span style={{ color: T.subtext }} className="font-medium">· {pr.setor}</span></span>
+                <span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-extrabold rounded-full px-2 py-0.5 shrink-0">{pr.datas.length}x</span>
               </div>
             ))}
           </div>
-        </div>
+        </CartaoNovo>
       )}
 
       {rankingResponsaveis.length > 0 && (
-        <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
-          <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide flex items-center gap-1.5"><Users2 size={12} /> Registros por responsável</p>
-          <div className="flex flex-col gap-1.5">
-            {rankingResponsaveis.map(([nome, qtd]) => (
-              <div key={nome} className="flex items-center justify-between">
-                <span className="text-xs">{nome}</span>
-                <span style={{ color: T.text }} className="text-xs font-bold">{qtd} baixa(s)</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CartaoNovo T={T} idx={5} titulo="Registros por responsável" Icone={Users2} cor={BLUE}>
+          {rankingResponsaveis.map(([nome, qtd], k) => <BarraRank key={nome} T={T} pos={k + 1} rotulo={nome} pct={(qtd / (rankingResponsaveis[0][1] || 1)) * 100} texto={`${qtd}`} cor={BLUE} />)}
+        </CartaoNovo>
       )}
 
       {ultimasAcoes.length > 0 && (
-        <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
-          <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide flex items-center gap-1.5"><ClockIcon className="w-3.5 h-3.5" /> Últimas ações registradas</p>
-          <div className="flex flex-col gap-2">
-            {ultimasAcoes.map((a, i) => (
-              <div key={a.id || i} className="flex flex-col">
-                <span className="text-xs"><strong>{a.usuario || "Alguém"}</strong> {a.acao}</span>
-                <span style={{ color: T.subtext }} className="text-[10px] font-mono">{formatarDataHoraExtenso(a.criadoEm)}</span>
+        <CartaoNovo T={T} idx={6} titulo="Últimas ações registradas" Icone={Clock} cor={BLUE}>
+          <div className="flex flex-col gap-2.5">
+            {ultimasAcoes.map((a, k) => (
+              <div key={a.id || k} className="flex items-start gap-2.5">
+                <span style={{ background: BLUE }} className="h-2 w-2 rounded-full mt-1.5 shrink-0" />
+                <div className="min-w-0"><p style={{ color: T.text }} className="text-[12.5px] leading-snug"><strong>{a.usuario || "Alguém"}</strong> {a.acao}</p><p style={{ color: T.subtext }} className="text-[10.5px] font-mono mt-0.5">{formatarDataHoraExtenso(a.criadoEm)}</p></div>
               </div>
             ))}
           </div>
-        </div>
+        </CartaoNovo>
       )}
     </div>
     </>
@@ -7271,7 +7330,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
       ) : (
         <>
           <div className="flex items-center justify-between mb-2.5">
-            <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide">Produtos monitorados · {filtrados.length}</p>
+            <p style={{ color: T.text }} className="text-[15px] font-extrabold">Produtos monitorados <span style={{ background: T.chipBg, color: T.subtext }} className="ml-1 text-[11px] font-bold rounded-full px-2 py-0.5 tabular-nums align-middle">{filtrados.length}</span></p>
           </div>
           {modoVisual === "lista" ? (
             <div className="flex flex-col gap-2.5 xl:grid xl:grid-cols-2 2xl:grid-cols-3 xl:items-start">
@@ -7282,7 +7341,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5">
-              {filtrados.map((item) => <ItemCardGrid key={item.id} T={T} item={item} onOpenDetail={onOpenDetail} />)}
+              {filtrados.map((item, i) => <CartaoGrade key={item.id} T={T} item={item} idx={i} onOpenDetail={onOpenDetail} />)}
             </div>
           )}
         </>
@@ -7317,9 +7376,9 @@ function GrupoFiltro({ T, titulo, opcoes, valor, onChange }) {
 
 function StatCard({ T, label, value, color }) {
   return (
-    <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl px-3 py-3 shadow-lg shadow-black/5 border">
-      <p style={{ color }} className="text-2xl font-extrabold leading-none">{value}</p>
-      <p style={{ color: T.subtext }} className="text-[11px] mt-1 font-medium">{label}</p>
+    <div style={{ background: T.card }} className="rounded-[22px] px-3 py-3.5 shadow-lg shadow-black/5 text-center">
+      <p style={{ color }} className="text-2xl font-extrabold leading-none tabular-nums">{value}</p>
+      <p style={{ color: T.subtext }} className="text-[11px] mt-1.5 font-bold">{label}</p>
     </div>
   );
 }
@@ -7327,13 +7386,8 @@ function StatCard({ T, label, value, color }) {
 function EmptyState({ T, hasItems }) {
   const ehDesktop = useDesktop();
   return (
-    <div className="text-center py-14 px-6">
-      <div style={{ background: BLUE_SOFT }} className="h-16 w-16 rounded-2xl mx-auto flex items-center justify-center mb-3"><Package size={26} color={BLUE} /></div>
-      <p className="font-semibold text-sm">{hasItems ? "Nada encontrado" : "Nenhum produto monitorado"}</p>
-      <p style={{ color: T.subtext }} className="text-xs mt-1">
-        {hasItems ? "Ajuste a busca ou o filtro de setor." : (ehDesktop ? "Os produtos aparecem aqui quando a equipe cadastra os alertas de validade pelo celular." : 'Toque em "Bipar produto" para começar a cadastrar alertas de validade.')}
-      </p>
-    </div>
+    <EstadoVazioNovo T={T} Icone={Package} titulo={hasItems ? "Nada encontrado" : "Nenhum produto monitorado"}
+      texto={hasItems ? "Ajuste a busca ou os filtros." : (ehDesktop ? "Os produtos aparecem aqui quando a equipe cadastra os alertas de validade pelo celular." : 'Toque em "Bipar produto" para começar a cadastrar alertas de validade.')} />
   );
 }
 
@@ -7930,97 +7984,51 @@ function PrioridadeInteligenteView({ T, items, historico, onOpenDetail }) {
     <>
     <PrioridadeDashboard T={T} prioridades={prioridadesTodas} valorEmRisco={valorEmRisco} urgenteCount={urgenteCount} semTrocaCount={semTrocaCount} filtro={filtro} setFiltro={setFiltro} filtrados={filtrados} onOpenDetail={onOpenDetail} />
     <div className="px-4 pt-4 pb-6 lg:hidden">
-      <div className="flex items-center gap-2 mb-1">
-        <Flame size={18} color={RED_DARK} />
-        <h1 style={{ color: T.text }} className="text-lg font-bold">Prioridade Inteligente</h1>
-      </div>
-      <p style={{ color: T.subtext }} className="text-[11.5px] leading-snug mb-4">
-        Não ordena por "vence primeiro". Ordena por quem gera a maior perda e tem menor chance de recuperação —
-        cruzando validade, quantidade, valor e política de troca com o fornecedor.
-      </p>
+      <PalcoPagina className="mb-4" titulo="Prioridade de perda" subtitulo="Quem gera mais perda vem primeiro">
+        <ValorPalco rotulo="Valor priorizado em risco" valor={podeVerValores ? formatarMoeda(valorEmRisco) : "•••"} />
+        <PilulasPalco itens={[["Em risco", prioridadesTodas.length, "#F5A524"], ["Urgentes", urgenteCount, "#E31E24"], ["Sem troca", semTrocaCount, "#9AA3B2"]]} />
+        <p className="text-[11.5px] text-white/75 mt-3 leading-snug">Cruza validade, quantidade, valor e política de troca com o fornecedor — não é só “vence primeiro”.</p>
+      </PalcoPagina>
 
       {prioridadesTodas.length === 0 ? (
-        <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-6 border shadow-lg shadow-black/5 text-center">
-          <ShieldCheck size={28} color="#1F9D55" className="mx-auto mb-2" />
-          <p style={{ color: T.text }} className="text-sm font-semibold">Nenhum produto em risco agora</p>
-          <p style={{ color: T.subtext }} className="text-[11px] mt-1">Assim que algo entrar em alerta ou vencer, a prioridade aparece aqui.</p>
-        </div>
+        <EstadoVazioNovo T={T} Icone={ShieldCheck} titulo="Nenhum produto em risco agora" texto="Assim que algo entrar em alerta ou vencer, a prioridade aparece aqui." />
       ) : (
         <>
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-            style={{ background: `linear-gradient(160deg, ${RED_DARK} 0%, #6E0F13 100%)` }} className="rounded-[28px] p-4 mb-4 shadow-lg shadow-black/5">
-            <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1.5">
-              <FireIconSolid className="w-3.5 h-3.5" /> Valor priorizado em risco
-            </p>
-            <p className="text-white text-2xl font-extrabold leading-tight mt-0.5 tabular-nums">{podeVerValores ? formatarMoeda(valorEmRisco) : "•••"}</p>
-            <div className="grid grid-cols-3 gap-2 pt-3 mt-3 border-t border-white/15">
-              <div className="text-center">
-                <p className="text-white text-lg font-extrabold leading-none">{prioridadesTodas.length}</p>
-                <p className="text-white/60 text-[9px] mt-1 font-medium">Em risco</p>
-              </div>
-              <div className="text-center border-x border-white/15">
-                <p className="text-white text-lg font-extrabold leading-none">{urgenteCount}</p>
-                <p className="text-white/60 text-[9px] mt-1 font-medium">Urgentes</p>
-              </div>
-              <div className="text-center">
-                <p className="text-white text-lg font-extrabold leading-none">{semTrocaCount}</p>
-                <p className="text-white/60 text-[9px] mt-1 font-medium">Sem troca</p>
-              </div>
-            </div>
-          </motion.div>
-
-          <div className="flex gap-1.5 mb-3">
-            {[
-              { id: "todos", label: `Todos (${prioridadesTodas.length})` },
-              { id: "urgente", label: `Urgente (${urgenteCount})` },
-              { id: "sem_troca", label: `Sem troca (${semTrocaCount})` }
-            ].map((f) => (
-              <button key={f.id} onClick={() => setFiltro(f.id)}
-                style={filtro === f.id ? { background: RED_DARK, color: "#fff" } : { background: T.chipBg, color: T.text }}
-                className="text-[11px] font-semibold px-2.5 py-1.5 rounded-full">
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {filtrados.length === 0 && (
-              <p style={{ color: T.subtext }} className="text-xs px-1 py-4 text-center">Nenhum produto nesse filtro.</p>
-            )}
-            {filtrados.map(({ item, p }, i) => (
-              <button key={item.id} onClick={() => onOpenDetail(item)}
-                style={{ background: p.nivel === "urgente" ? `linear-gradient(135deg, ${RED_DARK} 0%, #6E0F13 100%)` : T.card, borderColor: p.nivel === "urgente" ? "transparent" : T.border }}
-                className="rounded-2xl p-3.5 border shadow-lg shadow-black/5 text-left w-full">
-                <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                  <span style={p.nivel === "urgente" ? { background: "rgba(255,255,255,0.25)", color: "#fff" } : { background: RED_SOFT, color: RED_DARK }} className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md">
-                    #{i + 1}
-                  </span>
-                  <span style={p.nivel === "urgente" ? { background: "rgba(255,255,255,0.2)", color: "#fff" } : { background: RED_SOFT, color: RED_DARK }} className="text-[10px] font-extrabold px-2 py-0.5 rounded-md tracking-wide flex items-center gap-1">
-                    {p.nivel === "urgente" ? <><Flame size={10} /> URGENTE</> : "ATENÇÃO"}
-                  </span>
-                  <span style={p.nivel === "urgente" ? { background: "rgba(255,255,255,0.15)", color: "#fff" } : { background: BLUE_SOFT, color: BLUE_DARK }} className="text-[9px] font-bold px-1.5 py-0.5 rounded">
-                    RISCO {p.score}/100
-                  </span>
-                  {p.semTroca && (
-                    <span style={{ background: p.nivel === "urgente" ? "rgba(255,255,255,0.15)" : "#4A1013", color: p.nivel === "urgente" ? "#fff" : "#FFD5D8" }} className="text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                      <ShieldAlert size={9} /> SEM TROCA
-                    </span>
+          <FaixaChips T={T} valor={filtro} onChange={setFiltro} opcoes={[["todos", "Todos", prioridadesTodas.length], ["urgente", "Urgentes", urgenteCount], ["sem_troca", "Sem troca", semTrocaCount]]} />
+          {filtrados.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-8">Nenhum produto nesse filtro.</p>}
+          <div className="flex flex-col gap-3">
+            {filtrados.map(({ item, p }, i) => {
+              const urgente = p.nivel === "urgente";
+              const cor = urgente ? "#E31E24" : "#E0921C";
+              return (
+                <motion.button key={item.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 320, damping: 26, delay: Math.min(i * 0.04, 0.3) }}
+                  whileTap={{ scale: 0.98 }} onClick={() => onOpenDetail(item)} style={{ background: T.card, boxShadow: urgente ? "0 0 0 2px rgba(227,30,36,.35), 0 10px 24px -12px rgba(0,0,0,.2)" : undefined }}
+                  className="rounded-[24px] shadow-lg shadow-black/5 text-left w-full p-3.5">
+                  <div className="flex items-start gap-3">
+                    <span style={{ background: urgente ? "#E31E24" : RED_SOFT, color: urgente ? "#fff" : RED_DARK }} className="h-9 w-9 rounded-full text-[13px] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <p style={{ color: T.text }} className="font-extrabold text-[14.5px] leading-tight">{item.nome}</p>
+                      <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5">{item.setor}{gerarCodigoLocalizacao(item) ? ` · ${gerarCodigoLocalizacao(item)}` : ""}</p>
+                    </div>
+                    <span style={{ background: urgente ? RED_SOFT : "#FCF0DD", color: cor }} className="text-[10.5px] font-extrabold rounded-full px-2.5 py-1 shrink-0 flex items-center gap-1">{urgente && <Flame size={10} />}{urgente ? "URGENTE" : "ATENÇÃO"}</span>
+                  </div>
+                  <p style={{ color: T.text }} className="text-[12px] font-semibold mt-2.5">
+                    {item.quantidade || 1} un · {p.status.level === "expired" ? `vencido há ${Math.abs(p.dias)}d` : p.dias === 0 ? "vence hoje" : `vence em ${p.dias}d`}{p.valor > 0 && podeVerValores ? ` · ${formatarMoeda(p.valor)}` : ""}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div style={{ background: T.chipBg }} className="flex-1 h-2 rounded-full overflow-hidden"><div style={{ width: `${p.score}%`, background: cor }} className="h-full rounded-full" /></div>
+                    <span style={{ color: T.subtext }} className="text-[10.5px] font-bold tabular-nums">risco {p.score}/100</span>
+                  </div>
+                  {(p.semTroca || p.reincidencias >= 3) && (
+                    <div className="flex gap-1.5 mt-2.5 flex-wrap">
+                      {p.semTroca && <span style={{ background: "#4A1013", color: "#FFD5D8" }} className="text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><ShieldAlert size={10} /> Sem troca</span>}
+                      {p.reincidencias >= 3 && <span style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><Repeat size={10} /> Reincidente</span>}
+                    </div>
                   )}
-                  {p.reincidencias >= 3 && (
-                    <span style={{ background: p.nivel === "urgente" ? "rgba(255,255,255,0.15)" : BLUE_SOFT, color: p.nivel === "urgente" ? "#fff" : BLUE_DARK }} className="text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                      <Repeat size={9} /> reincidente
-                    </span>
-                  )}
-                </div>
-                <p style={{ color: p.nivel === "urgente" ? "#fff" : T.text }} className="font-bold text-sm">{item.nome}</p>
-                <p style={{ color: p.nivel === "urgente" ? "rgba(255,255,255,0.85)" : T.subtext }} className="text-[11px] mt-0.5">
-                  {item.setor}{gerarCodigoLocalizacao(item) ? ` · ${gerarCodigoLocalizacao(item)}` : ""} ·{" "}
-                  {item.quantidade || 1} unidade(s) · {p.status.level === "expired" ? `vencido há ${Math.abs(p.dias)}d` : p.dias === 0 ? "vence hoje" : `vence em ${p.dias}d`}
-                  {p.valor > 0 && podeVerValores ? ` · ${formatarMoeda(p.valor)}` : ""}
-                </p>
-                <p style={{ color: p.nivel === "urgente" ? "#fff" : BLUE_DARK }} className="text-[11px] font-semibold mt-1.5">AÇÃO: {p.acao}</p>
-              </button>
-            ))}
+                  <div style={{ background: T.chipBg }} className="rounded-2xl px-3 py-2 mt-2.5"><p style={{ color: T.text }} className="text-[11.5px] font-bold"><span style={{ color: T.subtext }} className="font-bold">AÇÃO · </span>{p.acao}</p></div>
+                </motion.button>
+              );
+            })}
           </div>
         </>
       )}
@@ -9215,127 +9223,72 @@ function HistoricoView({ T, historico, items, usuario }) {
   return (
     <>
     <HistoricoDashboard T={T} filtrado={filtrado} periodo={periodo} setPeriodo={setPeriodo} valorPerdido={valorPerdido} valorTotalMovimentado={valorTotalMovimentado} rankingSetores={rankingSetores} rankingResponsaveis={rankingResponsaveis} reincidentes={reincidentes} exportarCSV={exportarCSV} exportarPlanilha={exportarPlanilha} />
-    <div className="lg:hidden px-4 pt-4">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        style={{ background: `linear-gradient(160deg, ${RED_DARK} 0%, ${BLUE_DARK} 100%)` }} className="rounded-[28px] px-4 py-4 mb-4 shadow-lg shadow-black/5 flex items-center gap-3">
-        <div className="h-10 w-10 rounded-2xl bg-white/15 flex items-center justify-center shrink-0"><DollarSign size={18} color="#fff" /></div>
-        <div>
-          <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide">Perda confirmada (vencidos · {periodo}d)</p>
-          <p className="text-white font-extrabold text-xl leading-tight mt-0.5 tabular-nums">{formatarMoeda(valorPerdido)}</p>
-        </div>
-      </motion.div>
+    <div className="lg:hidden px-4 pt-4 pb-6">
+      <PalcoPagina className="mb-4" titulo="Histórico de baixas" subtitulo={`Últimos ${periodo} dias`}>
+        <ValorPalco rotulo="Perda confirmada (vencidos)" valor={formatarMoeda(valorPerdido)} />
+        <PilulasPalco itens={[["Baixas", filtrado.length, "#F5A524"], ["Vencidos", filtrado.filter((h) => h.vencidoAntes).length, "#E31E24"], ["Movimentado", abreviarNumero(valorTotalMovimentado), "#34C77B"]]} />
+      </PalcoPagina>
 
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        style={{ background: T.card }} className="rounded-2xl px-4 py-3 mb-4 shadow-lg shadow-black/5 flex items-center gap-2.5">
-        <SignalIcon className="w-4 h-4 shrink-0" style={{ color: BLUE }} />
-        <p style={{ color: T.subtext }} className="text-[11px]">O relatório completo em PDF pra gerência agora é gerado na aba <strong style={{ color: T.text }}>Torre</strong>.</p>
-      </motion.div>
-
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        {[7, 30, 90].map((p) => (
-          <button key={p} onClick={() => setPeriodo(p)} style={periodo === p ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }} className="text-xs font-medium px-3 py-1.5 rounded-full">
-            {p} dias
-          </button>
-        ))}
-        <div className="ml-auto flex gap-1.5">
-          <button onClick={exportarCSV} title="Exportar CSV" style={{ background: T.card, borderColor: T.border, color: T.text }} className="text-[11px] font-medium px-2.5 py-1.5 rounded-full border flex items-center gap-1"><Download size={12} /> CSV</button>
-          <button onClick={() => exportarPlanilha("ods")} title="Exportar para LibreOffice" style={{ background: T.card, borderColor: T.border, color: T.text }} className="text-[11px] font-medium px-2.5 py-1.5 rounded-full border flex items-center gap-1"><FileSpreadsheet size={12} /> ODS</button>
+      <div className="flex items-center gap-2 mb-3.5">
+        <div className="flex-1 min-w-0"><FaixaChips T={T} valor={periodo} onChange={setPeriodo} opcoes={[[7, "7 dias"], [30, "30 dias"], [90, "90 dias"]]} /></div>
+        <div className="flex gap-1.5 shrink-0 mb-3.5">
+          <motion.button whileTap={{ scale: 0.92 }} onClick={exportarCSV} aria-label="Exportar CSV" style={{ background: T.card, color: T.text }} className="h-9 px-3 rounded-full text-[11.5px] font-bold flex items-center gap-1 shadow-sm"><Download size={13} /> CSV</motion.button>
+          <motion.button whileTap={{ scale: 0.92 }} onClick={() => exportarPlanilha("ods")} aria-label="Exportar planilha" style={{ background: T.card, color: T.text }} className="h-9 px-3 rounded-full text-[11.5px] font-bold flex items-center gap-1 shadow-sm"><FileSpreadsheet size={13} /> ODS</motion.button>
         </div>
       </div>
-
-      {dadosGrafico.length > 0 && (
-        <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-3.5 border shadow-lg shadow-black/5 mb-4">
-          <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Baixas por setor</p>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={dadosGrafico} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={T.border} vertical={false} />
-              <XAxis dataKey="setor" tick={{ fontSize: 9, fill: T.subtext }} interval={0} angle={-20} textAnchor="end" height={40} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: T.subtext }} />
-              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-              <Bar dataKey="qtd" fill={RED} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
 
       {rankingSetores.length > 0 && (
-        <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-3.5 border shadow-lg shadow-black/5 mb-4">
-          <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Ranking de perdas por setor (% do valor)</p>
-          <div className="flex flex-col gap-1.5">
-            {rankingSetores.map((r, i) => (
-              <div key={r.setor} className="flex items-center gap-2">
-                <span style={{ color: T.subtext }} className="text-[10px] w-4">{i + 1}º</span>
-                <span className="text-[11px] w-20 truncate">{r.setor}</span>
-                <div style={{ background: T.chipBg }} className="flex-1 h-2 rounded-full overflow-hidden">
-                  <div style={{ width: `${r.pct}%`, background: RED }} className="h-full rounded-full" />
-                </div>
-                <span className="text-[11px] font-semibold w-10 text-right">{r.pct.toFixed(0)}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CartaoNovo T={T} idx={0} titulo="Perdas por setor (% do valor)" Icone={LayoutGrid} cor={RED_DARK}>
+          {rankingSetores.map((r, k) => <BarraRank key={r.setor} T={T} pos={k + 1} rotulo={r.setor} pct={r.pct} texto={`${r.pct.toFixed(0)}%`} />)}
+        </CartaoNovo>
       )}
-
+      {dadosGrafico.length > 0 && (
+        <CartaoNovo T={T} idx={1} titulo="Baixas por setor" Icone={Layers} cor={BLUE}>
+          {dadosGrafico.map((d, k) => <BarraRank key={d.setor} T={T} pos={k + 1} rotulo={d.setor} pct={(d.qtd / dadosGrafico[0].qtd) * 100} texto={String(d.qtd)} cor={BLUE} />)}
+        </CartaoNovo>
+      )}
       {reincidentes.length > 0 && (
-        <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-3.5 border shadow-lg shadow-black/5 mb-4">
-          <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide flex items-center gap-1.5"><Repeat size={12} /> Produtos reincidentes (últimos 60 dias)</p>
+        <CartaoNovo T={T} idx={2} titulo="Produtos reincidentes (60 dias)" Icone={Repeat} cor={RED_DARK}>
           <div className="flex flex-col gap-2">
-            {reincidentes.map((p) => (
-              <div key={p.nome + p.datas.length} style={{ background: RED_SOFT }} className="rounded-xl px-3 py-2">
-                <p className="text-xs font-semibold">{p.nome}</p>
-                <p style={{ color: RED_DARK }} className="text-[10px] mt-0.5">{p.setor} · {p.datas.length} ocorrências de vencimento · média de {(p.datas.length / 2).toFixed(1)}/mês</p>
+            {reincidentes.map((pr) => (
+              <div key={pr.nome + pr.datas.length} style={{ background: RED_SOFT }} className="rounded-2xl px-3.5 py-2.5">
+                <p style={{ color: RED_DARK }} className="text-[13px] font-extrabold">{pr.nome}</p>
+                <p style={{ color: RED_DARK }} className="text-[11px] mt-0.5 opacity-80">{pr.setor} · {pr.datas.length} vencimentos · média {(pr.datas.length / 2).toFixed(1)}/mês</p>
               </div>
             ))}
           </div>
-        </div>
+        </CartaoNovo>
       )}
-
       {rankingResponsaveis.length > 0 && (
-        <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-3.5 border shadow-lg shadow-black/5 mb-4">
-          <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide flex items-center gap-1.5"><Users2 size={12} /> Baixas por responsável</p>
-          <div className="flex flex-col gap-1.5">
-            {rankingResponsaveis.map(([nome, qtd]) => (
-              <div key={nome} className="flex items-center gap-2">
-                <span className="text-[11px] w-28 truncate">{nome}</span>
-                <div style={{ background: T.chipBg }} className="flex-1 h-2 rounded-full overflow-hidden">
-                  <div style={{ width: `${(qtd / maxResp) * 100}%`, background: BLUE }} className="h-full rounded-full" />
-                </div>
-                <span className="text-[11px] font-semibold w-4 text-right">{qtd}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CartaoNovo T={T} idx={3} titulo="Baixas por responsável" Icone={Users2} cor={BLUE}>
+          {rankingResponsaveis.map(([nome, qtd], k) => <BarraRank key={nome} T={T} pos={k + 1} rotulo={nome} pct={(qtd / maxResp) * 100} texto={String(qtd)} cor={BLUE} />)}
+        </CartaoNovo>
       )}
 
-      <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="rounded-2xl px-3.5 py-3 mb-4 flex items-start gap-2.5">
+      <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="rounded-[22px] px-4 py-3.5 mb-4 flex items-start gap-2.5">
         <Info size={15} className="mt-0.5 shrink-0" />
-        <p className="text-[11px] leading-relaxed">
-          Referência do setor: o vencimento de validade responde por cerca de 38% das perdas em supermercados
-          brasileiros, geralmente entre 1% e 1,5% do faturamento. Acompanhar esse histórico de perto ajuda a manter
-          sua loja abaixo dessa média.
-        </p>
+        <p className="text-[11.5px] leading-relaxed">Referência do setor: o vencimento responde por cerca de 38% das perdas em supermercados brasileiros, geralmente entre 1% e 1,5% do faturamento. O relatório completo em PDF para a gerência é gerado na aba <b>Torre</b>.</p>
       </div>
 
+      <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-[.1em] mb-2.5">Baixas registradas · {filtrado.length}</p>
       {filtrado.length === 0 ? (
-        <div className="text-center py-14 px-6">
-          <div style={{ background: BLUE_SOFT }} className="h-16 w-16 rounded-2xl mx-auto flex items-center justify-center mb-3"><History size={26} color={BLUE} /></div>
-          <p className="font-semibold text-sm">Nenhuma baixa neste período</p>
-          <p style={{ color: T.subtext }} className="text-xs mt-1">Baixas registradas na tela inicial aparecem aqui.</p>
-        </div>
+        <EstadoVazioNovo T={T} Icone={History} titulo="Nenhuma baixa neste período" texto="Baixas registradas na tela inicial aparecem aqui." />
       ) : (
         <div className="flex flex-col gap-2.5">
-          {filtrado.map((h) => (
-            <div key={h.id + h.dataBaixa} style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-3 border shadow-lg shadow-black/5 flex items-center gap-3">
-              <Thumb foto={h.foto} size={40} />
+          {filtrado.map((h, k) => (
+            <motion.div key={h.id + h.dataBaixa} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 320, damping: 26, delay: Math.min(k * 0.03, 0.3) }}
+              style={{ background: T.card }} className="rounded-[22px] shadow-md shadow-black/5 p-3 flex items-center gap-3">
+              <Thumb foto={h.foto} size={50} rounded="rounded-[16px]" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{h.nome}</p>
-                <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">{h.setor} · {formatarDataHora(h.dataBaixa)}</p>
-                {h.registradoPor && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5">Por {h.registradoPor}</p>}
+                <p style={{ color: T.text }} className="font-bold text-[13.5px] leading-tight truncate">{h.nome}</p>
+                <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5 truncate">{h.setor} · {formatarDataHora(h.dataBaixa)}</p>
+                {h.registradoPor && <p style={{ color: T.subtext }} className="text-[11px] truncate">Por {h.registradoPor}</p>}
               </div>
-              <span style={h.vencidoAntes ? { background: RED_SOFT, color: RED_DARK } : { background: BLUE_SOFT, color: BLUE_DARK }} className="text-[10px] font-bold px-2 py-1 rounded-md shrink-0 text-right">
-                {h.motivo}
-              </span>
-            </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span style={h.vencidoAntes ? { background: RED_SOFT, color: RED_DARK } : { background: BLUE_SOFT, color: BLUE_DARK }} className="text-[10.5px] font-bold px-2.5 py-1 rounded-full text-right">{h.motivo}</span>
+                <span style={{ color: T.subtext }} className="text-[11px] font-semibold tabular-nums">{h.quantidade || 1} un</span>
+              </div>
+            </motion.div>
           ))}
         </div>
       )}
@@ -9371,58 +9324,41 @@ function AuditoriaView({ T, auditoria }) {
   return (
     <>
     <AuditoriaDashboard T={T} auditoria={auditoria} filtrada={filtrada} busca={busca} setBusca={setBusca} />
-    <div className="px-4 pt-4 pb-4 lg:hidden">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 75%)` }} className="rounded-[28px] p-4 mb-4 shadow-lg shadow-black/5">
-        <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1.5">
-          <DocumentMagnifyingGlassIcon className="w-3.5 h-3.5" /> Trilha de auditoria
-        </p>
-        <p className="text-white text-2xl font-extrabold leading-tight mt-0.5 tabular-nums">{auditoria.length}</p>
-        <p className="text-white/60 text-[11px] mt-0.5">ações registradas no total</p>
-      </motion.div>
+    <div className="px-4 pt-4 pb-6 lg:hidden">
+      <PalcoPagina className="mb-4" titulo="Auditoria" subtitulo="Tudo o que foi feito no app, em ordem">
+        <PilulasPalco itens={[["Registros", auditoria.length, "#F5A524"], ["Hoje", auditoria.filter((a) => isSameDay(a.criadoEm, new Date().toISOString())).length, "#34C77B"], ["Pessoas", new Set(auditoria.map((a) => a.usuario || "—")).size, "#6CB4FF"]]} />
+      </PalcoPagina>
 
       <div className="relative mb-4">
-        <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: T.subtext }} />
+        <MagnifyingGlassIcon className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2" style={{ color: T.subtext }} />
         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por pessoa, ação ou detalhe..."
-          style={{ background: T.card, color: T.text, borderColor: T.inputBorder }}
-          className="w-full rounded-2xl pl-9 pr-9 py-2.5 text-sm border outline-none focus:ring-2" />
-        {busca && (
-          <button onClick={() => setBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2">
-            <XMarkIcon className="w-4 h-4" style={{ color: T.subtext }} />
-          </button>
-        )}
+          style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full rounded-full pl-11 pr-10 py-3 text-sm border outline-none focus:ring-2 shadow-sm" />
+        {busca && <button onClick={() => setBusca("")} aria-label="Limpar busca" style={{ background: T.chipBg }} className="absolute right-2.5 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full flex items-center justify-center"><XMarkIcon className="w-3 h-3" style={{ color: T.subtext }} /></button>}
       </div>
 
       {grupos.length === 0 ? (
-        <div className="text-center py-14 px-6">
-          <div style={{ background: BLUE_SOFT }} className="h-16 w-16 rounded-2xl mx-auto flex items-center justify-center mb-3"><DocumentMagnifyingGlassIcon className="w-6 h-6" style={{ color: BLUE }} /></div>
-          <p className="font-semibold text-sm">Nenhum registro encontrado</p>
-          <p style={{ color: T.subtext }} className="text-xs mt-1">{busca ? "Ajuste a busca." : "As ações do app aparecem aqui conforme acontecem."}</p>
-        </div>
+        <EstadoVazioNovo T={T} Icone={ListChecks} titulo="Nenhum registro encontrado" texto={busca ? "Ajuste a busca." : "As ações do app aparecem aqui conforme acontecem."} />
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {grupos.map(([data, itens]) => (
             <div key={data}>
-              <p style={{ color: T.subtext }} className="text-[10px] font-bold uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <CalendarDaysIcon className="w-3.5 h-3.5" /> {data}
+              <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-[.1em] mb-2.5 flex items-center gap-1.5">
+                <CalendarDaysIcon className="w-3.5 h-3.5" /> {data} <span style={{ background: T.chipBg }} className="rounded-full px-1.5 text-[10px] tabular-nums">{itens.length}</span>
               </p>
-              <div style={{ background: T.card }} className="rounded-2xl shadow-lg shadow-black/5 overflow-hidden">
-                {itens.map((a, i) => (
-                  <div key={a.id || i} className="flex items-start gap-3 px-3.5 py-3">
-                    <div style={{ background: BLUE_SOFT }} className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                      <ClockIcon className="w-4 h-4" style={{ color: BLUE }} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm">
-                        <strong>{a.usuario || "Alguém"}</strong> {a.acao}
-                      </p>
-                      {a.detalhe && <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">{a.detalhe}</p>}
-                      <p style={{ color: T.subtext }} className="text-[10px] mt-1 font-mono">
-                        {formatarDataHoraExtenso(a.criadoEm)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="relative pl-1">
+                <div aria-hidden style={{ background: T.chipBg }} className="absolute left-[19px] top-3 bottom-3 w-[2px] rounded-full" />
+                <div className="flex flex-col gap-2.5">
+                  {itens.map((a, k) => (
+                    <motion.div key={a.id || k} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(k * 0.03, 0.25) }} className="relative flex items-start gap-3">
+                      <span style={{ background: T.card, border: `2px solid ${BLUE}` }} className="relative z-10 h-[18px] w-[18px] rounded-full shrink-0 mt-3.5 ml-[2px]" />
+                      <div style={{ background: T.card }} className="flex-1 min-w-0 rounded-[20px] shadow-md shadow-black/5 px-3.5 py-3">
+                        <p style={{ color: T.text }} className="text-[13px] leading-snug"><strong>{a.usuario || "Alguém"}</strong> {a.acao}</p>
+                        {a.detalhe && <p style={{ color: T.subtext }} className="text-[11.5px] mt-1 leading-snug">{a.detalhe}</p>}
+                        <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 font-mono">{formatarDataHoraExtenso(a.criadoEm)}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             </div>
           ))}
@@ -9752,30 +9688,16 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
       resumoPorSetor={resumoPorSetor} porUsuarioAuditoria={porUsuarioAuditoria} porTipoAcao={porTipoAcao} rondasResumo={rondasResumo} taxaExecucaoRonda={taxaExecucaoRonda}
       indicePerda={indicePerda} faturamentoMensal={faturamentoMensal} faturamentoInput={faturamentoInput} setFaturamentoInput={setFaturamentoInput} salvarFaturamento={salvarFaturamento}
       onGerarPDF={() => setExportarAberto(true)} gerarPDFFinanceiro={gerarPDFFinanceiro} gerarPDFAtividade={gerarPDFAtividade} exportarFinanceiro={exportarFinanceiro} exportarAtividade={exportarAtividade} onOpenDetail={onOpenDetail} />
-    <div className="px-4 pt-4 pb-4 lg:hidden">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        style={{ background: `linear-gradient(160deg, ${BLUE_DARK} 0%, ${BLUE} 75%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5 mb-4">
-        <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1.5 mb-2">
-          <FileText size={13} /> Relatórios · Loja 79
-        </p>
-        <p className="text-white/60 text-[11px]">Atualizado em {formatarDataHoraExtenso(new Date().toISOString())}</p>
-      </motion.div>
+    <div className="px-4 pt-4 pb-6 lg:hidden">
+      <PalcoPagina className="mb-4" titulo="Relatórios" subtitulo={`Loja ${lojaNumero ?? "—"} · atualizado ${formatarDataHoraExtenso(new Date().toISOString())}`}>
+        <ValorPalco rotulo="Valor em risco agora" valor={formatarMoeda(valorEmRisco)} />
+        <PilulasPalco itens={[["Vencidos", criticos.length, "#E31E24"], ["Em atenção", atencao.length, "#F5A524"], ["Monitorados", items.length, "#34C77B"]]} />
+        <motion.button whileTap={{ scale: 0.97 }} onClick={() => setExportarAberto(true)} className="mt-3 w-full bg-white rounded-2xl py-3 text-[13px] font-extrabold flex items-center justify-center gap-2 shadow-md" style={{ color: BLUE_DARK }}>
+          <Download size={16} /> Gerar relatório em PDF para a gerência
+        </motion.button>
+      </PalcoPagina>
 
-      <button onClick={() => setExportarAberto(true)} style={{ background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)` }}
-        className="w-full rounded-2xl py-3.5 mb-4 flex items-center justify-center gap-2 text-sm font-bold text-white shadow-lg shadow-red-900/20">
-        <Download size={17} /> Gerar relatório em PDF pra gerência
-      </button>
-
-
-      <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4 no-scrollbar">
-        {ABAS.map((a) => (
-          <button key={a.id} onClick={() => setAba(a.id)}
-            style={aba === a.id ? { background: T.card, color: T.text } : { background: T.chipBg, color: T.subtext }}
-            className="text-xs font-semibold px-4 py-2.5 rounded-xl whitespace-nowrap shrink-0 transition shadow-sm">
-            {a.label}
-          </button>
-        ))}
-      </div>
+      <FaixaChips T={T} valor={aba} onChange={setAba} opcoes={ABAS.map((x) => [x.id, x.label])} />
 
       {aba === "resumo" && (
         <div className="flex flex-col gap-3">
@@ -9784,11 +9706,11 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
             <StatCard T={T} label="Em atenção" value={atencao.length} color="#C98A0C" />
             <StatCard T={T} label="Monitorados" value={items.length} color={BLUE} />
           </div>
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 uppercase tracking-wide">Valor em risco agora</p>
             <p style={{ color: RED_DARK }} className="text-2xl font-extrabold">{formatarMoeda(valorEmRisco)}</p>
           </div>
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 uppercase tracking-wide">Perdas confirmadas este mês</p>
             <p className="text-lg font-extrabold">{formatarMoeda(tendenciaPerdas.atual)}</p>
             {tendenciaPerdas.variacao !== null && (
@@ -9798,7 +9720,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
             )}
           </div>
           {rankingResponsaveis.length > 0 && (
-            <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+            <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
               <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Registros por responsável</p>
               <div className="flex flex-col gap-1.5">
                 {rankingResponsaveis.map(([nome, qtd]) => (
@@ -9815,7 +9737,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
 
       {aba === "roi" && (
         <div className="flex flex-col gap-3">
-          <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="rounded-2xl p-4 shadow-lg shadow-black/5">
+          <div style={{ background: FUNDO_MARCA }} className="rounded-[24px] p-4 shadow-lg shadow-black/5 text-white">
             <p className="text-white/70 text-[10px] font-bold uppercase tracking-wide mb-2">Índice de perda (perda ÷ faturamento)</p>
             {indicePerda != null ? (
               <>
@@ -9838,7 +9760,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
             )}
           </div>
 
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 uppercase tracking-wide">Perda mês atual x anterior</p>
             <p className="text-lg font-extrabold">{formatarMoeda(tendenciaPerdas.atual)}</p>
             {tendenciaPerdas.variacao !== null && (
@@ -9848,7 +9770,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
             )}
           </div>
 
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2.5 uppercase tracking-wide">Perda nos últimos 6 meses</p>
             {(() => {
               const maxValor = Math.max(...perdaUltimos6Meses.map((m) => m.valor), 1);
@@ -9866,7 +9788,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
             })()}
           </div>
 
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 uppercase tracking-wide">Execução de rondas (todo o histórico)</p>
             {taxaExecucaoRonda != null ? (
               <>
@@ -9889,7 +9811,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
           {resumoPorSetor.length === 0 ? (
             <EmptyState T={T} hasItems={false} />
           ) : resumoPorSetor.map(([setor, d]) => (
-            <div key={setor} style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+            <div key={setor} style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-semibold">{setor}</p>
                 <span className="text-[10px] font-semibold" style={{ color: T.subtext }}>{d.total} item(ns)</span>
@@ -9942,11 +9864,10 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
           })()}
           {enriched.length === 0 ? (
             <EmptyState T={T} hasItems={false} />
-          ) : agruparItensPorProduto(enriched).map((g, i) =>
-            g.unico
-              ? <ItemCard key={g.item.id} T={T} item={g.item} onOpenDetail={onOpenDetail} />
-              : <ItemCardAgrupado key={`grupo-${i}`} T={T} base={g.base} lotes={g.lotes} totalQuantidade={g.totalQuantidade} piorStatus={g.piorStatus} onOpenDetail={onOpenDetail} />
-          )}
+          ) : agruparItensPorProduto(enriched).map((g, i) => (
+            <LinhaProduto key={g.unico ? g.item.id : `grupo-${i}`} T={T} idx={i} mostrarSetor
+              item={g.unico ? g.item : g.base} lotes={g.unico ? null : g.lotes} totalQuantidade={g.totalQuantidade} piorStatus={g.unico ? g.item.status : g.piorStatus} onOpenDetail={onOpenDetail} />
+          ))}
         </div>
       )}
 
@@ -9960,17 +9881,17 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+            <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
               <p style={{ color: T.subtext }} className="text-[10.5px] font-semibold mb-1 uppercase tracking-wide">Valor monitorado</p>
               <p className="text-lg font-extrabold">{formatarMoeda(valorTotalMonitorado)}</p>
             </div>
-            <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+            <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
               <p style={{ color: T.subtext }} className="text-[10.5px] font-semibold mb-1 uppercase tracking-wide">Valor em risco</p>
               <p style={{ color: RED_DARK }} className="text-lg font-extrabold">{formatarMoeda(valorEmRisco)}</p>
             </div>
           </div>
 
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Valor exposto por faixa de vencimento</p>
             <div className="flex flex-col gap-1.5">
               {faixasRisco.map((f) => (
@@ -9982,7 +9903,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
             </div>
           </div>
 
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Política de troca</p>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between"><span className="text-xs">Com troca · {porPoliticaTroca.com_troca.qtd} item(ns)</span><span className="text-xs font-bold">{formatarMoeda(porPoliticaTroca.com_troca.valor)}</span></div>
@@ -9990,7 +9911,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
             </div>
           </div>
 
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Top 10 itens com maior valor em risco</p>
             <div className="flex flex-col gap-2">
               {topRisco.map((i) => (
@@ -10020,7 +9941,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
             <StatCard T={T} label="Rondas parciais" value={rondasResumo.parciais} color="#C98A0C" />
           </div>
 
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Ações por responsável</p>
             <div className="flex flex-col gap-1.5">
               {porUsuarioAuditoria.map(([n, q]) => (
@@ -10030,7 +9951,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
             </div>
           </div>
 
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Ações por tipo</p>
             <div className="flex flex-col gap-1.5">
               {porTipoAcao.map(([t, q]) => (
@@ -10039,7 +9960,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
             </div>
           </div>
 
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
+          <div style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5">
             <p style={{ color: T.subtext }} className="text-[11px] font-semibold mb-2 uppercase tracking-wide">Rondas por setor</p>
             <div className="flex flex-col gap-1.5">
               {rondasResumo.porSetor.map(([s, d]) => (
