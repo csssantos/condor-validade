@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useContext, createContext } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { supabase } from "./supabaseClient";
 import {
   HomeIcon, Squares2X2Icon, FireIcon, SignalIcon, ClockIcon, Cog6ToothIcon,
@@ -24,7 +24,7 @@ import {
   Lock, Unlock, Flashlight, FlashlightOff, Percent, Upload, RotateCcw,
   TrendingDown, FileSpreadsheet, RefreshCw, SwitchCamera, ShieldAlert,
   Flame, Repeat, Sparkles, WifiOff, Cloud, Target, Radar, TrendingUp, ListChecks,
-  Carrot, Beef, Croissant, Milk, Wine, Snowflake, SprayCan, ShoppingBasket, Warehouse, Boxes, LogOut, Megaphone, Building2, Wrench, Ticket, Copy, Link2, LayoutDashboard, Pencil, Mail
+  Carrot, Beef, Croissant, Milk, Wine, Snowflake, SprayCan, ShoppingBasket, Warehouse, Boxes, LogOut, Megaphone, Building2, Wrench, Ticket, Copy, Link2, LayoutDashboard, Pencil, Mail, Eye, EyeOff, KeyRound, SunMoon, Send, Palette
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
@@ -129,7 +129,6 @@ const ITEMS_KEY = "condor-validade:itens";
 const HIST_KEY = "condor-validade:historico";
 const PREFS_KEY = "condor-validade:preferencias";
 const NOTIF_KEY = "condor-validade:notificados";
-const PIN_KEY = "condor-validade:pin";
 const USER_KEY = "condor-validade:usuario";
 const SNAPSHOT_KEY = "condor-validade:instantaneo-offline";
 
@@ -435,41 +434,13 @@ async function supaFetchConfigLoja(lojaNumero) {
   if (error) { console.error(error); return null; }
   return data ? {
     faturamentoMensal: data.faturamento_mensal != null ? Number(data.faturamento_mensal) : null,
-    balancaConfig: data.balanca_config || null,
-    ocultarValoresFuncionarios: !!data.ocultar_valores_funcionarios
+    balancaConfig: data.balanca_config || null
   } : null;
 }
 async function supaSalvarConfigLoja(lojaNumero, faturamentoMensal) {
   if (!lojaNumero) return;
   const { error } = await supabase.from("config_loja").upsert({ loja_numero: String(lojaNumero), faturamento_mensal: faturamentoMensal, atualizado_em: new Date().toISOString() });
   if (error) console.error("Erro ao salvar config da loja:", error);
-}
-async function supaSalvarConfigBalanca(lojaNumero, balancaConfig) {
-  if (!lojaNumero) return;
-  const { error } = await supabase.from("config_loja").upsert({ loja_numero: String(lojaNumero), balanca_config: balancaConfig, atualizado_em: new Date().toISOString() });
-  if (error) console.error("Erro ao salvar config da balança:", error);
-}
-// Informação em camadas por cargo — liga/desliga esconder valor em R$ pra quem não é encarregado
-async function supaSalvarOcultarValores(lojaNumero, ocultar) {
-  if (!lojaNumero) return;
-  const { error } = await supabase.from("config_loja").upsert({ loja_numero: String(lojaNumero), ocultar_valores_funcionarios: ocultar, atualizado_em: new Date().toISOString() });
-  if (error) console.error("Erro ao salvar modo de camadas:", error);
-}
-// Lista de nomes autorizados a "ser alguém" no app (sem exigir login/senha) — controla quem pode
-// receber notificação de verdade e assinar as ações que fizer. Gerenciada pelo encarregado em Ajustes.
-async function supaFetchEquipePermitida() {
-  const { data, error } = await supabase.from("equipe_permitida").select("*").eq("loja_id", LOJA_ID_ATIVA).order("nome");
-  if (error) { console.error("Erro ao buscar equipe:", error); return []; }
-  return (data || []).map((r) => ({ nome: r.nome, ativo: !!r.ativo }));
-}
-async function supaAdicionarEquipe(nome) {
-  const { error } = await supabase.from("equipe_permitida").upsert({ nome: nome.trim(), ativo: true, loja_id: LOJA_ID_ATIVA }, { onConflict: "nome,loja_id" });
-  if (error) console.error("Erro ao adicionar na equipe:", error);
-  return !error;
-}
-async function supaRemoverEquipe(nome) {
-  const { error } = await supabase.from("equipe_permitida").delete().eq("nome", nome).eq("loja_id", LOJA_ID_ATIVA);
-  if (error) console.error("Erro ao remover da equipe:", error);
 }
 // Item 1 (painel corporativo): cada loja envia um resumo do próprio dia pra uma tabela compartilhada
 // entre todas as lojas da rede — pressupõe que exista um projeto Supabase "central" com essa tabela
@@ -523,34 +494,15 @@ function avisoFromRow(r) {
   return {
     id: r.id, titulo: r.titulo, mensagem: r.mensagem, tipo: r.tipo || "info",
     alvoTipo: r.alvo_tipo || "todos", alvoSetor: r.alvo_setor || null, alvoUsuarios: r.alvo_usuarios || null,
-    criadoPor: r.criado_por || null, criadoEm: r.criado_em, expiraEm: r.expira_em || null,
+    criadoPor: r.criado_por || null, criadoEm: r.criado_em, expiraEm: r.expira_em || null, lojaId: r.loja_id ?? null,
   };
 }
 async function supaFetchAvisosRecentes() {
   const desde = new Date(Date.now() - 14 * 86400000).toISOString();
-  const { data, error } = await supabase.from("avisos").select("*").eq("loja_id", LOJA_ID_ATIVA).gte("criado_em", desde).order("criado_em", { ascending: false }).limit(20);
+  const { data, error } = await supabase.from("avisos").select("*").or(`loja_id.eq.${LOJA_ID_ATIVA},loja_id.is.null`).gte("criado_em", desde).order("criado_em", { ascending: false }).limit(20);
   if (error) { console.error(error); return []; }
   return (data || []).map(avisoFromRow);
 }
-async function supaEnviarAviso({ titulo, mensagem, tipo, criadoPor, alvoTipo, alvoSetor, alvoUsuarios }) {
-  const { data, error } = await supabase.from("avisos")
-    .insert({
-      titulo, mensagem, tipo: tipo || "info", alvo_tipo: alvoTipo || "todos",
-      alvo_setor: alvoTipo === "setor" ? alvoSetor || null : null,
-      alvo_usuarios: alvoTipo === "usuarios" ? alvoUsuarios || null : null,
-      criado_por: criadoPor || null, loja_id: LOJA_ID_ATIVA
-    })
-    .select().single();
-  if (error) { console.error("Erro ao enviar aviso:", error); return false; }
-  // Dispara push de verdade pra quem estiver com o app fechado também (mesmo fluxo do enviar-push dos produtos)
-  // OBS: a Edge Function "enviar-push" precisa ler alvo_tipo/alvo_setor/alvo_usuarios pra também
-  // respeitar o alvo — hoje ela manda pra todo mundo inscrito, independente do alvo definido aqui.
-  try {
-    await supabase.functions.invoke("enviar-push", { body: { aviso: { id: data.id, titulo: data.titulo, mensagem: data.mensagem, tipo: data.tipo, alvoTipo: data.alvo_tipo, alvoSetor: data.alvo_setor, alvoUsuarios: data.alvo_usuarios } } });
-  } catch (e) { console.error("Erro ao disparar push do aviso:", e); }
-  return true;
-}
-
 // ---------- Setores/subsetores customizados (cadastrados pela própria equipe) ----------
 async function supaFetchSetoresCustomizados() {
   const { data, error } = await supabase.from("setores_customizados").select("*").eq("loja_id", LOJA_ID_ATIVA);
@@ -850,7 +802,10 @@ async function inscreverPush(usuario) {
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
-    await supabase.from("push_subscriptions").upsert({ endpoint: sub.endpoint, subscription: sub.toJSON(), usuario: usuario || null, loja_id: LOJA_ID_ATIVA });
+    const { data: au } = await supabase.auth.getUser();
+    const base = { endpoint: sub.endpoint, subscription: sub.toJSON(), usuario: usuario || null, loja_id: LOJA_ID_ATIVA };
+    const { error: errPush } = await supabase.from("push_subscriptions").upsert({ ...base, usuario_id: au?.user?.id || null });
+    if (errPush) await supabase.from("push_subscriptions").upsert(base); // banco sem a coluna usuario_id ainda
   } catch (e) { console.error("Falha ao inscrever push:", e); }
 }
 
@@ -1278,12 +1233,9 @@ function AppInner() {
   const [tab, setTab] = useState("home");
   const [flow, setFlow] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [prefs, setPrefs] = useState({ dark: false, som: true });
-  const [pin, setPin] = useState(null);
-  const [desbloqueado, setDesbloqueado] = useState(true);
+  const [prefs, setPrefs] = useState({ tema: "claro", som: true });
+  const [sistemaEscuro, setSistemaEscuro] = useState(() => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const [usuario, setUsuario] = useState(null);
-  const [pedirUsuario, setPedirUsuario] = useState(false);
-  const [validandoUsuario, setValidandoUsuario] = useState(false);
   const [sessao, setSessao] = useState(undefined); // undefined = carregando, null = sem login, objeto = logado
   const [perfil, setPerfil] = useState(undefined); // linha da tabela "usuarios" (nome, cargo, loja, ativo)
   const [perfilErro, setPerfilErro] = useState(false); // true = falhou ao buscar (rede/permissão), diferente de "sem vínculo"
@@ -1303,15 +1255,8 @@ function AppInner() {
   // Toda leitura/escrita da camada de dados (supaFetch*/supaUpsert*) filtra pela loja aqui — é a
   // fundação real do multiloja: antes disso, todo mundo lia os dados da loja 79 igual.
   useEffect(() => { setLojaIdAtiva(lojaAtiva?.id); }, [lojaAtiva?.id]);
-  // Informação em camadas por cargo — desligado até a loja ativar em Ajustes (ver migração
-  // config_loja.ocultar_valores_funcionarios, default false = comportamento de hoje, sem mudar nada).
-  const [ocultarValoresFuncionarios, setOcultarValoresFuncionarios] = useState(false);
-  useEffect(() => {
-    const lojaNumero = perfil?.lojas?.numero_loja;
-    if (!lojaNumero) return;
-    supaFetchConfigLoja(lojaNumero).then((cfg) => { if (cfg?.ocultarValoresFuncionarios != null) setOcultarValoresFuncionarios(cfg.ocultarValoresFuncionarios); });
-  }, [perfil?.lojas?.numero_loja]);
-  const podeVerValores = !ocultarValoresFuncionarios || ehEncarregado || ehCorporativo;
+  // Antes havia um modo para esconder valores em R$ de funcionários; foi removido (todos veem os valores).
+  const podeVerValores = true;
   const [catalog, setCatalog] = useState({});
   // Autocomplete de nome no cadastro — lista enxuta de nomes já usados, sem duplicar
   const nomesExistentesCatalogo = useMemo(() => Array.from(new Set(Object.values(catalog).map((c) => c.nome).filter(Boolean))), [catalog]);
@@ -1425,7 +1370,6 @@ function AppInner() {
       const nomeExibicao = partes.length >= 2 ? `${partes[0]} ${partes[1]}` : perfil.nome;
       const identidade = perfil.cargo_nome_loja ? `${nomeExibicao} - ${perfil.cargo_nome_loja}` : nomeExibicao;
       setUsuario(identidade);
-      setPedirUsuario(false);
       // Auditoria de acesso: guarda IP + dispositivo de cada login (histórico completo, não só o último)
       fetch("https://api.ipify.org?format=json").then((r) => r.json()).then(({ ip }) => {
         supabase.from("login_auditoria").insert({ usuario_id: sessao?.user?.id || null, nome: perfil.nome, matricula: perfil.matricula || null, loja_id: perfil.loja_id || null, ip, dispositivo: navigator.userAgent });
@@ -1468,14 +1412,20 @@ function AppInner() {
   const [ordenarPor, setOrdenarPor] = useState("urgencia");
   const [modoVisual, setModoVisual] = useState("grade");
 
-  const dark = prefs.dark;
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const aoMudar = (e) => setSistemaEscuro(e.matches);
+    if (mq.addEventListener) mq.addEventListener("change", aoMudar); else mq.addListener(aoMudar);
+    return () => { if (mq.removeEventListener) mq.removeEventListener("change", aoMudar); else mq.removeListener(aoMudar); };
+  }, []);
+  // prefs antigas guardavam só { dark }; converte para o tema novo sem perder a escolha
+  const tema = prefs.tema || (prefs.dark ? "escuro" : "claro");
+  const dark = tema === "escuro" || (tema === "auto" && sistemaEscuro);
   const T = getTokens(dark);
 
   useEffect(() => {
-    setPrefs(loadLocal(PREFS_KEY, { dark: false, som: true }));
-    const pinSalvo = loadLocal(PIN_KEY, null);
-    setPin(pinSalvo);
-    setDesbloqueado(!pinSalvo);
+    setPrefs(loadLocal(PREFS_KEY, { tema: "claro", som: true }));
     setLoading(false);
   }, []);
 
@@ -1537,6 +1487,7 @@ function AppInner() {
   // Um aviso só aparece pra mim se for "todos", ou for pro meu setor, ou eu estiver na lista de
   // matrículas alvo — antes disso, todo aviso ia pra todo mundo, mesmo quando tinha alvo definido.
   function avisoAplicaPraMim(aviso) {
+    if (aviso.lojaId != null && LOJA_ID_ATIVA != null && aviso.lojaId !== LOJA_ID_ATIVA) return false;
     if (aviso.alvoTipo === "setor") return !!perfil?.setor && aviso.alvoSetor === perfil.setor;
     if (aviso.alvoTipo === "usuarios") return Array.isArray(aviso.alvoUsuarios) && perfil?.matricula && aviso.alvoUsuarios.includes(perfil.matricula);
     return true;
@@ -1783,26 +1734,6 @@ function AppInner() {
     setNotifPermission(perm);
     if (perm === "granted") await inscreverPush(usuario);
     showToast(perm === "granted" ? "Notificações ativadas — você vai receber avisos mesmo com o app fechado." : "Permissão não concedida.", perm === "granted" ? "ok" : "warn");
-  }
-
-  // Valida o nome digitado contra a lista de equipe permitida (gerenciada pelo encarregado em Ajustes)
-  // antes de aceitar — sem isso, qualquer aparelho (até o celular de alguém de fora, tipo um amigo
-  // testando o app) virava um "usuário" válido e passava a receber os avisos/notificações de verdade da loja.
-  async function definirUsuario(nome) {
-    const limpo = sanitizarTexto(nome.trim(), 40);
-    if (!limpo) return;
-    setValidandoUsuario(true);
-    const { data, error } = await supabase.from("equipe_permitida").select("nome, ativo").ilike("nome", limpo).maybeSingle();
-    setValidandoUsuario(false);
-    if (error) { showToast("Não deu pra confirmar seu nome agora. Tente de novo.", "warn"); return; }
-    if (!data || !data.ativo) {
-      showToast("Esse nome não está na lista da equipe. Peça pro encarregado te adicionar em Ajustes antes de continuar.", "warn");
-      return;
-    }
-    setUsuario(data.nome); // usa o nome exatamente como está gravado no cadastro (evita variação de maiúscula/acento)
-    saveLocal(USER_KEY, data.nome);
-    setPedirUsuario(false);
-    if (typeof Notification !== "undefined" && Notification.permission === "granted") inscreverPush(data.nome);
   }
 
   function handleBarcodeCaptured(codeRaw) {
@@ -2171,25 +2102,6 @@ function AppInner() {
     catch { showToast("Não foi possível compartilhar.", "warn"); }
   }
 
-  function definirPin(novoPin) {
-    setPin(novoPin);
-    saveLocal(PIN_KEY, novoPin);
-    showToast(novoPin ? "PIN definido com sucesso." : "PIN removido.");
-  }
-
-  async function restaurarBackup(dados) {
-    if (dados.catalog) {
-      setCatalog(dados.catalog);
-      for (const barcode of Object.keys(dados.catalog)) await gravarCatalogo(barcode, dados.catalog[barcode]);
-    }
-    if (Array.isArray(dados.items)) {
-      setItems(dados.items);
-      for (const item of dados.items) await gravarProduto(item);
-    }
-    if (Array.isArray(dados.historico)) setHistorico(dados.historico);
-    showToast("Backup restaurado com sucesso. Os produtos e o catálogo já foram sincronizados no Supabase.");
-  }
-
   if (loading) {
     return (
       <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4">
@@ -2267,10 +2179,6 @@ function AppInner() {
     );
   }
 
-  if (pin && !desbloqueado) {
-    return <LockScreen pinCorreto={pin} onUnlock={() => setDesbloqueado(true)} />;
-  }
-
   const showBottomNav = flow === null;
   // Desktop (lg+): telas de formulário/ajustes ficam estreitas e legíveis; listas e painéis usam mais largura.
   const larguraMain =
@@ -2292,7 +2200,7 @@ function AppInner() {
         onBusca={(v) => { setSearch(v); if (tab !== "produtos" || flow !== null) { if (flow !== null) resetFlow(); setSetorAtivo(null); setTab("produtos"); } }}
         onBack={flow === "expiry" && !editingItemId ? () => setFlow("confirm") : resetFlow}
         dark={dark}
-        setDark={(fn) => setPrefs((p) => ({ ...p, dark: typeof fn === "function" ? fn(p.dark) : fn }))}
+        setDark={(fn) => setPrefs((p) => { const d = typeof fn === "function" ? fn(dark) : fn; return { ...p, tema: d ? "escuro" : "claro" }; })}
         notifPermission={notifPermission} onToggleNotif={toggleNotificacoes} />
 
       {!online && (
@@ -2364,20 +2272,15 @@ function AppInner() {
         )}
         {flow === "historico" && <HistoricoView T={T} historico={historico} items={items} usuario={usuario} />}
         {flow === null && (tab === "ajustes" || tab.startsWith("cfg-")) && (
-          <AjustesView secao={tab.startsWith("cfg-") ? tab.slice(4) : null} T={T} dark={dark} som={prefs.som}
-            setDark={(v) => setPrefs((p) => ({ ...p, dark: v }))}
-            setSom={(v) => setPrefs((p) => ({ ...p, som: v }))}
+          <MaisView secao={tab.startsWith("cfg-") ? tab.slice(4) : null} T={T} dark={dark} tema={tema}
+            setTema={(t) => setPrefs((p) => ({ ...p, tema: t }))}
+            som={prefs.som} setSom={(v) => setPrefs((p) => ({ ...p, som: v }))}
             notifPermission={notifPermission} onToggleNotif={toggleNotificacoes}
-            items={items} historico={historico} catalog={catalog}
-            pin={pin} onDefinirPin={definirPin} onRestaurarBackup={restaurarBackup}
-            showToast={showToast} usuario={usuario} onTrocarUsuario={() => setPedirUsuario(true)} onSair={sair}
+            historico={historico} showToast={showToast} usuario={usuario} onSair={sair}
             onAbrirAuditoria={() => setFlow("auditoria")} onAbrirHistorico={() => setFlow("historico")}
             onAbrirPrioridade={() => setFlow("prioridade")} onAbrirTorre={() => setFlow("torre")} onAbrirRelatorios={() => setFlow("relatorios")}
-            ehCorporativo={ehCorporativo} onAbrirRede={() => setFlow("rede")}
-            ehEncarregado={ehEncarregado} configBalanca={configBalanca}
-            onSalvarConfigBalanca={(cfg) => { setConfigBalanca(cfg); supaSalvarConfigBalanca(perfil?.lojas?.numero_loja, cfg); }}
-            ocultarValoresFuncionarios={ocultarValoresFuncionarios}
-            onSalvarOcultarValores={(v) => { setOcultarValoresFuncionarios(v); supaSalvarOcultarValores(perfil?.lojas?.numero_loja, v); showToast(v ? "Modo de camadas ativado." : "Modo de camadas desligado."); }}
+            ehCorporativo={ehCorporativo} onAbrirRede={() => setFlow("rede")} ehEncarregado={ehEncarregado}
+            configBalanca={configBalanca} onBalancaSalva={(cfg) => setConfigBalanca(cfg)}
             ehDev={ehDev} onAbrirGestao={() => setFlow("gestao")} perfil={perfil} onAbrirConvites={() => setFlow("convites")} onAbrirModulo={(f) => setFlow(f)} />
         )}
       </main>
@@ -2393,7 +2296,6 @@ function AppInner() {
 
       {perfil?.id && <RondaAvisosHost T={T} usuarioId={perfil.id} showToast={showToast} onIrParaRondas={() => { setFlow(null); setSetorAtivo(null); setTab("rondas"); }} />}
 
-      {pedirUsuario && <UserNameModal T={T} usuarioAtual={usuario} onSave={definirUsuario} onClose={() => usuario && setPedirUsuario(false)} validando={validandoUsuario} />}
 
       {escolhaAberta && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
@@ -2663,81 +2565,14 @@ function AtualizacaoModal({ T, novidades, cargoNome, onFechar }) {
   );
 }
 
-// ============ Tela de bloqueio (PIN) ============
-function LockScreen({ pinCorreto, onUnlock }) {
-  const T = getTokens(false);
-  const [valor, setValor] = useState("");
-  const [erro, setErro] = useState(false);
-
-  function pressionar(d) {
-    if (valor.length >= 4) return;
-    const novo = valor + d;
-    setValor(novo);
-    setErro(false);
-    if (novo.length === 4) {
-      if (novo === pinCorreto) { setTimeout(onUnlock, 120); }
-      else { setErro(true); setTimeout(() => setValor(""), 400); }
-    }
-  }
-
-  return (
-    <div style={{ background: T.bg }} className="min-h-screen flex flex-col items-center justify-center px-6">
-      <img src={LOGO_SRC} alt="Condor" className="h-9 w-auto mb-6" />
-      <div style={{ background: BLUE_SOFT }} className="h-12 w-12 rounded-[28px] flex items-center justify-center mb-4"><Lock size={20} color={BLUE} /></div>
-      <p className="text-sm font-semibold mb-1">Digite o PIN de acesso</p>
-      <p style={{ color: T.subtext }} className="text-xs mb-5">Aplicativo protegido pela equipe da loja</p>
-      <div className="flex gap-3 mb-6">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ background: i < valor.length ? (erro ? RED : BLUE) : "#E3E7EE" }} className="h-3.5 w-3.5 rounded-full transition" />
-        ))}
-      </div>
-      <div className="grid grid-cols-3 gap-3 w-56">
-        {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((n) => (
-          <button key={n} onClick={() => pressionar(n)} className="h-14 rounded-2xl text-lg font-semibold bg-white" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>{n}</button>
-        ))}
-        <div />
-        <button onClick={() => pressionar("0")} className="h-14 rounded-2xl text-lg font-semibold bg-white" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>0</button>
-        <button onClick={() => setValor((v) => v.slice(0, -1))} className="h-14 rounded-2xl text-lg font-semibold" style={{ color: RED_DARK }}>⌫</button>
-      </div>
-      {erro && <p style={{ color: RED_DARK }} className="text-xs font-medium mt-4">PIN incorreto, tente novamente.</p>}
-    </div>
-  );
-}
-
-// ============ Modal de identificação (quem está usando o app) ============
-function UserNameModal({ T, usuarioAtual, onSave, onClose, validando }) {
-  const [nome, setNome] = useState(usuarioAtual || "");
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 bg-black/55" onClick={onClose} />
-      <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
-        <div style={{ background: BLUE_SOFT }} className="h-11 w-11 rounded-2xl flex items-center justify-center mb-3"><Users2 size={20} color={BLUE} /></div>
-        <h2 className="font-bold text-base">Quem está usando o app?</h2>
-        <p style={{ color: T.subtext }} className="text-xs mt-1 mb-4">
-          Digite seu nome exatamente como está cadastrado na equipe da loja — ele fica registrado nos produtos que
-          você cadastrar e nas baixas que você fizer.
-        </p>
-        <input autoFocus value={nome} maxLength={40} onChange={(e) => setNome(sanitizarTexto(e.target.value, 40))}
-          placeholder="Ex: Cauã Silva" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }}
-          className="w-full border rounded-xl px-3 py-3 text-sm outline-none focus:ring-2" />
-        <button onClick={() => nome.trim() && onSave(nome)} disabled={!nome.trim() || validando}
-          style={{ background: nome.trim() && !validando ? BLUE : "#C7CEDA" }} className="w-full mt-3 text-white text-sm font-semibold py-3 rounded-2xl flex items-center justify-center gap-1.5">
-          {validando && <Loader2 size={14} className="animate-spin" />} {validando ? "Confirmando..." : "Confirmar"}
-        </button>
-        {usuarioAtual && <button onClick={onClose} style={{ color: T.subtext }} className="w-full mt-2 text-xs py-1">Cancelar</button>}
-      </div>
-    </div>
-  );
-}
-
 // ============ Header ============
 function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggleNotif, nomeUsuario, busca, onBusca }) {
   const telaLarga = useTelaLarga();
   const titles = {
-    produtos: "Produtos monitorados", "cfg-preferencias": "Preferências", "cfg-seguranca": "Segurança",
-    "cfg-loja": "Loja e equipe", "cfg-dados": "Dados e backup",
+    produtos: "Produtos monitorados", "cfg-conta": "Conta", "cfg-aparencia": "Aparência", "cfg-notificacoes": "Notificações e som",
+    "cfg-avisos": "Avisos", "cfg-balanca": "Código de balança", "cfg-sobre": "Sobre o app",
     home: "Alerta de Validade", scan: "Bipar produto", confirm: "Dados do produto",
-    expiry: "Data de validade", historico: "Histórico de baixas", ajustes: "Ajustes", auditoria: "Auditoria",
+    expiry: "Data de validade", historico: "Histórico de baixas", ajustes: "Mais", auditoria: "Auditoria",
     prioridade: "Prioridade de Perda",
     setores: "Setores", torre: "Torre de Controle", rondas: "Rondas", relatorios: "Relatórios", rede: "Painel da Rede", gestao: "Gestão do Aplicativo", convites: "Convites de promotor",
     previsao: "Previsão Operacional", prevencao: "Prevenção de Perdas", assistente: "Assistente IA", perda: "Registrar perda"
@@ -6460,10 +6295,14 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
       ...(ehDev ? [{ flow: "gestao", label: "Gestão do aplicativo", Icon: Wrench }] : []),
     ] },
     { titulo: "Configurações", itens: [
-      { tab: "cfg-preferencias", label: "Preferências", Icon: SlidersHorizontal },
-      { tab: "cfg-seguranca", label: "Segurança", Icon: Lock },
-      ...(ehEncarregado ? [{ tab: "cfg-loja", label: "Loja e equipe", Icon: Settings }] : []),
-      { tab: "cfg-dados", label: "Dados e backup", Icon: Download },
+      { tab: "cfg-conta", label: "Conta", Icon: KeyRound },
+      { tab: "cfg-aparencia", label: "Aparência", Icon: Palette },
+      { tab: "cfg-notificacoes", label: "Notificações e som", Icon: Bell },
+      ...(ehDev ? [
+        { tab: "cfg-avisos", label: "Avisos", Icon: Megaphone },
+        { tab: "cfg-balanca", label: "Código de balança", Icon: Barcode },
+      ] : []),
+      { tab: "cfg-sobre", label: "Sobre o app", Icon: Info },
     ] },
   ].filter((g) => g.itens.length > 0);
 
@@ -10169,479 +10008,861 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
 }
 
 // ============ Ajustes ============
-function AjustesView({ T, dark, setDark, som, setSom, notifPermission, onToggleNotif, items, historico, catalog, pin, onDefinirPin, onRestaurarBackup, showToast, usuario, onTrocarUsuario, onSair, onAbrirAuditoria, onAbrirHistorico, onAbrirPrioridade, onAbrirTorre, onAbrirRelatorios, ehCorporativo, onAbrirRede, ehEncarregado, configBalanca, onSalvarConfigBalanca, ocultarValoresFuncionarios, onSalvarOcultarValores, ehDev, onAbrirGestao, perfil, onAbrirConvites, onAbrirModulo, secao }) {
-  const podeVerValores = useValoresVisiveis();
-  const telaLarga = useTelaLarga();
-  // No computador cada seção de Configurações tem seu item na sidebar; aqui só aparece a escolhida.
-  const mostra = (id) => !telaLarga || !secao || secao === id;
-  const [pinInput, setPinInput] = useState("");
-  // Item 8: config de código de balança (editável só por encarregado, vale pra toda a loja)
-  const [balancaTipoValor, setBalancaTipoValor] = useState(configBalanca?.tipoValor || "peso");
-  const [balancaPrefixos, setBalancaPrefixos] = useState((configBalanca?.prefixos || []).join(", "));
-  useEffect(() => {
-    setBalancaTipoValor(configBalanca?.tipoValor || "peso");
-    setBalancaPrefixos((configBalanca?.prefixos || []).join(", "));
-  }, [configBalanca]);
-  function salvarConfigBalanca() {
-    const prefixos = balancaPrefixos.split(",").map((p) => p.trim()).filter((p) => /^\d{2}$/.test(p));
-    if (prefixos.length === 0) { showToast("Informe ao menos um prefixo de 2 dígitos (ex: 20, 21).", "warn"); return; }
-    onSalvarConfigBalanca({ prefixos, tipoValor: balancaTipoValor });
-    showToast("Configuração da balança salva.");
-  }
-  const [confirmarRestauro, setConfirmarRestauro] = useState(null);
-  const backupInputRef = useRef(null);
-  const iosSemInstalar = isIOS() && !isStandalone();
+// ============ Aba "Mais" — refeita do zero (mobile primeiro) ============
+// Hub com categorias (cartões animados) → cada categoria abre uma página que desliza da direita.
+// No computador a barra lateral já lista as categorias; aqui só aparece a página escolhida.
+const APP_VERSAO = "4.1";
+const MOLA = { type: "spring", stiffness: 420, damping: 34 };
+const MOLA_SUAVE = { type: "spring", stiffness: 260, damping: 26 };
+const COR_MAIS = { conta: "#6D4FC2", aparencia: "#C2570C", notificacoes: "#0B4F9E", atalhos: "#1F7A4D", avisos: "#A81419", balanca: "#0E7C86", sobre: "#4A5B6A" };
+const COR_TEMA = { claro: "#EEF2F9", escuro: "#0B1220" };
 
-  // Equipe permitida (item: notificação só pra quem realmente é da equipe) — só encarregado gerencia
-  const [equipe, setEquipe] = useState(null);
-  const [novoNomeEquipe, setNovoNomeEquipe] = useState("");
-  useEffect(() => { if (ehEncarregado) supaFetchEquipePermitida().then(setEquipe); }, [ehEncarregado]);
-  async function adicionarNaEquipe() {
-    const nome = sanitizarTexto(novoNomeEquipe.trim(), 40);
-    if (!nome) return;
-    const ok = await supaAdicionarEquipe(nome);
-    if (ok) { setEquipe((prev) => [...(prev || []).filter((p) => p.nome.toLowerCase() !== nome.toLowerCase()), { nome, ativo: true }].sort((a, b) => a.nome.localeCompare(b.nome))); setNovoNomeEquipe(""); showToast(`"${nome}" adicionado(a) à equipe.`); }
-    else showToast("Não deu pra adicionar agora. Tente de novo.", "warn");
-  }
-  async function removerDaEquipe(nome) {
-    await supaRemoverEquipe(nome);
-    setEquipe((prev) => (prev || []).filter((p) => p.nome !== nome));
-    showToast(`"${nome}" removido(a) da equipe.`);
-  }
-  const [modalAviso, setModalAviso] = useState(false);
+function clarearCor(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = (v) => Math.round(v + (255 - v) * f);
+  return `rgb(${c((n >> 16) & 255)}, ${c((n >> 8) & 255)}, ${c(n & 255)})`;
+}
+function iniciaisDe(nome) {
+  return (nome || "?").trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?";
+}
+function forcaSenha(s) {
+  let n = 0;
+  if (s.length >= 8) n++;
+  if (s.length >= 12) n++;
+  if (/[a-z]/.test(s) && /[A-Z]/.test(s)) n++;
+  if (/\d/.test(s)) n++;
+  if (/[^A-Za-z0-9]/.test(s)) n++;
+  return Math.min(n, 4);
+}
+const ROTULOS_FORCA = ["Muito fraca", "Fraca", "Razoável", "Boa", "Forte"];
+const CORES_FORCA = ["#A81419", "#C2570C", "#B7791F", "#1F7A4D", "#14573A"];
 
-  function exportarAtivos(formato) {
-    if (formato === "csv") {
-      const header = ["Produto", "Setor", "Código", "Validade", "DiasAlerta", "Quantidade", "PrecoUnitario", "Observacoes"];
-      const rows = items.map((i) => [i.nome, i.setor, i.barcode, formatarData(i.validade), i.diasAlerta, i.quantidade || 1, (i.precoUnitario || 0).toFixed(2), i.observacoes || ""]);
-      downloadCSV(rows, header, "condor-produtos-monitorados.csv");
-    } else {
-      const linhas = items.map((i) => ({
-        Produto: i.nome, Setor: i.setor, Codigo: i.barcode, Validade: formatarData(i.validade),
-        DiasAlerta: i.diasAlerta, Quantidade: i.quantidade || 1, PrecoUnitario: i.precoUnitario || 0, Observacoes: i.observacoes || ""
-      }));
-      downloadPlanilha(linhas, `condor-produtos-monitorados.${formato}`, "Produtos");
-    }
-  }
-
-  function exportarBackupCompleto() {
-    downloadJSON({ versao: 1, dataExportacao: new Date().toISOString(), catalog, items, historico }, `condor-backup-${new Date().toISOString().slice(0, 10)}.json`);
-  }
-
-  function handleArquivoBackup(e) {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const dados = JSON.parse(ev.target.result);
-        if (!dados || (!dados.items && !dados.catalog && !dados.historico)) { showToast("Arquivo de backup inválido.", "warn"); return; }
-        setConfirmarRestauro(dados);
-      } catch { showToast("Não foi possível ler o arquivo de backup.", "warn"); }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  }
-
-  function salvarPin() {
-    if (pinInput.length !== 4) { showToast("O PIN deve ter 4 dígitos.", "warn"); return; }
-    onDefinirPin(pinInput);
-    setPinInput("");
-  }
-
-  const Section = ({ title, children, oculto }) => {
-    if (oculto) return null;
-    const arr = React.Children.toArray(children).filter(Boolean);
-    return (
-      <div className="mb-5 lg:mb-6">
-        {title && <p style={{ color: T.subtext }} className="text-[11px] font-bold mb-2 px-1 uppercase tracking-wide lg:hidden">{title}</p>}
-        <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl shadow-lg shadow-black/5 overflow-hidden lg:border lg:shadow-sm">
-          {title && <p style={{ color: T.text, borderColor: T.border }} className="hidden lg:block text-sm font-bold px-5 py-3.5 border-b">{title}</p>}
-          {arr.map((child, i) => (
-            <div key={i} style={i < arr.length - 1 ? { borderBottom: `1px solid ${T.chipBg}` } : undefined}>{child}</div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-  const Row = ({ icon: Icon, iconBg, iconColor, title, desc, right, children }) => (
-    <div className="p-3.5 lg:px-5 lg:py-4">
-      <div className="flex items-center gap-3">
-        <div style={{ background: iconBg || BLUE_SOFT }} className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"><Icon size={16} color={iconColor || BLUE} /></div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">{title}</p>
-          {desc && <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">{desc}</p>}
-        </div>
-        {right}
-      </div>
-      {children}
-    </div>
-  );
-  const Switch = ({ ativo, onClick }) => (
-    <button onClick={onClick} style={{ background: ativo ? RED : T.chipBg }} className="w-11 h-6 rounded-full relative transition shrink-0">
-      <span style={{ left: ativo ? 22 : 3, background: "#fff" }} className="absolute top-0.5 h-5 w-5 rounded-full transition-all shadow" />
-    </button>
-  );
-
-  const TITULOS_SECAO = {
-    preferencias: ["Preferências", "Aparência, som, notificações e conta"],
-    seguranca: ["Segurança", "PIN de acesso e proteção do aparelho"],
-    loja: ["Loja e equipe", "Avisos, informação em camadas, equipe e balança"],
-    dados: ["Dados e backup", "Exportação de relatórios e cópia de segurança"],
-  };
+function MaisSwitch({ ativo, onClick, label }) {
   return (
-    <div className="px-4 pt-4 lg:px-0 lg:pt-0 lg:grid lg:grid-cols-2 lg:gap-x-6 lg:items-start">
-      {telaLarga && TITULOS_SECAO[secao] && (
-        <div className="lg:col-span-2"><DashPageHeader T={T} title={TITULOS_SECAO[secao][0]} subtitle={TITULOS_SECAO[secao][1]} /></div>
-      )}
-      <Section title="Inteligência operacional" oculto={telaLarga}>
-        {ehEncarregado && (
-          <Row icon={Sparkles} iconBg={"#EDE7FA"} iconColor={"#5B3FB0"} title="Assistente IA" desc="Pergunte sobre perdas, setores, rondas e tarefas"
-            right={<button onClick={() => onAbrirModulo?.("assistente")} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-        )}
-        {ehEncarregado && (
-          <Row icon={Radar} iconBg={BLUE_SOFT} iconColor={BLUE} title="Previsão Operacional" desc="Riscos que podem acontecer, com base no histórico"
-            right={<button onClick={() => onAbrirModulo?.("previsao")} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-        )}
-        {ehEncarregado && (
-          <Row icon={Flame} iconBg={RED_SOFT} iconColor={RED_DARK} title="Prevenção de Perdas" desc="Painel de perdas, ações preventivas e resultados"
-            right={<button onClick={() => onAbrirModulo?.("prevencao")} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-        )}
-        <Row icon={PackageX} iconBg={RED_SOFT} iconColor={RED_DARK} title="Registrar perda" desc="Avaria, quebra, embalagem danificada, vencimento…"
-          right={<button onClick={() => onAbrirModulo?.("perda")} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-      </Section>
-
-      <Section title="Navegação" oculto={telaLarga}>
-        {ehDev && (
-          <Row icon={Wrench} iconBg={"#2A2F3A"} iconColor={"#fff"} title="Gestão do Aplicativo" desc="Funcionários, lojas, produtos e notificações"
-            right={<button onClick={onAbrirGestao} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-        )}
-        {ehEncarregado && (
-          <Row icon={Ticket} iconBg={"#FFF1E6"} iconColor={"#C2570C"} title="Convites de promotor" desc="Gerar link de acesso temporário, sem login"
-            right={<button onClick={onAbrirConvites} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-        )}
-        {ehCorporativo && (
-          <Row icon={Building2} iconBg={"#EDE7FA"} iconColor={"#6D4FC2"} title="Painel da Rede" desc="Todas as lojas — risco, perdas e rondas"
-            right={<button onClick={onAbrirRede} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-        )}
-        {/* Torre de Controle e Relatórios são só de valor/risco em R$ — em modo "camadas por cargo"
-            ligado, ficam escondidos pra quem não é encarregado. Desligado (padrão, fase de teste),
-            aparecem pra todo mundo igual sempre apareceu. */}
-        {podeVerValores && (
-          <>
-            <Row icon={Radar} iconBg={BLUE_SOFT} iconColor={BLUE} title="Torre de Controle" desc="Visão geral de risco pra liderança"
-              right={<button onClick={onAbrirTorre} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-            <Row icon={FileText} iconBg={BLUE_SOFT} iconColor={BLUE} title="Relatórios" desc="Resumo geral, setores e itens — com PDF"
-              right={<button onClick={onAbrirRelatorios} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-          </>
-        )}
-        <Row icon={Flame} iconBg={RED_SOFT} iconColor={RED_DARK} title="Prioridade de Perda" desc="Produtos que exigem ação imediata"
-          right={<button onClick={onAbrirPrioridade} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-        <Row icon={History} iconBg={BLUE_SOFT} iconColor={BLUE} title="Histórico de baixas" desc={`${historico.length} baixa(s) registradas`}
-          right={<button onClick={onAbrirHistorico} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-        <Row icon={ListChecks} iconBg={BLUE_SOFT} iconColor={BLUE} title="Auditoria" desc="Quem fez o quê, com data e hora"
-          right={<button onClick={onAbrirAuditoria} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-      </Section>
-
-      <Section title="Preferências" oculto={!mostra("preferencias")}>
-        <Row icon={dark ? Sun : Moon} title="Tema escuro" desc="Alterna as cores do aplicativo" right={<Switch ativo={dark} onClick={() => setDark(!dark)} />} />
-        <Row icon={som ? Volume2 : VolumeX} title="Som ao bipar" desc="Toca um beep e vibra ao escanear" right={<Switch ativo={som} onClick={() => setSom(!som)} />} />
-      </Section>
-
-      <Section title="Conta" oculto={!mostra("preferencias")}>
-        <Row icon={Users2} title="Seu nome" desc={usuario ? `Registrando ações como "${usuario}"` : "Ainda não identificado"}
-          right={<button onClick={onTrocarUsuario} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[11px] font-semibold px-3 py-1.5 rounded-full">{usuario ? "Trocar" : "Definir"}</button>} />
-        <Row icon={LogOut} iconBg={RED_SOFT} iconColor={RED_DARK} title="Sair da conta" desc="Encerra sua sessão neste aparelho"
-          right={<button onClick={onSair} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-semibold px-3 py-1.5 rounded-full">Sair</button>} />
-      </Section>
-
-      <Section title="Segurança e dados" oculto={!mostra("seguranca")}>
-        <Row icon={notifPermission === "granted" ? Bell : BellOff} title="Notificações do navegador"
-          desc={notifPermission === "granted" ? "Ativadas neste dispositivo" : iosSemInstalar ? "No iPhone, precisa instalar o app primeiro" : "Avise quando um produto entrar em alerta"}
-          right={notifPermission !== "granted" && <button onClick={onToggleNotif} style={{ background: BLUE, color: "#fff" }} className="text-[11px] font-semibold px-3 py-1.5 rounded-full">Ativar</button>}>
-          {iosSemInstalar && notifPermission !== "granted" && (
-            <div style={{ background: RED_SOFT, color: RED_DARK }} className="mt-3 rounded-xl px-3 py-2.5 text-[11px] leading-relaxed">
-              No iPhone, as notificações só funcionam depois de instalar o app: toque em <strong>Compartilhar</strong> na
-              barra do Safari → <strong>Adicionar à Tela de Início</strong> → abra o app pelo ícone criado → aí sim toque
-              em "Ativar" aqui dentro.
-            </div>
-          )}
-        </Row>
-        <Row icon={Users2} title="Dados compartilhados" desc="Produtos e histórico são visíveis para toda a equipe que acessa este app." />
-        <Row icon={Lock} title="Bloqueio por PIN" desc={pin ? "Ativo neste dispositivo" : "Peça o PIN antes de abrir o app"} right={pin && <button onClick={() => onDefinirPin(null)} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-semibold px-3 py-1.5 rounded-full">Remover</button>}>
-          {!pin && (
-            <div className="flex gap-2 mt-3">
-              <input value={pinInput} onChange={(e) => setPinInput(apenasNumeros(e.target.value, 4))} inputMode="numeric" maxLength={4} placeholder="0000"
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="flex-1 border rounded-xl px-3 py-2 text-sm font-mono tracking-widest outline-none focus:ring-2" />
-              <button onClick={salvarPin} style={{ background: BLUE, color: "#fff" }} className="text-xs font-semibold px-4 rounded-xl">Definir</button>
-            </div>
-          )}
-        </Row>
-      </Section>
-
-      <Section title="Avisos (demo)" oculto={!mostra("loja")}>
-        <Row icon={Megaphone} iconBg={BLUE_SOFT} iconColor={BLUE} title="Enviar aviso pro app" desc="Mostra um modalzinho pra todo mundo que tiver o app aberto"
-          right={<button onClick={() => setModalAviso(true)} style={{ background: BLUE, color: "#fff" }} className="text-[11px] font-semibold px-3 py-1.5 rounded-full">Enviar</button>} />
-      </Section>
-
-      {ehEncarregado && (
-        <Section title="Informação em camadas por cargo" oculto={!mostra("loja")}>
-          <Row icon={ShieldCheck} title="Esconder valor em R$ de funcionários" desc={ocultarValoresFuncionarios
-            ? "Ativo: só encarregado+ vê valor em R$. Funcionário vê só vencido/não vencido."
-            : "Desligado (padrão) — todo mundo vê valor em R$, do jeito que é hoje. Ligue só quando o app entrar em uso oficial na loja."}>
-            <div className="flex rounded-xl overflow-hidden mt-2" style={{ border: `1px solid ${T.inputBorder}` }}>
-              <button onClick={() => onSalvarOcultarValores(false)}
-                style={!ocultarValoresFuncionarios ? { background: BLUE, color: "#fff" } : { background: T.inputBg, color: T.subtext }}
-                className="flex-1 text-xs font-semibold py-2.5">Desligado (teste)</button>
-              <button onClick={() => onSalvarOcultarValores(true)}
-                style={ocultarValoresFuncionarios ? { background: BLUE, color: "#fff" } : { background: T.inputBg, color: T.subtext }}
-                className="flex-1 text-xs font-semibold py-2.5">Ativo (uso oficial)</button>
-            </div>
-          </Row>
-        </Section>
-      )}
-
-      {ehEncarregado && (
-        <Section title="Equipe autorizada a usar o app" oculto={!mostra("loja")}>
-          <Row icon={Users2} title="Quem pode se identificar no app" desc="Só quem estiver nessa lista consegue definir o nome e recebe notificação de verdade">
-            <div className="flex gap-2 mt-2 mb-3">
-              <input value={novoNomeEquipe} onChange={(e) => setNovoNomeEquipe(sanitizarTexto(e.target.value, 40))} placeholder="Nome completo"
-                onKeyDown={(e) => e.key === "Enter" && adicionarNaEquipe()}
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="flex-1 min-w-0 border rounded-xl px-3 py-2 text-xs outline-none focus:ring-2" />
-              <button onClick={adicionarNaEquipe} disabled={!novoNomeEquipe.trim()} style={{ background: BLUE, color: "#fff" }} className="text-xs font-semibold px-3 rounded-xl disabled:opacity-40 shrink-0">+ Adicionar</button>
-            </div>
-            {equipe === null ? (
-              <p style={{ color: T.subtext }} className="text-[11px]">Carregando...</p>
-            ) : equipe.length === 0 ? (
-              <p style={{ color: T.subtext }} className="text-[11px]">Ninguém na lista ainda — adicione o nome de cada pessoa da equipe acima.</p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {equipe.map((p) => (
-                  <div key={p.nome} style={{ background: T.chipBg }} className="flex items-center justify-between rounded-xl px-3 py-2">
-                    <span className="text-xs font-medium">{p.nome}</span>
-                    <button onClick={() => removerDaEquipe(p.nome)} style={{ color: RED_DARK }} className="text-[11px] font-semibold">Remover</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Row>
-        </Section>
-      )}
-
-      {ehEncarregado && (
-        <Section title="Código de balança (açougue/padaria/hortifruti)" oculto={!mostra("loja")}>
-          <Row icon={ShieldCheck} title="O código embute" desc="Escolha o que os 5 dígitos do meio representam na etiqueta da sua balança">
-            <div className="flex rounded-xl overflow-hidden mt-2" style={{ border: `1px solid ${T.inputBorder}` }}>
-              <button onClick={() => setBalancaTipoValor("peso")} style={balancaTipoValor === "peso" ? { background: BLUE, color: "#fff" } : { background: T.inputBg, color: T.subtext }} className="flex-1 text-xs font-semibold py-2.5">Peso (gramas)</button>
-              <button onClick={() => setBalancaTipoValor("preco")} style={balancaTipoValor === "preco" ? { background: BLUE, color: "#fff" } : { background: T.inputBg, color: T.subtext }} className="flex-1 text-xs font-semibold py-2.5">Preço (centavos)</button>
-            </div>
-          </Row>
-          <Row icon={Barcode} title="Prefixos aceitos" desc="Os 2 primeiros dígitos que identificam um código de balança (padrão: 20 a 29)">
-            <input value={balancaPrefixos} onChange={(e) => setBalancaPrefixos(e.target.value)} placeholder="20, 21, 22, 23..."
-              style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 mt-2" />
-            <button onClick={salvarConfigBalanca} style={{ background: BLUE, color: "#fff" }} className="w-full text-xs font-semibold py-2.5 rounded-xl mt-2">Salvar configuração</button>
-          </Row>
-        </Section>
-      )}
-
-      <Section title="Relatórios e exportação" oculto={!mostra("dados")}>
-        <Row icon={FileText} title="Produtos monitorados" desc={`${items.length} produto(s) na lista ativa`}
-          right={
-            <div className="flex gap-1.5">
-              <button onClick={() => exportarAtivos("csv")} title="CSV" style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-8 px-2 rounded-xl flex items-center justify-center text-[10px] font-semibold">CSV</button>
-              <button onClick={() => exportarAtivos("ods")} title="LibreOffice" style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-8 px-2 rounded-xl flex items-center justify-center text-[10px] font-semibold">ODS</button>
-              <button onClick={() => exportarAtivos("xlsx")} title="Excel" style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-8 px-2 rounded-xl flex items-center justify-center text-[10px] font-semibold">XLSX</button>
-            </div>
-          } />
-        <Row icon={History} title="Relatório em PDF pra gerência" desc="Agora é gerado na aba Relatórios"
-          right={<button onClick={onAbrirRelatorios} className="p-1"><ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} /></button>} />
-      </Section>
-
-      <Section title="Backup dos dados" oculto={!mostra("dados")}>
-        <Row icon={Upload} title="Backup completo (JSON)" desc="Exporte ou restaure todos os produtos, catálogo e histórico"
-          right={<button onClick={exportarBackupCompleto} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-8 w-8 rounded-xl flex items-center justify-center"><Download size={14} /></button>}>
-          <button onClick={() => backupInputRef.current && backupInputRef.current.click()} style={{ background: T.chipBg, color: T.text }} className="w-full mt-3 text-xs font-medium py-2 rounded-xl">
-            Restaurar backup a partir de arquivo
-          </button>
-          <input ref={backupInputRef} type="file" accept="application/json" className="hidden" onChange={handleArquivoBackup} />
-          {confirmarRestauro && (
-            <div style={{ background: RED_SOFT }} className="mt-3 rounded-xl p-3">
-              <p style={{ color: RED_DARK }} className="text-[11px] font-medium">Isso vai substituir os dados atuais compartilhados pela equipe. Deseja continuar?</p>
-              <div className="flex gap-2 mt-2">
-                <button onClick={() => setConfirmarRestauro(null)} style={{ color: T.subtext }} className="flex-1 text-[11px] font-medium py-1.5">Cancelar</button>
-                <button onClick={() => { onRestaurarBackup(confirmarRestauro); setConfirmarRestauro(null); }} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl">Confirmar restauração</button>
-              </div>
-            </div>
-          )}
-        </Row>
-      </Section>
-
-      <div style={{ background: T.card, display: mostra("preferencias") ? undefined : "none" }} className="rounded-2xl p-5 shadow-lg shadow-black/5 mt-1 mb-4 flex flex-col items-center text-center lg:col-span-2">
-        <img src={LOGO_SRC} alt="Condor Supermercados" className="h-8 w-auto mb-2" />
-        <p className="text-sm font-semibold">Alerta de Validade</p>
-        <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">Versão 4.0 · Loja 79 · CPD</p>
-        <p style={{ color: T.subtext }} className="text-[10px] mt-2">Reduza perdas por vencimento com câmera, alertas inteligentes, regras de segurança e histórico de baixas.</p>
-        <div style={{ background: T.chipBg }} className="w-full rounded-xl mt-3 py-2.5 px-3">
-          <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-1.5">Créditos</p>
-          <p className="text-[11px]"><span className="font-semibold">Idealizadora:</span> Francisca Gisleuda</p>
-          <p style={{ color: T.subtext }} className="text-[10px] mb-1.5">Encarregada de Reposição · Loja 79</p>
-          <p className="text-[11px]"><span className="font-semibold">Desenvolvimento e Idealizador:</span> Cauã Silva</p>
-          <p style={{ color: T.subtext }} className="text-[10px]">CPD · Loja 79</p>
-        </div>
-      </div>
-      <AnimatePresence>
-        {modalAviso && <EnviarAvisoModal T={T} usuario={usuario} showToast={showToast} onFechar={() => setModalAviso(false)} perfil={perfil} />}
-      </AnimatePresence>
-    </div>
+    <button role="switch" aria-checked={ativo} aria-label={label} onClick={onClick}
+      style={{ background: ativo ? BLUE : "#8E99A8", transition: "background .2s" }} className="relative w-12 h-7 rounded-full shrink-0">
+      <motion.span animate={{ x: ativo ? 22 : 2 }} transition={MOLA} className="absolute top-0.5 left-0 h-6 w-6 rounded-full bg-white shadow" />
+    </button>
   );
 }
 
-// ============ Modal de composição: enviar aviso pra todo o app (demo, sem login) ============
-const AVISO_PIN = "102255";
-function EnviarAvisoModal({ T, usuario, showToast, onFechar, perfil }) {
-  const [liberado, setLiberado] = useState(false);
-  const [pinDigitado, setPinDigitado] = useState("");
-  const [erroPin, setErroPin] = useState(false);
-  const [titulo, setTitulo] = useState("");
-  const [mensagem, setMensagem] = useState("");
+function MaisBolha({ cor, dark, tamanho = 44, children }) {
+  return (
+    <div style={{ background: `${cor}26`, color: dark ? clarearCor(cor, 0.45) : cor, width: tamanho, height: tamanho }}
+      className="rounded-2xl flex items-center justify-center shrink-0">{children}</div>
+  );
+}
+
+function MaisBloco({ T, titulo, children, i = 0 }) {
+  return (
+    <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ ...MOLA, delay: 0.04 + i * 0.07 }} className="mb-4">
+      {titulo && <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wider mb-2 px-1">{titulo}</p>}
+      <div style={{ background: T.card }} className="rounded-3xl shadow-lg shadow-black/5 overflow-hidden">{children}</div>
+    </motion.section>
+  );
+}
+
+function MaisLinha({ T, dark, icon: Icon, cor = BLUE, titulo, desc, direita, onClick, ultima }) {
+  const conteudo = (
+    <>
+      <MaisBolha cor={cor} dark={dark} tamanho={40}><Icon size={18} /></MaisBolha>
+      <div className="flex-1 min-w-0 text-left">
+        <p style={{ color: T.text }} className="text-[14px] font-semibold leading-tight">{titulo}</p>
+        {desc && <p style={{ color: T.subtext }} className="text-[12px] mt-0.5 leading-snug">{desc}</p>}
+      </div>
+      {direita !== undefined ? direita : onClick ? <ChevronRight size={18} style={{ color: T.subtext }} /> : null}
+    </>
+  );
+  const estilo = { borderBottom: ultima ? "none" : `1px solid ${T.chipBg}` };
+  const cls = "w-full flex items-center gap-3 px-4 py-3.5";
+  return onClick
+    ? <motion.button onClick={onClick} whileTap={{ scale: 0.98, backgroundColor: T.chipBg }} style={estilo} className={cls}>{conteudo}</motion.button>
+    : <div style={estilo} className={cls}>{conteudo}</div>;
+}
+
+function MaisCampo({ T, label, value, onChange, type = "text", placeholder, autoComplete, direita, maxLength, inputMode }) {
+  return (
+    <label className="block">
+      <span style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 block">{label}</span>
+      <div className="relative">
+        <input value={value} onChange={(e) => onChange(e.target.value)} type={type} placeholder={placeholder} autoComplete={autoComplete}
+          maxLength={maxLength} inputMode={inputMode}
+          style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder, paddingRight: direita ? 44 : undefined }}
+          className="w-full border rounded-2xl px-4 py-3 text-[15px] outline-none focus:ring-2" />
+        {direita && <div className="absolute right-1.5 top-1/2 -translate-y-1/2">{direita}</div>}
+      </div>
+    </label>
+  );
+}
+
+function MaisBotao({ children, onClick, carregando, desabilitado, cor = BLUE, tom = "cheio", T }) {
+  const off = desabilitado || carregando;
+  return (
+    <motion.button onClick={onClick} disabled={off} whileTap={off ? undefined : { scale: 0.97 }}
+      style={tom === "cheio" ? { background: off ? "#9AA5B4" : cor, color: "#fff" } : { background: `${cor}1F`, color: cor }}
+      className="w-full py-3.5 rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 disabled:cursor-not-allowed">
+      {carregando && <Loader2 size={16} className="animate-spin" />}{children}
+    </motion.button>
+  );
+}
+
+function MaisAviso({ tipo = "info", children }) {
+  const est = tipo === "erro" ? { bg: RED_SOFT, fg: RED_DARK } : tipo === "ok" ? { bg: "#E3F4EA", fg: "#14573A" } : { bg: BLUE_SOFT, fg: BLUE_DARK };
+  return (
+    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+      <div style={{ background: est.bg, color: est.fg }} className="rounded-2xl px-3.5 py-3 text-[12.5px] leading-relaxed mt-3">{children}</div>
+    </motion.div>
+  );
+}
+
+function MaisCheck({ tamanho = 56, cor = "#1F7A4D" }) {
+  return (
+    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 14 }}
+      style={{ background: `${cor}22`, width: tamanho, height: tamanho }} className="rounded-full flex items-center justify-center">
+      <svg width={tamanho * 0.5} height={tamanho * 0.5} viewBox="0 0 24 24" fill="none" stroke={cor} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <motion.path d="M5 13l4 4L19 7" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.15, duration: 0.4 }} />
+      </svg>
+    </motion.div>
+  );
+}
+
+// ---------------- Hub ----------------
+function MaisHero({ T, perfil, usuario, tema, onTema }) {
+  const nome = perfil?.nome || usuario || "Usuário";
+  const cargo = perfil?.cargo_nome_loja || perfil?.cargos?.nome || "";
+  const loja = perfil?.lojas?.numero_loja;
+  const OPCOES = [["claro", "Claro", Sun], ["escuro", "Escuro", Moon], ["auto", "Auto", SunMoon]];
+  return (
+    <motion.div initial={{ opacity: 0, y: -16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={MOLA_SUAVE}
+      style={{ background: `linear-gradient(135deg, ${BLUE_DARK}, ${BLUE})` }} className="relative overflow-hidden rounded-[30px] p-5 text-white shadow-xl shadow-black/10">
+      <motion.div aria-hidden="true" className="absolute -right-12 -top-12 w-48 h-48 rounded-full" style={{ background: "rgba(227,30,36,.40)", filter: "blur(34px)" }}
+        animate={{ x: [0, -16, 0], y: [0, 14, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }} />
+      <motion.div aria-hidden="true" className="absolute -left-10 -bottom-14 w-40 h-40 rounded-full" style={{ background: "rgba(120,170,255,.35)", filter: "blur(30px)" }}
+        animate={{ x: [0, 18, 0], y: [0, -10, 0] }} transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }} />
+      <div className="relative flex items-center gap-4">
+        <motion.div initial={{ scale: 0, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 280, damping: 13, delay: 0.1 }}
+          className="h-16 w-16 rounded-[22px] bg-white/20 flex items-center justify-center text-[22px] font-extrabold tracking-tight shrink-0">{iniciaisDe(nome)}</motion.div>
+        <div className="min-w-0">
+          <motion.p initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.18 }} className="text-[19px] font-extrabold leading-tight truncate">{nome}</motion.p>
+          <motion.p initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }} className="text-[12.5px] text-white/85 mt-0.5 truncate">
+            {[cargo, loja ? `Loja ${loja}` : null].filter(Boolean).join(" · ")}
+          </motion.p>
+        </div>
+      </div>
+      <div role="radiogroup" aria-label="Tema" className="relative mt-5 flex p-1 rounded-2xl bg-black/25">
+        {OPCOES.map(([id, rotulo, Icone]) => (
+          <button key={id} role="radio" aria-checked={tema === id} onClick={(e) => onTema(id, e)} className="relative flex-1 py-2 rounded-xl text-[12.5px] font-bold flex items-center justify-center gap-1.5">
+            {tema === id && <motion.span layoutId="mais-tema-hero" transition={MOLA} className="absolute inset-0 rounded-xl bg-white" />}
+            <span className="relative flex items-center gap-1.5" style={{ color: tema === id ? BLUE_DARK : "#fff" }}><Icone size={14} />{rotulo}</span>
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+function MaisTile({ T, dark, i, icon: Icon, cor, titulo, desc, onClick }) {
+  return (
+    <motion.button onClick={onClick} initial={{ opacity: 0, y: 26, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ ...MOLA, delay: 0.12 + i * 0.055 }} whileTap={{ scale: 0.95 }} whileHover={{ y: -3 }}
+      style={{ background: T.card }} className="relative overflow-hidden rounded-3xl p-4 text-left shadow-lg shadow-black/5 flex flex-col gap-3 min-h-[128px]">
+      <motion.div aria-hidden="true" initial={{ rotate: -25, opacity: 0 }} animate={{ rotate: 0, opacity: 0.07 }} transition={{ delay: 0.3 + i * 0.05, duration: 0.6 }}
+        style={{ color: cor }} className="absolute -right-3 -bottom-3"><Icon size={84} /></motion.div>
+      <MaisBolha cor={cor} dark={dark}><Icon size={21} /></MaisBolha>
+      <div className="relative">
+        <p style={{ color: T.text }} className="text-[15px] font-bold leading-tight">{titulo}</p>
+        <p style={{ color: T.subtext }} className="text-[12px] mt-1 leading-snug">{desc}</p>
+      </div>
+    </motion.button>
+  );
+}
+
+// ---------------- Páginas ----------------
+function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
+  const [emailAtual, setEmailAtual] = useState(perfil?.email || "");
+  const [aberta, setAberta] = useState(null); // "senha" | "email" | null
+  const [confirmaSair, setConfirmaSair] = useState(false);
+  useEffect(() => { supabase.auth.getUser().then(({ data }) => { if (data?.user?.email) setEmailAtual(data.user.email); }); }, []);
+
+  // senha
+  const [sAtual, setSAtual] = useState(""); const [sNova, setSNova] = useState(""); const [sConf, setSConf] = useState("");
+  const [ver, setVer] = useState(false); const [salvandoS, setSalvandoS] = useState(false); const [erroS, setErroS] = useState(""); const [okS, setOkS] = useState(false);
+  const forca = forcaSenha(sNova);
+  async function reautenticar(senha) {
+    if (!emailAtual) return "Não consegui confirmar sua conta agora. Tente de novo.";
+    const { error } = await supabase.auth.signInWithPassword({ email: emailAtual, password: senha });
+    if (error) return error.message === "Invalid login credentials" ? "A senha atual está incorreta." : "Não consegui confirmar sua senha agora. Tente de novo.";
+    return "";
+  }
+  async function salvarSenha() {
+    setErroS("");
+    if (!sAtual) { setErroS("Digite sua senha atual."); return; }
+    if (sNova.length < 8) { setErroS("A nova senha precisa ter pelo menos 8 caracteres."); return; }
+    if (sNova === sAtual) { setErroS("A nova senha precisa ser diferente da atual."); return; }
+    if (sNova !== sConf) { setErroS("A confirmação não é igual à nova senha."); return; }
+    setSalvandoS(true);
+    const e1 = await reautenticar(sAtual);
+    if (e1) { setSalvandoS(false); setErroS(e1); return; }
+    const { error } = await supabase.auth.updateUser({ password: sNova });
+    setSalvandoS(false);
+    if (error) { setErroS("Não foi possível salvar a nova senha. Tente de novo."); return; }
+    setOkS(true); setSAtual(""); setSNova(""); setSConf("");
+    showToast?.("Senha alterada com sucesso.");
+    setTimeout(() => { setOkS(false); setAberta(null); }, 1800);
+  }
+
+  // e-mail
+  const [eNovo, setENovo] = useState(""); const [eSenha, setESenha] = useState("");
+  const [salvandoE, setSalvandoE] = useState(false); const [erroE, setErroE] = useState(""); const [enviadoE, setEnviadoE] = useState(false);
+  async function trocarEmail() {
+    setErroE("");
+    const novo = eNovo.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(novo)) { setErroE("Digite um e-mail válido."); return; }
+    if (novo === (emailAtual || "").toLowerCase()) { setErroE("Esse já é o seu e-mail atual."); return; }
+    if (!eSenha) { setErroE("Digite sua senha para confirmar."); return; }
+    setSalvandoE(true);
+    const e1 = await reautenticar(eSenha);
+    if (e1) { setSalvandoE(false); setErroE(e1); return; }
+    const { error } = await supabase.auth.updateUser({ email: novo }, { emailRedirectTo: SITE_URL });
+    setSalvandoE(false);
+    if (error) {
+      setErroE(/already|registered|exists/i.test(error.message || "") ? "Esse e-mail já está em uso por outra conta." : "Não foi possível pedir a troca agora. Tente de novo.");
+      return;
+    }
+    setEnviadoE(true); setESenha("");
+  }
+
+  const olho = (
+    <button type="button" onClick={() => setVer((v) => !v)} aria-label={ver ? "Ocultar senhas" : "Mostrar senhas"} style={{ color: T.subtext }} className="h-9 w-9 flex items-center justify-center">
+      {ver ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  );
+  const cabecalho = ({ id, icon, cor, titulo, desc }) => (
+    <MaisLinha T={T} dark={dark} icon={icon} cor={cor} titulo={titulo} desc={desc} onClick={() => setAberta(aberta === id ? null : id)}
+      direita={<motion.span animate={{ rotate: aberta === id ? 90 : 0 }} transition={MOLA}><ChevronRight size={18} style={{ color: T.subtext }} /></motion.span>} ultima={aberta !== id} />
+  );
+  const cargo = perfil?.cargo_nome_loja || perfil?.cargos?.nome || "—";
+  return (
+    <>
+      <MaisBloco T={T} i={0}>
+        <div className="p-5 flex items-center gap-4">
+          <motion.div initial={{ scale: 0.5, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 260, damping: 12 }}
+            style={{ background: `${COR_MAIS.conta}26`, color: dark ? clarearCor(COR_MAIS.conta, 0.45) : COR_MAIS.conta }} className="h-16 w-16 rounded-[22px] flex items-center justify-center text-xl font-extrabold shrink-0">
+            {iniciaisDe(perfil?.nome || usuario)}
+          </motion.div>
+          <div className="min-w-0">
+            <p style={{ color: T.text }} className="text-[17px] font-extrabold leading-tight truncate">{perfil?.nome || usuario || "—"}</p>
+            <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5 truncate">{emailAtual || "—"}</p>
+          </div>
+        </div>
+        <div style={{ borderTop: `1px solid ${T.chipBg}` }} className="grid grid-cols-2">
+          {[["Cargo", cargo], ["Loja", perfil?.lojas?.numero_loja ? `Loja ${perfil.lojas.numero_loja}` : "—"], ["Setor", perfil?.setor || "—"], ["Matrícula", perfil?.matricula || "—"]].map(([r, v], k) => (
+            <div key={r} style={{ borderBottom: k < 2 ? `1px solid ${T.chipBg}` : "none", borderRight: k % 2 === 0 ? `1px solid ${T.chipBg}` : "none" }} className="px-4 py-3">
+              <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">{r}</p>
+              <p style={{ color: T.text }} className="text-[14px] font-semibold mt-0.5 truncate">{v}</p>
+            </div>
+          ))}
+        </div>
+      </MaisBloco>
+
+      <MaisBloco T={T} titulo="Segurança da conta" i={1}>
+        {cabecalho({ id: "senha", icon: KeyRound, cor: COR_MAIS.conta, titulo: "Alterar senha", desc: "Pede a senha atual para confirmar" })}
+        <AnimatePresence initial={false}>
+          {aberta === "senha" && (
+            <motion.div key="f-senha" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={MOLA_SUAVE} className="overflow-hidden">
+              <div className="px-4 pb-4 pt-1 flex flex-col gap-3">
+                {okS ? (
+                  <div className="flex flex-col items-center gap-2 py-5"><MaisCheck /><p style={{ color: T.text }} className="text-sm font-bold">Senha alterada!</p></div>
+                ) : (
+                  <>
+                    <MaisCampo T={T} label="Senha atual" value={sAtual} onChange={setSAtual} type={ver ? "text" : "password"} autoComplete="current-password" direita={olho} />
+                    <MaisCampo T={T} label="Nova senha" value={sNova} onChange={setSNova} type={ver ? "text" : "password"} autoComplete="new-password" />
+                    {sNova && (
+                      <div aria-live="polite">
+                        <div style={{ background: T.chipBg }} className="h-1.5 rounded-full overflow-hidden">
+                          <motion.div animate={{ width: `${Math.max(forca, 1) * 25}%`, background: CORES_FORCA[forca] }} transition={MOLA} className="h-full rounded-full" />
+                        </div>
+                        <p style={{ color: CORES_FORCA[forca] }} className="text-[11.5px] font-semibold mt-1">Senha {ROTULOS_FORCA[forca].toLowerCase()}</p>
+                      </div>
+                    )}
+                    <MaisCampo T={T} label="Repita a nova senha" value={sConf} onChange={setSConf} type={ver ? "text" : "password"} autoComplete="new-password" />
+                    <AnimatePresence>{erroS && <MaisAviso tipo="erro">{erroS}</MaisAviso>}</AnimatePresence>
+                    <MaisBotao T={T} onClick={salvarSenha} carregando={salvandoS}>Salvar nova senha</MaisBotao>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {cabecalho({ id: "email", icon: Mail, cor: "#0B4F9E", titulo: "Alterar e-mail", desc: emailAtual ? `Atual: ${emailAtual}` : "E-mail de acesso" })}
+        <AnimatePresence initial={false}>
+          {aberta === "email" && (
+            <motion.div key="f-email" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={MOLA_SUAVE} className="overflow-hidden">
+              <div className="px-4 pb-4 pt-1 flex flex-col gap-3">
+                {enviadoE ? (
+                  <div className="flex flex-col items-center gap-2 py-3 text-center">
+                    <MaisCheck />
+                    <p style={{ color: T.text }} className="text-sm font-bold">Pedido enviado</p>
+                    <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">
+                      Mandamos links de confirmação. Abra o e-mail <strong>atual</strong> ({emailAtual}) e confirme a troca; se o novo e-mail também receber um link, confirme nele também.
+                      Até concluir, você continua entrando com o e-mail atual.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <MaisCampo T={T} label="Novo e-mail" value={eNovo} onChange={setENovo} type="email" autoComplete="email" placeholder="nome@exemplo.com" />
+                    <MaisCampo T={T} label="Sua senha" value={eSenha} onChange={setESenha} type={ver ? "text" : "password"} autoComplete="current-password" direita={olho} />
+                    <MaisAviso>Por segurança, a troca só vale depois que você confirmar pelo link enviado ao seu <strong>e-mail atual</strong>.</MaisAviso>
+                    <AnimatePresence>{erroE && <MaisAviso tipo="erro">{erroE}</MaisAviso>}</AnimatePresence>
+                    <MaisBotao T={T} onClick={trocarEmail} carregando={salvandoE}>Pedir troca de e-mail</MaisBotao>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </MaisBloco>
+
+      <MaisBloco T={T} i={2}>
+        <AnimatePresence mode="wait" initial={false}>
+          {!confirmaSair ? (
+            <motion.div key="sair1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <MaisLinha T={T} dark={dark} icon={LogOut} cor={RED_DARK} titulo="Sair da conta" desc="Encerra sua sessão neste aparelho" onClick={() => setConfirmaSair(true)} ultima />
+            </motion.div>
+          ) : (
+            <motion.div key="sair2" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4">
+              <p style={{ color: T.text }} className="text-[14px] font-bold">Sair deste aparelho?</p>
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => setConfirmaSair(false)} style={{ background: T.chipBg, color: T.text }} className="flex-1 py-3 rounded-2xl text-sm font-semibold">Cancelar</button>
+                <button onClick={onSair} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 py-3 rounded-2xl text-sm font-bold">Sair</button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </MaisBloco>
+    </>
+  );
+}
+
+function PaginaAparencia({ T, dark, tema, onTema }) {
+  const previa = (id) => {
+    const claro = { bg: COR_TEMA.claro, card: "#fff", linha: "#D5DCE6", texto: "#12131A" };
+    const escuro = { bg: COR_TEMA.escuro, card: "#151F30", linha: "#2A3753", texto: "#EEF2F9" };
+    const miolo = (p) => (
+      <div style={{ background: p.bg }} className="h-full w-full p-2.5 flex flex-col gap-1.5">
+        <div style={{ background: p.card }} className="rounded-lg p-2"><div style={{ background: p.texto, opacity: 0.85 }} className="h-1.5 w-8 rounded-full" /><div style={{ background: p.linha }} className="h-1.5 w-12 rounded-full mt-1.5" /></div>
+        <div style={{ background: p.card }} className="rounded-lg p-2 flex-1"><div style={{ background: p.linha }} className="h-1.5 w-10 rounded-full" /><div style={{ background: BLUE }} className="h-2.5 w-5 rounded-full mt-2" /></div>
+      </div>
+    );
+    if (id === "claro") return miolo(claro);
+    if (id === "escuro") return miolo(escuro);
+    return (
+      <div className="relative h-full w-full">
+        <div className="absolute inset-0">{miolo(claro)}</div>
+        <div className="absolute inset-0" style={{ clipPath: "polygon(100% 0, 100% 100%, 0 100%)" }}>{miolo(escuro)}</div>
+      </div>
+    );
+  };
+  const OPCOES = [["claro", "Claro", "Fundo claro, ideal para ambientes iluminados", Sun], ["escuro", "Escuro", "Descansa a vista à noite e economiza bateria", Moon], ["auto", "Automático", "Acompanha o tema do seu celular", SunMoon]];
+  return (
+    <MaisBloco T={T} i={0}>
+      <div role="radiogroup" aria-label="Tema do aplicativo" className="p-4 flex flex-col gap-3">
+        {OPCOES.map(([id, nome, desc, Icone], k) => {
+          const sel = tema === id;
+          return (
+            <motion.button key={id} role="radio" aria-checked={sel} onClick={(e) => onTema(id, e)} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ ...MOLA, delay: 0.08 + k * 0.08 }} whileTap={{ scale: 0.97 }}
+              style={{ background: sel ? `${BLUE}14` : T.chipBg, borderColor: sel ? BLUE : "transparent" }} className="relative border-2 rounded-3xl p-3 flex items-center gap-4 text-left">
+              <div className="h-[86px] w-[64px] rounded-2xl overflow-hidden shrink-0 ring-1 ring-black/10">{previa(id)}</div>
+              <div className="flex-1 min-w-0">
+                <p style={{ color: T.text }} className="text-[15px] font-bold flex items-center gap-1.5"><Icone size={15} />{nome}</p>
+                <p style={{ color: T.subtext }} className="text-[12px] mt-1 leading-snug">{desc}</p>
+              </div>
+              <AnimatePresence>
+                {sel && (
+                  <motion.span initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                    style={{ background: BLUE }} className="h-7 w-7 rounded-full flex items-center justify-center text-white shrink-0"><Check size={16} /></motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
+          );
+        })}
+      </div>
+    </MaisBloco>
+  );
+}
+
+function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNotif }) {
+  const iosSemInstalar = isIOS() && !isStandalone();
+  const ativa = notifPermission === "granted";
+  const bloqueada = notifPermission === "denied";
+  const suportada = notifPermission !== "unsupported";
+  return (
+    <>
+      <MaisBloco T={T} titulo="Alertas" i={0}>
+        <MaisLinha T={T} dark={dark} icon={ativa ? Bell : BellOff} cor={COR_MAIS.notificacoes} titulo="Notificações do app"
+          desc={ativa ? "Ativadas neste aparelho" : bloqueada ? "Bloqueadas no navegador" : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta"}
+          direita={
+            ativa ? <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 14 }} className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#E3F4EA", color: "#14573A" }}>Ligadas</motion.span>
+            : suportada && !bloqueada && !iosSemInstalar ? <motion.button whileTap={{ scale: 0.94 }} onClick={onToggleNotif} style={{ background: BLUE, color: "#fff" }} className="text-[12px] font-bold px-4 py-2 rounded-full">Ativar</motion.button> : null
+          } ultima />
+        <AnimatePresence>
+          {iosSemInstalar && !ativa && <div className="px-4 pb-4"><MaisAviso>No iPhone, as notificações só funcionam depois de instalar o app: toque em <strong>Compartilhar</strong> no Safari → <strong>Adicionar à Tela de Início</strong> → abra pelo ícone criado e volte aqui para ativar.</MaisAviso></div>}
+          {bloqueada && <div className="px-4 pb-4"><MaisAviso tipo="erro">Você bloqueou as notificações. Para ativar, libere nas configurações do navegador (ícone do cadeado ao lado do endereço) e abra o app de novo.</MaisAviso></div>}
+        </AnimatePresence>
+      </MaisBloco>
+      <MaisBloco T={T} titulo="Som" i={1}>
+        <MaisLinha T={T} dark={dark} icon={som ? Volume2 : VolumeX} cor="#C2570C" titulo="Som ao bipar" desc="Toca um beep e vibra ao escanear"
+          direita={<MaisSwitch ativo={som} onClick={() => setSom(!som)} label="Som ao bipar" />} ultima />
+      </MaisBloco>
+    </>
+  );
+}
+
+function PaginaAtalhos({ T, dark, historico, ehEncarregado, ehCorporativo, ehDev, acoes }) {
+  const grupos = [
+    { t: "Inteligência", itens: [
+      ...(ehEncarregado ? [
+        { Icon: Sparkles, cor: "#5B3FB0", titulo: "Assistente IA", desc: "Pergunte sobre perdas, setores e rondas", ir: () => acoes.modulo("assistente") },
+        { Icon: Radar, cor: BLUE, titulo: "Previsão Operacional", desc: "Riscos com base no histórico", ir: () => acoes.modulo("previsao") },
+        { Icon: Flame, cor: RED_DARK, titulo: "Prevenção de Perdas", desc: "Painel de perdas e ações preventivas", ir: () => acoes.modulo("prevencao") },
+      ] : []),
+      { Icon: PackageX, cor: RED_DARK, titulo: "Registrar perda", desc: "Avaria, quebra, embalagem danificada…", ir: () => acoes.modulo("perda") },
+    ] },
+    { t: "Análise", itens: [
+      { Icon: Radar, cor: BLUE, titulo: "Torre de Controle", desc: "Visão geral de risco para a liderança", ir: acoes.torre },
+      { Icon: FileText, cor: BLUE, titulo: "Relatórios", desc: "Resumo geral, setores e itens — com PDF e exportação", ir: acoes.relatorios },
+      { Icon: Flame, cor: RED_DARK, titulo: "Prioridade de Perda", desc: "Produtos que exigem ação imediata", ir: acoes.prioridade },
+      { Icon: History, cor: BLUE, titulo: "Histórico de baixas", desc: `${historico.length} baixa(s) registradas`, ir: acoes.historico },
+      { Icon: ListChecks, cor: BLUE, titulo: "Auditoria", desc: "Quem fez o quê, com data e hora", ir: acoes.auditoria },
+    ] },
+    { t: "Gestão", itens: [
+      ...(ehEncarregado ? [{ Icon: Ticket, cor: "#C2570C", titulo: "Convites de promotor", desc: "Gerar link de acesso temporário", ir: acoes.convites }] : []),
+      ...(ehCorporativo ? [{ Icon: Building2, cor: "#6D4FC2", titulo: "Painel da Rede", desc: "Todas as lojas — risco, perdas e rondas", ir: acoes.rede }] : []),
+      ...(ehDev ? [{ Icon: Wrench, cor: "#3B4656", titulo: "Gestão do Aplicativo", desc: "Funcionários, lojas e produtos", ir: acoes.gestao }] : []),
+    ] },
+  ].filter((g) => g.itens.length > 0);
+  return grupos.map((g, gi) => (
+    <MaisBloco key={g.t} T={T} titulo={g.t} i={gi}>
+      {g.itens.map((it, k) => (
+        <motion.div key={it.titulo} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ ...MOLA, delay: 0.06 + gi * 0.08 + k * 0.04 }}>
+          <MaisLinha T={T} dark={dark} icon={it.Icon} cor={it.cor} titulo={it.titulo} desc={it.desc} onClick={it.ir} ultima={k === g.itens.length - 1} />
+        </motion.div>
+      ))}
+    </MaisBloco>
+  ));
+}
+
+// ---- Avisos (só desenvolvedor) ----
+const TIPOS_AVISO = [{ id: "info", rotulo: "Aviso", cor: BLUE }, { id: "aviso", rotulo: "Atenção", cor: "#B7791F" }, { id: "urgente", rotulo: "Urgente", cor: RED_DARK }];
+function resumoAlvoAviso(a, lojasPorId) {
+  const onde = a.loja_id ? `Loja ${lojasPorId[a.loja_id] ?? a.loja_id}` : "Toda a rede";
+  const quem = a.alvo_tipo === "setor" ? `setor ${a.alvo_setor}` : a.alvo_tipo === "usuarios" ? `${(a.alvo_usuarios || []).length} pessoa(s)` : "todos";
+  return `${onde} · ${quem}`;
+}
+async function supaEnviarAvisoRpc({ titulo, mensagem, tipo, alvoTipo, alvoSetor, alvoUsuarios, lojaId }) {
+  const { data, error } = await supabase.rpc("enviar_aviso", {
+    p_titulo: titulo, p_mensagem: mensagem, p_tipo: tipo, p_alvo_tipo: alvoTipo,
+    p_alvo_setor: alvoTipo === "setor" ? alvoSetor : null, p_alvo_usuarios: alvoTipo === "usuarios" ? alvoUsuarios : null, p_loja: lojaId || null,
+  });
+  if (error) {
+    const m = error.message || "";
+    if (m.includes("sem_permissao")) return { ok: false, erro: "Só desenvolvedores podem enviar avisos." };
+    if (error.code === "PGRST202" || /could not find the function/i.test(m)) return { ok: false, erro: "O banco ainda não tem a função de avisos (falta rodar o supabase-mais.sql)." };
+    return { ok: false, erro: "Não foi possível enviar o aviso agora." };
+  }
+  // push de verdade (celular com o app fechado); a função confere o aviso no banco
+  try { await supabase.functions.invoke("enviar-push", { body: { avisoId: data, aviso: { id: data, titulo, mensagem, tipo, alvoTipo, alvoSetor, alvoUsuarios, lojaId: lojaId || null } } }); } catch (e) { console.error("Erro ao disparar push do aviso:", e); }
+  return { ok: true, id: data };
+}
+
+function PaginaAvisos({ T, dark, perfil, showToast }) {
   const [tipo, setTipo] = useState("info");
-  const [enviando, setEnviando] = useState(false);
-  const [alvoTipo, setAlvoTipo] = useState("todos"); // todos | setor | usuarios
-  const [alvoSetor, setAlvoSetor] = useState("");
-  const [funcionarios, setFuncionarios] = useState(null);
-  const [funcionariosSelecionados, setFuncionariosSelecionados] = useState([]);
-  const TIPOS = [
-    { id: "info", label: "Aviso", cor: BLUE },
-    { id: "aviso", label: "Atenção", cor: "#C98A0C" },
-    { id: "urgente", label: "Urgente", cor: RED_DARK },
-  ];
+  const [titulo, setTitulo] = useState(""); const [mensagem, setMensagem] = useState("");
+  const [onde, setOnde] = useState("rede"); const [lojaSel, setLojaSel] = useState("");
+  const [quem, setQuem] = useState("todos"); const [setor, setSetor] = useState(""); const [pessoas, setPessoas] = useState([]);
+  const [lojas, setLojas] = useState([]); const [funcs, setFuncs] = useState(null); const [busca, setBusca] = useState("");
+  const [enviando, setEnviando] = useState(false); const [erro, setErro] = useState(""); const [enviado, setEnviado] = useState(false);
+  const [recentes, setRecentes] = useState(null);
+  const lojasPorId = useMemo(() => Object.fromEntries(lojas.map((l) => [l.id, l.numero_loja])), [lojas]);
 
-  function conferirPin(valor) {
-    setPinDigitado(valor);
-    setErroPin(false);
-    if (valor.length === AVISO_PIN.length) {
-      if (valor === AVISO_PIN) setLiberado(true);
-      else { setErroPin(true); setPinDigitado(""); }
-    }
-  }
+  useEffect(() => { supabase.from("lojas").select("id, numero_loja").order("numero_loja").then(({ data }) => setLojas(data || [])); }, []);
+  const carregarRecentes = useCallback(() => {
+    supabase.from("avisos").select("id, titulo, tipo, alvo_tipo, alvo_setor, alvo_usuarios, loja_id, criado_em, criado_por").order("criado_em", { ascending: false }).limit(8).then(({ data }) => setRecentes(data || []));
+  }, []);
+  useEffect(() => { carregarRecentes(); }, [carregarRecentes]);
+  useEffect(() => { if (quem === "pessoas" && funcs === null) supaFetchFuncionariosVisiveis(perfil).then((d) => setFuncs(d || [])); }, [quem]);
 
-  useEffect(() => {
-    if (alvoTipo === "usuarios" && funcionarios === null) {
-      supaFetchFuncionariosVisiveis(perfil).then((data) => setFuncionarios(data || []));
-    }
-  }, [alvoTipo]);
-  function alternarFuncionario(matricula) {
-    setFuncionariosSelecionados((prev) => (prev.includes(matricula) ? prev.filter((m) => m !== matricula) : [...prev, matricula]));
-  }
-
+  const tipoAtual = TIPOS_AVISO.find((t) => t.id === tipo);
+  const lista = (funcs || []).filter((f) => f.matricula && (!busca.trim() || f.nome.toLowerCase().includes(busca.trim().toLowerCase())));
+  function alternar(m) { setPessoas((p) => (p.includes(m) ? p.filter((x) => x !== m) : [...p, m])); }
   async function enviar() {
-    if (!titulo.trim() || !mensagem.trim()) { showToast && showToast("Preencha o título e a mensagem.", "erro"); return; }
-    if (alvoTipo === "setor" && !alvoSetor) { showToast && showToast("Escolha o setor alvo.", "erro"); return; }
-    if (alvoTipo === "usuarios" && funcionariosSelecionados.length === 0) { showToast && showToast("Escolha pelo menos uma pessoa.", "erro"); return; }
+    setErro("");
+    if (!titulo.trim() || !mensagem.trim()) { setErro("Preencha o título e a mensagem."); return; }
+    if (onde === "loja" && !lojaSel) { setErro("Escolha a loja."); return; }
+    if (quem === "setor" && !setor) { setErro("Escolha o setor."); return; }
+    if (quem === "pessoas" && pessoas.length === 0) { setErro("Escolha pelo menos uma pessoa."); return; }
     setEnviando(true);
-    const ok = await supaEnviarAviso({
-      titulo: sanitizarTexto(titulo.trim(), 60), mensagem: sanitizarTexto(mensagem.trim(), 300), tipo, criadoPor: usuario,
-      alvoTipo, alvoSetor: alvoTipo === "setor" ? alvoSetor : null, alvoUsuarios: alvoTipo === "usuarios" ? funcionariosSelecionados : null
+    const r = await supaEnviarAvisoRpc({
+      titulo: sanitizarTexto(titulo.trim(), 60), mensagem: sanitizarTexto(mensagem.trim(), 300), tipo,
+      alvoTipo: quem === "pessoas" ? "usuarios" : quem, alvoSetor: setor, alvoUsuarios: pessoas, lojaId: onde === "loja" ? Number(lojaSel) : null,
     });
     setEnviando(false);
-    if (ok) { showToast && showToast(alvoTipo === "todos" ? "Aviso enviado pra todo mundo." : "Aviso enviado pro alvo escolhido."); onFechar(); }
-    else showToast && showToast("Não deu pra enviar o aviso.", "erro");
+    if (!r.ok) { setErro(r.erro); return; }
+    setEnviado(true); showToast?.("Aviso enviado.");
+    setTitulo(""); setMensagem(""); setPessoas([]); setSetor(""); carregarRecentes();
+    setTimeout(() => setEnviado(false), 2200);
   }
-
-  if (!liberado) {
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto" style={{ background: "rgba(0,0,0,0.45)" }}>
-        <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-          style={{ background: T.card }} className="w-full sm:max-w-sm lg:max-w-md lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-2xl p-5 pb-7 mt-14 sm:mt-24 mx-3">
-          <div style={{ background: BLUE_SOFT }} className="h-12 w-12 rounded-2xl flex items-center justify-center mb-3">
-            <Lock size={22} color={BLUE} />
-          </div>
-          <p className="text-base font-bold">Área restrita</p>
-          <p style={{ color: T.subtext }} className="text-[12.5px] mt-1">Digite o PIN pra enviar avisos pro app.</p>
-          <input value={pinDigitado} onChange={(e) => conferirPin(apenasNumeros(e.target.value, 6))} inputMode="numeric" maxLength={6} autoFocus
-            placeholder="••••••" style={{ background: T.inputBg, color: T.text, borderColor: erroPin ? RED_DARK : T.inputBorder }}
-            className="w-full border rounded-xl px-3 py-3 text-center text-lg font-mono tracking-[0.4em] outline-none focus:ring-2 mt-4" />
-          {erroPin && <p style={{ color: RED_DARK }} className="text-xs font-medium mt-2 text-center">PIN incorreto.</p>}
-          <button onClick={onFechar} style={{ color: T.subtext, borderColor: T.border }} className="w-full text-sm font-medium py-2.5 rounded-2xl border mt-4">Cancelar</button>
-        </motion.div>
-      </motion.div>
-    );
-  }
-
+  const segmento = ({ valor, onChange, opcoes, id }) => (
+    <div style={{ background: T.chipBg }} className="flex p-1 rounded-2xl">
+      {opcoes.map(([v, r]) => (
+        <button key={v} onClick={() => onChange(v)} className="relative flex-1 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ color: valor === v ? "#fff" : T.subtext }}>
+          {valor === v && <motion.span layoutId={id} transition={MOLA} className="absolute inset-0 rounded-xl" style={{ background: BLUE }} />}
+          <span className="relative">{r}</span>
+        </button>
+      ))}
+    </div>
+  );
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto" style={{ background: "rgba(0,0,0,0.45)" }}>
-      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-        style={{ background: T.card }} className="w-full sm:max-w-sm rounded-2xl p-5 pb-7 mt-6 sm:mt-16 mx-3 mb-6">
-        <p className="text-base font-bold mb-3">Enviar aviso pro app</p>
-
-        <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Tipo</label>
-        <div className="flex gap-1.5 mb-3">
-          {TIPOS.map((t) => (
-            <button key={t.id} onClick={() => setTipo(t.id)}
-              style={tipo === t.id ? { background: t.cor, color: "#fff" } : { background: T.chipBg, color: T.text }}
-              className="flex-1 text-xs font-semibold py-2 rounded-xl">{t.label}</button>
-          ))}
+    <>
+      <MaisBloco T={T} titulo="Prévia" i={0}>
+        <div className="p-4">
+          <motion.div layout style={{ background: `${tipoAtual.cor}1A`, borderColor: tipoAtual.cor }} className="rounded-2xl border-l-4 p-4">
+            <p style={{ color: dark ? clarearCor(tipoAtual.cor, 0.5) : tipoAtual.cor }} className="text-[11px] font-extrabold uppercase tracking-wide">{tipoAtual.rotulo}</p>
+            <p style={{ color: T.text }} className="text-[15px] font-bold mt-1 break-words">{titulo || "Título do aviso"}</p>
+            <p style={{ color: T.subtext }} className="text-[13px] mt-1 leading-snug break-words whitespace-pre-line">{mensagem || "A mensagem aparece aqui para quem receber."}</p>
+          </motion.div>
         </div>
+      </MaisBloco>
 
-        <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Título</label>
-        <input value={titulo} onChange={(e) => setTitulo(e.target.value.slice(0, 60))} placeholder="Ex: Reunião às 15h no CPD"
-          style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 mb-3" />
-
-        <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Mensagem</label>
-        <textarea value={mensagem} onChange={(e) => setMensagem(e.target.value.slice(0, 300))} placeholder="Escreva o aviso..." rows={4}
-          style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 mb-1 resize-none" />
-        <p style={{ color: T.subtext }} className="text-[10px] text-right mb-3">{mensagem.length}/300</p>
-
-        <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Pra quem?</label>
-        <div className="flex gap-1.5 mb-3">
-          {[["todos", "Todo mundo"], ["setor", "Um setor"], ["usuarios", "Pessoas específicas"]].map(([id, label]) => (
-            <button key={id} onClick={() => setAlvoTipo(id)}
-              style={alvoTipo === id ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }}
-              className="flex-1 text-[11px] font-semibold py-2 rounded-xl">{label}</button>
-          ))}
+      <MaisBloco T={T} titulo="Mensagem" i={1}>
+        <div className="p-4 flex flex-col gap-3">
+          <div className="flex gap-2">
+            {TIPOS_AVISO.map((t) => (
+              <motion.button key={t.id} whileTap={{ scale: 0.95 }} onClick={() => setTipo(t.id)} style={tipo === t.id ? { background: t.cor, color: "#fff" } : { background: T.chipBg, color: T.text }} className="flex-1 py-2.5 rounded-2xl text-[12.5px] font-bold">{t.rotulo}</motion.button>
+            ))}
+          </div>
+          <MaisCampo T={T} label="Título" value={titulo} onChange={(v) => setTitulo(v.slice(0, 60))} placeholder="Ex.: Reunião às 15h no CPD" maxLength={60} />
+          <label className="block">
+            <span style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 flex justify-between"><span>Mensagem</span><span>{mensagem.length}/300</span></span>
+            <textarea value={mensagem} onChange={(e) => setMensagem(e.target.value.slice(0, 300))} rows={4} placeholder="Escreva o aviso…"
+              style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-2xl px-4 py-3 text-[15px] outline-none focus:ring-2 resize-none" />
+          </label>
         </div>
+      </MaisBloco>
 
-        {alvoTipo === "setor" && (
-          <select value={alvoSetor} onChange={(e) => setAlvoSetor(e.target.value)}
-            style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }}
-            className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 mb-4">
-            <option value="">Selecione o setor...</option>
-            {SETORES.filter((s) => s !== "Outro").map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        )}
+      <MaisBloco T={T} titulo="Para quem vai" i={2}>
+        <div className="p-4 flex flex-col gap-3">
+          {segmento({ id: "av-onde", valor: onde, onChange: setOnde, opcoes: [["rede", "Toda a rede"], ["loja", "Uma loja"]] })}
+          <AnimatePresence initial={false}>
+            {onde === "loja" && (
+              <motion.div key="loja" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                <select value={lojaSel} onChange={(e) => setLojaSel(e.target.value)} aria-label="Loja" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-2xl px-4 py-3 text-[15px] outline-none">
+                  <option value="">Escolha a loja…</option>
+                  {lojas.map((l) => <option key={l.id} value={l.id}>Loja {l.numero_loja}</option>)}
+                </select>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {segmento({ id: "av-quem", valor: quem, onChange: setQuem, opcoes: [["todos", "Todos"], ["setor", "Um setor"], ["pessoas", "Pessoas"]] })}
+          <AnimatePresence initial={false}>
+            {quem === "setor" && (
+              <motion.div key="setor" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                <select value={setor} onChange={(e) => setSetor(e.target.value)} aria-label="Setor" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-2xl px-4 py-3 text-[15px] outline-none">
+                  <option value="">Escolha o setor…</option>
+                  {SETORES.filter((s) => s !== "Outro").map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </motion.div>
+            )}
+            {quem === "pessoas" && (
+              <motion.div key="pessoas" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                <MaisCampo T={T} label="Buscar pessoa" value={busca} onChange={setBusca} placeholder="Nome…" />
+                <div className="mt-2 max-h-48 overflow-y-auto flex flex-col gap-1.5">
+                  {funcs === null ? <p style={{ color: T.subtext }} className="text-xs py-2">Carregando equipe…</p>
+                    : lista.length === 0 ? <p style={{ color: T.subtext }} className="text-xs py-2">Ninguém encontrado nesta loja.</p>
+                    : lista.map((f) => {
+                      const sel = pessoas.includes(f.matricula);
+                      return (
+                        <motion.button key={f.id} whileTap={{ scale: 0.98 }} onClick={() => alternar(f.matricula)} aria-pressed={sel}
+                          style={sel ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }} className="w-full text-left px-3.5 py-2.5 rounded-2xl text-[13px] font-semibold flex items-center justify-between">
+                          <span className="truncate">{f.nome}</span>{sel && <Check size={15} />}
+                        </motion.button>
+                      );
+                    })}
+                </div>
+                {pessoas.length > 0 && <p style={{ color: T.subtext }} className="text-[12px] mt-2">{pessoas.length} pessoa(s) escolhida(s)</p>}
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <AnimatePresence>{erro && <MaisAviso tipo="erro">{erro}</MaisAviso>}</AnimatePresence>
+          <AnimatePresence mode="wait" initial={false}>
+            {enviado ? (
+              <motion.div key="ok" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-2 py-3"><MaisCheck /><p style={{ color: T.text }} className="text-sm font-bold">Aviso enviado!</p></motion.div>
+            ) : (
+              <motion.div key="btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <MaisBotao T={T} onClick={enviar} carregando={enviando}><Send size={16} />Enviar aviso</MaisBotao>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </MaisBloco>
 
-        {alvoTipo === "usuarios" && (
-          <div className="max-h-40 overflow-y-auto mb-4 flex flex-col gap-1.5">
-            {funcionarios === null ? (
-              <p style={{ color: T.subtext }} className="text-xs py-2">Carregando equipe...</p>
-            ) : funcionarios.length === 0 ? (
-              <p style={{ color: T.subtext }} className="text-xs py-2">Nenhum funcionário ativo encontrado.</p>
-            ) : funcionarios.map((f) => (
-              <button key={f.id} onClick={() => alternarFuncionario(f.matricula)} disabled={!f.matricula}
-                style={funcionariosSelecionados.includes(f.matricula) ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }}
-                className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between disabled:opacity-40">
-                {f.nome}{!f.matricula && " (sem matrícula)"}
-                {funcionariosSelecionados.includes(f.matricula) && <Check size={13} />}
+      <MaisBloco T={T} titulo="Enviados recentemente" i={3}>
+        {recentes === null ? <p style={{ color: T.subtext }} className="text-xs p-4">Carregando…</p>
+          : recentes.length === 0 ? <p style={{ color: T.subtext }} className="text-xs p-4">Nenhum aviso enviado ainda.</p>
+          : recentes.map((a, k) => {
+            const t = TIPOS_AVISO.find((x) => x.id === a.tipo) || TIPOS_AVISO[0];
+            return (
+              <motion.div key={a.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ ...MOLA, delay: 0.05 * k }}
+                style={{ borderBottom: k < recentes.length - 1 ? `1px solid ${T.chipBg}` : "none" }} className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span style={{ background: t.cor }} className="h-2 w-2 rounded-full shrink-0" />
+                  <p style={{ color: T.text }} className="text-[13.5px] font-bold truncate">{a.titulo}</p>
+                </div>
+                <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5">{resumoAlvoAviso(a, lojasPorId)} · {new Date(a.criado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</p>
+              </motion.div>
+            );
+          })}
+      </MaisBloco>
+    </>
+  );
+}
+
+// ---- Código de balança (só desenvolvedor) ----
+async function supaSalvarBalancaRpc(lojasNumeros, cfg) {
+  const { data, error } = await supabase.rpc("salvar_balanca", { p_lojas: lojasNumeros, p_config: cfg });
+  if (error) {
+    const m = error.message || "";
+    if (m.includes("sem_permissao")) return { ok: false, erro: "Só desenvolvedores podem alterar o código de balança." };
+    if (error.code === "PGRST202" || /could not find the function/i.test(m)) return { ok: false, erro: "O banco ainda não tem a função da balança (falta rodar o supabase-mais.sql)." };
+    return { ok: false, erro: "Não foi possível salvar agora." };
+  }
+  return { ok: true, total: data };
+}
+function PaginaBalanca({ T, dark, perfil, configBalanca, onSalvou, showToast }) {
+  const [tipo, setTipo] = useState(configBalanca?.tipoValor || "peso");
+  const [texto, setTexto] = useState((configBalanca?.prefixos || []).join(", "));
+  const [escopo, setEscopo] = useState("loja");
+  const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState(""); const [ok, setOk] = useState(false);
+  const [teste, setTeste] = useState("");
+  const partes = texto.split(/[\s,;]+/).filter(Boolean);
+  const validos = [...new Set(partes.filter((p) => /^\d{2}$/.test(p)))];
+  const invalidos = partes.filter((p) => !/^\d{2}$/.test(p));
+  const resultado = teste.length === 13 ? parseCodigoBalanca(teste, { prefixos: validos, tipoValor: tipo }) : undefined;
+  const lojaNum = perfil?.lojas?.numero_loja;
+  async function salvar() {
+    setErro("");
+    if (validos.length === 0) { setErro("Informe ao menos um prefixo de 2 dígitos (ex.: 20, 21)."); return; }
+    if (invalidos.length > 0) { setErro(`Prefixo inválido: ${invalidos.join(", ")}. Use 2 dígitos.`); return; }
+    setSalvando(true);
+    const cfg = { tipoValor: tipo, prefixos: validos };
+    const r = await supaSalvarBalancaRpc(escopo === "todas" ? null : [String(lojaNum)], cfg);
+    setSalvando(false);
+    if (!r.ok) { setErro(r.erro); return; }
+    onSalvou(cfg); setOk(true); showToast?.(escopo === "todas" ? "Balança salva em todas as lojas." : "Balança salva.");
+    setTimeout(() => setOk(false), 1800);
+  }
+  return (
+    <>
+      <MaisBloco T={T} titulo="O que o código embute" i={0}>
+        <div className="p-4 flex flex-col gap-3">
+          <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">Em etiquetas de balança (açougue, padaria, hortifruti), os 5 dígitos do meio podem ser o <strong>peso</strong> ou o <strong>preço</strong>. Escolha o que a balança da rede imprime.</p>
+          <div style={{ background: T.chipBg }} className="flex p-1 rounded-2xl">
+            {[["peso", "Peso (kg)"], ["preco", "Preço (R$)"]].map(([v, r]) => (
+              <button key={v} onClick={() => setTipo(v)} className="relative flex-1 py-2.5 rounded-xl text-[13px] font-bold" style={{ color: tipo === v ? "#fff" : T.subtext }}>
+                {tipo === v && <motion.span layoutId="bal-tipo" transition={MOLA} className="absolute inset-0 rounded-xl" style={{ background: COR_MAIS.balanca }} />}
+                <span className="relative">{r}</span>
               </button>
             ))}
           </div>
-        )}
-
-        {alvoTipo === "todos" && (
-          <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2 mb-4">
-            <p style={{ color: T.subtext }} className="text-[10.5px]">Vai pra <strong style={{ color: T.text }}>todo mundo</strong> que tiver o app aberto ou notificação ativa.</p>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <button onClick={onFechar} style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-2.5 rounded-2xl border">Cancelar</button>
-          <button onClick={enviar} disabled={enviando} style={{ background: BLUE, color: "#fff" }} className="flex-[2] text-sm font-semibold py-2.5 rounded-2xl disabled:opacity-60">
-            {enviando ? "Enviando..." : "Enviar aviso"}
-          </button>
         </div>
-      </motion.div>
-    </motion.div>
+      </MaisBloco>
+      <MaisBloco T={T} titulo="Prefixos aceitos" i={1}>
+        <div className="p-4 flex flex-col gap-3">
+          <MaisCampo T={T} label="Os 2 primeiros dígitos (separe por vírgula)" value={texto} onChange={setTexto} placeholder="20, 21, 22…" />
+          <div className="flex flex-wrap gap-1.5" aria-label="Prefixos">
+            <AnimatePresence>
+              {validos.map((p) => <motion.span key={p} layout initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={MOLA} style={{ background: `${COR_MAIS.balanca}26`, color: dark ? clarearCor(COR_MAIS.balanca, 0.5) : COR_MAIS.balanca }} className="px-3 py-1 rounded-full text-[13px] font-bold font-mono">{p}</motion.span>)}
+              {invalidos.map((p, k) => <motion.span key={`i${p}${k}`} layout initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} style={{ background: RED_SOFT, color: RED_DARK }} className="px-3 py-1 rounded-full text-[13px] font-bold font-mono">{p} ✕</motion.span>)}
+            </AnimatePresence>
+          </div>
+        </div>
+      </MaisBloco>
+      <MaisBloco T={T} titulo="Testar um código" i={2}>
+        <div className="p-4 flex flex-col gap-3">
+          <MaisCampo T={T} label="Código de 13 dígitos da etiqueta" value={teste} onChange={(v) => setTeste(apenasNumeros(v, 13))} inputMode="numeric" placeholder="2012345012349" />
+          <AnimatePresence mode="wait" initial={false}>
+            {teste.length === 13 && (
+              <motion.div key={resultado ? "sim" : "nao"} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                {resultado ? (
+                  <MaisAviso tipo="ok">É código de balança. Produto <strong>{resultado.codigoBase}</strong> · {resultado.pesoKg != null ? <><strong>{resultado.pesoKg.toLocaleString("pt-BR", { minimumFractionDigits: 3 })} kg</strong></> : <><strong>{formatarMoeda(resultado.precoEmbutido)}</strong></>}</MaisAviso>
+                ) : <MaisAviso tipo="erro">Esse código não é lido como balança com as regras acima.</MaisAviso>}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </MaisBloco>
+      <MaisBloco T={T} titulo="Onde aplicar" i={3}>
+        <div className="p-4 flex flex-col gap-3">
+          <div style={{ background: T.chipBg }} className="flex p-1 rounded-2xl">
+            {[["loja", lojaNum ? `Só a Loja ${lojaNum}` : "Só esta loja"], ["todas", "Todas as lojas"]].map(([v, r]) => (
+              <button key={v} onClick={() => setEscopo(v)} className="relative flex-1 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ color: escopo === v ? "#fff" : T.subtext }}>
+                {escopo === v && <motion.span layoutId="bal-escopo" transition={MOLA} className="absolute inset-0 rounded-xl" style={{ background: BLUE }} />}
+                <span className="relative">{r}</span>
+              </button>
+            ))}
+          </div>
+          <AnimatePresence>{erro && <MaisAviso tipo="erro">{erro}</MaisAviso>}</AnimatePresence>
+          <AnimatePresence mode="wait" initial={false}>
+            {ok ? <motion.div key="ok" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex justify-center py-2"><MaisCheck tamanho={48} /></motion.div>
+              : <motion.div key="b" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><MaisBotao T={T} onClick={salvar} carregando={salvando} cor={COR_MAIS.balanca}>Salvar configuração</MaisBotao></motion.div>}
+          </AnimatePresence>
+        </div>
+      </MaisBloco>
+    </>
+  );
+}
+
+function PaginaSobre({ T, dark, perfil }) {
+  const [aberto, setAberto] = useState(null);
+  const nivel = perfil?.cargos?.nivel ?? 7;
+  const versoes = NOVIDADES.map((v) => ({ ...v, itens: v.itens.filter((it) => nivel <= it.ate) })).filter((v) => v.itens.length > 0).slice(0, 4);
+  const loja = perfil?.lojas?.numero_loja;
+  return (
+    <>
+      <MaisBloco T={T} i={0}>
+        <div className="p-6 flex flex-col items-center text-center">
+          <motion.img src={LOGO_SRC} alt="Condor Supermercados" initial={{ scale: 0.4, opacity: 0, rotate: -8 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 220, damping: 14 }} className="h-12 w-auto" />
+          <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} style={{ color: T.text }} className="text-[19px] font-extrabold mt-4">Alerta de Validade</motion.p>
+          <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} style={{ background: T.chipBg, color: T.subtext }} className="text-[12px] font-bold px-3 py-1 rounded-full mt-2">Versão {APP_VERSAO}{loja ? ` · Loja ${loja}` : ""}</motion.span>
+          <p style={{ color: T.subtext }} className="text-[13px] mt-4 leading-relaxed">Controle de validade, rondas e prevenção de perdas para as lojas Condor — com câmera, alertas, histórico de baixas e análise por setor.</p>
+        </div>
+      </MaisBloco>
+      <MaisBloco T={T} titulo="Novidades" i={1}>
+        {versoes.map((v, k) => (
+          <div key={v.id} style={{ borderBottom: k < versoes.length - 1 ? `1px solid ${T.chipBg}` : "none" }}>
+            <button onClick={() => setAberto(aberto === v.id ? null : v.id)} aria-expanded={aberto === v.id} className="w-full flex items-center justify-between px-4 py-3.5">
+              <span style={{ color: T.text }} className="text-[14px] font-semibold">{v.data}</span>
+              <span className="flex items-center gap-2"><span style={{ color: T.subtext }} className="text-[12px]">{v.itens.length} item(ns)</span>
+                <motion.span animate={{ rotate: aberto === v.id ? 90 : 0 }} transition={MOLA}><ChevronRight size={16} style={{ color: T.subtext }} /></motion.span></span>
+            </button>
+            <AnimatePresence initial={false}>
+              {aberto === v.id && (
+                <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={MOLA_SUAVE} className="overflow-hidden px-4">
+                  {v.itens.map((it, j) => <li key={j} style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed pb-2.5 pl-3 relative"><span style={{ background: BLUE }} className="absolute left-0 top-2 h-1.5 w-1.5 rounded-full" />{it.texto}</li>)}
+                </motion.ul>
+              )}
+            </AnimatePresence>
+          </div>
+        ))}
+      </MaisBloco>
+      <MaisBloco T={T} titulo="Créditos" i={2}>
+        <div className="p-4 flex flex-col gap-3">
+          <div><p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Idealizadora</p><p style={{ color: T.text }} className="text-[14px] font-semibold">Francisca Gisleuda</p><p style={{ color: T.subtext }} className="text-[12px]">Encarregada de Reposição · Loja 79</p></div>
+          <div><p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Desenvolvimento e idealização</p><p style={{ color: T.text }} className="text-[14px] font-semibold">Cauã Silva</p><p style={{ color: T.subtext }} className="text-[12px]">CPD · Loja 79</p></div>
+        </div>
+      </MaisBloco>
+    </>
+  );
+}
+
+// ---------------- Tela principal da aba ----------------
+function MaisView(props) {
+  const { T, dark, tema, setTema, perfil, usuario, ehDev, ehEncarregado, ehCorporativo, historico, secao } = props;
+  const telaLarga = useTelaLarga();
+  const reduzir = useReducedMotion();
+  const [pagina, setPagina] = useState(null);
+  const [onda, setOnda] = useState(null);
+
+  const PAGINAS = [
+    { id: "conta", titulo: "Conta", desc: "Senha, e-mail e sessão", Icon: KeyRound, cor: COR_MAIS.conta },
+    { id: "aparencia", titulo: "Aparência", desc: "Claro, escuro ou automático", Icon: Palette, cor: COR_MAIS.aparencia },
+    { id: "notificacoes", titulo: "Notificações e som", desc: "Alertas e beep ao bipar", Icon: Bell, cor: COR_MAIS.notificacoes },
+    { id: "atalhos", titulo: "Atalhos", desc: "Análises, rondas e gestão", Icon: LayoutGrid, cor: COR_MAIS.atalhos, soMobile: true },
+    ...(ehDev ? [
+      { id: "avisos", titulo: "Avisos", desc: "Enviar para a rede, uma loja, setor ou pessoas", Icon: Megaphone, cor: COR_MAIS.avisos },
+      { id: "balanca", titulo: "Código de balança", desc: "Prefixos e o que o código embute", Icon: Barcode, cor: COR_MAIS.balanca },
+    ] : []),
+    { id: "sobre", titulo: "Sobre o app", desc: "Versão, novidades e créditos", Icon: Info, cor: COR_MAIS.sobre },
+  ];
+  const ativa = telaLarga ? (secao || "conta") : pagina;
+  const meta = PAGINAS.find((p) => p.id === ativa);
+
+  function trocarTema(novo, ev) {
+    if (novo === tema) return;
+    const sistemaEscuro = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    const cor = novo === "claro" ? COR_TEMA.claro : novo === "escuro" ? COR_TEMA.escuro : (sistemaEscuro ? COR_TEMA.escuro : COR_TEMA.claro);
+    if (reduzir || !ev?.currentTarget) { setTema(novo); return; }
+    const r = ev.currentTarget.getBoundingClientRect();
+    setOnda({ x: r.left + r.width / 2, y: r.top + r.height / 2, cor, k: Date.now() });
+    setTimeout(() => setTema(novo), 420);
+    setTimeout(() => setOnda(null), 1000);
+  }
+
+  const acoes = {
+    modulo: (f) => props.onAbrirModulo?.(f), torre: props.onAbrirTorre, relatorios: props.onAbrirRelatorios, prioridade: props.onAbrirPrioridade,
+    historico: props.onAbrirHistorico, auditoria: props.onAbrirAuditoria, convites: props.onAbrirConvites, rede: props.onAbrirRede, gestao: props.onAbrirGestao,
+  };
+  const conteudo = (id) => {
+    switch (id) {
+      case "conta": return <PaginaConta T={T} dark={dark} perfil={perfil} usuario={usuario} showToast={props.showToast} onSair={props.onSair} />;
+      case "aparencia": return <PaginaAparencia T={T} dark={dark} tema={tema} onTema={trocarTema} />;
+      case "notificacoes": return <PaginaNotificacoes T={T} dark={dark} som={props.som} setSom={props.setSom} notifPermission={props.notifPermission} onToggleNotif={props.onToggleNotif} />;
+      case "atalhos": return <PaginaAtalhos T={T} dark={dark} historico={historico} ehEncarregado={ehEncarregado} ehCorporativo={ehCorporativo} ehDev={ehDev} acoes={acoes} />;
+      case "avisos": return ehDev ? <PaginaAvisos T={T} dark={dark} perfil={perfil} showToast={props.showToast} /> : null;
+      case "balanca": return ehDev ? <PaginaBalanca T={T} dark={dark} perfil={perfil} configBalanca={props.configBalanca} onSalvou={props.onBalancaSalva} showToast={props.showToast} /> : null;
+      case "sobre": return <PaginaSobre T={T} dark={dark} perfil={perfil} />;
+      default: return null;
+    }
+  };
+
+  const ondaEl = (
+    <AnimatePresence>
+      {onda && (
+        <motion.div key={onda.k} aria-hidden="true" className="fixed inset-0 z-[70] pointer-events-none" style={{ background: onda.cor }}
+          initial={{ clipPath: `circle(0px at ${onda.x}px ${onda.y}px)`, opacity: 1 }} animate={{ clipPath: `circle(150vmax at ${onda.x}px ${onda.y}px)` }}
+          exit={{ opacity: 0 }} transition={{ duration: 0.45, ease: "easeIn" }} />
+      )}
+    </AnimatePresence>
+  );
+
+  if (telaLarga) {
+    return (
+      <div className="max-w-3xl">
+        {meta && <DashPageHeader T={T} title={meta.titulo} subtitle={meta.desc} />}
+        {conteudo(ativa)}
+        {ondaEl}
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-x-hidden">
+      <AnimatePresence mode="wait" initial={false}>
+        {ativa === null ? (
+          <motion.div key="hub" initial={{ opacity: 0, x: -28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -28 }} transition={{ duration: 0.2 }} className="px-4 pt-4 pb-8">
+            <MaisHero T={T} perfil={perfil} usuario={usuario} tema={tema} onTema={trocarTema} />
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              {PAGINAS.map((p, i) => <MaisTile key={p.id} T={T} dark={dark} i={i} icon={p.Icon} cor={p.cor} titulo={p.titulo} desc={p.desc} onClick={() => setPagina(p.id)} />)}
+            </div>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} style={{ color: T.subtext }} className="text-center text-[11.5px] mt-6">Condor · Alerta de Validade · v{APP_VERSAO}</motion.p>
+          </motion.div>
+        ) : (
+          <motion.div key={ativa} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 40 }} transition={{ duration: 0.22 }} className="px-4 pt-3 pb-10">
+            <motion.button onClick={() => setPagina(null)} whileTap={{ scale: 0.95 }} style={{ background: T.card, color: T.text }} className="h-10 pl-2.5 pr-4 rounded-full shadow-md shadow-black/5 flex items-center gap-1 text-[13px] font-bold">
+              <ArrowLeft size={16} />Mais
+            </motion.button>
+            <div className="flex items-center gap-3 mt-4 mb-5">
+              <motion.div initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 300, damping: 14 }}><MaisBolha cor={meta.cor} dark={dark} tamanho={52}><meta.Icon size={24} /></MaisBolha></motion.div>
+              <div className="min-w-0">
+                <h1 style={{ color: T.text }} className="text-[22px] font-extrabold leading-tight tracking-tight">{meta.titulo}</h1>
+                <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">{meta.desc}</p>
+              </div>
+            </div>
+            {conteudo(ativa)}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {ondaEl}
+    </div>
   );
 }
