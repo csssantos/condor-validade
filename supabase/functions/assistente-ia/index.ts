@@ -46,7 +46,8 @@ async function modelosDisponiveis(): Promise<string[]> {
 }
 // Gemini Pro primeiro (respostas mais caprichadas); se a chave não tiver o Pro, ou ele estiver no limite
 // ou sobrecarregado, cai sozinho para o Flash — o usuário nunca fica sem resposta.
-const PREFERIR_PRO = (Deno.env.get("GEMINI_PREFERIR_PRO") || "sim") !== "nao";
+// Padrão agora: NÃO usar o Pro (cota grátis minúscula). Ordem: Flash-Lite (maior limite grátis) -> Flash. Para forçar o Pro: GEMINI_PREFERIR_PRO=sim.
+const PREFERIR_PRO = (Deno.env.get("GEMINI_PREFERIR_PRO") || "nao") === "sim";
 const ehPro = (m: string) => /pro/.test(m);
 let modeloBom = ""; // último modelo que respondeu bem nesta instância
 const sobrecarregados = new Map<string, number>(); // modelo -> até quando evitar (ms)
@@ -62,7 +63,8 @@ async function escolherModelos(sb?: any): Promise<string[]> {
   const flashes = disp.filter((m) => !ehPro(m));
   const proVivo = pros.find((m) => (sobrecarregados.get(m) || 0) < Date.now());
   const proPrimeiro = PREFERIR_PRO ? [proVivo || (pros.length ? "" : "gemini-pro-latest")].filter(Boolean) : [];
-  const ordem = [...new Set([MODELO_FIXO, ...proPrimeiro, modeloBom, "gemini-flash-latest", ...flashes, "gemini-flash-lite-latest"].filter(Boolean))];
+  const lites = flashes.filter((m) => /lite/.test(m));
+  const ordem = [...new Set([MODELO_FIXO, ...proPrimeiro, "gemini-flash-lite-latest", ...lites, modeloBom, "gemini-flash-latest", ...flashes].filter(Boolean))];
   const agora = Date.now();
   const livres = ordem.filter((m) => (sobrecarregados.get(m) || 0) < agora);
   return livres.length ? [...livres, ...ordem.filter((m) => !livres.includes(m))] : ordem;
