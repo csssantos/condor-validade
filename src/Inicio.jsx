@@ -2,7 +2,7 @@
 // vidro e animações. Só aparência: os números vêm prontos do HomeView (App.jsx).
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { AlertTriangle, Bell, BellOff, Moon, Sun, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Bell, BellOff, Moon, Sun, CheckCircle2, RefreshCw } from "lucide-react";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
 const VERM = "#E31E24", AMBAR = "#F5A524", VERDE = "#34C77B";
@@ -76,7 +76,7 @@ function Pilula({ rotulo, valor, cor, atraso }) {
 }
 
 export function PalcoInicio({
-  logo, nome, loja, valorNum, formatarMoeda, vencidos, alerta, total, emergencia, onEmergencia, notifOk, onNotif, dark, onTema,
+  logo, nome, loja, valorNum, formatarMoeda, vencidos, alerta, total, emergencia, onEmergencia, notifOk, onNotif, dark, onTema, atualizacaoPendente, onAtualizacao,
 }) {
   const reduzir = useReducedMotion();
   const ok = Math.max(0, total - vencidos - alerta);
@@ -98,7 +98,7 @@ export function PalcoInicio({
   );
 
   return (
-    <section className="relative overflow-hidden text-white pb-12 transition-colors" style={{ background: emergencia ? FUNDO_EMERGENCIA : FUNDO_MARCA }}>
+    <section className="relative overflow-hidden text-white pb-12 transition-colors" style={{ background: emergencia ? FUNDO_EMERGENCIA : FUNDO_MARCA, isolation: "isolate" }}>
       <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "22px 22px" }} />
       {!reduzir && [
         { c: "#2E86F0", s: 280, x: "-22%", y: "-10%", dx: 30, dy: 24, d: 12 },
@@ -116,6 +116,12 @@ export function PalcoInicio({
             <img src={logo} alt="Condor" className="h-[22px] w-auto" />
           </motion.div>
           <div className="flex items-center gap-2">
+            {atualizacaoPendente && (
+              <motion.button type="button" onClick={onAtualizacao} initial={{ scale: 0 }} animate={{ scale: 1 }} whileTap={{ scale: 0.88 }} aria-label="Há uma atualização do app. Toque para atualizar." className="relative h-10 w-10 rounded-full flex items-center justify-center bg-white shrink-0" style={{ color: "#0B4F9E" }}>
+                <RefreshCw size={17} />
+                <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3"><span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: VERM, opacity: 0.6 }} /><span className="relative inline-flex h-3 w-3 rounded-full border-2 border-white" style={{ background: VERM }} /></span>
+              </motion.button>
+            )}
             <BotaoVidro onClick={onEmergencia} label={emergencia ? "Sair do modo emergência" : "Modo emergência"} ativo={emergencia}><AlertTriangle size={17} /></BotaoVidro>
             <BotaoVidro onClick={onNotif} label="Notificações">{notifOk ? <Bell size={17} /> : <BellOff size={17} />}</BotaoVidro>
             <BotaoVidro onClick={onTema} label="Alternar tema">{dark ? <Sun size={17} /> : <Moon size={17} />}</BotaoVidro>

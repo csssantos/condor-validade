@@ -31,6 +31,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import VozSheet from "./VozSheet";
 import TelaBiparCracha from "./TelaBiparCracha";
 import { PalcoInicio, PalcoPagina } from "./Inicio";
+import { AceiteCampo, AceiteObrigatorio, LegalLeitor, LinksLegais, PaginaPrivacidade, TERMOS_VERSAO, lerAceiteLocal, gravarAceiteLocal, marcarAceitePendente, temAceitePendente, limparAceitePendente, registrarAceite } from "./Legal";
 import { TelaCarregando, FUNDO_MARCA, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
@@ -915,6 +916,9 @@ function AuthScreen({ T, antesDeEntrar }) {
   const [cadEmail, setCadEmail] = useState("");
   const [cadSenha, setCadSenha] = useState("");
   const [cadConfirmarSenha, setCadConfirmarSenha] = useState("");
+  const [aceitouTermos, setAceitouTermos] = useState(false);
+  const [tentouAceitar, setTentouAceitar] = useState(false);
+  const [leitorLegal, setLeitorLegal] = useState(null);
 
   async function aoBiparCracha(codigoLido) {
     const matricula = String(codigoLido).replace(/\D/g, "");
@@ -937,6 +941,7 @@ function AuthScreen({ T, antesDeEntrar }) {
     setErro("");
     if (cadSenha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
     if (cadSenha !== cadConfirmarSenha) { setErro("As senhas não coincidem."); return; }
+    if (!aceitouTermos) { setTentouAceitar(true); setErro("Para criar a conta, aceite os Termos de Uso e a Política de Privacidade."); return; }
     setCarregando(true);
     if (antesDeEntrar && (await antesDeEntrar())) { setCarregando(false); return; }
     const emailLimpo = cadEmail.trim();
@@ -945,8 +950,9 @@ function AuthScreen({ T, antesDeEntrar }) {
     // e o banco barrava (sem sessão não há permissão) — daí o "chame o CPD".
     const { data: signUpData, error } = await supabase.auth.signUp({
       email: emailLimpo, password: cadSenha,
-      options: { emailRedirectTo: SITE_URL, data: { matricula: funcionarioEncontrado.matricula, nome: funcionarioEncontrado.nome } }
+      options: { emailRedirectTo: SITE_URL, data: { matricula: funcionarioEncontrado.matricula, nome: funcionarioEncontrado.nome, termos_versao: TERMOS_VERSAO, termos_aceitos_em: new Date().toISOString() } }
     });
+    if (!error) marcarAceitePendente();
     if (error) {
       setCarregando(false);
       setErro(/already registered/i.test(error.message) ? "Esse e-mail já tem uma conta." : "Não foi possível criar a conta. Tente novamente.");
@@ -1037,6 +1043,7 @@ function AuthScreen({ T, antesDeEntrar }) {
         <AuthBotao T={T} variante="contorno" type="button" onClick={() => { setErro(""); setModo("cadastro-scan"); }}>
           {ehDesktop ? "Cadastrar com a matrícula do crachá" : "Bipar meu crachá pra cadastrar"}
         </AuthBotao>
+        <motion.div variants={itemForm} className="mt-1"><LinksLegais T={T} onAbrir={setLeitorLegal} /></motion.div>
       </motion.form>
     );
   } else if (modo === "recuperar") {
@@ -1097,6 +1104,7 @@ function AuthScreen({ T, antesDeEntrar }) {
         <AuthCampo T={T} rotulo="Seu e-mail" type="email" required autoComplete="email" value={cadEmail} onChange={(e) => setCadEmail(e.target.value)} />
         <AuthCampo T={T} rotulo="Criar senha (mín. 8 caracteres)" type="password" required autoComplete="new-password" value={cadSenha} onChange={(e) => setCadSenha(e.target.value)} />
         <AuthCampo T={T} rotulo="Confirmar senha" type="password" required autoComplete="new-password" value={cadConfirmarSenha} onChange={(e) => setCadConfirmarSenha(e.target.value)} />
+        <motion.div variants={itemForm}><AceiteCampo T={T} aceito={aceitouTermos} onChange={setAceitouTermos} onAbrir={setLeitorLegal} erro={tentouAceitar} /></motion.div>
         <AuthAviso tipo="erro">{erro}</AuthAviso>
         <AuthBotao T={T} carregando={carregando}>Criar minha conta</AuthBotao>
         <AuthLink T={T} onClick={() => setModo("login")}>Cancelar</AuthLink>
@@ -1114,7 +1122,7 @@ function AuthScreen({ T, antesDeEntrar }) {
           <AnimatePresence mode="wait" initial={false}>{conteudo}</AnimatePresence>
         </div>
       </motion.div>
-      {modo === "cadastro-scan" && !ehDesktop && <ScanView variante="cracha" ocupado={carregando} T={T} onDetected={aoBiparCracha} onCancel={() => setModo("login")} />}
+      {modo === "cadastro-scan" && !ehDesktop && <ScanView variante="cracha" ocupado={carregando} T={T} onDetected={aoBiparCracha} onCancel={() => setModo("login")} />}      <AnimatePresence>{leitorLegal && <LegalLeitor T={T} docId={leitorLegal} onFechar={() => setLeitorLegal(null)} />}</AnimatePresence>
     </div>
   );
 }
@@ -1212,6 +1220,23 @@ function AppInner() {
   const [perfil, setPerfil] = useState(undefined); // linha da tabela "usuarios" (nome, cargo, loja, ativo)
   const [perfilErro, setPerfilErro] = useState(false); // true = falhou ao buscar (rede/permissão), diferente de "sem vínculo"
   const [perfilTick, setPerfilTick] = useState(0); // incrementar força recarregar o perfil
+  // Aceite dos Termos/Privacidade: null = verificando, true = ok, false = precisa aceitar (bloqueia o app)
+  const [aceiteOk, setAceiteOk] = useState(null);
+  const idDoUsuario = sessao?.user?.id || null;
+  useEffect(() => {
+    if (!idDoUsuario || !perfil) { return; }
+    let vivo = true;
+    (async () => {
+      if (temAceitePendente()) { setAceiteOk(true); await registrarAceite(); return; }
+      try {
+        const { data, error } = await supabase.from("consentimentos").select("id").eq("versao", TERMOS_VERSAO).limit(1);
+        if (!vivo) return;
+        if (error) { setAceiteOk(lerAceiteLocal()); return; }
+        if (data && data.length) { gravarAceiteLocal(); setAceiteOk(true); } else { setAceiteOk(false); }
+      } catch { if (vivo) setAceiteOk(lerAceiteLocal()); }
+    })();
+    return () => { vivo = false; };
+  }, [idDoUsuario, !!perfil]);
   const ehEncarregado = (perfil?.cargos?.nivel != null && perfil.cargos.nivel <= 5);
   // Item 1 (painel corporativo): nível de cargo mais alto (supervisor regional, diretoria) — ajuste o limite
   // conforme os níveis reais da tabela "cargos" da rede. Assumi aqui que nível <= 3 é corporativo.
@@ -2114,18 +2139,14 @@ function AppInner() {
   }
 
   if (loading) {
-    return comBanner(
-      <TelaCarregando logo={LOGO_SRC} />
-    );
+    return <TelaCarregando logo={LOGO_SRC} />;
   }
 
   // Sistema de login reativado: sessao === null → tela de entrar/cadastrar; sessao existe mas perfil
   // ainda não carregou → loading; sessao existe e perfil veio null → conta sem vínculo em "usuarios"
   // (não deveria acontecer no fluxo normal, mas cobre o caso de alguém logar sem nunca ter biper o crachá).
   if (conviteStatus === "resgatando") {
-    return comBanner(
-      <TelaCarregando logo={LOGO_SRC} mensagem="Abrindo seu convite…" />
-    );
+    return <TelaCarregando logo={LOGO_SRC} mensagem="Abrindo seu convite…" />;
   }
   if (conviteStatus?.erro) {
     return comBanner(
@@ -2177,6 +2198,9 @@ function AppInner() {
     }
     return comBanner(<ContaSemVinculo T={T} onVinculado={() => { setPerfil(undefined); setPerfilTick((n) => n + 1); }} onSair={() => supabase.auth.signOut()} />);
   }
+  if (sessao && perfil && aceiteOk === false) {
+    return comBanner(<AceiteObrigatorio T={getTokens(false)} nome={perfil.nome} onAceitar={async () => { await registrarAceite(); setAceiteOk(true); }} onSair={() => { setAceiteOk(null); supabase.auth.signOut(); }} />);
+  }
   if (sessao && perfil && !dadosProntos) {
     return comBanner(
       <TelaCarregando logo={LOGO_SRC} mensagem={`Carregando dados da loja ${lojaAtiva?.numero_loja || ""}…`} />
@@ -2205,7 +2229,8 @@ function AppInner() {
         onBack={flow === "expiry" && !editingItemId ? () => setFlow("confirm") : resetFlow}
         dark={dark}
         setDark={(fn) => setPrefs((p) => { const d = typeof fn === "function" ? fn(dark) : fn; return { ...p, tema: d ? "escuro" : "claro" }; })}
-        notifPermission={notifPermission} onToggleNotif={toggleNotificacoes} />
+        notifPermission={notifPermission} onToggleNotif={toggleNotificacoes}
+        atualizacaoPendente={!!novaVersao && !mostrarBannerVersao} onAtualizacao={() => setVersaoDispensada(null)} />
 
       {!online && (
         <div style={{ background: "#7A1F23" }} className="text-white text-center text-[11px] font-medium py-1.5 flex items-center justify-center gap-1.5">
@@ -2259,7 +2284,8 @@ function AppInner() {
             onVerPrioridades={() => setFlow("prioridade")}
             comPalco={tab === "home"} nomeUsuario={perfil?.nome} lojaNumero={lojaAtiva?.numero_loja}
             notifPermission={notifPermission} onToggleNotif={toggleNotificacoes}
-            dark={dark} onTema={() => setPrefs((p) => ({ ...p, tema: dark ? "claro" : "escuro" }))} />
+            dark={dark} onTema={() => setPrefs((p) => ({ ...p, tema: dark ? "claro" : "escuro" }))}
+            atualizacaoPendente={!!novaVersao && !mostrarBannerVersao} onAtualizacao={() => setVersaoDispensada(null)} />
         )}
         {flow === null && tab === "setores" && !setorAtivo && (
           <SetoresView T={T} items={items} catalog={catalog} rondas={rondas}
@@ -2336,7 +2362,7 @@ function AppInner() {
         <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 28 }}
           onClick={() => setVozAberta(true)} aria-label="Cadastrar por voz"
           style={{ background: T.card, color: RED_DARK, borderColor: T.border }}
-          className="lg:hidden fixed right-4 bottom-[calc(5.9rem+env(safe-area-inset-bottom)*0.4)] z-20 h-12 w-12 rounded-full border shadow-lg flex items-center justify-center">
+          className="lg:hidden fixed right-4 bottom-[calc(5.4rem+env(safe-area-inset-bottom)*0.12)] z-20 h-12 w-12 rounded-full border shadow-lg flex items-center justify-center">
           <Mic size={22} />
         </motion.button>
       )}
@@ -2356,7 +2382,6 @@ function AppInner() {
       )}
       {toast && <Toast msg={toast.msg} tone={toast.tone} />}
       {desfazer && <DesfazerToast T={T} mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} />}
-      {!!novaVersao && !mostrarBannerVersao && <PilulaAtualizacao onClick={() => setVersaoDispensada(null)} />}
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
         {avisoAtual && <AvisoModal T={T} aviso={avisoAtual} onFechar={() => marcarAvisoVisto(avisoAtual.id)} />}
@@ -2458,7 +2483,7 @@ function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar, s
   const pct = Math.round((progresso || 0) * 100);
   return (
     <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-      className={`fixed ${solto ? "bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-0 right-0" : "bottom-[calc(env(safe-area-inset-bottom)*0.4+5.9rem)] lg:bottom-6 left-0 right-0 lg:left-64"} z-[70] px-3`}>
+      className={`fixed ${solto ? "bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-0 right-0" : "bottom-[calc(env(safe-area-inset-bottom)*0.12+5.4rem)] lg:bottom-6 left-0 right-0 lg:left-64"} z-[70] px-3`}>
       <div style={{ background: BLUE_DARK }} className="max-w-md mx-auto rounded-2xl px-4 py-3 shadow-lg shadow-black/20">
         <div className="flex items-center gap-3">
           <Sparkles size={18} color="#fff" className="shrink-0" />
@@ -2478,15 +2503,14 @@ function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar, s
   );
 }
 
-// Depois de tocar em "Depois": fica uma notificação pendente no topo; ao tocar, o aviso de atualizar volta.
-function PilulaAtualizacao({ onClick }) {
+// Depois de tocar em "Depois": fica um ícone de atualização pendente ao lado do sino; ao tocar, o aviso de atualizar volta.
+function BotaoAtualizacao({ onClick, claro }) {
   return (
-    <motion.button type="button" onClick={onClick} initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} whileTap={{ scale: 0.95 }}
-      aria-label="Há uma atualização do app pendente. Toque para atualizar."
-      className="fixed left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[70] flex items-center gap-1.5 rounded-full bg-white text-[11.5px] font-bold pl-2.5 pr-3 py-1.5 shadow-lg shadow-black/25"
-      style={{ color: BLUE_DARK, border: `1.5px solid ${RED}` }}>
-      <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: RED, opacity: 0.6 }} /><span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: RED }} /></span>
-      Atualização
+    <motion.button type="button" onClick={onClick} initial={{ scale: 0 }} animate={{ scale: 1 }} whileTap={{ scale: 0.88 }} aria-label="Há uma atualização do app. Toque para atualizar." title="Atualização disponível"
+      className="relative h-9 w-9 rounded-2xl flex items-center justify-center shrink-0"
+      style={claro ? { background: "#fff", color: BLUE_DARK } : { background: BLUE_DARK, color: "#fff" }}>
+      <RefreshCw size={16} />
+      <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3"><span className="absolute inline-flex h-full w-full rounded-full animate-ping" style={{ background: RED, opacity: 0.6 }} /><span className="relative inline-flex h-3 w-3 rounded-full border-2" style={{ background: RED, borderColor: claro ? "#fff" : BLUE_DARK }} /></span>
     </motion.button>
   );
 }
@@ -2620,11 +2644,11 @@ function AtualizacaoModal({ T, novidades, cargoNome, onFechar }) {
 }
 
 // ============ Header ============
-function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggleNotif, nomeUsuario, busca, onBusca }) {
+function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggleNotif, nomeUsuario, busca, onBusca, atualizacaoPendente, onAtualizacao }) {
   const telaLarga = useTelaLarga();
   const titles = {
     produtos: "Produtos monitorados", "cfg-conta": "Conta", "cfg-aparencia": "Aparência", "cfg-notificacoes": "Notificações e som",
-    "cfg-avisos": "Avisos", "cfg-balanca": "Código de balança", "cfg-sobre": "Sobre o app",
+    "cfg-avisos": "Avisos", "cfg-balanca": "Código de balança", "cfg-privacidade": "Privacidade e termos", "cfg-sobre": "Sobre o app",
     home: "Alerta de Validade", scan: "Bipar produto", confirm: "Dados do produto",
     expiry: "Data de validade", historico: "Histórico de baixas", ajustes: "Mais", auditoria: "Auditoria",
     prioridade: "Prioridade de Perda",
@@ -2645,6 +2669,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
               style={{ background: T.chipBg, color: T.text }} className="w-full rounded-xl pl-10 pr-3 py-2 text-sm outline-none focus:ring-2" />
           </div>
           <div className="flex-1" />
+          {atualizacaoPendente && <BotaoAtualizacao onClick={onAtualizacao} claro={false} />}
           <button onClick={onToggleNotif} title="Notificações" style={{ background: T.chipBg, color: T.subtext }} className="h-9 w-9 rounded-xl flex items-center justify-center hover:opacity-70 transition">
             {notifPermission === "granted" ? <BellIcon className="w-4 h-4" /> : <BellSlashIcon className="w-4 h-4" />}
           </button>
@@ -2677,6 +2702,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
           </div>
           {!flow && (
             <div className="flex items-center gap-1.5">
+              {atualizacaoPendente && <BotaoAtualizacao onClick={onAtualizacao} claro />}
               <button onClick={onToggleNotif} className="h-9 w-9 rounded-2xl flex items-center justify-center bg-white/15 active:scale-95 transition" aria-label="Notificações">
                 {notifPermission === "granted" ? <BellIcon className="w-4 h-4 text-white" /> : <BellSlashIcon className="w-4 h-4 text-white" />}
               </button>
@@ -6382,7 +6408,7 @@ function BottomNav({ T, tab, setTab, alertCount, onScan }) {
     );
   };
   return (
-    <nav className="lg:hidden fixed inset-x-0 bottom-0 z-20 pointer-events-none px-3 pb-[calc(env(safe-area-inset-bottom)*0.4+6px)]" style={{ transform: "translateZ(0)", willChange: "transform" }}>
+    <nav className="lg:hidden fixed inset-x-0 bottom-0 z-20 pointer-events-none px-3 pb-[calc(env(safe-area-inset-bottom)*0.12+4px)]" style={{ transform: "translateZ(0)", willChange: "transform" }}>
       <motion.div initial={{ y: 90, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 26 }}
         className="pointer-events-auto max-w-md mx-auto relative flex items-center rounded-[32px] px-1.5 h-[68px]"
         style={{
@@ -6446,6 +6472,7 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
         { tab: "cfg-avisos", label: "Avisos", Icon: Megaphone },
         { tab: "cfg-balanca", label: "Código de balança", Icon: Barcode },
       ] : []),
+      { tab: "cfg-privacidade", label: "Privacidade e termos", Icon: ShieldCheck },
       { tab: "cfg-sobre", label: "Sobre o app", Icon: Info },
     ] },
   ].filter((g) => g.itens.length > 0);
@@ -7134,7 +7161,7 @@ function ProdutosDashboard({ T, items, historico, search, setSearch, filtroSetor
   );
 }
 
-function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFiltroSetor, ordenarPor, setOrdenarPor, modoVisual, setModoVisual, onScan, onCadastrar, onOpenDetail, onVerPrioridades, comPalco, nomeUsuario, lojaNumero, notifPermission, onToggleNotif, dark, onTema }) {
+function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFiltroSetor, ordenarPor, setOrdenarPor, modoVisual, setModoVisual, onScan, onCadastrar, onOpenDetail, onVerPrioridades, comPalco, nomeUsuario, lojaNumero, notifPermission, onToggleNotif, dark, onTema, atualizacaoPendente, onAtualizacao }) {
   const podeVerValores = useValoresVisiveis();
   const enriched = items.map((it) => ({ ...it, status: getStatus(it) }));
   // Item 2: perecíveis e os demais setores nunca aparecem misturados
@@ -7214,7 +7241,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
     <div>
       {comPalco && (
         <PalcoInicio logo={LOGO_SRC} nome={nomeUsuario} loja={lojaNumero} valorNum={valorEmRisco} formatarMoeda={formatarMoeda}
-          vencidos={vencidos} alerta={emAlerta} total={total} emergencia={modoEmergencia} onEmergencia={() => setModoEmergencia((v) => !v)}
+          vencidos={vencidos} alerta={emAlerta} total={total} emergencia={modoEmergencia} onEmergencia={() => setModoEmergencia((v) => !v)} atualizacaoPendente={atualizacaoPendente} onAtualizacao={onAtualizacao}
           notifOk={notifPermission === "granted"} onNotif={onToggleNotif} dark={dark} onTema={onTema} />
       )}
       <div style={{ background: T.bg }} className={`relative z-10 px-4 ${comPalco ? "-mt-7 rounded-t-[32px] pt-6" : "pt-4"}`}>
@@ -9996,7 +10023,7 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
 const APP_VERSAO = "4.1";
 const MOLA = { type: "spring", stiffness: 420, damping: 34 };
 const MOLA_SUAVE = { type: "spring", stiffness: 260, damping: 26 };
-const COR_MAIS = { conta: "#6D4FC2", aparencia: "#C2570C", notificacoes: "#0B4F9E", atalhos: "#1F7A4D", avisos: "#A81419", balanca: "#0E7C86", sobre: "#4A5B6A" };
+const COR_MAIS = { conta: "#6D4FC2", aparencia: "#C2570C", notificacoes: "#0B4F9E", atalhos: "#1F7A4D", avisos: "#A81419", balanca: "#0E7C86", privacidade: "#1F7A4D", sobre: "#4A5B6A" };
 const COR_TEMA = { claro: "#EEF2F9", escuro: "#0B1220" };
 
 function clarearCor(hex, f) {
@@ -10116,7 +10143,7 @@ function MaisHero({ T, perfil, usuario, tema, onTema }) {
   const OPCOES = [["claro", "Claro", Sun], ["escuro", "Escuro", Moon], ["auto", "Auto", SunMoon]];
   return (
     <motion.div initial={{ opacity: 0, y: -16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={MOLA_SUAVE}
-      style={{ background: `linear-gradient(135deg, ${BLUE_DARK}, ${BLUE})` }} className="relative overflow-hidden rounded-[30px] p-5 text-white shadow-xl shadow-black/10">
+      style={{ background: `linear-gradient(135deg, ${BLUE_DARK}, ${BLUE})`, isolation: "isolate", WebkitMaskImage: "-webkit-radial-gradient(white, black)", transform: "translateZ(0)" }} className="relative overflow-hidden rounded-[30px] p-5 text-white shadow-xl shadow-black/10">
       <motion.div aria-hidden="true" className="absolute -right-12 -top-12 w-48 h-48 rounded-full" style={{ background: "rgba(227,30,36,.40)", filter: "blur(34px)" }}
         animate={{ x: [0, -16, 0], y: [0, 14, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }} />
       <motion.div aria-hidden="true" className="absolute -left-10 -bottom-14 w-40 h-40 rounded-full" style={{ background: "rgba(120,170,255,.35)", filter: "blur(30px)" }}
@@ -10765,6 +10792,7 @@ function MaisView(props) {
       { id: "avisos", titulo: "Avisos", desc: "Enviar para a rede, uma loja, setor ou pessoas", Icon: Megaphone, cor: COR_MAIS.avisos },
       { id: "balanca", titulo: "Código de balança", desc: "Prefixos e o que o código embute", Icon: Barcode, cor: COR_MAIS.balanca },
     ] : []),
+    { id: "privacidade", titulo: "Privacidade e termos", desc: "Termos, LGPD, seus dados e direitos", Icon: ShieldCheck, cor: COR_MAIS.privacidade },
     { id: "sobre", titulo: "Sobre o app", desc: "Versão, novidades e créditos", Icon: Info, cor: COR_MAIS.sobre },
   ];
   const ativa = telaLarga ? (secao || "conta") : pagina;
@@ -10793,6 +10821,7 @@ function MaisView(props) {
       case "atalhos": return <PaginaAtalhos T={T} dark={dark} historico={historico} ehEncarregado={ehEncarregado} ehCorporativo={ehCorporativo} ehDev={ehDev} acoes={acoes} />;
       case "avisos": return ehDev ? <PaginaAvisos T={T} dark={dark} perfil={perfil} showToast={props.showToast} /> : null;
       case "balanca": return ehDev ? <PaginaBalanca T={T} dark={dark} perfil={perfil} configBalanca={props.configBalanca} onSalvou={props.onBalancaSalva} showToast={props.showToast} /> : null;
+      case "privacidade": return <PaginaPrivacidade T={T} dark={dark} perfil={perfil} showToast={props.showToast} />;
       case "sobre": return <PaginaSobre T={T} dark={dark} perfil={perfil} />;
       default: return null;
     }
