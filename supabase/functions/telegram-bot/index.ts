@@ -29,6 +29,13 @@ async function tg(method: string, body: Record<string, unknown>) {
 const falar = (chat: number, texto: string, botoes?: { t: string; d: string }[][]) =>
   tg("sendMessage", { chat_id: chat, text: texto.slice(0, 3500), ...(botoes ? { reply_markup: { inline_keyboard: botoes.map((l) => l.map((b) => ({ text: b.t.slice(0, 60), callback_data: b.d }))) } } : {}) });
 
+const FOTO_BV = "https://condor-validade.vercel.app/bot-boas-vindas.png";
+async function comFoto(chat: number, legenda: string) {
+  const r = await tg("sendPhoto", { chat_id: chat, photo: FOTO_BV, caption: legenda.slice(0, 1000) });
+  if (!r?.ok) return falar(chat, legenda); // sem a imagem, manda só o texto
+  return r;
+}
+
 // ---------- Foto (Gemini lê código, nome e validade) ----------
 const MODELOS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
 const PROMPT = `Você lê fotos de produtos de supermercado. Responda SOMENTE um JSON: {"barcode": string|null, "produto": string|null, "validade": "AAAA-MM-DD"|null, "quantidade": number|null}.
@@ -240,7 +247,7 @@ const ERRO_VINC: Record<string, string> = {
 };
 async function vincular(chat: number, texto: string) {
   const t = texto.trim().replace(/^\/start(@\w+)?\s*/i, "").trim();
-  if (!t) return falar(chat, "👋 Oi! Eu sou o assistente de validade do Condor.\n\nAqui você lança a validade dos produtos sem abrir o app: é só me mandar o código de barras, o nome do produto ou uma foto da etiqueta. Eu confiro tudo com você antes de salvar.\n\nPra liberar o seu acesso, me envie o seu código:\n\n🧑‍💼 Funcionário: gere no app em Mais → Conta → Telegram (8 números)\n🏷️ Promotor: use o código da sua marca (ex.: BAU-7K3QP)");
+  if (!t) return comFoto(chat, "👋 Bem-vindo ao Condor Validade!\n\nLance a validade dos produtos sem abrir o app:\n📷 foto da etiqueta\n🔢 código de barras\n✏️ nome do produto\n\nEu confiro tudo com você e só salvo depois do seu “sim”. Nada é lançado sozinho.\n\n🔐 Para liberar seu acesso, envie o seu código:\n🧑‍💼 Funcionário: no app, Mais → Conta → Telegram (8 números)\n🏷️ Promotor: o código da sua marca (ex.: BAU-7K3QP)\n\nO código vale por 10 minutos e é de uso pessoal.");
   const func = /^\d{4}\s?-?\s?\d{4}$/.test(t);
   const prom = /^[A-Za-z]{3}-[A-Za-z0-9]{5}$/.test(t);
   if (!func && !prom) return falar(chat, "Não reconheci esse código. Funcionário: 8 dígitos do app. Promotor: código tipo BAU-7K3QP.");
@@ -309,7 +316,8 @@ async function processar(up: Record<string, any>) {
   }
 
   if (!msg) return;
-  if (/^\/start/i.test(texto) || /^\/ajuda/i.test(texto)) { await falar(chat, `Olá, ${String(ctx.nome).split(" ")[0]}! 👋\n\n${AJUDA}`); await marcar("processada"); return; }
+  if (/^\/start/i.test(texto)) { await comFoto(chat, `Olá, ${String(ctx.nome).split(" ")[0]}! 👋\n\n${AJUDA}`); await marcar("processada"); return; }
+  if (/^\/ajuda/i.test(texto)) { await falar(chat, AJUDA); await marcar("processada"); return; }
   if (/^\/cancelar/i.test(texto)) { const s = await sessaoAtiva(chat); if (s) await cancelar(chat, s.id); else await falar(chat, "Não há lançamento em andamento."); await marcar("processada"); return; }
   if (/^\/sair/i.test(texto)) { await sb.from("telegram_vinculos").delete().eq("chat_id", chat); await falar(chat, "Telegram desvinculado. Para usar de novo, vincule outra vez com um código."); await marcar("processada"); return; }
   if (texto.startsWith("/")) { await falar(chat, AJUDA); await marcar("processada"); return; }
