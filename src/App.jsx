@@ -24,9 +24,10 @@ import {
   Lock, Unlock, Flashlight, FlashlightOff, Percent, Upload, RotateCcw,
   TrendingDown, FileSpreadsheet, RefreshCw, SwitchCamera, ShieldAlert,
   Flame, Repeat, Sparkles, WifiOff, Cloud, Target, Radar, TrendingUp, ListChecks,
-  Carrot, Beef, Croissant, Milk, Wine, Snowflake, SprayCan, ShoppingBasket, Warehouse, Boxes, LogOut, Megaphone, Building2, Wrench, Ticket, Copy, Link2, LayoutDashboard, Pencil, Mail, Eye, EyeOff, KeyRound, SunMoon, Send, Palette
+  Carrot, Beef, Croissant, Milk, Wine, Snowflake, SprayCan, ShoppingBasket, Warehouse, Boxes, LogOut, Megaphone, Building2, Wrench, Ticket, Copy, Link2, LayoutDashboard, Pencil, Mail, Eye, EyeOff, KeyRound, SunMoon, Send, Palette, Mic
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import VozSheet from "./VozSheet";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, RegistrarPerdaSheet, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
@@ -1394,6 +1395,8 @@ function AppInner() {
     if (ehDesktop && ["scan", "confirm", "expiry"].includes(flow)) { setEscolhaAberta(false); resetFlow(); }
   }, [ehDesktop, flow]);
   const [intencaoFluxo, setIntencaoFluxo] = useState("validade"); // "validade" | "cadastro"
+  const [vozAberta, setVozAberta] = useState(false);
+  const [vozPre, setVozPre] = useState(null); // o que a voz já preencheu na tela de validade { validade, quantidade, porPeso }
   const [setorAtivo, setSetorAtivo] = useState(null); // controla a página de detalhe do setor
 
   const [pendingBarcode, setPendingBarcode] = useState(null);
@@ -1964,7 +1967,28 @@ function AppInner() {
     setPendingBarcode(null);
     setDraftProduct({ nome: "", setor: "", foto: null });
     setIntencaoFluxo("validade");
+    setVozPre(null);
     setFlow(null);
+  }
+
+  // Cadastro por voz: produto já cadastrado (achado pelo nome) vai direto pra validade; produto novo passa pela tela de dados.
+  function aplicarVoz({ res, achado }) {
+    setVozAberta(false);
+    setEditingItemId(null);
+    setVozPre({ validade: res.validade || "", quantidade: res.quantidade, porPeso: !!res.porPeso });
+    const extraPreco = res.precoUnitario ? { precoUnitario: res.precoUnitario } : {};
+    if (achado) {
+      setPendingBarcode(achado.entrada.barcode || achado.chave);
+      setDraftProduct({ ...achado.entrada, ...extraPreco });
+      setIntencaoFluxo("validade");
+      setFlow(res.validade ? "expiry" : "confirm");
+    } else {
+      setPendingBarcode("99" + String(Date.now()).slice(-12)); // código interno: ainda sem código de barras de verdade
+      setDraftProduct({ nome: res.nome, setor: res.setorSugerido || "", foto: null, ...extraPreco });
+      setIntencaoFluxo(res.validade ? "validade" : "cadastro");
+      setFlow("confirm");
+      showToast("Produto novo: complete setor e localização.");
+    }
   }
 
   function abrirCadastroDireto(setorPreDefinido) {
@@ -2219,7 +2243,7 @@ function AppInner() {
             setoresExtra={setoresExtra} subsetoresExtra={subsetoresExtra} onCriarSetor={criarSetorCustomizado} onCriarSubsetor={criarSubsetorCustomizado} />
         )}
         {flow === "expiry" && (
-          <ExpiryView T={T} product={draftProduct} barcode={pendingBarcode} items={items}
+          <ExpiryView T={T} product={draftProduct} barcode={pendingBarcode} items={items} vozPre={vozPre}
             editing={editingItemId ? items.find((i) => i.id === editingItemId) : null}
             onCancel={resetFlow} onVoltar={() => setFlow("confirm")} onSave={saveAlertItem}
             onBaixaDireta={!editingItemId ? registrarBaixaDireta : null} />
@@ -2324,6 +2348,16 @@ function AppInner() {
           </div>
         </div>
       )}
+
+      {showBottomNav && !ehDesktop && (tab === "home" || tab === "setores") && (
+        <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 28 }}
+          onClick={() => setVozAberta(true)} aria-label="Cadastrar por voz"
+          style={{ background: T.card, color: RED_DARK, borderColor: T.border }}
+          className="lg:hidden fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-20 h-12 w-12 rounded-full border shadow-lg flex items-center justify-center">
+          <Mic size={22} />
+        </motion.button>
+      )}
+      {vozAberta && <VozSheet T={T} accent={RED} accentDark={RED_DARK} catalog={catalog} onCancel={() => setVozAberta(false)} onConfirmar={aplicarVoz} />}
 
       {showBottomNav && <BottomNav T={T} tab={tab} setTab={(t) => { setSetorAtivo(null); setTab(t); }} alertCount={alertCount} onScan={() => setFlow("scan")} />}
 
@@ -8834,13 +8868,13 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
 }
 
 // ============ Validade ============
-function ExpiryView({ T, product, barcode, editing, items, onCancel, onVoltar, onSave, onBaixaDireta }) {
-  const [validade, setValidade] = useState(editing ? editing.validade : "");
+function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onVoltar, onSave, onBaixaDireta }) {
+  const [validade, setValidade] = useState(editing ? editing.validade : (vozPre?.validade || ""));
   const [diasSelecionados, setDiasSelecionados] = useState(editing ? [editing.diasAlerta, ...(editing.diasAlertaExtras || [])] : [15]);
   const isAcougue = product.setor === "Açougue";
-  const [porPeso, setPorPeso] = useState(editing ? !!editing.porPeso : (product.porPeso != null ? !!product.porPeso : isAcougue));
+  const [porPeso, setPorPeso] = useState(editing ? !!editing.porPeso : (vozPre?.porPeso ? true : product.porPeso != null ? !!product.porPeso : isAcougue));
   const [quantidade, setQuantidade] = useState(editing ? editing.quantidade || 1 : (
-    product.pesoLido || (product.precoLidoEmbutido && product.precoUnitario ? Number((product.precoLidoEmbutido / product.precoUnitario).toFixed(3)) : 1)
+    vozPre?.quantidade != null ? vozPre.quantidade : product.pesoLido || (product.precoLidoEmbutido && product.precoUnitario ? Number((product.precoLidoEmbutido / product.precoUnitario).toFixed(3)) : 1)
   ));
   const [precoUnitario, setPrecoUnitario] = useState(editing ? editing.precoUnitario || "" : product.precoUnitario || "");
   const [tamanho, setTamanho] = useState(editing ? editing.tamanho || "" : (product.tamanho || ""));
