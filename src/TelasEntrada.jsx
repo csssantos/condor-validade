@@ -101,8 +101,8 @@ export function TelaCarregando({ logo, mensagem }) {
 
 // ───────────────────────── Login: palco (parte de cima) ─────────────────────────
 const CHIPS = [
-  { t: "Vence hoje", c: CORES_STATUS[0], pos: "top-[3%] left-[4%] lg:top-[9%] lg:left-[5%]", d: 0.5, dur: 3.4 },
-  { t: "Vence em 3 dias", c: CORES_STATUS[1], pos: "top-[3%] right-[4%] lg:top-[16%] lg:right-[4%]", d: 0.7, dur: 4 },
+  { t: "Vence hoje", c: CORES_STATUS[0], pos: "top-[calc(env(safe-area-inset-top)+0.9rem)] left-[4%] lg:top-[9%] lg:left-[5%]", d: 0.5, dur: 3.4 },
+  { t: "Vence em 3 dias", c: CORES_STATUS[1], pos: "top-[calc(env(safe-area-inset-top)+0.9rem)] right-[4%] lg:top-[16%] lg:right-[4%]", d: 0.7, dur: 4 },
   { t: "Validade ok", c: CORES_STATUS[2], pos: "hidden lg:block bottom-[24%] left-[4%]", d: 0.9, dur: 3.8 },
   { t: "Ronda concluída", c: "#6CB4FF", pos: "hidden lg:block bottom-[31%] right-[5%]", d: 1.1, dur: 4.4 },
 ];
@@ -111,7 +111,7 @@ export function AuthPalco({ logo, compacto }) {
   const reduzir = useReducedMotion();
   const palavras = ["Validade", "sob", "controle."];
   return (
-    <div style={{ background: FUNDO_MARCA }} className={`relative overflow-hidden text-white ${compacto ? "h-[168px]" : "h-[316px]"} lg:h-auto lg:min-h-screen transition-[height] duration-500 ease-out`}>
+    <div style={{ background: FUNDO_MARCA }} className={`relative overflow-hidden text-white ${compacto ? "h-[calc(168px+env(safe-area-inset-top))]" : "h-[calc(316px+env(safe-area-inset-top))]"} lg:h-auto lg:min-h-screen transition-[height] duration-500 ease-out`}>
       {/* trama de pontos + ondas atrás do logo */}
       <div aria-hidden className="absolute inset-0 opacity-[.14]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "22px 22px" }} />
       {!reduzir && [0, 1, 2].map((k) => (
@@ -135,7 +135,7 @@ export function AuthPalco({ logo, compacto }) {
       ))}
 
       {/* marca + frase */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-6 pb-8 lg:pb-0 text-center">
+      <div className="absolute inset-0 flex flex-col items-center justify-center px-6 pb-8 pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-0 text-center">
         <motion.div initial={{ scale: 0, rotate: -14 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 280, damping: 16, delay: 0.1 }}
           className={`bg-white flex items-center justify-center shadow-[0_16px_36px_-10px_rgba(0,0,0,.55)] ${compacto ? "h-[58px] w-[156px] rounded-[20px]" : "h-[80px] w-[210px] rounded-[26px] lg:h-[120px] lg:w-[320px] lg:rounded-[34px]"} transition-all duration-500`}>
           <img src={logo} alt="Condor" className={`${compacto ? "w-[122px]" : "w-[170px] lg:w-[256px]"} h-auto transition-all duration-500`} />

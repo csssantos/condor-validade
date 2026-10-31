@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useContext, createContext } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { supabase } from "./supabaseClient";
 import {
@@ -899,7 +900,7 @@ function useTelaLarga() { return useMediaQuery("(min-width: 1024px)"); }
 const SITE_URL = String(import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, "");
 
 // ============ Tela de login / recuperação de senha (Supabase Auth) ============
-function AuthScreen({ T }) {
+function AuthScreen({ T, antesDeEntrar }) {
   const ehDesktop = useDesktop();
   const [matriculaDigitada, setMatriculaDigitada] = useState("");
   const [modo, setModo] = useState("login"); // "login" | "recuperar" | "nova-senha" | "cadastro-scan" | "cadastro-confirmar" | "cadastro-info"
@@ -937,6 +938,7 @@ function AuthScreen({ T }) {
     if (cadSenha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
     if (cadSenha !== cadConfirmarSenha) { setErro("As senhas não coincidem."); return; }
     setCarregando(true);
+    if (antesDeEntrar && (await antesDeEntrar())) { setCarregando(false); return; }
     const emailLimpo = cadEmail.trim();
     // A matrícula vai nos metadados: o servidor (trigger no banco) cria o perfil e marca o pré-cadastro como
     // usado NA HORA do signUp, mesmo sem sessão aberta. Antes o app tentava inserir em "usuarios" pelo navegador
@@ -977,6 +979,7 @@ function AuthScreen({ T }) {
   async function entrar(e) {
     e.preventDefault();
     setErro(""); setCarregando(true);
+    if (antesDeEntrar && (await antesDeEntrar())) { setCarregando(false); return; } // tem versão nova: a tela de atualização assume
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
     setCarregando(false);
     if (error) {
@@ -1558,6 +1561,14 @@ function AppInner() {
   }
   const novidadesDoCargo = useMemo(() => (mostrarAtualizacao ? novidadesParaCargo(perfil?.cargos?.nivel, lerNovidadeVista()) : []), [mostrarAtualizacao, perfil?.cargos?.nivel]);
   useEffect(() => { if (mostrarAtualizacao && perfil && novidadesDoCargo.length === 0) { gravarNovidadeVista(NOVIDADES[0].id); setMostrarAtualizacao(false); } }, [mostrarAtualizacao, perfil, novidadesDoCargo.length]);
+  // Chamado pelo login/cadastro antes de enviar a senha: confere na hora se existe versão nova e, se existir, trava a entrada.
+  async function antesDeEntrarNoApp() {
+    try {
+      const v = await buscarVersaoPublicada();
+      if (v) { setNovaVersao((atual) => atual || v); return true; }
+    } catch { /* sem internet: o próprio login vai falhar */ }
+    return !!novaVersao;
+  }
   const mostrarBannerVersao = !!novaVersao && (estadoAtualizacao === "baixando" || versaoDispensada !== novaVersao.assinatura);
   // O aviso de versão nova também aparece nas telas de carregamento, login e erro (antes só aparecia logado,
   // então quem estava deslogado ficava preso na versão antiga até limpar o cache).
@@ -2129,7 +2140,9 @@ function AppInner() {
   if (sessao === null) {
     return (
       <>
-        <AuthScreen T={T} />
+        <div inert={novaVersao ? "" : undefined} aria-hidden={novaVersao ? true : undefined}>
+          <AuthScreen T={T} antesDeEntrar={antesDeEntrarNoApp} />
+        </div>
         {!!novaVersao && <AtualizacaoObrigatoria logo={LOGO_SRC} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} />}
       </>
     );
@@ -2294,7 +2307,7 @@ function AppInner() {
       {escolhaAberta && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
           <div onClick={() => { setEscolhaAberta(false); resetFlow(); }} className="absolute inset-0 bg-black/55" />
-          <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
+          <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[28px] p-5 pb-[calc(1.75rem+env(safe-area-inset-bottom))] max-h-[90dvh] overflow-y-auto sm:rounded-2xl">
             <div style={{ background: BLUE_SOFT }} className="h-11 w-11 rounded-2xl flex items-center justify-center mb-3"><Barcode size={20} color={BLUE} /></div>
             <h2 className="font-bold text-base">Produto novo — {pendingBarcode}</h2>
             <p style={{ color: T.subtext }} className="text-xs mt-1 mb-4">Esse código ainda não está cadastrado. O que você quer fazer?</p>
@@ -2323,7 +2336,7 @@ function AppInner() {
         <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} whileTap={{ scale: 0.9 }} transition={{ type: "spring", stiffness: 500, damping: 28 }}
           onClick={() => setVozAberta(true)} aria-label="Cadastrar por voz"
           style={{ background: T.card, color: RED_DARK, borderColor: T.border }}
-          className="lg:hidden fixed right-4 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-20 h-12 w-12 rounded-full border shadow-lg flex items-center justify-center">
+          className="lg:hidden fixed right-4 bottom-[calc(5.9rem+env(safe-area-inset-bottom)*0.4)] z-20 h-12 w-12 rounded-full border shadow-lg flex items-center justify-center">
           <Mic size={22} />
         </motion.button>
       )}
@@ -2445,7 +2458,7 @@ function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar, s
   const pct = Math.round((progresso || 0) * 100);
   return (
     <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-      className={`fixed ${solto ? "bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-0 right-0" : "bottom-[calc(env(safe-area-inset-bottom)+6.75rem)] lg:bottom-6 left-0 right-0 lg:left-64"} z-[70] px-3`}>
+      className={`fixed ${solto ? "bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-0 right-0" : "bottom-[calc(env(safe-area-inset-bottom)*0.4+5.9rem)] lg:bottom-6 left-0 right-0 lg:left-64"} z-[70] px-3`}>
       <div style={{ background: BLUE_DARK }} className="max-w-md mx-auto rounded-2xl px-4 py-3 shadow-lg shadow-black/20">
         <div className="flex items-center gap-3">
           <Sparkles size={18} color="#fff" className="shrink-0" />
@@ -2824,50 +2837,47 @@ function SetoresView({ T, items, catalog, rondas, onIniciarRonda, onOpenDetail, 
     <>
     <SetoresDashboard T={T} grupos={grupos} resumo={resumo} ultimaRondaPorSetor={ultimaRondaPorSetor} onAbrirSetor={onAbrirSetor} />
     <div className="px-4 pt-4 lg:hidden">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-        style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="rounded-[28px] p-4 mb-4 shadow-lg shadow-black/5">
-        <p className="text-white/70 text-[10px] font-semibold uppercase tracking-wide mb-2.5 flex items-center gap-1.5">
-          <Squares2X2IconSolid className="w-3.5 h-3.5" /> Visão geral dos setores
-        </p>
+      <PalcoPagina className="mb-4" titulo="Setores" subtitulo={`${grupos.length} setor${grupos.length !== 1 ? "es" : ""} · toque para abrir`}>
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-white/10 rounded-2xl px-2 py-2.5 text-center">
-            <p className="text-white text-xl font-extrabold leading-none">{resumo.criticos}</p>
-            <p className="text-white/70 text-[9px] font-semibold mt-1 uppercase tracking-wide">Críticos</p>
-          </div>
-          <div className="bg-white/10 rounded-2xl px-2 py-2.5 text-center">
-            <p className="text-white text-xl font-extrabold leading-none">{resumo.atencao}</p>
-            <p className="text-white/70 text-[9px] font-semibold mt-1 uppercase tracking-wide">Atenção</p>
-          </div>
-          <div className="bg-white/10 rounded-2xl px-2 py-2.5 text-center">
-            <p className="text-white text-xl font-extrabold leading-none">{resumo.controlados}</p>
-            <p className="text-white/70 text-[9px] font-semibold mt-1 uppercase tracking-wide">Em dia</p>
-          </div>
+          {[["Críticos", resumo.criticos, "#E31E24"], ["Atenção", resumo.atencao, "#F5A524"], ["Em dia", resumo.controlados, "#34C77B"]].map(([rot, n, cor]) => (
+            <div key={rot} className="rounded-2xl py-2.5 text-center" style={{ background: "rgba(255,255,255,.13)", border: "1px solid rgba(255,255,255,.2)" }}>
+              <p className="text-[22px] font-extrabold leading-none tabular-nums">{n}</p>
+              <p className="text-[10.5px] font-semibold text-white/85 mt-1.5 flex items-center justify-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: cor, boxShadow: `0 0 8px ${cor}` }} />{rot}</p>
+            </div>
+          ))}
         </div>
-      </motion.div>
+      </PalcoPagina>
 
-      <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5">
+      <div className="flex flex-col gap-3">
         {grupos.map(([setor, dados], idx) => {
           const ultimaRonda = ultimaRondaPorSetor[setor];
           const rondaAtrasada = !ultimaRonda || Date.now() - new Date(ultimaRonda).getTime() > 24 * 3600000;
-          // Bolinha de status do setor: vermelho (crítico) > laranja (atenção ou ronda atrasada) > verde (controlado)
-          let corBolinha, bgIcone, corIcone;
-          if (dados.vencido > 0) { corBolinha = RED_DARK; bgIcone = RED_SOFT; corIcone = RED_DARK; }
-          else if (dados.alerta > 0 || rondaAtrasada) { corBolinha = "#E0921C"; bgIcone = "#FCF0DD"; corIcone = "#C2760C"; }
-          else { corBolinha = "#1F9D55"; bgIcone = "#E4F7EC"; corIcone = "#1F9D55"; }
+          let cor, bgIcone, rotulo;
+          if (dados.vencido > 0) { cor = "#E31E24"; bgIcone = RED_SOFT; rotulo = "Crítico"; }
+          else if (dados.alerta > 0 || rondaAtrasada) { cor = "#E0921C"; bgIcone = "#FCF0DD"; rotulo = dados.alerta > 0 ? "Atenção" : "Ronda atrasada"; }
+          else { cor = "#1F9D55"; bgIcone = "#E4F7EC"; rotulo = "Em dia"; }
           const Icone = iconeDoSetor(setor);
-
+          const comData = dados.total - dados.semValidadeCount;
+          const ok = Math.max(0, comData - dados.vencido - dados.alerta);
+          const pct = (n) => (comData > 0 ? `${(n / comData) * 100}%` : "0%");
           return (
-            <motion.button key={setor} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: Math.min(idx * 0.03, 0.3) }}
-              whileTap={{ scale: 0.97 }} onClick={() => onAbrirSetor(setor)} style={{ background: T.card }}
-              className="rounded-2xl shadow-lg shadow-black/5 text-left overflow-hidden">
-              <div className="p-3 flex flex-col items-center text-center gap-1.5 relative">
-                <span style={{ background: corBolinha }} className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full shrink-0" />
-                <div style={{ background: bgIcone }} className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0">
-                  <Icone size={18} color={corIcone} />
+            <motion.button key={setor} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 320, damping: 26, delay: Math.min(idx * 0.045, 0.35) }}
+              whileTap={{ scale: 0.98 }} onClick={() => onAbrirSetor(setor)} style={{ background: T.card }}
+              className="rounded-[24px] shadow-lg shadow-black/5 text-left p-3.5 flex items-center gap-3.5">
+              <span style={{ background: bgIcone }} className="h-[52px] w-[52px] rounded-[18px] flex items-center justify-center shrink-0"><Icone size={24} color={cor} /></span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p style={{ color: T.text }} className="font-extrabold text-[15px] leading-tight truncate">{setor}</p>
+                  <span style={{ background: bgIcone, color: cor }} className="text-[10px] font-bold rounded-full px-2 py-0.5 shrink-0">{rotulo}</span>
                 </div>
-                <p className="font-bold text-[11px] leading-tight line-clamp-2 min-h-[26px]">{setor}</p>
-                <p style={{ color: T.subtext }} className="text-[9.5px] leading-tight">{dados.total} produto{dados.total !== 1 ? "s" : ""}</p>
+                <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5">
+                  {dados.total} produto{dados.total !== 1 ? "s" : ""}{dados.vencido > 0 ? ` · ${dados.vencido} vencido${dados.vencido > 1 ? "s" : ""}` : ""}{dados.alerta > 0 ? ` · ${dados.alerta} em alerta` : ""}
+                </p>
+                <div className="flex h-1.5 rounded-full overflow-hidden mt-2" style={{ background: T.chipBg }}>
+                  <div style={{ width: pct(dados.vencido), background: "#E31E24" }} /><div style={{ width: pct(dados.alerta), background: "#F5A524" }} /><div style={{ width: pct(ok), background: "#34C77B" }} />
+                </div>
               </div>
+              <ChevronRightIcon className="w-4 h-4 shrink-0" style={{ color: T.subtext }} />
             </motion.button>
           );
         })}
@@ -2885,7 +2895,7 @@ function ExcluirProdutoSheet({ T, item, onCancel, onConfirmar }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div onClick={onCancel} className="absolute inset-0 bg-black/60" />
-      <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
+      <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[28px] p-5 pb-[calc(1.75rem+env(safe-area-inset-bottom))] max-h-[90dvh] overflow-y-auto sm:rounded-2xl">
         <div className="flex items-center gap-2.5 mb-3">
           <div style={{ background: RED_SOFT }} className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"><Trash2 size={18} color={RED_DARK} /></div>
           <div className="min-w-0">
@@ -3003,6 +3013,60 @@ function ItemCardGridAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onO
         </div>
       )}
     </div>
+  );
+}
+
+// Linha de produto (celular): foto, nome, validade, quantidade e situação. Serve para produto único, grupo de lotes e produto sem validade.
+function corDoNivel(level) {
+  if (level === "expired") return { cor: "#E31E24", soft: RED_SOFT };
+  if (level === "alert") return { cor: "#C2760C", soft: "#FCF0DD" };
+  if (level === "warning") return { cor: "#C2760C", soft: "#FCF0DD" };
+  return { cor: "#1F9D55", soft: "#E4F7EC" };
+}
+function LinhaProduto({ T, item, idx = 0, lotes, totalQuantidade, piorStatus, semValidade, podeVerValores, mostrarSetor, onOpenDetail, onExcluir }) {
+  const [aberto, setAberto] = useState(false);
+  const agrupado = !!lotes;
+  const c = semValidade ? { cor: BLUE, soft: BLUE_SOFT } : corDoNivel(piorStatus?.level);
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 320, damping: 26, delay: Math.min(idx * 0.035, 0.3) }}
+      style={{ background: T.card, border: semValidade ? `1.5px dashed ${T.inputBorder}` : "none" }} className="rounded-[22px] shadow-md shadow-black/5 overflow-hidden">
+      <div className="flex items-center gap-3 p-3">
+        <button onClick={() => (agrupado ? setAberto((v) => !v) : onOpenDetail(item))} className="flex items-center gap-3 min-w-0 flex-1 text-left">
+          <span className="relative shrink-0">
+            <Thumb foto={item.foto} size={54} rounded="rounded-[18px]" />
+            {!semValidade && <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2" style={{ background: c.cor, borderColor: T.card }} />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span style={{ color: T.text }} className="block font-bold text-[14px] leading-tight line-clamp-2">{item.nome}</span>
+            <span style={{ color: T.subtext }} className="block text-[11.5px] mt-1">
+              {mostrarSetor && !semValidade ? `${item.setor} · ` : ""}{semValidade ? "Sem validade lançada" : agrupado ? `${lotes.length} datas · ${totalQuantidade} un` : `${formatarData(item.validade)} · ${item.quantidade || 1} un`}
+            </span>
+            {!semValidade && podeVerValores && !agrupado && Number(item.precoUnitario) > 0 && (
+              <span style={{ color: T.subtext }} className="block text-[11px]">{formatarMoeda((Number(item.quantidade) || 1) * Number(item.precoUnitario))}</span>
+            )}
+          </span>
+        </button>
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          {semValidade ? (
+            <button onClick={() => onOpenDetail(item)} style={{ background: BLUE_DARK, color: "#fff" }} className="text-[11px] font-bold rounded-full px-3 py-1.5 flex items-center gap-1"><Plus size={12} /> Lançar</button>
+          ) : (
+            <span style={{ background: c.soft, color: c.cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap">{piorStatus?.label}</span>
+          )}
+          {onExcluir && <button onClick={onExcluir} aria-label="Excluir produto" style={{ color: T.subtext }} className="h-7 w-7 rounded-full flex items-center justify-center"><Trash2 size={14} /></button>}
+          {agrupado && <ChevronRight size={15} color={T.subtext} style={{ transform: aberto ? "rotate(90deg)" : "none", transition: "transform .2s" }} />}
+        </div>
+      </div>
+      {agrupado && aberto && (
+        <div className="px-3 pb-3 flex flex-col gap-1.5">
+          {lotes.map((l) => { const cl = corDoNivel(l.status.level); return (
+            <button key={l.id} onClick={() => onOpenDetail(l)} style={{ background: T.chipBg }} className="w-full text-left rounded-2xl px-3 py-2.5 flex items-center justify-between gap-2">
+              <span style={{ color: T.text }} className="text-[12.5px] font-bold">{formatarData(l.validade)} <span style={{ color: T.subtext }} className="font-medium">· {l.quantidade || 1} un</span></span>
+              <span style={{ background: cl.soft, color: cl.cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1">{l.status.label}</span>
+            </button>
+          ); })}
+        </div>
+      )}
+    </motion.div>
   );
 }
 
@@ -3135,131 +3199,92 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, onVoltar, onInicia
         parcialHoje={parcialHoje} concluidaHoje={concluidaHoje} search={search} setSearch={setSearch} statusFiltro={statusFiltro} setStatusFiltro={setStatusFiltro}
         subsetorFiltro={subsetorFiltro} setSubsetorFiltro={setSubsetorFiltro} subsetoresDisponiveis={subsetoresDisponiveis} ordenarPor={ordenarPor} setOrdenarPor={setOrdenarPor}
         onVoltar={onVoltar} onOpenDetail={onOpenDetail} ehEncarregado={ehEncarregado} onDesignar={() => onIniciarRonda(setor)} />
-      <button onClick={onVoltar} style={{ color: BLUE }} className="flex items-center gap-1.5 text-sm font-medium mb-3 lg:hidden">
-        <ArrowLeft size={16} /> Todos os setores
-      </button>
-
       <div className="lg:hidden">
-      <aside className="lg:sticky lg:top-20">
-      <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="rounded-[28px] p-4 mb-4 shadow-lg shadow-black/5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            {(() => { const IconeSetor = iconeDoSetor(setor); return (
-              <div className="h-9 w-9 rounded-2xl bg-white/15 flex items-center justify-center shrink-0"><IconeSetor size={18} color="#fff" /></div>
-            ); })()}
-            <h2 className="font-bold text-lg text-white">{setor}</h2>
-          </div>
-          {onCadastrarNoSetor && (
-            <button onClick={() => onCadastrarNoSetor(setor)} style={{ background: "rgba(255,255,255,0.2)" }} className="h-9 w-9 rounded-full flex items-center justify-center shrink-0">
-              <Plus size={18} color="#fff" />
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white/10 rounded-2xl py-2.5 text-center">
-            <p className="text-white text-lg font-extrabold leading-none">{contagens.vencido}</p>
-            <p className="text-white/70 text-[9px] mt-1">Vencidos</p>
-          </div>
-          <div className="bg-white/10 rounded-2xl py-2.5 text-center">
-            <p className="text-white text-lg font-extrabold leading-none">{contagens.alerta}</p>
-            <p className="text-white/70 text-[9px] mt-1">Em alerta</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Informativo de ronda + valor em risco do setor — inclui status de hoje (parcial/concluída/quem fez) */}
-      {(() => {
-        const valorEmRisco = itensDoSetor.filter((i) => !i.semValidade && (i.status.level === "expired" || i.status.level === "alert"))
-          .reduce((acc, i) => acc + (Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0), 0);
-        const rondaAtrasada = !ultimaRonda || Date.now() - new Date(ultimaRonda).getTime() > 24 * 3600000;
-        return (
-          <div style={{ background: T.card }} className="rounded-2xl p-3.5 mb-4 shadow-lg shadow-black/5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <SignalIcon className="w-4 h-4 shrink-0" style={{ color: rondaAtrasada ? "#C2760C" : "#1F9D55" }} />
-                <div className="min-w-0">
-                  <p style={{ color: T.subtext }} className="text-[9.5px] font-semibold uppercase tracking-wide">Última ronda</p>
-                  <p style={{ color: rondaAtrasada ? "#C2760C" : T.text }} className="text-xs font-bold truncate">{tempoDesde(ultimaRonda)}</p>
-                </div>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={onVoltar} style={{ background: T.card, color: T.text }} className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] font-bold rounded-full pl-2.5 pr-3.5 py-2 shadow-md shadow-black/5">
+          <ArrowLeft size={15} /> Todos os setores
+        </motion.button>
+        {(() => {
+          const IconeSetor = iconeDoSetor(setor);
+          const valorEmRisco = itensDoSetor.filter((i) => !i.semValidade && (i.status.level === "expired" || i.status.level === "alert"))
+            .reduce((acc, i) => acc + (Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0), 0);
+          const rondaAtrasada = !ultimaRonda || Date.now() - new Date(ultimaRonda).getTime() > 24 * 3600000;
+          const nOk = itensDoSetor.filter((i) => !i.semValidade).length - contagens.vencido - contagens.alerta;
+          return (
+            <PalcoPagina className="mb-4" titulo={setor} subtitulo={`${itensDoSetor.length} produto${itensDoSetor.length !== 1 ? "s" : ""}`}
+              acao={onCadastrarNoSetor ? (
+                <motion.button whileTap={{ scale: 0.9 }} onClick={() => onCadastrarNoSetor(setor)} aria-label="Cadastrar produto neste setor" className="h-11 w-11 rounded-full bg-white flex items-center justify-center shadow-md shrink-0" style={{ color: BLUE_DARK }}><Plus size={22} /></motion.button>
+              ) : <span className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,.15)" }}><IconeSetor size={22} color="#fff" /></span>}>
+              <div className="grid grid-cols-3 gap-2">
+                {[["Vencidos", contagens.vencido, "#E31E24"], ["Em alerta", contagens.alerta, "#F5A524"], ["Em dia", Math.max(0, nOk), "#34C77B"]].map(([rot, n, cor]) => (
+                  <div key={rot} className="rounded-2xl py-2.5 text-center" style={{ background: "rgba(255,255,255,.13)", border: "1px solid rgba(255,255,255,.2)" }}>
+                    <p className="text-[22px] font-extrabold leading-none tabular-nums">{n}</p>
+                    <p className="text-[10.5px] font-semibold text-white/85 mt-1.5 flex items-center justify-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: cor, boxShadow: `0 0 8px ${cor}` }} />{rot}</p>
+                  </div>
+                ))}
               </div>
-              {valorEmRisco > 0 && podeVerValores && (
-                <div className="text-right shrink-0">
-                  <p style={{ color: T.subtext }} className="text-[9.5px] font-semibold uppercase tracking-wide">Valor em risco</p>
-                  <p style={{ color: RED_DARK }} className="text-xs font-extrabold">{formatarMoeda(valorEmRisco)}</p>
+              <div className="mt-2.5 rounded-2xl px-3 py-2.5 flex items-center justify-between gap-3" style={{ background: "rgba(255,255,255,.13)", border: "1px solid rgba(255,255,255,.2)" }}>
+                <div className="min-w-0">
+                  <p className="text-[9.5px] font-bold uppercase tracking-[.12em] text-white/65">Última ronda</p>
+                  <p className="text-[13px] font-extrabold truncate" style={{ color: rondaAtrasada ? "#FFD27A" : "#fff" }}>{tempoDesde(ultimaRonda)}</p>
                 </div>
+                {valorEmRisco > 0 && podeVerValores && (
+                  <div className="text-right shrink-0">
+                    <p className="text-[9.5px] font-bold uppercase tracking-[.12em] text-white/65">Valor em risco</p>
+                    <p className="text-[13px] font-extrabold">{formatarMoeda(valorEmRisco)}</p>
+                  </div>
+                )}
+              </div>
+              {(parcialHoje || (concluidaHoje && !parcialHoje)) && (
+                <p className="text-[11px] font-semibold mt-2 text-white/85">
+                  {parcialHoje ? `Ronda parcial hoje — iniciada por ${parcialHoje.usuario || "alguém"}${parcialHoje.finalizadoPor && parcialHoje.finalizadoPor !== parcialHoje.usuario ? `, retomada por ${parcialHoje.finalizadoPor}` : ""}.`
+                    : `Ronda concluída hoje por ${concluidaHoje.finalizadoPor || concluidaHoje.usuario || "alguém"}.`}
+                </p>
               )}
-            </div>
-            {parcialHoje && (
-              <p style={{ color: "#C2760C", borderColor: T.border }} className="text-[10.5px] font-semibold mt-2 pt-2 border-t">
-                Ronda parcial hoje — iniciada por {parcialHoje.usuario || "alguém"}{parcialHoje.finalizadoPor && parcialHoje.finalizadoPor !== parcialHoje.usuario ? `, retomada por ${parcialHoje.finalizadoPor}` : ""}.
-              </p>
-            )}
-            {concluidaHoje && !parcialHoje && (
-              <p style={{ color: "#1F9D55", borderColor: T.border }} className="text-[10.5px] font-semibold mt-2 pt-2 border-t">
-                Ronda concluída hoje por {concluidaHoje.finalizadoPor || concluidaHoje.usuario || "alguém"}.
-              </p>
-            )}
-          </div>
-        );
-      })()}
+              {ehEncarregado && itensDoSetor.length > 0 && (
+                <motion.button whileTap={{ scale: 0.97 }} onClick={() => onIniciarRonda(setor)} className="mt-3 w-full bg-white rounded-2xl py-3 text-[13px] font-extrabold flex items-center justify-center gap-1.5 shadow-md" style={{ color: BLUE_DARK }}>
+                  <ShieldCheck size={16} /> Criar ronda deste setor
+                </motion.button>
+              )}
+            </PalcoPagina>
+          );
+        })()}
 
-      {ehEncarregado && itensDoSetor.length > 0 && (
-        <button onClick={() => onIniciarRonda(setor)} style={{ background: BLUE_SOFT, color: BLUE_DARK }}
-          className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold py-3 rounded-2xl mb-4">
-          <ShieldCheck size={16} /> Criar ronda deste setor
-        </button>
-      )}
-
-      </aside>
-      <section className="min-w-0">
-      <div className="relative mb-3">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" color={T.subtext} />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar produto ou código..."
-          style={{ background: T.card, color: T.text, borderColor: T.inputBorder }}
-          className="w-full rounded-2xl pl-9 pr-3 py-2.5 text-sm border outline-none focus:ring-2" />
-      </div>
-
-      <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3 no-scrollbar">
-        {[["todos", "Todos"], ["vencido", "Vencidos"], ["alerta", "Em alerta"]].map(([id, label]) => (
-          <button key={id} onClick={() => setStatusFiltro(id)}
-            style={statusFiltro === id ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }}
-            className="whitespace-nowrap text-[11px] font-medium px-3 py-1.5 rounded-full shrink-0">
-            {label}
-          </button>
-        ))}
-        {subsetoresDisponiveis.length > 0 && (
-          <select value={subsetorFiltro} onChange={(e) => setSubsetorFiltro(e.target.value)}
-            style={{ background: subsetorFiltro !== "todos" ? BLUE : T.chipBg, color: subsetorFiltro !== "todos" ? "#fff" : T.text }}
-            className="whitespace-nowrap text-[11px] font-medium px-3 py-1.5 rounded-full shrink-0 outline-none">
-            <option value="todos">Todos os subsetores</option>
-            {subsetoresDisponiveis.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        )}
-        <select value={ordenarPor} onChange={(e) => setOrdenarPor(e.target.value)}
-          style={{ background: T.chipBg, color: T.text }} className="whitespace-nowrap text-[11px] font-medium pl-2.5 pr-2 py-1.5 rounded-full shrink-0 outline-none flex items-center gap-1">
-          <option value="urgencia">Urgência</option>
-          <option value="nome">Nome</option>
-          <option value="valor">Maior valor</option>
-        </select>
-      </div>
-
-      {filtrados.length === 0 ? (
-        <p style={{ color: T.subtext }} className="text-xs text-center py-8">Nenhum produto encontrado com esse filtro.</p>
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2.5">
-          {agruparItensPorProduto(filtrados.filter((i) => !i.semValidade)).map((g, i) =>
-            g.unico ? (
-              <ItemCardGridSetor key={g.item.id} item={g.item} T={T} onOpenDetail={onOpenDetail} onLancarValidade={onLancarValidade} onExcluir={onExcluir} setItemParaExcluir={setItemParaExcluir} />
-            ) : (
-              <ItemCardGridAgrupado key={`grupo-${i}`} T={T} base={g.base} lotes={g.lotes} totalQuantidade={g.totalQuantidade} piorStatus={g.piorStatus} onOpenDetail={onOpenDetail} />
-            )
-          )}
-          {onLancarValidade && filtrados.filter((i) => i.semValidade).map((item) => (
-            <ItemCardGridSetor key={item.id} item={item} T={T} onOpenDetail={onOpenDetail} onLancarValidade={onLancarValidade} onExcluir={onExcluir} setItemParaExcluir={setItemParaExcluir} />
-          ))}
+        <div className="relative mb-3">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2" color={T.subtext} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar produto ou código..."
+            style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full rounded-full pl-11 pr-4 py-3 text-sm border outline-none focus:ring-2 shadow-sm" />
         </div>
-      )}
-      </section>
+        <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3 no-scrollbar">
+          {[["todos", "Todos"], ["vencido", "Vencidos"], ["alerta", "Em alerta"]].map(([id, label]) => (
+            <button key={id} onClick={() => setStatusFiltro(id)} style={statusFiltro === id ? { background: BLUE_DARK, color: "#fff" } : { background: T.card, color: T.text }}
+              className="whitespace-nowrap text-xs font-bold px-4 py-2 rounded-full shrink-0 shadow-sm">{label}</button>
+          ))}
+          {subsetoresDisponiveis.length > 0 && (
+            <select value={subsetorFiltro} onChange={(e) => setSubsetorFiltro(e.target.value)} style={{ background: subsetorFiltro !== "todos" ? BLUE_DARK : T.card, color: subsetorFiltro !== "todos" ? "#fff" : T.text }}
+              className="whitespace-nowrap text-xs font-bold px-3 py-2 rounded-full shrink-0 outline-none shadow-sm">
+              <option value="todos">Todos os subsetores</option>
+              {subsetoresDisponiveis.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+          )}
+          <select value={ordenarPor} onChange={(e) => setOrdenarPor(e.target.value)} style={{ background: T.card, color: T.text }} className="whitespace-nowrap text-xs font-bold px-3 py-2 rounded-full shrink-0 outline-none shadow-sm">
+            <option value="urgencia">Urgência</option><option value="nome">Nome</option><option value="valor">Maior valor</option>
+          </select>
+        </div>
+
+        {filtrados.length === 0 ? (
+          <p style={{ color: T.subtext }} className="text-sm text-center py-10">Nenhum produto encontrado com esse filtro.</p>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {agruparItensPorProduto(filtrados.filter((i) => !i.semValidade)).map((g, i) => (
+              <LinhaProduto key={g.unico ? g.item.id : `grupo-${i}`} T={T} idx={i} podeVerValores={podeVerValores}
+                item={g.unico ? g.item : g.base} lotes={g.unico ? null : g.lotes} totalQuantidade={g.totalQuantidade} piorStatus={g.unico ? g.item.status : g.piorStatus}
+                onOpenDetail={onOpenDetail} onExcluir={g.unico && onExcluir ? () => setItemParaExcluir(g.item) : null} />
+            ))}
+            {onLancarValidade && filtrados.filter((i) => i.semValidade).map((item, i) => (
+              <LinhaProduto key={item.id} T={T} idx={i} item={item} semValidade onOpenDetail={() => onLancarValidade(item)} />
+            ))}
+          </div>
+        )}
       </div>
 
       {itemParaExcluir && (
@@ -6298,7 +6323,7 @@ function BottomNav({ T, tab, setTab, alertCount, onScan }) {
     );
   };
   return (
-    <nav className="lg:hidden fixed inset-x-0 bottom-0 z-20 pointer-events-none px-3 pb-[calc(env(safe-area-inset-bottom)+10px)]" style={{ transform: "translateZ(0)", willChange: "transform" }}>
+    <nav className="lg:hidden fixed inset-x-0 bottom-0 z-20 pointer-events-none px-3 pb-[calc(env(safe-area-inset-bottom)*0.4+6px)]" style={{ transform: "translateZ(0)", willChange: "transform" }}>
       <motion.div initial={{ y: 90, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 26 }}
         className="pointer-events-auto max-w-md mx-auto relative flex items-center rounded-[32px] px-1.5 h-[68px]"
         style={{
@@ -7051,11 +7076,14 @@ function ProdutosDashboard({ T, items, historico, search, setSearch, filtroSetor
 }
 
 function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFiltroSetor, ordenarPor, setOrdenarPor, modoVisual, setModoVisual, onScan, onCadastrar, onOpenDetail, onVerPrioridades, comPalco, nomeUsuario, lojaNumero, notifPermission, onToggleNotif, dark, onTema }) {
+  const podeVerValores = useValoresVisiveis();
   const enriched = items.map((it) => ({ ...it, status: getStatus(it) }));
   // Item 2: perecíveis e os demais setores nunca aparecem misturados
   const [categoriaFiltro, setCategoriaFiltro] = useState("todos"); // todos | pereciveis | outros
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [modoEmergencia, setModoEmergencia] = useState(false);
+  const [statusFiltro, setStatusFiltro] = useState("todos"); // todos | vencido | alerta | ok
+  const [trocaFiltro, setTrocaFiltro] = useState("todas"); // todas | sem_troca | com_troca | nao_informado
 
   // Modo emergência: o valor em risco e os contadores passam a considerar só o que vence em até 2 dias (ou já venceu).
   const baseNumeros = modoEmergencia ? enriched.filter((i) => i.status.d <= 2) : enriched;
@@ -7093,16 +7121,22 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
 
   const itensNaCategoria = items.filter((i) => categoriaFiltro === "todos" || (categoriaFiltro === "pereciveis" ? ehPerecivel(i.setor) : !ehPerecivel(i.setor)));
   const setoresDisponiveis = ["Todos", ...Array.from(new Set(itensNaCategoria.map((i) => i.setor)))];
-  const filtrosAtivos = (categoriaFiltro !== "todos" ? 1 : 0) + (filtroSetor !== "Todos" ? 1 : 0) + (ordenarPor !== "urgencia" ? 1 : 0);
-
-  let filtrados = enriched.filter((i) => {
+  const filtrosAtivos = (categoriaFiltro !== "todos" ? 1 : 0) + (filtroSetor !== "Todos" ? 1 : 0) + (ordenarPor !== "urgencia" ? 1 : 0) + (trocaFiltro !== "todas" ? 1 : 0);
+  const politicaDe = (i) => (i.politicaTroca === "sem_troca" || i.politicaTroca === "com_troca" ? i.politicaTroca : "nao_informado");
+  const nivelDe = (i) => (i.status.level === "expired" ? "vencido" : i.status.level === "alert" ? "alerta" : "ok");
+  const passaBase = (i) => {
     if (categoriaFiltro === "pereciveis" && !ehPerecivel(i.setor)) return false;
     if (categoriaFiltro === "outros" && ehPerecivel(i.setor)) return false;
     if (modoEmergencia && i.status.d > 2) return false;
-    const matchSearch = interpretarBusca(search, i);
-    const matchSetor = filtroSetor === "Todos" || i.setor === filtroSetor;
-    return matchSearch && matchSetor;
-  });
+    if (filtroSetor !== "Todos" && i.setor !== filtroSetor) return false;
+    if (trocaFiltro !== "todas" && politicaDe(i) !== trocaFiltro) return false;
+    try { return interpretarBusca(search, i); } catch { return true; }
+  };
+  const baseLista = enriched.filter(passaBase);
+  const contagemStatus = { todos: baseLista.length, vencido: baseLista.filter((i) => nivelDe(i) === "vencido").length, alerta: baseLista.filter((i) => nivelDe(i) === "alerta").length, ok: baseLista.filter((i) => nivelDe(i) === "ok").length };
+  const limparFiltros = () => { setCategoriaFiltro("todos"); setFiltroSetor("Todos"); setOrdenarPor("urgencia"); setTrocaFiltro("todas"); setStatusFiltro("todos"); };
+
+  let filtrados = baseLista.filter((i) => statusFiltro === "todos" || nivelDe(i) === statusFiltro);
 
   filtrados = filtrados.sort((a, b) => {
     if (ordenarPor === "urgencia") return a.status.d - b.status.d;
@@ -7161,99 +7195,76 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
       )}
 
       <section className="min-w-0">
-      <div className="flex gap-2 mb-4 lg:justify-end">
-        <div className="flex-1 relative lg:hidden">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" color={T.subtext} />
-          <input value={search} onChange={(e) => setSearch(sanitizarTexto(e.target.value, 80))} placeholder="Buscar produto ou código..."
-            style={{ background: T.card, color: T.text, borderColor: T.inputBorder }}
-            className="w-full rounded-2xl pl-9 pr-3 py-2.5 text-sm border outline-none focus:ring-2" />
+      {/* Busca + filtros: tudo numa faixa só, com contagem ao vivo */}
+      <div className="flex gap-2 mb-3">
+        <div className="flex-1 relative">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2" color={T.subtext} />
+          <input value={search} onChange={(e) => setSearch(sanitizarTexto(e.target.value, 80))} placeholder="Buscar produto ou código..." enterKeyHint="search"
+            style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full rounded-full pl-11 pr-10 py-3 text-sm border outline-none focus:ring-2 shadow-sm" />
+          {search && <button onClick={() => setSearch("")} aria-label="Limpar busca" style={{ background: T.chipBg }} className="absolute right-2.5 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full flex items-center justify-center"><CloseIcon size={12} color={T.subtext} /></button>}
         </div>
-        <button onClick={() => setFiltrosAbertos(true)} style={{ background: T.card, borderColor: T.border, color: T.text }}
-          className="h-[42px] px-3 rounded-2xl border flex items-center justify-center gap-1.5 shrink-0 relative">
-          <SlidersHorizontal size={16} />
-          {filtrosAtivos > 0 && (
-            <span style={{ background: RED }} className="absolute -top-1.5 -right-1.5 text-[9px] text-white font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">{filtrosAtivos}</span>
-          )}
-        </button>
-        <button onClick={() => setModoVisual(modoVisual === "lista" ? "grade" : "lista")}
-          style={{ background: T.card, borderColor: T.border, color: T.text }}
-          className="h-[42px] w-[42px] rounded-2xl border flex items-center justify-center shrink-0">
+        <motion.button whileTap={{ scale: 0.92 }} onClick={() => setFiltrosAbertos(true)} aria-label="Filtros" style={{ background: filtrosAtivos > 0 ? BLUE_DARK : T.card, color: filtrosAtivos > 0 ? "#fff" : T.text }}
+          className="h-[46px] w-[46px] rounded-full flex items-center justify-center shrink-0 relative shadow-sm">
+          <SlidersHorizontal size={17} />
+          {filtrosAtivos > 0 && <span style={{ background: RED }} className="absolute -top-1 -right-1 text-[9px] text-white font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">{filtrosAtivos}</span>}
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.92 }} onClick={() => setModoVisual(modoVisual === "lista" ? "grade" : "lista")} aria-label="Trocar lista e grade"
+          style={{ background: T.card, color: T.text }} className="h-[46px] w-[46px] rounded-full flex items-center justify-center shrink-0 shadow-sm">
           {modoVisual === "lista" ? <LayoutGrid size={17} /> : <ListIcon size={17} />}
-        </button>
+        </motion.button>
       </div>
 
-      {(categoriaFiltro !== "todos" || filtroSetor !== "Todos") && (
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 mb-3">
+        {[["todos", "Todos", T.text], ["vencido", "Vencidos", "#E31E24"], ["alerta", "Em alerta", "#E0921C"], ["ok", "Em dia", "#1F9D55"]].map(([id, rot, cor]) => {
+          const ativo = statusFiltro === id;
+          return (
+            <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => setStatusFiltro(id)} aria-pressed={ativo}
+              style={ativo ? { background: BLUE_DARK, color: "#fff" } : { background: T.card, color: T.text }} className="shrink-0 rounded-full pl-3 pr-2.5 py-2 text-xs font-bold flex items-center gap-1.5 shadow-sm">
+              {id !== "todos" && <span className="h-2 w-2 rounded-full" style={{ background: cor }} />}{rot}
+              <span style={ativo ? { background: "rgba(255,255,255,.22)", color: "#fff" } : { background: T.chipBg, color: T.subtext }} className="text-[10.5px] font-bold rounded-full px-1.5 min-w-[20px] text-center tabular-nums">{contagemStatus[id]}</span>
+            </motion.button>
+          );
+        })}
+      </div>
+
+      {(categoriaFiltro !== "todos" || filtroSetor !== "Todos" || trocaFiltro !== "todas" || ordenarPor !== "urgencia") && (
         <div className="flex items-center gap-1.5 flex-wrap mb-3">
-          {categoriaFiltro !== "todos" && (
-            <span style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[11px] font-medium px-2.5 py-1 rounded-full">
-              {categoriaFiltro === "pereciveis" ? "🥬 Perecíveis" : "📦 Outros setores"}
-            </span>
-          )}
-          {filtroSetor !== "Todos" && (
-            <span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-medium px-2.5 py-1 rounded-full">{filtroSetor}</span>
-          )}
-          <button onClick={() => { setCategoriaFiltro("todos"); setFiltroSetor("Todos"); }} style={{ color: T.subtext }} className="text-[11px] font-medium underline">Limpar</button>
+          {categoriaFiltro !== "todos" && <FichaFiltro onRemove={() => setCategoriaFiltro("todos")}>{categoriaFiltro === "pereciveis" ? "Perecíveis" : "Outros setores"}</FichaFiltro>}
+          {filtroSetor !== "Todos" && <FichaFiltro onRemove={() => setFiltroSetor("Todos")}>{filtroSetor}</FichaFiltro>}
+          {trocaFiltro !== "todas" && <FichaFiltro onRemove={() => setTrocaFiltro("todas")}>{trocaFiltro === "sem_troca" ? "Sem troca" : trocaFiltro === "com_troca" ? "Com troca" : "Troca não informada"}</FichaFiltro>}
+          {ordenarPor !== "urgencia" && <FichaFiltro onRemove={() => setOrdenarPor("urgencia")}>Ordem: {{ nome: "nome", setor: "setor", validade: "validade distante" }[ordenarPor]}</FichaFiltro>}
+          <button onClick={limparFiltros} style={{ color: T.subtext }} className="text-[11.5px] font-bold underline px-1">Limpar tudo</button>
         </div>
       )}
 
-      {filtrosAbertos && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
-          <div onClick={() => setFiltrosAbertos(false)} className="absolute inset-0 bg-black/50" />
-          <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 max-h-[85vh] overflow-y-auto sm:rounded-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-base">Filtros</h3>
-              <button onClick={() => setFiltrosAbertos(false)} style={{ background: T.chipBg }} className="h-8 w-8 rounded-full flex items-center justify-center"><CloseIcon size={15} color={T.text} /></button>
-            </div>
-
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold uppercase tracking-wide mb-2">Categoria</p>
-            <div className="grid grid-cols-3 gap-1.5 mb-4">
-              {[["todos", "Todos"], ["pereciveis", "🥬 Perecíveis"], ["outros", "📦 Outros"]].map(([id, label]) => (
-                <button key={id} onClick={() => { setCategoriaFiltro(id); setFiltroSetor("Todos"); }}
-                  style={categoriaFiltro === id ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }}
-                  className="text-[11px] font-semibold py-2.5 rounded-xl">
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <p style={{ color: T.subtext }} className="text-[11px] font-semibold uppercase tracking-wide mb-2">Ordenar por</p>
-            <div className="flex gap-1.5 flex-wrap mb-4">
-              {[["urgencia", "Urgência"], ["nome", "Nome"], ["setor", "Setor"], ["validade", "Validade distante"]].map(([id, label]) => (
-                <button key={id} onClick={() => setOrdenarPor(id)}
-                  style={ordenarPor === id ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }}
-                  className="text-[11px] font-medium px-3 py-2 rounded-full">
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {setoresDisponiveis.length > 1 && (
-              <>
-                <p style={{ color: T.subtext }} className="text-[11px] font-semibold uppercase tracking-wide mb-2">Setor</p>
-                <div className="flex gap-1.5 flex-wrap mb-4">
-                  {setoresDisponiveis.map((s) => (
-                    <button key={s} onClick={() => setFiltroSetor(s)}
-                      style={filtroSetor === s ? { background: RED, color: "#fff" } : { background: T.chipBg, color: T.text }}
-                      className="text-[11px] font-medium px-3 py-2 rounded-full">
-                      {s}
-                    </button>
-                  ))}
+      {createPortal(<AnimatePresence>
+        {filtrosAbertos && (
+          <motion.div className="fixed inset-0 z-[60] flex items-end justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div onClick={() => setFiltrosAbertos(false)} className="absolute inset-0 bg-black/55" />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 380, damping: 38 }}
+              style={{ background: T.card }} className="relative w-full max-w-md rounded-t-[30px] flex flex-col max-h-[calc(100dvh-env(safe-area-inset-top)-1rem)] overflow-hidden">
+              <div style={{ background: FUNDO_MARCA }} className="relative shrink-0 px-5 pt-3 pb-4 text-white">
+                <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+                <div className="relative mx-auto h-1 w-10 rounded-full bg-white/40 mb-3" />
+                <div className="relative flex items-center justify-between">
+                  <div><h3 className="font-extrabold text-[18px] leading-tight">Filtros</h3><p className="text-[12px] text-white/75">{filtrados.length} produto{filtrados.length !== 1 ? "s" : ""} com a seleção atual</p></div>
+                  <button onClick={() => setFiltrosAbertos(false)} aria-label="Fechar" className="h-9 w-9 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,.18)" }}><CloseIcon size={16} color="#fff" /></button>
                 </div>
-              </>
-            )}
-
-            <div className="flex gap-2 mt-2">
-              <button onClick={() => { setCategoriaFiltro("todos"); setFiltroSetor("Todos"); setOrdenarPor("urgencia"); }}
-                style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-3 rounded-2xl border">
-                Limpar tudo
-              </button>
-              <button onClick={() => setFiltrosAbertos(false)} style={{ background: BLUE, color: "#fff" }} className="flex-[2] text-sm font-semibold py-3 rounded-2xl">
-                Ver resultados
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pt-4">
+                <GrupoFiltro T={T} titulo="Categoria" opcoes={[["todos", "Todos"], ["pereciveis", "Perecíveis"], ["outros", "Outros setores"]]} valor={categoriaFiltro} onChange={(v) => { setCategoriaFiltro(v); setFiltroSetor("Todos"); }} />
+                {setoresDisponiveis.length > 1 && <GrupoFiltro T={T} titulo="Setor" opcoes={setoresDisponiveis.map((x) => [x, x])} valor={filtroSetor} onChange={setFiltroSetor} />}
+                <GrupoFiltro T={T} titulo="Política de troca" opcoes={[["todas", "Todas"], ["sem_troca", "Sem troca"], ["com_troca", "Com troca"], ["nao_informado", "Não informada"]]} valor={trocaFiltro} onChange={setTrocaFiltro} />
+                <GrupoFiltro T={T} titulo="Ordenar por" opcoes={[["urgencia", "Urgência"], ["nome", "Nome"], ["setor", "Setor"], ["validade", "Validade distante"]]} valor={ordenarPor} onChange={setOrdenarPor} />
+              </div>
+              <div style={{ borderColor: T.border }} className="shrink-0 flex gap-2 px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t">
+                <button onClick={limparFiltros} style={{ background: T.chipBg, color: T.text }} className="flex-1 text-sm font-bold py-3.5 rounded-2xl">Limpar</button>
+                <button onClick={() => setFiltrosAbertos(false)} style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)`, color: "#fff" }} className="flex-[2] text-sm font-extrabold py-3.5 rounded-2xl">Ver {filtrados.length} produto{filtrados.length !== 1 ? "s" : ""}</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>, document.body)}
 
       {filtrados.length === 0 ? (
         <EmptyState T={T} hasItems={items.length > 0} />
@@ -7264,11 +7275,10 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
           </div>
           {modoVisual === "lista" ? (
             <div className="flex flex-col gap-2.5 xl:grid xl:grid-cols-2 2xl:grid-cols-3 xl:items-start">
-              {agruparItensPorProduto(filtrados).map((g, i) =>
-                g.unico
-                  ? <ItemCard key={g.item.id} T={T} item={g.item} onOpenDetail={onOpenDetail} />
-                  : <ItemCardAgrupado key={`grupo-${i}`} T={T} base={g.base} lotes={g.lotes} totalQuantidade={g.totalQuantidade} piorStatus={g.piorStatus} onOpenDetail={onOpenDetail} />
-              )}
+              {agruparItensPorProduto(filtrados).map((g, i) => (
+                <LinhaProduto key={g.unico ? g.item.id : `grupo-${i}`} T={T} idx={i} mostrarSetor podeVerValores={podeVerValores}
+                  item={g.unico ? g.item : g.base} lotes={g.unico ? null : g.lotes} totalQuantidade={g.totalQuantidade} piorStatus={g.unico ? g.item.status : g.piorStatus} onOpenDetail={onOpenDetail} />
+              ))}
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5">
@@ -7278,6 +7288,28 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
         </>
       )}
       </section>
+      </div>
+    </div>
+  );
+}
+
+function FichaFiltro({ children, onRemove }) {
+  return (
+    <span style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[11.5px] font-bold pl-2.5 pr-1.5 py-1 rounded-full flex items-center gap-1">
+      {children}
+      <button onClick={onRemove} aria-label="Remover filtro" className="h-4 w-4 rounded-full flex items-center justify-center" style={{ background: "rgba(11,79,158,.15)" }}><CloseIcon size={9} color={BLUE_DARK} /></button>
+    </span>
+  );
+}
+function GrupoFiltro({ T, titulo, opcoes, valor, onChange }) {
+  return (
+    <div className="mb-5">
+      <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-[.1em] mb-2">{titulo}</p>
+      <div className="flex gap-1.5 flex-wrap">
+        {opcoes.map(([id, rot]) => (
+          <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => onChange(id)} aria-pressed={valor === id}
+            style={valor === id ? { background: BLUE_DARK, color: "#fff" } : { background: T.chipBg, color: T.text }} className="text-[12.5px] font-bold px-3.5 py-2 rounded-full">{rot}</motion.button>
+        ))}
       </div>
     </div>
   );
@@ -7468,16 +7500,16 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
     <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
       <div onClick={onClose} className="absolute inset-0 bg-black/50" />
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 380, damping: 38 }}
-        style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-xl lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[28px] overflow-hidden max-h-[88vh] overflow-y-auto sm:rounded-[28px]">
-        <div className="relative">
-          {item.foto ? <img src={item.foto} alt="" className="w-full h-44 object-cover" /> : (
-            <div style={{ background: FUNDO_MARCA }} className="relative w-full h-36 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={44} color="#fff" className="relative opacity-90" /></div>
+        style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-xl lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[30px] overflow-hidden flex flex-col max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:max-h-[90vh] sm:rounded-[30px]">
+        <div className="relative shrink-0">
+          {item.foto ? <img src={item.foto} alt="" className="w-full h-36 object-cover" /> : (
+            <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={44} color="#fff" className="relative opacity-90" /></div>
           )}
-          <button onClick={onClose} className="absolute top-3 left-3 h-9 w-9 rounded-full bg-black/40 flex items-center justify-center"><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
-          <span style={{ background: s.bg, color: s.fg }} className="absolute bottom-3 left-4 text-[11px] font-bold px-2.5 py-1 rounded-lg">{status.label}</span>
+          <button onClick={onClose} aria-label="Fechar" className="absolute top-3 left-3 h-10 w-10 rounded-full flex items-center justify-center text-white" style={{ background: "rgba(255,255,255,.2)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.3)" }}><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
+          <span style={{ background: s.bg, color: s.fg }} className="absolute bottom-3 left-4 text-[11px] font-bold px-3 py-1 rounded-full shadow-md">{status.label}</span>
         </div>
 
-        <div className="p-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4">
           <h2 className="font-bold text-lg leading-tight">{item.nome}</h2>
           <p style={{ color: T.subtext }} className="text-sm font-medium mt-0.5">{diasTexto}{item.tamanho ? ` · ${item.tamanho}${item.unidadeMedida || ""}` : ""}</p>
 
@@ -7603,9 +7635,11 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             </div>
           )}
 
+        </div>
+        <div style={{ borderColor: T.border, background: T.card }} className="shrink-0 max-h-[55%] overflow-y-auto px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t">
           <motion.button whileTap={{ scale: 0.98 }} onClick={() => setConfirmandoBaixa(true)}
             style={{ background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)` }}
-            className="w-full mt-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-red-900/20">
+            className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-red-900/20">
             <PackageX className="w-5 h-5 text-white" />
             <span className="text-white font-bold text-sm">Registrar ação</span>
           </motion.button>
@@ -7669,7 +7703,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
     {confirmandoBaixa && (
       <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
         <div onClick={() => { setConfirmandoBaixa(false); setSubEtapa(null); }} className="absolute inset-0 bg-black/60" />
-        <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 sm:rounded-2xl sm:max-h-[90vh] sm:overflow-y-auto">
+        <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[28px] p-5 pb-[calc(1.75rem+env(safe-area-inset-bottom))] max-h-[90dvh] overflow-y-auto sm:rounded-2xl">
           <div className="flex items-center gap-2.5 mb-4">
             <div style={{ background: RED_SOFT }} className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"><PackageX size={18} color={RED_DARK} /></div>
             <div className="min-w-0">
@@ -9405,7 +9439,7 @@ function SelecionarSecoesRelatorioSheet({ T, secoesDisponiveis, selecionadas, on
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
       <div onClick={onFechar} className="absolute inset-0 bg-black/60" />
-      <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-2xl p-5 pb-7 max-h-[85vh] overflow-y-auto sm:rounded-2xl">
+      <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[28px] p-5 pb-[calc(1.75rem+env(safe-area-inset-bottom))] max-h-[88dvh] overflow-y-auto sm:rounded-2xl">
         <h3 className="font-bold text-sm mb-1">O que entra no relatório?</h3>
         <p style={{ color: T.subtext }} className="text-[11px] mb-3">O resumo geral (KPIs e perdas do mês) sempre entra. Escolha as seções extras:</p>
 
