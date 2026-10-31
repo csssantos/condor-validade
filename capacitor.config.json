@@ -1,0 +1,6 @@
+{
+  "appId": "br.com.condor.validade",
+  "appName": "Condor Validade",
+  "webDir": "dist",
+  "android": { "allowMixedContent": false }
+}
