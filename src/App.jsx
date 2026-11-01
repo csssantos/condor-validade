@@ -340,7 +340,7 @@ function historicoFromRow(r) {
     id: r.id, barcode: r.barcode, nome: r.nome, setor: r.setor, foto: r.foto,
     quantidade: r.quantidade, precoUnitario: Number(r.preco_unitario) || 0, porPeso: !!r.por_peso,
     validade: r.validade, motivo: r.motivo, dataBaixa: r.data_baixa, registradoPor: r.registrado_por || null,
-    vencidoAntes: !!r.vencido_antes
+    vencidoAntes: !!r.vencido_antes, lote: r.lote || null, semLote: !!r.sem_lote
   };
 }
 
@@ -429,9 +429,15 @@ async function supaInserirHistorico(registro) {
     barcode: registro.barcode, loja_id: LOJA_ID_ATIVA, nome: registro.nome, setor: registro.setor, foto: registro.foto,
     quantidade: registro.quantidade || 1, preco_unitario: registro.precoUnitario || 0, por_peso: !!registro.porPeso,
     validade: registro.validade, motivo: registro.motivo, registrado_por: registro.registradoPor || null,
-    vencido_antes: !!registro.vencidoAntes
+    vencido_antes: !!registro.vencidoAntes, lote: registro.lote || null, sem_lote: !registro.lote && !!registro.semLote
   });
-  if (error) console.error("Erro ao registrar histórico no Supabase:", error);
+  if (error && /lote/i.test(error.message || "")) { // banco ainda sem a coluna de lote no histórico: grava sem ela
+    await supabase.from("historico").insert({
+      barcode: registro.barcode, loja_id: LOJA_ID_ATIVA, nome: registro.nome, setor: registro.setor, foto: registro.foto,
+      quantidade: registro.quantidade || 1, preco_unitario: registro.precoUnitario || 0, por_peso: !!registro.porPeso,
+      validade: registro.validade, motivo: registro.motivo, registrado_por: registro.registradoPor || null, vencido_antes: !!registro.vencidoAntes
+    });
+  } else if (error) console.error("Erro ao registrar histórico no Supabase:", error);
 }
 
 // Item 37: trilha de auditoria — nunca bloqueia a ação principal se falhar (fire-and-forget)
@@ -1219,6 +1225,9 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
+// Texto do lote para telas e relatórios: "L123" / "Sem lote" / "" (cadastro antigo, anterior ao lote real)
+const textoLote = (x) => (x && x.lote ? x.lote : x && x.semLote ? "Sem lote" : "");
 
 // Lote que já existe: só soma quantidade, no máximo metade do que já tem (mínimo 10 un) por vez
 const limiteSomaLote = (q) => Math.max(10, Math.ceil((Number(q) || 0) * 0.5));
@@ -2179,7 +2188,7 @@ function AppInner() {
 
   async function compartilharItem(item) {
     const st = getStatus(item);
-    const texto = `${item.nome}\nSetor: ${item.setor}\nCódigo: ${item.barcode}\nValidade: ${formatarData(item.validade)} (${st.label})`;
+    const texto = `${item.nome}\nSetor: ${item.setor}\nCódigo: ${item.barcode}\nValidade: ${formatarData(item.validade)} (${st.label})${textoLote(item) ? `\nLote: ${textoLote(item)}` : ""}`;
     if (navigator.share) {
       try { await navigator.share({ title: "Condor · Alerta de Validade", text: texto }); return; } catch {}
     }
@@ -2600,6 +2609,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Lote na ronda e nos relatórios: ao conferir um produto na ronda você informa a validade e o lote de cada lote encontrado (o app mostra os lotes cadastrados e avisa se algum não bate). Os relatórios (itens próximos a vencer, financeiro, prioridades, histórico de baixas) agora trazem a coluna Lote." },
     { tipo: "alterado", ate: 7, texto: "Lote que já existe: se você lançar o mesmo lote de um produto (com a mesma validade), o app não cria outro, só soma a quantidade ao lote. Por segurança, cada soma tem limite (até metade do que o lote já tem, no mínimo 10 un). Vale no app e no Telegram." },
     { tipo: "adicionado", ate: 7, texto: "Lote real: ao lançar uma validade (no app ou no Telegram) você informa o número do lote impresso na embalagem, ou marca que não tem lote. O app mostra os lotes já lançados do produto e cria um lote novo quando o número é diferente. O lote aparece no detalhe do produto e nas listas." },
     { tipo: "adicionado", ate: 5, texto: "Aprovar produtos novos: produto que não existe na loja e foi lançado pelo Telegram agora espera a aprovação de um encarregado ou superior (Mais → Aprovar produtos novos). Você edita nome, setor e imagem, aprova (cadastra o produto e lança a validade) ou recusa com motivo. A validade lançada não muda." },
@@ -3663,6 +3673,8 @@ function erroRonda(error) {
     ["item_fora_da_ronda", "Esse produto não faz parte desta ronda."],
     ["validade_obrigatoria", "Informe a validade encontrada."],
     ["validade_incompativel", "A validade informada já venceu. Marque como Irregular."],
+    ["lote_invalido", "Lote inválido. Use letras, números, ponto, barra ou traço (até 20)."],
+    ["lotes_demais", "Lotes demais em uma conferência (máximo 10)."],
     ["irregular_exige_obs", "Para marcar como irregular, escreva uma observação ou anexe uma foto."],
     ["motivo_obrigatorio", "Informe o motivo."],
     ["justificativa_obrigatoria", "Escreva a justificativa da reprovação."],
@@ -3879,7 +3891,12 @@ const casca = "fixed inset-0 z-50 flex flex-col lg:inset-y-8 lg:left-1/2 lg:righ
 
 // ---------- sheet de conferência de UM produto (a leitura do código nunca aprova sozinha) ----------
 function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
-  const [lotes, setLotes] = useState([{ validade: item.validade_encontrada || "" }]);
+  const cadastrados = Array.isArray(item.lotes_cadastrados) ? item.lotes_cadastrados : [];
+  const [lotes, setLotes] = useState(() => (Array.isArray(item.lotes) && item.lotes.length > 0
+    ? item.lotes.map((l) => ({ validade: l.validade || "", lote: l.lote || "" }))
+    : [{ validade: item.validade_encontrada || "", lote: "" }]));
+  const loteOkRonda = (l) => !l.lote || /^[A-Z0-9][A-Z0-9./ -]{0,19}$/.test(l.lote);
+  const lotesValidos = lotes.every(loteOkRonda);
   const [resultado, setResultado] = useState(item.resultado !== "pendente" ? item.resultado : "");
   const [obs, setObs] = useState(item.observacao || "");
   const [foto, setFoto] = useState(null);
@@ -3888,7 +3905,7 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
   const menor = validades.length ? [...validades].sort()[0] : "";
   const hoje = new Date().toISOString().slice(0, 10);
   const vencida = !!menor && menor < hoje;
-  const podeOk = !!menor && !vencida;
+  const podeOk = !!menor && !vencida && lotesValidos;
   const obsOuFoto = obs.trim().length > 0 || !!foto;
   const pronto = resultado === "irregular" ? obsOuFoto : (resultado === "ok" || resultado === "atencao") ? podeOk : false;
   async function pegarFoto(e) {
@@ -3897,7 +3914,7 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
   }
   async function confirmar() {
     setEnviando(true);
-    await onConfirmar({ resultado, validade: menor || null, lotes: validades.length > 1 ? validades.map((v) => ({ validade: v })) : null, obs: obs.trim() || null, foto, corrigir });
+    await onConfirmar({ resultado, validade: menor || null, lotes: lotes.filter((l) => l.validade).map((l) => ({ validade: l.validade, ...(l.lote ? { lote: l.lote.trim() } : {}) })), obs: obs.trim() || null, foto, corrigir });
     setEnviando(false);
   }
   const campo = { background: T.inputBg, color: T.text, borderColor: T.inputBorder };
@@ -3908,6 +3925,7 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
           <Thumb foto={item.foto} size={52} />
           <div className="text-[12px]" style={{ color: T.subtext }}>
             <p>Validade no cadastro: <b style={{ color: T.text }}>{item.validade_cadastrada ? formatarData(item.validade_cadastrada) : "não informada"}</b></p>
+            {cadastrados.length > 0 && <p className="mt-0.5">No cadastro: <b style={{ color: T.text }}>{cadastrados.slice(0, 4).map((c) => `${c.lote ? "Lote " + c.lote : "Sem lote"} (${formatarData(c.validade)} · ${c.quantidade} un)`).join(" · ")}{cadastrados.length > 4 ? " …" : ""}</b></p>}
             {corrigir && <p style={{ color: "#C2760C" }} className="font-semibold mt-0.5">Correção: a conferência anterior fica guardada no histórico.</p>}
           </div>
         </div>
@@ -3915,12 +3933,24 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
           <div className="flex flex-col gap-2">
             {lotes.map((l, i) => (
               <div key={i} className="flex items-center gap-2">
-                <input type="date" value={l.validade} onChange={(e) => setLotes((p) => p.map((x, j) => (j === i ? { validade: e.target.value } : x)))} style={campo} className="flex-1 border rounded-xl px-3 py-2.5 text-sm outline-none" />
+                <input type="date" value={l.validade} onChange={(e) => setLotes((p) => p.map((x, j) => (j === i ? { ...x, validade: e.target.value } : x)))} style={campo} className="flex-1 min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none" />
+                <input type="text" value={l.lote} maxLength={20} list="lotes-cadastrados-ronda" placeholder="Lote" autoCapitalize="characters"
+                  onChange={(e) => setLotes((p) => p.map((x, j) => (j === i ? { ...x, lote: e.target.value.toUpperCase() } : x)))}
+                  style={{ ...campo, borderColor: loteOkRonda(l) ? campo.borderColor : RED }} className="w-[7.5rem] border rounded-xl px-3 py-2.5 text-sm outline-none uppercase" />
                 {lotes.length > 1 && <button onClick={() => setLotes((p) => p.filter((_, j) => j !== i))} style={{ background: T.chipBg, color: T.subtext }} className="h-10 w-10 rounded-xl flex items-center justify-center"><X size={15} /></button>}
               </div>
             ))}
-            {lotes.length < 5 && <button onClick={() => setLotes((p) => [...p, { validade: "" }])} style={{ color: BLUE }} className="text-xs font-semibold text-left">+ outro lote / outra data</button>}
+            {lotes.length < 5 && <button onClick={() => setLotes((p) => [...p, { validade: "", lote: "" }])} style={{ color: BLUE }} className="text-xs font-semibold text-left">+ outro lote / outra data</button>}
           </div>
+          <datalist id="lotes-cadastrados-ronda">{cadastrados.filter((c) => c.lote).map((c) => <option key={c.lote} value={c.lote} />)}</datalist>
+          {!lotesValidos && <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">Lote inválido: use letras, números, ponto, barra ou traço (até 20).</p>}
+          {lotes.map((l, i) => {
+            if (!l.lote || !loteOkRonda(l) || !cadastrados.length) return null;
+            const c = cadastrados.find((x) => x.lote === l.lote);
+            if (!c) return <p key={i} style={{ color: "#C2760C" }} className="text-[11px] font-semibold mt-1.5">Lote {l.lote} não está lançado nesse produto. Se for lote novo, lance a validade depois da ronda.</p>;
+            if (l.validade && c.validade && l.validade !== c.validade) return <p key={i} style={{ color: "#C2760C" }} className="text-[11px] font-semibold mt-1.5">O lote {l.lote} está cadastrado com validade {formatarData(c.validade)}.</p>;
+            return null;
+          })}
           {vencida && <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">Essa data já passou: esse produto só pode ser marcado como Irregular.</p>}
         </GestaoCampo>
         <GestaoCampo T={T} label="Resultado da conferência">
@@ -3994,7 +4024,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
     if (encerrada) { showToast("Essa ronda já foi encerrada.", "warn"); return false; }
     const args = { ronda: rondaId, item: item.id, ...dados, op: novoOp(), nome: item.nome };
     const antes = item;
-    setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, resultado: dados.resultado, validade_encontrada: dados.validade, observacao: dados.obs, conferido_por: perfil?.nome, conferido_em: new Date().toISOString(), _pendente: true } : x)));
+    setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, resultado: dados.resultado, validade_encontrada: dados.validade, lotes: dados.lotes && dados.lotes.length ? dados.lotes : null, observacao: dados.obs, conferido_por: perfil?.nome, conferido_em: new Date().toISOString(), _pendente: true } : x)));
     const { error } = await enviarConferencia(args);
     if (!error) { setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, _pendente: false } : x))); setAberto(null); return true; }
     if (ehErroDeRede(error)) {
@@ -4100,7 +4130,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
                 <Thumb foto={x.foto} size={44} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold truncate">{x.nome}</p>
-                  <p style={{ color: T.subtext }} className="text-[11px] truncate flex items-center gap-1.5"><SeloRisco risco={x.risco} nivel={x.risco_nivel} /><span className="truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}</span></p>
+                  <p style={{ color: T.subtext }} className="text-[11px] truncate flex items-center gap-1.5"><SeloRisco risco={x.risco} nivel={x.risco_nivel} /><span className="truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}{Array.isArray(x.lotes) && x.lotes.some((l) => l.lote) ? ` · lote ${x.lotes.filter((l) => l.lote).map((l) => l.lote).join("/")}` : ""}</span></p>
                 </div>
                 <DashBadge bg={r.bg} color={r.color}>{x._pendente ? "enviando…" : r.label}</DashBadge>
               </button>
@@ -4253,7 +4283,7 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
             {lista.map((x) => { const r = RONDA_RESULTADO[x.resultado]; return (
               <button key={x.id} onClick={() => setItem(x)} style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-3 flex items-center gap-3 text-left">
                 <Thumb foto={x.foto} size={40} />
-                <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate">{x.nome}</p><p style={{ color: T.subtext }} className="text-[11px] truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}</p></div>
+                <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate">{x.nome}</p><p style={{ color: T.subtext }} className="text-[11px] truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}{Array.isArray(x.lotes) && x.lotes.some((l) => l.lote) ? ` · lote ${x.lotes.filter((l) => l.lote).map((l) => l.lote).join("/")}` : ""}</p></div>
                 <DashBadge bg={r.bg} color={r.color}>{r.label}</DashBadge>
               </button>); })}
             {lista.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-6">Nenhum produto nesse filtro.</p>}
@@ -4273,7 +4303,8 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
             <div className="flex items-center gap-3"><Thumb foto={item.foto} size={56} /><DashBadge bg={RONDA_RESULTADO[item.resultado].bg} color={RONDA_RESULTADO[item.resultado].color}>{RONDA_RESULTADO[item.resultado].label}</DashBadge></div>
             <p>Validade no cadastro: <b>{item.validade_cadastrada ? formatarData(item.validade_cadastrada) : "—"}</b></p>
             <p>Validade encontrada: <b>{item.validade_encontrada ? formatarData(item.validade_encontrada) : "—"}</b></p>
-            {Array.isArray(item.lotes) && item.lotes.length > 1 && <p>Lotes: <b>{item.lotes.map((l) => formatarData(l.validade)).join(" · ")}</b></p>}
+            {Array.isArray(item.lotes_cadastrados) && item.lotes_cadastrados.length > 0 && <p>Lotes no cadastro: <b>{item.lotes_cadastrados.map((l) => `${l.lote ? "Lote " + l.lote : "Sem lote"} (${formatarData(l.validade)} · ${l.quantidade} un)`).join(" · ")}</b></p>}
+            {Array.isArray(item.lotes) && item.lotes.length > 0 && (item.lotes.length > 1 || item.lotes[0].lote) && <p>Lotes encontrados: <b>{item.lotes.map((l) => `${l.lote ? "Lote " + l.lote + " · " : ""}${formatarData(l.validade)}`).join(" · ")}</b></p>}
             {item.conferido_por && <p>Conferido por <b>{item.conferido_por}</b> às {formatarHora(item.conferido_em)}{item.versao > 1 ? ` · corrigido ${item.versao - 1}x` : ""}</p>}
             {item.observacao && <p style={{ background: T.chipBg }} className="rounded-xl p-3">{item.observacao}</p>}
             {item.foto_conferencia && <img src={item.foto_conferencia} alt="foto da conferência" className="rounded-xl max-h-64 object-contain" />}
@@ -4977,9 +5008,9 @@ function gerarPDFProximosAVencer(itensProximos, { usuario, lojaNumero }) {
     while (cortado.length > 1 && doc.getTextWidth(cortado + "…") > larguraDisponivel) cortado = cortado.slice(0, -1);
     return cortado + "…";
   };
-  const larguras = [52, 34, 26, 24, 20, 26];
+  const larguras = [42, 28, 22, 22, 16, 20, 32];
   const xs = []; let acc = 14; larguras.forEach((w) => { xs.push(acc); acc += w; });
-  const colunas = ["PRODUTO", "SETOR", "VALIDADE", "FALTAM", "QTD.", "VALOR"];
+  const colunas = ["PRODUTO", "SETOR", "VALIDADE", "LOTE", "FALTAM", "QTD.", "VALOR"];
   doc.setFillColor(235, 237, 242);
   doc.rect(14, y - 5, pageW - 28, 6, "F");
   doc.setFont(undefined, "bold"); doc.setFontSize(7.5); doc.setTextColor(...GRAY_RGB);
@@ -4990,7 +5021,7 @@ function gerarPDFProximosAVencer(itensProximos, { usuario, lojaNumero }) {
     if (y > 278) { doc.addPage(); y = 16; }
     if (li % 2 === 0) { doc.setFillColor(249, 249, 251); doc.rect(14, y - 4, pageW - 28, 6, "F"); }
     const valorItem = (Number(item.quantidade) || 1) * (Number(item.precoUnitario) || 0);
-    const linha = [item.nome, item.setor, formatarData(item.validade), `${item.status.d}d`, item.porPeso ? `${item.quantidade}kg` : String(item.quantidade || 1), formatarMoeda(valorItem)];
+    const linha = [item.nome, item.setor, formatarData(item.validade), textoLote(item) || "—", `${item.status.d}d`, item.porPeso ? `${item.quantidade}kg` : String(item.quantidade || 1), formatarMoeda(valorItem)];
     linha.forEach((val, i) => doc.text(truncarParaCaber(val, larguras[i] - 3), xs[i] + 2, y));
     y += 6.2;
   });
@@ -5162,11 +5193,11 @@ async function gerarRelatorioGerencialPDF({ items, historico, usuario, showToast
     if (prioritarios.length > 0) {
       secao("ITENS PRIORITÁRIOS — AÇÃO RECOMENDADA");
       tabela(
-        ["PRODUTO", "SETOR", "VALIDADE", "VALOR", "AÇÃO"],
+        ["PRODUTO", "SETOR", "VALIDADE", "LOTE", "VALOR", "AÇÃO"],
         prioritarios.map(({ item, p }) => [
-          (p.nivel === "urgente" ? "[URGENTE] " : "") + item.nome, item.setor, formatarData(item.validade), formatarMoeda(p.valor), p.acao,
+          (p.nivel === "urgente" ? "[URGENTE] " : "") + item.nome, item.setor, formatarData(item.validade), textoLote(item) || "—", formatarMoeda(p.valor), p.acao,
         ]),
-        [58, 30, 24, 26, 44]
+        [50, 28, 22, 22, 24, 36]
       );
     }
   }
@@ -5293,7 +5324,7 @@ async function gerarRelatorioFinanceiroPDF({ usuario, showToast, lojaNumero, val
   ], [80, 40, 62]);
 
   secao("TOP 10 ITENS COM MAIOR VALOR EM RISCO");
-  tabela(["PRODUTO", "SETOR", "VALIDADE", "VALOR"], topRisco.map((i) => [i.nome, i.setor, formatarData(i.validade), formatarMoeda(i.valorRisco)]), [66, 40, 32, 44]);
+  tabela(["PRODUTO", "SETOR", "VALIDADE", "LOTE", "VALOR"], topRisco.map((i) => [i.nome, i.setor, formatarData(i.validade), textoLote(i) || "—", formatarMoeda(i.valorRisco)]), [58, 34, 28, 26, 36]);
 
   finalizar(`condor-relatorio-financeiro-${new Date().toISOString().slice(0, 10)}.pdf`, showToast, "Relatório financeiro gerado.");
 }
@@ -7268,7 +7299,7 @@ function DashboardView({ T, items, historico, rondas, auditoria, nome, lojaNumer
                           </div>
                         </td>
                         <td style={{ color: T.subtext }} className="py-2.5 px-1">{i.setor}</td>
-                        <td style={{ color: T.text }} className="py-2.5 px-1 tabular-nums">{formatarData(i.validade)}</td>
+                        <td style={{ color: T.text }} className="py-2.5 px-1 tabular-nums">{formatarData(i.validade)}{textoLote(i) && <span style={{ color: T.subtext }} className="block text-[10px]">{textoLote(i) === "Sem lote" ? "Sem lote" : `Lote ${textoLote(i)}`}</span>}</td>
                         <td style={{ color: T.text }} className="py-2.5 px-1 text-right tabular-nums">{i.quantidade || 1}</td>
                         <td style={{ color: T.text }} className="py-2.5 px-1 text-right tabular-nums font-semibold">{fmt(i.valor)}</td>
                         <td className="py-2.5 px-1 text-right">
@@ -7432,6 +7463,7 @@ function TabelaProdutos({ T, itens, onOpenDetail, limite = 60, mostrarSetor = tr
       </div>) },
     ...(mostrarSetor ? [{ key: "setor", label: "Setor", render: (i) => <span style={{ color: T.subtext }}>{i.setor}</span> }] : []),
     { key: "validade", label: "Validade", render: (i) => <span className="tabular-nums">{formatarData(i.validade)}</span> },
+    { key: "lote", label: "Lote", render: (i) => <span style={{ color: T.subtext }} className="tabular-nums">{textoLote(i) || "—"}</span> },
     { key: "dias", label: "Prazo", render: (i) => { const b = NIVEL_BADGE(i.status.level); return <DashBadge bg={b.bg} color={b.fg}>{diasTexto(i.status.d)}</DashBadge>; } },
     { key: "quantidade", label: "Qtd", align: "right", render: (i) => <span className="tabular-nums">{i.quantidade ?? 1}</span> },
     { key: "valor", label: "Valor", align: "right", render: (i) => <span className="tabular-nums font-semibold">{fmt((Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0))}</span> },
@@ -9524,13 +9556,13 @@ function HistoricoView({ T, historico, items, usuario }) {
   }, [historico]);
 
   function exportarCSV() {
-    const header = ["Produto", "Setor", "Código", "Validade", "Ação", "Quantidade", "PrecoUnitario", "DataBaixa", "Responsável"];
-    const rows = filtrado.map((h) => [h.nome, h.setor, h.barcode, formatarData(h.validade), h.motivo, h.quantidade || 1, (h.precoUnitario || 0).toFixed(2), formatarDataHora(h.dataBaixa), h.registradoPor || ""]);
+    const header = ["Produto", "Setor", "Código", "Lote", "Validade", "Ação", "Quantidade", "PrecoUnitario", "DataBaixa", "Responsável"];
+    const rows = filtrado.map((h) => [h.nome, h.setor, h.barcode, textoLote(h), formatarData(h.validade), h.motivo, h.quantidade || 1, (h.precoUnitario || 0).toFixed(2), formatarDataHora(h.dataBaixa), h.registradoPor || ""]);
     downloadCSV(rows, header, "condor-historico-baixas.csv");
   }
   function exportarPlanilha(formato) {
     const linhas = filtrado.map((h) => ({
-      Produto: h.nome, Setor: h.setor, Codigo: h.barcode, Validade: formatarData(h.validade),
+      Produto: h.nome, Setor: h.setor, Codigo: h.barcode, Lote: textoLote(h), Validade: formatarData(h.validade),
       Acao: h.motivo, Quantidade: h.quantidade || 1, PrecoUnitario: h.precoUnitario || 0, DataBaixa: formatarDataHora(h.dataBaixa), Responsavel: h.registradoPor || ""
     }));
     downloadPlanilha(linhas, `condor-historico-baixas.${formato}`, "Historico");
@@ -9777,6 +9809,7 @@ function RelatoriosDashboard({ T, lojaNumero, items, criticos, atencao, valorEmR
             { key: "nome", label: "Produto", render: (i) => <span className="font-semibold">{i.nome}</span> },
             { key: "setor", label: "Setor", render: (i) => <span style={{ color: T.subtext }}>{i.setor}</span> },
             { key: "validade", label: "Validade", render: (i) => formatarData(i.validade) },
+            { key: "lote", label: "Lote", render: (i) => <span style={{ color: T.subtext }}>{textoLote(i) || "—"}</span> },
             { key: "valorRisco", label: "Valor", align: "right", render: (i) => <span className="font-semibold tabular-nums">{fmt(i.valorRisco)}</span> }]} />
         </DashCard>
       </>)}
@@ -10191,11 +10224,11 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
       ...faixasRisco.map((f) => ({ Secao: "Faixa de vencimento", Item: f.label, Quantidade: f.qtd, Valor: f.valor })),
       { Secao: "Política de troca", Item: "Com troca", Quantidade: porPoliticaTroca.com_troca.qtd, Valor: porPoliticaTroca.com_troca.valor },
       { Secao: "Política de troca", Item: "Sem troca", Quantidade: porPoliticaTroca.sem_troca.qtd, Valor: porPoliticaTroca.sem_troca.valor },
-      ...topRisco.map((i) => ({ Secao: "Top risco", Item: i.nome, Setor: i.setor, Validade: formatarData(i.validade), Valor: i.valorRisco })),
+      ...topRisco.map((i) => ({ Secao: "Top risco", Item: i.nome, Setor: i.setor, Lote: textoLote(i), Validade: formatarData(i.validade), Valor: i.valorRisco })),
     ];
     if (formato === "csv") {
-      downloadCSV(linhas.map((l) => [l.Secao, l.Item, l.Setor || "", l.Validade || "", l.Quantidade ?? "", (l.Valor || 0).toFixed(2)]),
-        ["Secao", "Item", "Setor", "Validade", "Quantidade", "Valor"], "condor-relatorio-financeiro.csv");
+      downloadCSV(linhas.map((l) => [l.Secao, l.Item, l.Setor || "", l.Lote || "", l.Validade || "", l.Quantidade ?? "", (l.Valor || 0).toFixed(2)]),
+        ["Secao", "Item", "Setor", "Lote", "Validade", "Quantidade", "Valor"], "condor-relatorio-financeiro.csv");
     } else {
       downloadPlanilha(linhas, `condor-relatorio-financeiro.${formato}`, "Financeiro");
     }
