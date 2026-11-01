@@ -4,7 +4,7 @@
 
 /* Rolagem presa dentro do #root (e não na janela): no iPhone, puxar a tela de cima/baixo e soltar fazia a página
    "quicar" e a barra fixa de baixo ficava deslocada no meio do app. Assim a janela nunca se mexe e o puxão elástico fica desligado. */
-html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+html, body { background: #0B4F9E; height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
 body { width: 100%; -webkit-text-size-adjust: 100%; }
 #root { height: 100%; height: 100dvh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: none; -webkit-overflow-scrolling: touch; }
 .no-scrollbar::-webkit-scrollbar { display: none; }

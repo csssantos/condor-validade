@@ -1482,6 +1482,14 @@ function AppInner() {
   const tema = prefs.tema || (prefs.dark ? "escuro" : "claro");
   const dark = tema === "escuro" || (tema === "auto" && sistemaEscuro);
   const T = getTokens(dark);
+  // Faixa branca embaixo (iPhone): pinta html/body/#root com a cor do tema, assim a área da barra inferior nunca fica branca.
+  useEffect(() => {
+    try {
+      const raiz = document.getElementById("root");
+      [document.documentElement, document.body, raiz].forEach(el => { if (el) el.style.background = T.bg; });
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute("content", T.bg));
+    } catch {}
+  }, [T.bg]);
 
   useEffect(() => {
     setPrefs(loadLocal(PREFS_KEY, { tema: "claro", som: true }));
@@ -2628,6 +2636,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-01-barra", data: "01/11/2026", itens: [
+    { tipo: "corrigido", ate: 7, texto: "Removida a barra branca que aparecia embaixo da tela no iPhone." },
+  ] },
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
     { tipo: "novo", ate: 7, texto: "Produto novo pelo Telegram sem imagem na internet: o bot pede uma foto legível da embalagem. A foto vai para a aprovação do encarregado e, aprovada, vira a imagem do produto no cadastro." },
     { tipo: "alterado", ate: 7, texto: "Telegram mais seguro: (1) o código de barras de produto novo precisa ser um EAN-13 válido, com dígito verificador, no app e no Telegram; (2) no Telegram, validade com até 2 dias (ou vencendo hoje) não é lançada: o bot avisa para levar o produto ao gerente e pedir preço direto; (3) no Telegram só lança com o número do lote; (4) ao desvincular o Telegram, o bot avisa lá que foi desvinculado e que é preciso vincular de novo com um código novo." },
