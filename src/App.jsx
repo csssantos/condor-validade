@@ -1220,6 +1220,9 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Lote que já existe: só soma quantidade, no máximo metade do que já tem (mínimo 10 un) por vez
+const limiteSomaLote = (q) => Math.max(10, Math.ceil((Number(q) || 0) * 0.5));
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -1963,6 +1966,19 @@ function AppInner() {
   }
 
   function saveAlertItem(dados) {
+    if (dados.somarAoLoteId) {
+      const orig = items.find((it) => it.id === dados.somarAoLoteId);
+      if (!orig) { showToast("Lote não encontrado.", "warn"); return; }
+      const add = Math.round(Number(dados.quantidade) || 0);
+      if (add < 1 || add > limiteSomaLote(orig.quantidade)) { showToast(`Só dá para somar até ${limiteSomaLote(orig.quantidade)} un de uma vez.`, "warn"); return; }
+      const novoItem = { ...orig, quantidade: orig.quantidade + add, atualizadoPor: usuario || null };
+      setItems((prev) => prev.map((it) => (it.id === orig.id ? novoItem : it)));
+      gravarProduto(novoItem);
+      logAuditoria(usuario, "somou quantidade ao lote", `${orig.nome} · lote ${orig.lote} · +${add} (de ${orig.quantidade} para ${novoItem.quantidade})`, orig.barcode);
+      showToast(`Somado ao lote ${orig.lote}: agora ${novoItem.quantidade} un.`);
+      resetFlow();
+      return;
+    }
     if (editingItemId) {
       const original = items.find((it) => it.id === editingItemId);
       const novoItem = { ...original, ...draftProduct, ...dados, atualizadoPor: usuario || null };
@@ -2584,6 +2600,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Lote que já existe: se você lançar o mesmo lote de um produto (com a mesma validade), o app não cria outro, só soma a quantidade ao lote. Por segurança, cada soma tem limite (até metade do que o lote já tem, no mínimo 10 un). Vale no app e no Telegram." },
     { tipo: "adicionado", ate: 7, texto: "Lote real: ao lançar uma validade (no app ou no Telegram) você informa o número do lote impresso na embalagem, ou marca que não tem lote. O app mostra os lotes já lançados do produto e cria um lote novo quando o número é diferente. O lote aparece no detalhe do produto e nas listas." },
     { tipo: "adicionado", ate: 5, texto: "Aprovar produtos novos: produto que não existe na loja e foi lançado pelo Telegram agora espera a aprovação de um encarregado ou superior (Mais → Aprovar produtos novos). Você edita nome, setor e imagem, aprova (cadastra o produto e lança a validade) ou recusa com motivo. A validade lançada não muda." },
     { tipo: "adicionado", ate: 7, texto: "Telegram: produto novo vai para aprovação de um encarregado e você recebe o aviso no bot (aprovado ou recusado, com o motivo). Novos banners do Bipi: validade lançada, aguardando aprovação, aprovado e rejeitado." },
@@ -9203,7 +9220,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
   const loteNorm = lote.trim().toUpperCase();
   const loteValido = /^[A-Z0-9][A-Z0-9./ -]{0,19}$/.test(loteNorm);
   const loteOk = !!editing || porPeso || semLote || loteValido; // lançamento novo exige o lote impresso (ou "sem lote" dito de propósito)
-  const podeSalvar = !!validade && opcoes.length > 0 && !!tamanho.trim() && loteOk;
+  const podeSalvar = !!validade && opcoes.length > 0 && !!tamanho.trim() && loteOk && !(loteExistente && somaErro);
   const jaVencido = !!validade && diasRestantesAtual !== null && diasRestantesAtual <= 0;
   const podeRegistrarPerda = jaVencido && !!tamanho.trim() && !!motivoBaixaDireta && Number(quantidade) > 0;
   const valorTotal = (Number(quantidade) || 0) * (Number(precoUnitario) || 0);
@@ -9211,8 +9228,13 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
   // Itens por peso costumam repetir o mesmo código de barras (etiqueta da balança) com pesos diferentes —
   // não é duplicidade real, então não bloqueia/avisa nesse caso.
   const lotesDoProduto = items.filter((i) => i.barcode === barcode && (!editing || i.id !== editing.id)).sort((a, b) => String(a.validade).localeCompare(String(b.validade)));
-  const duplicado = !editing && validade && !porPeso
-    ? (loteNorm ? lotesDoProduto.some((i) => i.lote === loteNorm) : lotesDoProduto.some((i) => i.validade === validade && !i.lote))
+  // Lote que já existe no produto: não cria linha nova, só SOMA na quantidade (com teto no aumento)
+  const loteExistente = !editing && !porPeso && loteNorm ? (lotesDoProduto.find((i) => i.lote === loteNorm) || null) : null;
+  const limiteSoma = loteExistente ? limiteSomaLote(loteExistente.quantidade) : 0;
+  const qtdSomar = Number(quantidade) || 0;
+  const somaErro = !loteExistente ? "" : (validade && validade !== loteExistente.validade) ? `Esse lote vence em ${formatarData(loteExistente.validade)}. A validade precisa ser a mesma.` : qtdSomar > limiteSoma ? `Só dá para somar até ${limiteSoma} un de uma vez nesse lote. Se a contagem mudou muito, edite o lote.` : "";
+  const duplicado = !editing && validade && !porPeso && !loteNorm
+    ? lotesDoProduto.some((i) => i.validade === validade && !i.lote)
     : false;
 
   function handleRegistrarPerda() {
@@ -9225,6 +9247,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
   }
 
   function handleSalvar() {
+    if (loteExistente) { if (somaErro) return; onSave({ somarAoLoteId: loteExistente.id, quantidade: Math.max(1, Math.round(qtdSomar)) }); return; }
     if (duplicado && !confirmarDuplicado) { setConfirmarDuplicado(true); return; }
     const ordenados = [...diasSelecionados].sort((a, b) => b - a);
     onSave({
@@ -9426,10 +9449,16 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
             style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 resize-none" />
         </div>
 
+        {loteExistente && (
+          <div style={{ background: somaErro ? RED_SOFT : T.chipBg, color: somaErro ? RED_DARK : T.text }} className="text-xs font-medium px-3 py-2 rounded-xl flex items-start gap-2">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+            <span>{somaErro || `O lote ${loteNorm} já está lançado (${loteExistente.quantidade} un, vence ${formatarData(loteExistente.validade)}). A quantidade informada será SOMADA: ficará ${loteExistente.quantidade + Math.max(0, Math.round(qtdSomar))} un. Máximo de ${limiteSoma} un por vez.`}</span>
+          </div>
+        )}
         {duplicado && (
           <div style={{ background: RED_SOFT, color: RED_DARK }} className="text-xs font-medium px-3 py-2 rounded-xl flex items-start gap-2">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-            <span>{loteNorm ? `O lote ${loteNorm} já está lançado neste produto.` : "Já existe um lançamento deste produto com esta validade e sem lote."} Confirme novamente para salvar mesmo assim.</span>
+            <span>Já existe um lançamento deste produto com esta validade e sem lote. Confirme novamente para salvar mesmo assim.</span>
           </div>
         )}
       </div>
@@ -9443,7 +9472,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
         <button onClick={onCancel} style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-3 rounded-2xl border">Cancelar</button>
         <button disabled={!podeSalvar} onClick={handleSalvar}
           style={{ background: podeSalvar ? BLUE : "#C7CEDA" }} className="flex-[2] text-sm font-semibold py-3 rounded-2xl text-white flex items-center justify-center gap-1.5">
-          <Check size={16} /> {editing ? "Salvar alterações" : duplicado && confirmarDuplicado ? "Salvar mesmo assim" : "Salvar alerta"}
+          <Check size={16} /> {editing ? "Salvar alterações" : loteExistente ? "Somar ao lote" : duplicado && confirmarDuplicado ? "Salvar mesmo assim" : "Salvar alerta"}
         </button>
       </div>
     </div>

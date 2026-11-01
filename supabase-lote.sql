@@ -29,7 +29,7 @@ create or replace function public.lancar_validade(p_loja bigint, p_usuario uuid,
   p_tamanho text default null, p_unidade text default null, p_op uuid default null, p_confirmar_duplicado boolean default false,
   p_convite uuid default null, p_lote text default null, p_sem_lote boolean default false)
 returns text language plpgsql security definer set search_path = public as $$
-declare c record; u record; cv record; v_id text; v_existente text; v_qtd numeric; v_nome text; v_por uuid;
+declare c record; u record; cv record; v_id text; v_existente text; v_qtd numeric; v_nome text; v_por uuid; x record;
   lt text := nullif(upper(btrim(coalesce(p_lote, ''))), '');
 begin
   if p_origem not in ('app','whatsapp','telegram') then raise exception 'origem_invalida'; end if;
@@ -64,8 +64,20 @@ begin
   -- lote: número da embalagem (obrigatório, exceto produto por peso) ou "sem lote" dito de propósito
   if lt is not null and lt !~ '^[A-Z0-9][A-Z0-9./ -]{0,19}$' then raise exception 'lote_invalido'; end if;
   if lt is null and not coalesce(p_sem_lote, false) and not coalesce(c.por_peso, false) then raise exception 'lote_obrigatorio'; end if;
+  -- lote que já existe: não cria linha nova, SOMA na quantidade (mesma validade; aumento máximo = metade do que já tem, mínimo 10 un)
+  if lt is not null and not coalesce(c.por_peso, false) then
+    select id, quantidade, validade into x from public.produtos where barcode = p_barcode and loja_id = p_loja and lote = lt order by criado_em limit 1 for update;
+    if found then
+      if x.validade is distinct from p_validade then raise exception 'lote_validade_diferente'; end if;
+      if v_qtd > greatest(10, ceil(x.quantidade * 0.5)) then raise exception 'aumento_excessivo'; end if;
+      if x.quantidade + v_qtd > 99999 then raise exception 'quantidade_invalida'; end if;
+      update public.produtos set quantidade = quantidade + v_qtd::int where id = x.id;
+      insert into public.auditoria (usuario, acao, detalhe, produto_barcode, loja_id)
+        values (v_nome, 'somou quantidade ao lote', c.nome || case p_origem when 'telegram' then ' (via Telegram)' else '' end || ' · lote ' || lt || ' · +' || v_qtd::text || ' (de ' || x.quantidade::text || ' para ' || (x.quantidade + v_qtd)::text || ')', c.barcode, p_loja);
+      return x.id;
+    end if;
+  end if;
   if not p_confirmar_duplicado then
-    if lt is not null and exists (select 1 from public.produtos where barcode = p_barcode and loja_id = p_loja and lote = lt) then raise exception 'lote_duplicado'; end if;
     if lt is null and not coalesce(c.por_peso, false)
        and exists (select 1 from public.produtos where barcode = p_barcode and loja_id = p_loja and validade = p_validade and lote is null) then raise exception 'duplicado'; end if;
   end if;

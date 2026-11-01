@@ -135,7 +135,7 @@ async function lotesDoProduto(ctx: Ctx, barcode: string) {
   const { data } = await sb.from("produtos").select("lote, sem_lote, validade, quantidade").eq("loja_id", ctx.loja_id).eq("barcode", barcode).order("validade").limit(6);
   const l = data || [];
   if (!l.length) return "";
-  return `\n\nJá tem ${l.length === 6 ? "6+" : l.length} lote(s) lançado(s) desse produto:\n` + l.map((x: any) => `• ${x.lote ? "Lote " + x.lote : "Sem lote"} · vence ${fmtData(x.validade)} · ${x.quantidade} un`).join("\n") + "\nSe o lote da sua embalagem for outro, ele entra como um lote novo.";
+  return `\n\nJá tem ${l.length === 6 ? "6+" : l.length} lote(s) lançado(s) desse produto:\n` + l.map((x: any) => `• ${x.lote ? "Lote " + x.lote : "Sem lote"} · vence ${fmtData(x.validade)} · ${x.quantidade} un`).join("\n") + "\nSe o lote for um destes (com a mesma validade), a quantidade é SOMADA ao lote, até um limite por vez. Se for outro lote, ele entra como lote novo.";
 }
 
 // ---------- Conversa ----------
@@ -309,6 +309,8 @@ const ERROS: Record<string, string> = {
   limite_excedido: "Muitas ações em pouco tempo. Aguarde um pouco e tente de novo.",
   lote_invalido: "Lote inválido. Use letras, números, ponto, barra ou traço (até 20).",
   lote_obrigatorio: "Falta o lote (ou diga que não tem lote na embalagem).",
+  lote_validade_diferente: "Esse lote já está lançado com outra validade. Confira o lote e a validade da embalagem.",
+  aumento_excessivo: "Esse lote já existe e a quantidade a somar é grande demais para um lançamento só. Fale com o encarregado para ajustar o lote.",
 };
 const ERROS_NOVO: Record<string, string> = {
   sem_permissao: "Só funcionários podem cadastrar produto novo.",
@@ -376,7 +378,7 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
     }
     const chave = Object.keys(ERROS).find((k) => m.includes(k));
     if (chave) await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? ""}: ${ERROS[chave]}`, d.barcode);
-    if (chave && chave !== "usuario_fora_da_loja" && chave !== "limite_excedido") { if (chave.startsWith("lote_")) { delete d.lote; delete d.semLote; } else delete d.validade; if (chave === "quantidade_invalida") delete d.quantidade; await salvar(s.id, "aguardando_info", d); return falar(chat, "⚠️ " + ERROS[chave], undefined, "atencao"); }
+    if (chave && chave !== "usuario_fora_da_loja" && chave !== "limite_excedido") { if (chave.startsWith("lote_")) { delete d.lote; delete d.semLote; } else if (chave !== "aumento_excessivo") delete d.validade; if (chave === "quantidade_invalida" || chave === "aumento_excessivo") delete d.quantidade; await salvar(s.id, "aguardando_info", d); return falar(chat, "⚠️ " + ERROS[chave], undefined, "atencao"); }
     await salvar(s.id, "erro", d, m.slice(0, 300));
     return falar(chat, chave ? "⚠️ " + ERROS[chave] : "Não consegui gravar agora. Nada foi lançado — tente de novo em instantes.", undefined, "atencao");
   }
