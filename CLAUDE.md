@@ -48,7 +48,7 @@ Fonte oficial: `public/mascote.svg` (viewBox 400x400). Reaproveitar o arquivo (o
 - Helpers de UI no App.jsx: PilulasPalco, ValorPalco, CartaoNovo, BarraRank, FaixaChips, EstadoVazioNovo, LinhaProduto, CartaoGrade, `getTokens(dark)` (T.card/T.chipBg/T.inputBorder; não usar T.border, é transparente), cores RED/RED_DARK/BLUE/BLUE_DARK/RED_SOFT.
 
 ## Regras de UI (iPhone)
-- Fundo: `html/body/#root` são pintados com `T.bg` por um useEffect no AppInner (e `theme-color`); sem isso a faixa da safe-area embaixo ficava branca. Fallback azul no index.css.
+- Fundo: `html/body/#root` são pintados com `T.bg` por um useEffect no AppInner (e `theme-color`); sem isso a faixa da safe-area embaixo ficava branca. Fallback azul no index.css. `#root` é `position:fixed` com top/bottom 0 (não usar 100dvh: no iPhone PWA ele não cobre a área de baixo e sobra uma faixa sem conteúdo; o conteúdo tem que rolar até o fim da tela, por trás da barra flutuante).
 - Safe area: `env(safe-area-inset-top/bottom)`; scroll fica em `#root` (corrige rubber-band). Fixed dentro de pai com transform/z-index → `createPortal(…, document.body)`.
 - Cantos arredondados + filtro blur no Safari: `isolation:isolate` + `WebkitMaskImage:"-webkit-radial-gradient(white,black)"` + `translateZ(0)`.
 - Cartões: claros (T.card), cor só em detalhes; evitar tela dominada por vermelho. Tudo precisa caber sem cortar.

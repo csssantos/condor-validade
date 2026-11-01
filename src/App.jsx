@@ -2637,7 +2637,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-11-01-barra", data: "01/11/2026", itens: [
-    { tipo: "corrigido", ate: 7, texto: "Removida a barra branca que aparecia embaixo da tela no iPhone." },
+    { tipo: "corrigido", ate: 7, texto: "Removida a faixa vazia embaixo da tela no iPhone: o conteúdo agora rola até o fim da tela, por trás da barra de navegação." },
   ] },
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
     { tipo: "novo", ate: 7, texto: "Produto novo pelo Telegram sem imagem na internet: o bot pede uma foto legível da embalagem. A foto vai para a aprovação do encarregado e, aprovada, vira a imagem do produto no cadastro." },
