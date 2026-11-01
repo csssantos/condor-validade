@@ -2609,6 +2609,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Telegram em tempo real: assim que você manda o código para o bot, o card em Mais → Conta muda sozinho para \"Telegram vinculado\", sem precisar sair da tela." },
     { tipo: "adicionado", ate: 7, texto: "Lote na ronda e nos relatórios: ao conferir um produto na ronda você informa a validade e o lote de cada lote encontrado (o app mostra os lotes cadastrados e avisa se algum não bate). Os relatórios (itens próximos a vencer, financeiro, prioridades, histórico de baixas) agora trazem a coluna Lote." },
     { tipo: "alterado", ate: 7, texto: "Lote que já existe: se você lançar o mesmo lote de um produto (com a mesma validade), o app não cria outro, só soma a quantidade ao lote. Por segurança, cada soma tem limite (até metade do que o lote já tem, no mínimo 10 un). Vale no app e no Telegram." },
     { tipo: "adicionado", ate: 7, texto: "Lote real: ao lançar uma validade (no app ou no Telegram) você informa o número do lote impresso na embalagem, ou marca que não tem lote. O app mostra os lotes já lançados do produto e cria um lote novo quando o número é diferente. O lote aparece no detalhe do produto e nas listas." },
@@ -10460,8 +10461,30 @@ function TelegramVinculo({ T, showToast }) {
   const [cod, setCod] = useState(null);
   const [busy, setBusy] = useState(false);
   const bot = String(import.meta.env.VITE_TELEGRAM_BOT || "").replace(/^@/, "");
-  const carregar = async () => { const { data, error } = await supabase.rpc("telegram_status"); if (!error) setSt(data); };
-  useEffect(() => { carregar(); }, []);
+  const antes = useRef(null);
+  const carregar = async () => {
+    const { data, error } = await supabase.rpc("telegram_status");
+    if (error || !data) return;
+    if (antes.current === false && data.vinculado) { setCod(null); showToast("Telegram vinculado!"); } // o bot acabou de vincular: o card muda na hora
+    if (antes.current === true && !data.vinculado) showToast("Telegram desvinculado.");
+    antes.current = !!data.vinculado;
+    setSt(data);
+  };
+  // Tempo real: o banco avisa quando o vínculo nasce ou some; a checagem periódica é só rede de segurança (se o realtime cair)
+  useEffect(() => {
+    carregar();
+    const canal = supabase.channel(`tg-vinculo-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "telegram_vinculos" }, () => carregar())
+      .subscribe();
+    const volta = () => { if (!document.hidden) carregar(); };
+    document.addEventListener("visibilitychange", volta); window.addEventListener("focus", volta); window.addEventListener("online", volta);
+    return () => { supabase.removeChannel(canal); document.removeEventListener("visibilitychange", volta); window.removeEventListener("focus", volta); window.removeEventListener("online", volta); };
+  }, []);
+  const aguardando = !!st && !st.vinculado;
+  useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) carregar(); }, aguardando ? 3000 : 20000);
+    return () => clearInterval(t);
+  }, [aguardando]);
   async function gerar() {
     setBusy(true);
     const { data, error } = await supabase.rpc("gerar_codigo_telegram");
@@ -10488,7 +10511,14 @@ function TelegramVinculo({ T, showToast }) {
         <p style={{ color: T.subtext }} className="text-xs">Lance validade conversando com o bot do Telegram: mande o código de barras ou o nome. Se o produto não existir no app, ele busca a imagem na internet e cadastra depois da sua confirmação. Ele pergunta o que faltar e só grava depois do seu "sim".</p>
         {st.vinculado ? (
           <>
-            <p style={{ color: "#1F9D55" }} className="text-sm font-bold">✓ Telegram vinculado</p>
+            <motion.div key="vinculado" initial={{ opacity: 0, scale: 0.94, y: 6 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 320, damping: 24 }}
+              style={{ background: "rgba(31,157,85,0.10)", border: "1px solid rgba(31,157,85,0.35)" }} className="rounded-2xl p-3.5 flex items-center gap-3">
+              <span style={{ background: "#1F9D55" }} className="h-10 w-10 rounded-full flex items-center justify-center shrink-0"><Check size={20} color="#fff" strokeWidth={3} /></span>
+              <span className="min-w-0">
+                <span style={{ color: "#1F9D55" }} className="block text-sm font-extrabold">Telegram vinculado</span>
+                <span style={{ color: T.subtext }} className="block text-[11.5px]">{st.vinculado_em ? `Desde ${formatarDataHora(st.vinculado_em)}. ` : ""}Já pode lançar validade pelo bot.</span>
+              </span>
+            </motion.div>
             <button onClick={remover} disabled={busy} style={{ background: T.chipBg, color: T.text }} className="py-2.5 rounded-xl text-xs font-bold disabled:opacity-60">Desvincular este Telegram</button>
           </>
         ) : st.tipo === "promotor" ? (
