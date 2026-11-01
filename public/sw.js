@@ -3,8 +3,8 @@
 // Quem descobre que existe versão nova é o próprio app (compara com o que está publicado) e mostra o aviso
 // "Atualizar". Só quando a pessoa toca no botão o app baixa a versão nova para o cache e reinicia.
 // Este arquivo NUNCA troca a versão sozinho.
-const CACHE_SHELL = "condor-shell-v8";
-const CACHE_ASSETS = "condor-assets-v8";
+const CACHE_SHELL = "condor-shell-v9";
+const CACHE_ASSETS = "condor-assets-v9";
 
 function assetsDoHtml(html) {
   const achados = new Set();
