@@ -2,7 +2,7 @@
 // Edge Function: telegram-bot — lançamento de validade pelo Telegram (funcionário e promotor).
 // Webhook do Telegram -> valida segredo -> identifica quem é (vínculo) -> conversa em etapas -> confirma -> lancar_validade (mesma regra do app).
 // Mascote: Bipi (banners em public/bot/*.jpg, gerados por scripts/gerar-banners-bot.py). TODA mensagem sai com banner.
-// Foto enviada pelo usuário NÃO é aceita. Produto que não existe no app: o bot busca nome e imagem na internet (Open Food Facts),
+// Foto do usuário só é aceita no produto novo sem imagem na internet (etapa "foto"). Produto que não existe no app: o bot busca nome e imagem na internet (Open Food Facts),
 // o funcionário confirma e o produto é cadastrado no app (telegram_criar_produto) junto com o lançamento.
 // Segredos (Supabase → Edge Functions → Secrets): TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET.
 // verify_jwt = false (o Telegram não manda JWT); a proteção é o cabeçalho secreto + vínculo + limites.
@@ -90,7 +90,7 @@ async function buscarNaInternet(bc: string) {
 }
 
 // ---------- Catálogo e sessão ----------
-type Novo = { barcode: string; nome: string; foto: string | null; setor: string | null; etapa: "imagem" | "nome" | "setor" | null };
+type Novo = { barcode: string; nome: string; foto: string | null; fotoUsuario?: boolean; setor: string | null; etapa: "imagem" | "nome" | "foto" | "setor" | null };
 type Dados = { barcode?: string; nome?: string; porPeso?: boolean; validade?: string; quantidade?: number; lote?: string; semLote?: boolean; opcoes?: { barcode: string; nome: string }[]; dupAsk?: boolean; novo?: Novo; criouProduto?: boolean };
 type Ctx = { vinculo_id: string; tipo: "funcionario" | "promotor"; usuario_id?: string; convite_id?: string; loja_id: number; nome: string; marca?: string };
 
@@ -178,7 +178,7 @@ async function proximoPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados,
   if (d.quantidade == null) { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + `Produto: ${d.nome}\nValidade: ${fmtData(d.validade)}\n${d.porPeso ? "Quantos kg? (ex.: 2,5)" : "Quantas unidades?"}`, undefined, "quantidade"); }
   await salvar(s.id, "aguardando_confirmacao", d);
   const { data: loja } = await sb.from("lojas").select("numero_loja").eq("id", ctx.loja_id).maybeSingle();
-  const novoTxt = d.novo ? `\n🆕 Produto novo: vai para aprovação de um encarregado\nSetor: ${d.novo.setor}\nImagem: ${d.novo.foto ? "da internet (confirmada por você)" : "sem imagem"}` : "";
+  const novoTxt = d.novo ? `\n🆕 Produto novo: vai para aprovação de um encarregado\nSetor: ${d.novo.setor}\nImagem: ${d.novo.fotoUsuario ? "foto enviada por você" : d.novo.foto ? "da internet (confirmada por você)" : "sem imagem"}` : "";
   const resumo = `${pre}Confira os dados:\n\nProduto: ${d.nome}\nCódigo: ${d.barcode}\nValidade: ${fmtData(d.validade)}\n${d.porPeso ? "" : `Lote: ${d.lote ?? "sem lote"}\n`}Quantidade: ${num(d.quantidade)} ${d.porPeso ? "kg" : "unidades"}\nLoja: ${loja?.numero_loja ?? "—"}${novoTxt}\n\n${d.novo ? "Confirma o envio para aprovação?" : "Confirma o lançamento?"}`;
   return falar(chat, resumo, [[{ t: "✅ Confirmar", d: `ok:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }], [{ t: "✏️ Corrigir", d: `fx:${s.id}` }]], "conferir");
 }
@@ -217,12 +217,12 @@ async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, b
   if (!achou) {
     d.novo = { barcode: bc, nome: "", foto: null, setor: null, etapa: "nome" };
     await salvar(s.id, "aguardando_info", d);
-    return falar(chat, "Esse código ainda não está no app e não achei o produto na internet.\n\nSe for um produto novo, envie o nome completo (marca + produto) e eu cadastro sem imagem. Ou confira o número do código.", undefined, "novo");
+    return falar(chat, "Esse código ainda não está no app e não achei o produto na internet.\n\nSe for um produto novo, envie o nome completo (marca + produto); depois eu peço uma foto legível da embalagem. Ou confira o número do código.", undefined, "novo");
   }
   const nome = formatarNomeNovo(achou.nome, cat).nomeNovo;
   d.novo = { barcode: bc, nome, foto: achou.dataUrl, setor: adivinharSetor(nome), etapa: "imagem" };
   await salvar(s.id, "aguardando_info", d);
-  const legenda = `Esse produto não está no app. Achei na internet:\n\n${nome}\nCódigo: ${bc}${achou.dataUrl ? "" : "\n(sem imagem disponível)"}\n\nÉ esse o produto${achou.dataUrl ? " e posso usar essa imagem no cadastro do app" : ""}?`;
+  const legenda = `Esse produto não está no app. Achei na internet:\n\n${nome}\nCódigo: ${bc}${achou.dataUrl ? "" : "\n(sem imagem disponível: vou pedir uma foto sua)"}\n\nÉ esse o produto${achou.dataUrl ? " e posso usar essa imagem no cadastro do app" : ""}?`;
   const botoes = [[{ t: "✅ Sim, é esse", d: `im:${s.id}:1` }, { t: "❌ Não é", d: `im:${s.id}:0` }]];
   if (achou.dataUrl && achou.urlImg) {
     const r = await tg("sendPhoto", { chat_id: chat, photo: achou.urlImg, caption: legenda.slice(0, 1000), ...teclado(botoes) });
@@ -233,9 +233,33 @@ async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, b
   return falar(chat, legenda, botoes, "novo");
 }
 
+// Foto enviada pelo funcionario (so no produto novo sem imagem na internet): baixa do Telegram, valida e guarda como data URL
+async function baixarFotoTelegram(fotos: any[]): Promise<{ ok: true; dataUrl: string } | { ok: false; motivo: string }> {
+  try {
+    const lista = (fotos || []).filter((f) => f?.file_id);
+    const boas = lista.filter((f) => (f.file_size ?? 0) <= 320000).sort((a, b) => (b.width * b.height) - (a.width * a.height));
+    const f = boas[0];
+    if (!f) return { ok: false, motivo: "A foto ficou pesada demais. Tire de novo, mais de perto e sem zoom." };
+    if (Math.min(f.width || 0, f.height || 0) < 300) return { ok: false, motivo: "A foto ficou pequena e sem nitidez. Chegue mais perto da embalagem e tire de novo." };
+    const r = await tg("getFile", { file_id: f.file_id });
+    const path = r?.result?.file_path;
+    if (!path || !/^photos\/[\w./-]+$/.test(path)) return { ok: false, motivo: "N\u00e3o consegui receber a foto. Envie de novo." };
+    const resp = await fetch(`https://api.telegram.org/file/bot${TOKEN}/${path}`, { signal: AbortSignal.timeout(10000) });
+    if (!resp.ok) return { ok: false, motivo: "N\u00e3o consegui receber a foto. Envie de novo." };
+    const buf = new Uint8Array(await resp.arrayBuffer());
+    if (buf.length < 3000 || buf.length > 330000) return { ok: false, motivo: "A foto n\u00e3o p\u00f4de ser usada. Envie outra, \u00fanica e n\u00edtida." };
+    if (!(buf[0] === 0xff && buf[1] === 0xd8)) return { ok: false, motivo: "Formato de foto n\u00e3o aceito. Envie como foto (n\u00e3o como arquivo)." };
+    let bin = ""; for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+    return { ok: true, dataUrl: `data:image/jpeg;base64,${btoa(bin)}` };
+  } catch (e) { console.error("foto", String(e)); return { ok: false, motivo: "N\u00e3o consegui receber a foto. Envie de novo." }; }
+}
+const MSG_PEDIR_FOTO = "N\u00e3o consegui uma imagem desse produto na internet.\n\nEnvie uma FOTO leg\u00edvel da embalagem (frente do produto, de perto, com boa luz e sem tremer). Ela vai para o cadastro do app depois que o encarregado aprovar.\n\nPara desistir, envie /cancelar.";
+
 async function novoConfirmado(ctx: Ctx, chat: number, s: { id: string }, d: Dados) {
   const n = d.novo!;
-  d.barcode = n.barcode; d.nome = n.nome; d.porPeso = false; n.etapa = null; delete d.lote; delete d.semLote;
+  d.barcode = n.barcode; d.nome = n.nome; d.porPeso = false; delete d.lote; delete d.semLote;
+  if (!n.foto) { n.etapa = "foto"; await salvar(s.id, "aguardando_info", d); return falar(chat, MSG_PEDIR_FOTO, undefined, "novo"); }
+  n.etapa = null;
   if (!n.setor) { n.etapa = "setor"; await salvar(s.id, "aguardando_info", d); return perguntarSetor(chat, s.id); }
   return proximoPasso(ctx, chat, s, d);
 }
@@ -278,6 +302,7 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
       d.novo.nome = formatarNomeNovo(t, cat).nomeNovo; d.novo.foto = null; d.novo.setor = adivinharSetor(d.novo.nome);
       return novoConfirmado(ctx, chat, s, d);
     }
+    if (d.novo.etapa === "foto") return falar(chat, "Preciso de uma FOTO do produto (não texto). Envie a foto da embalagem, de perto e nítida, ou /cancelar.", undefined, "atencao");
     return falar(chat, "Responda com os botões da mensagem acima, ou envie /cancelar.", undefined, "atencao");
   }
   // escolha de opção por número ("2")
@@ -440,7 +465,7 @@ async function vincular(chat: number, texto: string) {
   return falar(chat, `✅ Pronto, ${String(data?.nome || "").split(" ")[0]}! Seu Telegram está vinculado.\n\nAgora é só me mandar o código de barras ou o nome do produto.`, undefined, "vinculado");
 }
 
-const AJUDA = "Como usar:\n\n🔢 Mande o código de barras ou o nome do produto\n🏷️ Eu pergunto o lote (impresso na embalagem, perto da validade). Sem lote não lanço\n⚠️ Produto que vence em até 2 dias não é lançado: leve ao gerente para pedir preço direto\n🔢 O código de barras precisa ser EAN-13 válido\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n🆕 Produto que não está no app? Mande o código de barras: eu busco a imagem na internet, você confirma e o produto vai para aprovação de um encarregado\n✅ Só lanço depois do seu “sim”\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
+const AJUDA = "Como usar:\n\n🔢 Mande o código de barras ou o nome do produto\n🏷️ Eu pergunto o lote (impresso na embalagem, perto da validade). Sem lote não lanço\n⚠️ Produto que vence em até 2 dias não é lançado: leve ao gerente para pedir preço direto\n🔢 O código de barras precisa ser EAN-13 válido\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n🆕 Produto que não está no app? Mande o código de barras: eu busco a imagem na internet (se não achar, peço uma foto legível sua), você confirma e o produto vai para aprovação de um encarregado\n✅ Só lanço depois do seu “sim”\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
 
 // ---------- Entrada ----------
 async function processar(up: Record<string, any>) {
@@ -506,9 +531,18 @@ async function processar(up: Record<string, any>) {
   if (/^\/sair/i.test(texto)) { await auditar(chat, "desvinculou o Telegram (/sair)", ctx.nome); await sb.from("telegram_vinculos").delete().eq("chat_id", chat); await falar(chat, "Telegram desvinculado. Para usar de novo, vincule outra vez com um código.", undefined, "cancelado"); await marcar("processada"); return; }
   if (texto.startsWith("/")) { await falar(chat, AJUDA, undefined, "ajuda"); await marcar("processada"); return; }
 
-  // fotos NÃO são aceitas: o produto é identificado pelo código de barras ou pelo nome (a imagem do produto novo vem da internet)
+  // foto: so e aceita na etapa "foto" do produto novo (sem imagem na internet). Em qualquer outro momento nao recebe fotos nem arquivos.
   if (msg.photo?.length || msg.document || msg.video || msg.sticker) {
-    await falar(chat, "Eu não recebo fotos nem arquivos. Envie o código de barras ou o nome do produto.\n\nSe o produto não estiver no app, mande o código de barras: eu busco a imagem na internet e você confirma.", undefined, "atencao");
+    const s = msg.photo?.length ? await sessaoAtiva(chat) : null;
+    const dd: Dados = s?.dados || {};
+    if (s && s.estado === "aguardando_info" && dd.novo?.etapa === "foto" && ctx.tipo === "funcionario") {
+      const f = await baixarFotoTelegram(msg.photo);
+      if (!f.ok) { await falar(chat, "⚠️ " + f.motivo, undefined, "atencao"); await marcar("ignorada", "foto_invalida"); return; }
+      dd.novo.foto = f.dataUrl; dd.novo.fotoUsuario = true;
+      await novoConfirmado(ctx, chat, s, dd);
+      await marcar("processada"); return;
+    }
+    await falar(chat, "Eu só recebo foto quando você cadastra um produto novo que não tem imagem na internet. Envie o código de barras ou o nome do produto.", undefined, "atencao");
     await marcar("ignorada", "foto_nao_aceita"); return;
   }
   if (!msg.text) { await falar(chat, "Envie o código de barras ou o nome do produto em texto.", undefined, "atencao"); await marcar("ignorada", "tipo"); return; }

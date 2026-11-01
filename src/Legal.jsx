@@ -7,16 +7,26 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-10-31";
+export const TERMOS_VERSAO = "2026-11-01";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-01", docs: {
+    termos: [
+      "Produto novo pelo Telegram: se o bot não achar a imagem do produto na internet, o funcionário envia uma foto legível da embalagem. Ela vai para aprovação do encarregado e, se aprovada, vira a imagem do produto no cadastro da loja.",
+      "Não envie fotos de pessoas, documentos ou qualquer coisa além do produto.",
+    ],
+    privacidade: [
+      "O bot passa a receber UMA foto, só quando você cadastra produto novo e a internet não tem a imagem. A foto é reduzida/limitada, guardada no pedido de aprovação (apagado 90 dias após decidido) e, se aprovada, fica no cadastro de produtos da loja.",
+      "Fora desse caso o bot continua sem receber fotos nem arquivos.",
+    ],
+  } },
   { versao: "2026-10-31", docs: {
     termos: [
       "Novo recurso opcional: lançar validade pelo Telegram, conversando com um bot. Nada é lançado sem a sua confirmação.",
       "Promotores ganham um código próprio (ex.: ABC-12345) que vale para um único Telegram e só permite lançar produtos da própria marca.",
       "As ações feitas pelo Telegram passam a aparecer na auditoria da loja, como as ações do app.",
-      "Pelo Telegram, o funcionário pode cadastrar produto novo: o bot busca a imagem na internet e, depois da sua confirmação, envia o pedido (produto, validade e quantidade) para aprovação de um encarregado ou superior, que pode corrigir o produto, aprovar ou recusar com um motivo; o motivo é enviado a você pelo Telegram. O bot não recebe fotos.",
+      "Pelo Telegram, o funcionário pode cadastrar produto novo: o bot busca a imagem na internet e, depois da sua confirmação, envia o pedido (produto, validade e quantidade) para aprovação de um encarregado ou superior, que pode corrigir o produto, aprovar ou recusar com um motivo; o motivo é enviado a você pelo Telegram. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro).",
     ],
     privacidade: [
       "Se você vincular o Telegram, guardamos o identificador da sua conversa (não o seu telefone) e as mensagens enviadas ao bot, por até 30 dias.",
@@ -93,7 +103,7 @@ export const DOCUMENTOS = [
       { t: "7. Recursos de IA e voz", p: [
         "O app pode ter recursos de assistente de IA e cadastro por voz. As respostas da IA podem conter erros e são apoio à decisão, não substituem o seu julgamento nem as regras da empresa. Nenhuma ação é criada sem a sua confirmação.",
         "O cadastro por voz usa o reconhecimento de voz do seu navegador/aparelho, que pode ser processado pelo fornecedor dele (por exemplo, Google ou Apple). Você escolhe quando usar.",
-        "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. O bot não recebe fotos. Para um produto que ainda não está no app, o bot consulta o código de barras no Open Food Facts (base pública na internet, que recebe apenas esse número), mostra a imagem encontrada e, se você confirmar, envia o pedido para aprovação de um encarregado ou superior da loja, que pode editar o produto, aprovar (o produto entra no app com essa imagem e a sua validade é lançada) ou recusar com um motivo, que o bot envia a você. O pedido (produto, código, validade, quantidade, seu nome, decisão, motivo e quem decidiu) fica guardado e é apagado 90 dias depois de decidido. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
+        "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro). Para um produto que ainda não está no app, o bot consulta o código de barras no Open Food Facts (base pública na internet, que recebe apenas esse número), mostra a imagem encontrada e, se você confirmar, envia o pedido para aprovação de um encarregado ou superior da loja, que pode editar o produto, aprovar (o produto entra no app com essa imagem e a sua validade é lançada) ou recusar com um motivo, que o bot envia a você. O pedido (produto, código, validade, quantidade, seu nome, decisão, motivo e quem decidiu) fica guardado e é apagado 90 dias depois de decidido. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
         "Promotores: o código do promotor (ex.: ABC-12345) vale para um único Telegram por vez e só permite lançar produtos da própria marca enquanto o acesso estiver ativo.",
       ] },
       { t: "8. Disponibilidade e mudanças", p: [

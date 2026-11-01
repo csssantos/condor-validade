@@ -2629,6 +2629,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
+    { tipo: "novo", ate: 7, texto: "Produto novo pelo Telegram sem imagem na internet: o bot pede uma foto legível da embalagem. A foto vai para a aprovação do encarregado e, aprovada, vira a imagem do produto no cadastro." },
     { tipo: "alterado", ate: 7, texto: "Telegram mais seguro: (1) o código de barras de produto novo precisa ser um EAN-13 válido, com dígito verificador, no app e no Telegram; (2) no Telegram, validade com até 2 dias (ou vencendo hoje) não é lançada: o bot avisa para levar o produto ao gerente e pedir preço direto; (3) no Telegram só lança com o número do lote; (4) ao desvincular o Telegram, o bot avisa lá que foi desvinculado e que é preciso vincular de novo com um código novo." },
     { tipo: "alterado", ate: 7, texto: "Telegram em tempo real: assim que você manda o código para o bot, o card em Mais → Conta muda sozinho para \"Telegram vinculado\", sem precisar sair da tela." },
     { tipo: "adicionado", ate: 7, texto: "Lote na ronda e nos relatórios: ao conferir um produto na ronda você informa a validade e o lote de cada lote encontrado (o app mostra os lotes cadastrados e avisa se algum não bate). Os relatórios (itens próximos a vencer, financeiro, prioridades, histórico de baixas) agora trazem a coluna Lote." },
