@@ -46,7 +46,7 @@ const auditar = async (chat: number, acao: string, detalhe?: string, barcode?: s
 };
 
 function eanOk(c: string) {
-  if (![8, 12, 13, 14].includes(c.length)) return false;
+  if (c.length !== 13 || !/^\d{13}$/.test(c)) return false; // só EAN-13, com dígito verificador
   const d = c.split("").map(Number); const chk = d.pop()!; let s = 0;
   d.reverse().forEach((x, i) => { s += x * (i % 2 === 0 ? 3 : 1); });
   return (10 - (s % 10)) % 10 === chk;
@@ -139,6 +139,10 @@ async function lotesDoProduto(ctx: Ctx, barcode: string) {
 }
 
 // ---------- Conversa ----------
+const diasAte = (iso: string) => { const h = hoje(); const [vy, vm, vd] = iso.split("-").map(Number); return Math.round((Date.UTC(vy, vm - 1, vd) - Date.UTC(h.getUTCFullYear(), h.getUTCMonth(), h.getUTCDate())) / 86400000); };
+const MSG_SEM_LOTE = "Sem lote não dá para lançar pelo Telegram. Confira a embalagem: o lote fica impresso perto da validade. Se o produto realmente não tem lote, avise o encarregado para lançar pelo app.\n\nPara desistir, envie /cancelar.";
+const MSG_PERTO = (nome: string | undefined, validade: string, dias: number) =>
+  `⚠️ ${nome ? nome + "\n" : ""}Esse produto ${dias <= 0 ? "vence HOJE" : dias === 1 ? "vence AMANHÃ" : "vence em 2 dias"} (${fmtData(validade)}).\n\nProduto com até 2 dias para vencer não é lançado pelo Telegram. Leve o produto ao gerente o mais rápido possível, para pedir o preço direto.\n\nNada foi lançado.`;
 function perguntarSetor(chat: number, sid: string) {
   const linhas: { t: string; d: string }[][] = [];
   SETORES.forEach((s, i) => { if (i % 2 === 0) linhas.push([]); linhas[linhas.length - 1].push({ t: s, d: `st:${sid}:${i}` }); });
@@ -154,13 +158,22 @@ async function proximoPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados,
     await auditar(chat, "dado barrado no Telegram", `${d.nome ?? "produto não definido"}: ${probs.join(" ")}`, d.barcode);
     return falar(chat, "⚠️ " + probs.join("\n") + "\n\nMande o dado certo.", undefined, "atencao");
   }
+  // validade com até 2 dias (hoje, amanhã, depois de amanhã): não lança pelo Telegram, tem que levar ao gerente
+  if (d.validade) {
+    const dias = diasAte(d.validade);
+    if (dias <= 2) {
+      await sb.from("telegram_sessoes").update({ estado: "cancelado", atualizado_em: new Date().toISOString() }).eq("id", s.id);
+      await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? "produto não definido"}: validade ${fmtData(d.validade)} (${dias <= 0 ? "vence hoje" : dias + " dia(s)"}), levar ao gerente`, d.barcode);
+      return falar(chat, MSG_PERTO(d.nome, d.validade, dias), undefined, "atencao");
+    }
+  }
   const pre = aviso ? aviso + "\n\n" : "";
   if (!d.barcode) { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + "Qual é o produto? Envie o código de barras ou o nome.", undefined, "produto"); }
   if (!d.validade) { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + `Produto: ${d.nome}\nQual a data de validade? (ex.: 15/12/2026)`, undefined, "validade"); }
   if (!d.porPeso && d.lote === undefined && !d.semLote) {
     await salvar(s.id, "aguardando_info", d);
     const ex = d.novo ? "" : await lotesDoProduto(ctx, d.barcode);
-    return falar(chat, pre + `Produto: ${d.nome}\nValidade: ${fmtData(d.validade)}\n\nQual o lote? Está impresso na embalagem, perto da validade (ex.: L2410A).${ex}`, [[{ t: "Sem lote na embalagem", d: `sl:${s.id}` }]], "lote");
+    return falar(chat, pre + `Produto: ${d.nome}\nValidade: ${fmtData(d.validade)}\n\nQual o lote? Está impresso na embalagem, perto da validade (ex.: L2410A).\nSem lote não dá para lançar pelo Telegram.${ex}`, undefined, "lote");
   }
   if (d.quantidade == null) { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + `Produto: ${d.nome}\nValidade: ${fmtData(d.validade)}\n${d.porPeso ? "Quantos kg? (ex.: 2,5)" : "Quantas unidades?"}`, undefined, "quantidade"); }
   await salvar(s.id, "aguardando_confirmacao", d);
@@ -195,7 +208,7 @@ async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, b
   if (e) { d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; delete d.lote; delete d.semLote; return proximoPasso(ctx, chat, s, d); }
   delete d.barcode; delete d.nome;
   if (ctx.tipo === "promotor") { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código não é de um produto da sua marca nesta loja. Confira o número.", undefined, "atencao"); }
-  if (!eanOk(bc)) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código de barras não é válido. Confira o número e envie de novo.", undefined, "atencao"); }
+  if (!eanOk(bc)) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código de barras não é válido: o EAN-13 tem 13 dígitos e o último é o de verificação. Confira o número e envie de novo.", undefined, "atencao"); }
   // produto novo: busca nome e imagem na internet e pede a confirmação do funcionário
   const { data: lim } = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg_web", p_max: 6 });
   if (lim === false) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Muitas buscas em pouco tempo. Aguarde 1 minuto.", undefined, "atencao"); }
@@ -238,9 +251,9 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
     const pl = interpretarVoz(texto, hoje());
     const temKw = /quantidade|unidade|\bun\b|\bkg\b/i.test(texto);
     if (!pl.validade && !temKw && !/^\/(?!\w)/.test(texto)) {
-      if (/^(sem lote|sem|nao tem|n[aã]o tem lote|nao tem lote|sem numero)$/.test(low)) { d.semLote = true; return proximoPasso(ctx, chat, s, d); }
+      if (/^(sem lote|sem|nao tem|n[aã]o tem lote|nao tem lote|sem numero)$/.test(low)) return falar(chat, MSG_SEM_LOTE, undefined, "atencao");
       const lt = normLote(texto);
-      if (!LOTE_RE.test(lt)) return falar(chat, "Lote inválido. Use só letras, números, ponto, barra ou traço (até 20 caracteres), como está na embalagem. Ou toque em “Sem lote na embalagem”.", [[{ t: "Sem lote na embalagem", d: `sl:${s.id}` }]], "atencao");
+      if (!LOTE_RE.test(lt)) return falar(chat, "Lote inválido. Use só letras, números, ponto, barra ou traço (até 20 caracteres), como está na embalagem.", undefined, "atencao");
       d.lote = lt; return proximoPasso(ctx, chat, s, d);
     }
   }
@@ -307,8 +320,10 @@ const ERROS: Record<string, string> = {
   quantidade_invalida: "Quantidade inválida. Confira o número.",
   usuario_fora_da_loja: "Seu acesso não está mais ativo nesta loja. Fale com o encarregado.",
   limite_excedido: "Muitas ações em pouco tempo. Aguarde um pouco e tente de novo.",
+  validade_muito_proxima: "Esse produto vence em até 2 dias. Leve ao gerente o mais rápido possível, para pedir o preço direto.",
+  lote_obrigatorio_telegram: "Falta o lote. Sem lote não dá para lançar pelo Telegram.",
   lote_invalido: "Lote inválido. Use letras, números, ponto, barra ou traço (até 20).",
-  lote_obrigatorio: "Falta o lote (ou diga que não tem lote na embalagem).",
+  lote_obrigatorio: "Falta o lote. Sem lote não dá para lançar pelo Telegram.",
   lote_validade_diferente: "Esse lote já está lançado com outra validade. Confira o lote e a validade da embalagem.",
   aumento_excessivo: "Esse lote já existe e a quantidade a somar é grande demais para um lançamento só. Fale com o encarregado para ajustar o lote.",
 };
@@ -324,6 +339,7 @@ const ERROS_NOVO: Record<string, string> = {
   muitas_pendencias: "Você já tem 10 produtos novos aguardando aprovação. Espere a resposta do encarregado.",
   fila_cheia: "A fila de aprovação da loja está cheia. Avise o encarregado.",
   validade_vencida: "A validade informada já passou.",
+  validade_muito_proxima: "O produto vence em até 2 dias. Leve ao gerente o mais rápido possível, para pedir o preço direto.",
   validade_invalida: "A validade está longe demais. Confira a data.",
   quantidade_invalida: "Quantidade inválida. Confira o número.",
   lote_invalido: "Lote inválido. Corrija o lote.",
@@ -350,7 +366,7 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
 
   // produto novo: NÃO entra direto. Vai para a fila de aprovação de um encarregado+ (que pode editar o produto, aprovar ou recusar com motivo)
   if (d.novo) {
-    const { error: ec } = await rpcLote("telegram_enviar_aprovacao", { p_chat_id: chat, p_barcode: d.novo.barcode, p_nome: d.novo.nome, p_setor: d.novo.setor, p_foto: d.novo.foto, p_validade: d.validade, p_quantidade: d.quantidade, p_lote: d.lote ?? null, p_sem_lote: !!d.semLote });
+    const { error: ec } = await rpcLote("telegram_enviar_aprovacao", { p_chat_id: chat, p_barcode: d.novo.barcode, p_nome: d.novo.nome, p_setor: d.novo.setor, p_foto: d.novo.foto, p_validade: d.validade, p_quantidade: d.quantidade, p_lote: d.lote ?? null, p_sem_lote: false });
     const mc = ec?.message || "";
     if (!ec) {
       await salvar(s.id, "registrado", d);
@@ -360,6 +376,7 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
     else {
       await salvar(s.id, "aguardando_confirmacao", d);
       const k = Object.keys(ERROS_NOVO).find((x) => mc.includes(x));
+      if (k === "validade_muito_proxima") { await salvar(s.id, "cancelado", d); await auditar(chat, "lançamento barrado no Telegram", `${d.novo.nome}: ${ERROS_NOVO[k]}`, d.novo.barcode); return falar(chat, MSG_PERTO(d.novo.nome, d.validade!, diasAte(d.validade!)), undefined, "atencao"); }
       await auditar(chat, "lançamento barrado no Telegram", `${d.novo.nome}: ${k ? ERROS_NOVO[k] : "erro ao enviar produto novo"}`, d.novo.barcode);
       return falar(chat, "⚠️ " + (k ? ERROS_NOVO[k] : "Não consegui enviar o produto novo agora. Nada foi lançado, tente de novo em instantes."), [[{ t: "✅ Tentar de novo", d: `ok:${s.id}` }, { t: "✏️ Corrigir", d: `fx:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }]], "atencao");
     }
@@ -368,7 +385,7 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
   const { error } = await rpcLote("lancar_validade", {
     p_loja: ctx.loja_id, p_usuario: ctx.usuario_id ?? null, p_barcode: d.barcode, p_validade: d.validade, p_quantidade: d.quantidade,
     p_origem: "telegram", p_foto: null, p_obs: "Via Telegram",
-    p_op: s.id, p_confirmar_duplicado: forcarDup, p_convite: ctx.convite_id ?? null, p_lote: d.lote ?? null, p_sem_lote: !!d.semLote,
+    p_op: s.id, p_confirmar_duplicado: forcarDup, p_convite: ctx.convite_id ?? null, p_lote: d.lote ?? null, p_sem_lote: false,
   });
   if (error) {
     const m = error.message || "";
@@ -377,6 +394,11 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
       return falar(chat, m.includes("lote_duplicado") ? `O lote ${d.lote} já está lançado nesse produto. Quer lançar mesmo assim (por exemplo, mais unidades do mesmo lote)?` : "Já existe esse produto com essa validade e sem lote na loja. Quer lançar mesmo assim?", [[{ t: "Lançar mesmo assim", d: `dp:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }]], "atencao");
     }
     const chave = Object.keys(ERROS).find((k) => m.includes(k));
+    if (chave === "validade_muito_proxima") {
+      await salvar(s.id, "cancelado", d);
+      await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? ""}: ${ERROS[chave]}`, d.barcode);
+      return falar(chat, MSG_PERTO(d.nome, d.validade!, diasAte(d.validade!)), undefined, "atencao");
+    }
     if (chave) await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? ""}: ${ERROS[chave]}`, d.barcode);
     if (chave && chave !== "usuario_fora_da_loja" && chave !== "limite_excedido") { if (chave.startsWith("lote_")) { delete d.lote; delete d.semLote; } else if (chave !== "aumento_excessivo") delete d.validade; if (chave === "quantidade_invalida" || chave === "aumento_excessivo") delete d.quantidade; await salvar(s.id, "aguardando_info", d); return falar(chat, "⚠️ " + ERROS[chave], undefined, "atencao"); }
     await salvar(s.id, "erro", d, m.slice(0, 300));
@@ -418,7 +440,7 @@ async function vincular(chat: number, texto: string) {
   return falar(chat, `✅ Pronto, ${String(data?.nome || "").split(" ")[0]}! Seu Telegram está vinculado.\n\nAgora é só me mandar o código de barras ou o nome do produto.`, undefined, "vinculado");
 }
 
-const AJUDA = "Como usar:\n\n🔢 Mande o código de barras ou o nome do produto\n🏷️ Eu pergunto o lote (número impresso na embalagem, perto da validade)\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n🆕 Produto que não está no app? Mande o código de barras: eu busco a imagem na internet, você confirma e o produto vai para aprovação de um encarregado\n✅ Só lanço depois do seu “sim”\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
+const AJUDA = "Como usar:\n\n🔢 Mande o código de barras ou o nome do produto\n🏷️ Eu pergunto o lote (impresso na embalagem, perto da validade). Sem lote não lanço\n⚠️ Produto que vence em até 2 dias não é lançado: leve ao gerente para pedir preço direto\n🔢 O código de barras precisa ser EAN-13 válido\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n🆕 Produto que não está no app? Mande o código de barras: eu busco a imagem na internet, você confirma e o produto vai para aprovação de um encarregado\n✅ Só lanço depois do seu “sim”\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
 
 // ---------- Entrada ----------
 async function processar(up: Record<string, any>) {
@@ -459,11 +481,11 @@ async function processar(up: Record<string, any>) {
     else if (acao === "cx") {
       if (extra === "p") { delete d.barcode; delete d.nome; delete d.porPeso; delete d.novo; delete d.criouProduto; delete d.lote; delete d.semLote; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual é o produto? Código de barras ou nome.", undefined, "produto"); }
       else if (extra === "v") { delete d.validade; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual a data de validade? (ex.: 15/12/2026)", undefined, "validade"); }
-      else if (extra === "l") { delete d.lote; delete d.semLote; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual o lote? (impresso na embalagem)", [[{ t: "Sem lote na embalagem", d: `sl:${s.id}` }]], "lote"); }
+      else if (extra === "l") { delete d.lote; delete d.semLote; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual o lote? (impresso na embalagem, perto da validade)", undefined, "lote"); }
       else if (extra === "q") { delete d.quantidade; await salvar(s.id, "aguardando_info", d); await falar(chat, d.porPeso ? "Certo. Quantos kg?" : "Certo. Quantas unidades?", undefined, "quantidade"); }
       else if (extra === "s" && d.novo) { d.novo.setor = null; d.novo.etapa = "setor"; await salvar(s.id, "aguardando_info", d); await perguntarSetor(chat, s.id); }
     } else if (acao === "sl") {
-      if (!d.porPeso && d.barcode && d.validade) { d.semLote = true; delete d.lote; await proximoPasso(ctx, chat, s, d); }
+      await falar(chat, MSG_SEM_LOTE, undefined, "atencao");
     } else if (acao === "pr") {
       const o = d.opcoes?.[Number(extra)];
       if (o) { const cat = await carregarCatalogo(ctx); const e = cat[o.barcode]; if (e) { d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; delete d.novo; delete d.lote; delete d.semLote; await proximoPasso(ctx, chat, s, d); } }

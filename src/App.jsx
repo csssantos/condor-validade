@@ -1226,6 +1226,22 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// EAN-13 de verdade: 13 dígitos e dígito verificador correto (códigos de balança e produto por peso ficam de fora, tratados à parte)
+function eanValido13(c) {
+  const t = String(c || "");
+  if (!/^\d{13}$/.test(t)) return false;
+  let soma = 0;
+  for (let i = 0; i < 12; i++) soma += Number(t[i]) * (i % 2 === 0 ? 1 : 3);
+  return (10 - (soma % 10)) % 10 === Number(t[12]);
+}
+// Desvincular o Telegram: a função remove (com a permissão do banco) e o bot AVISA no Telegram que foi desvinculado
+async function removerTelegramComAviso(alvo) {
+  const { data, error } = await supabase.functions.invoke("telegram-desvincular", { body: alvo || {} });
+  if (error) return { error };
+  if (data?.erro) return { error: { message: data.erro } };
+  return { error: null };
+}
+
 // Texto do lote para telas e relatórios: "L123" / "Sem lote" / "" (cadastro antigo, anterior ao lote real)
 const textoLote = (x) => (x && x.lote ? x.lote : x && x.semLote ? "Sem lote" : "");
 
@@ -1826,8 +1842,12 @@ function AppInner() {
       return;
     }
 
-    setPendingBarcode(clean);
     const known = catalog[clean];
+    if (!known && !eanValido13(clean)) {
+      showToast("Código de barras inválido: o EAN-13 tem 13 dígitos e o último é o de verificação. Confira o número e tente de novo.", "warn");
+      return;
+    }
+    setPendingBarcode(clean);
     if (known) {
       setDraftProduct({ ...known });
       setIntencaoFluxo("validade");
@@ -2609,6 +2629,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-10-31-telegram", data: "31/10/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Telegram mais seguro: (1) o código de barras de produto novo precisa ser um EAN-13 válido, com dígito verificador, no app e no Telegram; (2) no Telegram, validade com até 2 dias (ou vencendo hoje) não é lançada: o bot avisa para levar o produto ao gerente e pedir preço direto; (3) no Telegram só lança com o número do lote; (4) ao desvincular o Telegram, o bot avisa lá que foi desvinculado e que é preciso vincular de novo com um código novo." },
     { tipo: "alterado", ate: 7, texto: "Telegram em tempo real: assim que você manda o código para o bot, o card em Mais → Conta muda sozinho para \"Telegram vinculado\", sem precisar sair da tela." },
     { tipo: "adicionado", ate: 7, texto: "Lote na ronda e nos relatórios: ao conferir um produto na ronda você informa a validade e o lote de cada lote encontrado (o app mostra os lotes cadastrados e avisa se algum não bate). Os relatórios (itens próximos a vencer, financeiro, prioridades, histórico de baixas) agora trazem a coluna Lote." },
     { tipo: "alterado", ate: 7, texto: "Lote que já existe: se você lançar o mesmo lote de um produto (com a mesma validade), o app não cria outro, só soma a quantidade ao lote. Por segurança, cada soma tem limite (até metade do que o lote já tem, no mínimo 10 un). Vale no app e no Telegram." },
@@ -5824,7 +5845,7 @@ function AcoesFuncionarioSheet({ T, u, nivelUsuario, cargos, showToast, onClose,
           <BotaoAcao T={T} ocupado={ocupado} Icon={u.ativo ? Lock : Check} titulo={u.ativo ? "Bloquear acesso" : "Desbloquear acesso"} desc={u.ativo ? "A pessoa perde o acesso ao app na hora." : "Devolve o acesso ao app."}
             cor={u.ativo ? "#C98A0C" : "#1F9D55"} bg={u.ativo ? "#FCF0DD" : "#E6F7ED"} confirmaTexto={u.ativo ? "Toque de novo para bloquear" : "Toque de novo para desbloquear"} onConfirmar={alternar} />
           <BotaoAcao T={T} ocupado={ocupado} Icon={Send} titulo="Remover Telegram" desc="Desvincula o Telegram desta pessoa (se houver)." cor={BLUE_DARK} bg={BLUE_SOFT}
-            confirmaTexto="Toque de novo para remover" onConfirmar={() => executar(() => supabase.rpc("remover_telegram", { p_usuario: u.id }), "Telegram removido.")} />
+            confirmaTexto="Toque de novo para remover" onConfirmar={() => executar(() => removerTelegramComAviso({ usuario: u.id }), "Telegram removido.")} />
           {admin && (
             <>
               <button onClick={() => setModo("editar")} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
@@ -5915,7 +5936,7 @@ function AcoesConviteSheet({ T, c, showToast, onClose, onFeito }) {
           <button onClick={copiar} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left"><Copy size={18} /><span className="text-sm font-bold">Copiar link do convite</span></button>
         )}
         <BotaoAcao T={T} ocupado={ocupado} Icon={Send} titulo="Remover Telegram do promotor" desc="Desvincula o Telegram deste código. O promotor pode vincular outro depois." cor={BLUE_DARK} bg={BLUE_SOFT}
-          confirmaTexto="Toque de novo para remover" onConfirmar={() => executar(() => supabase.rpc("remover_telegram", { p_convite: c.id }), "Telegram do promotor removido.")} />
+          confirmaTexto="Toque de novo para remover" onConfirmar={() => executar(() => removerTelegramComAviso({ convite: c.id }), "Telegram do promotor removido.")} />
         {!c.revogado && (
           <BotaoAcao T={T} ocupado={ocupado} Icon={c.pausado ? Check : Clock} titulo={c.pausado ? "Retomar convite" : "Pausar convite"}
             desc={c.pausado ? "Devolve o acesso ao promotor." : "Suspende o acesso por enquanto. Dá pra retomar depois."} cor={c.pausado ? "#1F9D55" : "#C2760C"} bg={c.pausado ? "#E6F7ED" : "#FCF0DD"}
@@ -10494,7 +10515,7 @@ function TelegramVinculo({ T, showToast }) {
   }
   async function remover() {
     setBusy(true);
-    const { error } = await supabase.rpc("remover_telegram");
+    const { error } = await removerTelegramComAviso({});
     setBusy(false);
     if (error) { console.error(error); showToast("Não foi possível desvincular.", "warn"); return; }
     setCod(null); showToast("Telegram desvinculado."); carregar();
@@ -11137,6 +11158,7 @@ const ERROS_APROVACAO = {
   nome_invalido: "Nome inválido (5 a 80 caracteres, com letras).", setor_invalido: "Escolha um setor.", foto_invalida: "Imagem inválida ou grande demais.",
   motivo_invalido: "Escreva o motivo (5 a 300 caracteres).", validade_vencida: "A validade lançada já venceu. Recuse o pedido e explique o motivo.",
   produto_nao_encontrado: "Produto não encontrado.", usuario_fora_da_loja: "Quem lançou não está mais ativo nesta loja. Recuse o pedido.",
+  validade_muito_proxima: "A validade lançada agora está a 2 dias ou menos. Recuse o pedido e explique o motivo.", lote_obrigatorio_telegram: "O pedido não tem lote. Recuse o pedido e explique o motivo.", ean_invalido: "O código de barras não é um EAN-13 válido. Recuse o pedido e explique o motivo.",
 };
 function PaginaAprovacoes({ T, dark, perfil, showToast }) {
   const [lista, setLista] = useState(null);
