@@ -2716,7 +2716,7 @@ const NOVIDADES = [
   ] },
   { id: "2026-11-03-telegram-codigo", data: "03/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "Código do Telegram agora tem 8 letras e números (mais seguro). Depois de 5 erros seguidos o bot bloqueia o chat por um tempo." },
-    { tipo: "melhorado", ate: 7, texto: "Produto que vence amanhã pode ser lançado com alerta de 1 dia, e o botão Salvar cinza agora explica o que falta." },
+    { tipo: "melhorado", ate: 7, texto: "O botão Salvar cinza agora explica o que falta." },
   ] },
   { id: "2026-11-03-baixa", data: "03/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "Dar baixa ficou mais seguro: o servidor registra a baixa e tira o produto numa operação só, com o nome de quem fez." },

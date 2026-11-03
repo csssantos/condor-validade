@@ -1,7 +1,7 @@
 -- Validade a 2 dias ou menos: o app segue a MESMA regra do Telegram. Rode no SQL Editor (tem auto-teste). Rode DEPOIS de supabase-revisao.sql.
 -- Regra: produto novo (ou validade alterada) que vence hoje, amanhã ou depois de amanhã NÃO é lançado: leve ao gerente/encarregado para pedir o preço direto.
 -- Não mexe em quem só edita quantidade/outros campos de um produto que já estava no app com a mesma validade.
--- Isenta funções do servidor (app.via_rpc = '1': lancar_validade/somar_ao_lote têm as próprias regras) e jobs sem login.
+-- Isenta funções do servidor (app.via_rpc = '1', definido por somar_ao_lote; o bot chama lancar_validade sem login de usuário, que tem a própria regra) e jobs sem login.
 create or replace function public._produtos_prox() returns trigger language plpgsql security definer set search_path = public as $f$
 declare v_antiga date; v_existe boolean := false;
 begin
