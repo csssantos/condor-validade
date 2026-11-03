@@ -94,12 +94,21 @@ async function buscarNaInternet(bc: string) {
 // ---------- Catálogo e sessão ----------
 type Novo = { barcode: string; nome: string; foto: string | null; fotoUsuario?: boolean; setor: string | null; etapa: "imagem" | "nome" | "foto" | "setor" | null };
 type Dados = { barcode?: string; nome?: string; porPeso?: boolean; validade?: string; quantidade?: number; lote?: string; semLote?: boolean; opcoes?: { barcode: string; nome: string }[]; dupAsk?: boolean; novo?: Novo; criouProduto?: boolean };
-type Ctx = { vinculo_id: string; tipo: "funcionario" | "promotor"; usuario_id?: string; convite_id?: string; loja_id: number; nome: string; marca?: string };
+type Ctx = { vinculo_id: string; tipo: "funcionario" | "promotor"; usuario_id?: string; convite_id?: string; loja_id: number; nome: string; marca?: string; marcas?: string[]; acesso_total?: boolean };
+// marca casa só como palavra inteira, sem diferenciar acento/maiúscula (igual ao banco: _marca_casa)
+const escRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function marcaCasa(nome: string, marca: string) {
+  const m = semAcento(marca).toUpperCase().trim();
+  if (m.length < 3) return false;
+  return new RegExp("(^|[^A-Z0-9])" + escRe(m) + "([^A-Z0-9]|$)").test(semAcento(nome).toUpperCase());
+}
+const marcasDoCtx = (ctx: Ctx) => (Array.isArray(ctx.marcas) && ctx.marcas.length ? ctx.marcas : [ctx.marca || ""]).map((m) => String(m).trim()).filter((m) => m.length >= 3);
+const textoMarcas = (ctx: Ctx) => ctx.acesso_total ? "todas as marcas" : marcasDoCtx(ctx).join(", ");
 
 const cacheCat = new Map<number, { t: number; rows: { barcode: string; nome: string; por_peso: boolean }[] }>(); // catálogo por loja, 60 s (evita ~40 consultas por mensagem)
 async function carregarCatalogo(ctx: Ctx) {
-  const marca = String(ctx.marca || "").trim().toUpperCase();
-  if (ctx.tipo === "promotor" && marca.length < 3) return {}; // marca vazia/curta casaria com tudo
+  const marcas = marcasDoCtx(ctx);
+  if (ctx.tipo === "promotor" && !ctx.acesso_total && !marcas.length) return {}; // marca vazia/curta casaria com tudo
   let c = cacheCat.get(ctx.loja_id);
   if (!c || Date.now() - c.t > 60000) {
     const rows: { barcode: string; nome: string; por_peso: boolean }[] = [];
@@ -114,7 +123,7 @@ async function carregarCatalogo(ctx: Ctx) {
   }
   const cat: Record<string, { nome: string; por_peso: boolean; barcode: string }> = {};
   for (const r of c.rows) {
-    if (ctx.tipo === "promotor" && !String(r.nome).toUpperCase().includes(marca)) continue;
+    if (ctx.tipo === "promotor" && !ctx.acesso_total && !marcas.some((m) => marcaCasa(String(r.nome), m))) continue;
     cat[r.barcode] = { nome: r.nome, por_peso: r.por_peso, barcode: r.barcode };
   }
   return cat;
@@ -216,7 +225,7 @@ async function escolherProduto(ctx: Ctx, chat: number, s: { id: string }, d: Dad
   }
   await salvar(s.id, "aguardando_info", d);
   return falar(chat, ctx.tipo === "promotor"
-    ? `Não achei esse produto da marca ${ctx.marca} no cadastro da loja. Envie o código de barras ou o nome completo.`
+    ? `Não achei esse produto (${textoMarcas(ctx)}) no cadastro da loja. Envie o código de barras ou o nome completo.`
     : "Não achei esse produto no cadastro da loja. Se ele for novo, envie o código de barras dele: eu busco a imagem na internet e você confirma.", undefined, "novo");
 }
 
@@ -226,7 +235,7 @@ async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, b
   const e = cat[bc];
   if (e) { d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; delete d.lote; delete d.semLote; return proximoPasso(ctx, chat, s, d); }
   delete d.barcode; delete d.nome;
-  if (ctx.tipo === "promotor") { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código não é de um produto da sua marca nesta loja. Confira o número.", undefined, "atencao"); }
+  if (ctx.tipo === "promotor") { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código não é de um produto das suas marcas nesta loja. Confira o número.", undefined, "atencao"); }
   if (!eanOk(bc)) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código de barras não é válido: aceito EAN-8 (8 dígitos), UPC-A (12) ou EAN-13 (13), e o último dígito é o de verificação. Confira o número e envie de novo.", undefined, "atencao"); }
   // produto novo: busca nome e imagem na internet e pede a confirmação do funcionário
   const { data: lim } = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg_web", p_max: 6 });
@@ -362,7 +371,7 @@ async function cancelar(chat: number, sid: string) {
 
 const ERROS: Record<string, string> = {
   produto_nao_encontrado: "Esse produto não está no cadastro desta loja.",
-  produto_fora_da_marca: "Esse produto não é da sua marca.",
+  produto_fora_da_marca: "Esse produto não é de uma das suas marcas.",
   validade_vencida: "A validade informada já passou. Só lanço de hoje em diante.",
   validade_invalida: "A validade está longe demais. Confira a data.",
   validade_obrigatoria: "Falta a validade.",

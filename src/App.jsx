@@ -802,6 +802,7 @@ function mensagemErroGravacao(e) {
   if (/lote_obrigatorio/.test(m)) return "falta o lote (ou marcar que não tem lote impresso)";
   if (/lote_invalido/.test(m)) return "lote inválido (use letras, números, . / - e até 20 caracteres)";
   if (/validade_vencida/.test(m)) return "a validade já passou";
+  if (/produto_fora_da_marca/.test(m)) return "esse produto não é de uma das marcas do seu acesso de promotor";
   if (/validade_muito_proxima/.test(m)) return "o produto vence em até 2 dias: leve ao gerente ou encarregado para pedir o preço direto";
   if (/validade_invalida/.test(m)) return "validade longe demais (máximo 10 anos)";
   if (/quantidade_invalida/.test(m)) return "quantidade inválida";
@@ -2414,7 +2415,7 @@ function AppInner() {
         {flow === "auditoria" && <AuditoriaView T={T} auditoria={auditoria} />}
         {flow === "torre" && <TorreControleView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
         {flow === "rede" && ehCorporativo && <PainelRedeView T={T} showToast={showToast} />}
-        {flow === "convites" && ehEncarregado && <ConvitesPromotorView T={T} showToast={showToast} lojaAtiva={lojaAtiva} />}
+        {flow === "convites" && ehEncarregado && <ConvitesPromotorView T={T} showToast={showToast} lojaAtiva={lojaAtiva} nivelUsuario={nivelUsuario} />}
         {flow === "gestao" && ehDev && <GestaoAplicativoView T={T} showToast={showToast} lojaAtiva={lojaAtiva} lojas={todasLojas} onRecarregarLojas={recarregarLojas} nivelUsuario={perfil?.cargos?.nivel} onTrocarLoja={(l) => { setLojaAtivaOverride(l); showToast(`Trocado pra loja ${l.numero_loja}.`); }} />}
         {flow === "relatorios" && <RelatoriosView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} onOpenDetail={setDetalheItem} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
         {/* Inteligência operacional (módulos novos, em src/inteligencia.jsx) */}
@@ -2711,6 +2712,10 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-03-promotor-marcas", data: "03/11/2026", itens: [
+    { tipo: "novo", ate: 5, texto: "Convite de promotor com várias marcas (de 1 a 5): o promotor só lança produtos dessas marcas. O sistema sugere as marcas que já existem no catálogo da loja." },
+    { tipo: "novo", ate: 4, texto: "Convite com acesso total (gerência e diretoria): o promotor lança produto de qualquer marca, inclusive fora do horário da loja. Fica registrado na auditoria." },
+  ] },
   { id: "2026-11-03-validade-proxima", data: "03/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "Produto que vence em até 2 dias não é mais lançado no app (igual ao Telegram): leve ao gerente ou encarregado para pedir o preço direto." },
   ] },
@@ -5717,7 +5722,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
   async function carregarExtras() {
     if (!lojaSel) { setConvites([]); setPedidos([]); return; }
     const [{ data: cv }, { data: pr }, { data: pd }] = await Promise.all([
-      supabase.from("convites_promotor").select("id, token, codigo, nome, marca, expira_em, criado_em, revogado, pausado, usos, ultimo_uso").eq("loja_id", lojaSel).order("criado_em", { ascending: false }).limit(100),
+      supabase.from("convites_promotor").select("id, token, codigo, nome, marca, marcas, acesso_total, expira_em, criado_em, revogado, pausado, usos, ultimo_uso").eq("loja_id", lojaSel).order("criado_em", { ascending: false }).limit(100),
       supabase.from("usuarios").select("id, convite_id, ativo").eq("loja_id", lojaSel).eq("promotor", true),
       supabase.from("solicitacoes_exclusao").select("*").eq("loja_id", lojaSel).eq("status", "pendente").order("criado_em", { ascending: false }),
     ]);
@@ -5996,7 +6001,7 @@ const statusConvite = (c, T) =>
 
 function PromotoresLista({ T, convites, termo, onAbrir }) {
   if (convites === null) return <div className="text-center py-12"><Loader2 size={22} className="animate-spin mx-auto" color={T.subtext} /></div>;
-  const lista = convites.filter((c) => !termo || (c.nome || "").toLowerCase().includes(termo) || (c.marca || "").toLowerCase().includes(termo));
+  const lista = convites.filter((c) => !termo || (c.nome || "").toLowerCase().includes(termo) || marcasConvite(c).toLowerCase().includes(termo));
   if (lista.length === 0) return (
     <div style={{ background: T.card, borderColor: T.border }} className="rounded-3xl border p-8 text-center">
       <p className="font-bold text-sm">Nenhum promotor nessa loja</p>
@@ -6012,7 +6017,7 @@ function PromotoresLista({ T, convites, termo, onAbrir }) {
             <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-11 w-11 rounded-full flex items-center justify-center shrink-0"><Ticket size={18} /></div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold truncate">{c.nome}</p>
-              <p style={{ color: T.subtext }} className="text-[11px] truncate">{c.marca} · {st.id === "expirado" ? "venceu" : "vale até"} {formatarDataHoraExtenso(c.expira_em)}</p>
+              <p style={{ color: T.subtext }} className="text-[11px] truncate">{marcasConvite(c)} · {st.id === "expirado" ? "venceu" : "vale até"} {formatarDataHoraExtenso(c.expira_em)}</p>
               <p style={{ color: T.subtext }} className="text-[10.5px] mt-0.5">{c.usos ? `${c.usos} abertura(s) · ${tempoDesde(c.ultimo_uso)}` : "ainda não aberto"}</p>
             </div>
             <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>
@@ -6036,7 +6041,7 @@ function AcoesConviteSheet({ T, c, showToast, onClose, onFeito }) {
     try { await navigator.clipboard.writeText(linkDoConvite(c)); showToast("Link copiado."); } catch { showToast("Não deu pra copiar.", "warn"); }
   }
   return (
-    <GestaoSheet T={T} title={c.nome} subtitle={`${c.marca} · ${st.label}`} onClose={onClose}>
+    <GestaoSheet T={T} title={c.nome} subtitle={`${marcasConvite(c)} · ${st.label}`} onClose={onClose}>
       <div className="flex flex-col gap-2.5">
         {c.codigo && <p style={{ background: T.chipBg, color: T.text }} className="text-xs rounded-xl px-3 py-2">Código do promotor: <b className="font-mono select-all">{c.codigo}</b></p>}
         {st.id === "ativo" && (
@@ -6105,14 +6110,75 @@ const DURACOES_CONVITE = [
   { id: "30d", label: "30 dias", horas: 720 },
   { id: "perm", label: "Permanente (link fixo)", horas: 876000 },
 ];
+const marcasConvite = (c) => c.acesso_total ? "Todas as marcas" : (Array.isArray(c.marcas) && c.marcas.length ? c.marcas.join(", ") : (c.marca || ""));
+const COLUNAS_CONVITE = "id, token, codigo, nome, marca, marcas, acesso_total, expira_em, criado_em, revogado, pausado, usos, ultimo_uso";
+// Escolha de 1 a 5 marcas (com sugestões das marcas já registradas na loja e quantos produtos casam) ou acesso total
+function MarcasPicker({ T, lojaId, marcas, setMarcas, acessoTotal, setAcessoTotal, podeTotal, inputStyle, inputCls, showToast }) {
+  const [txt, setTxt] = useState("");
+  const [sug, setSug] = useState([]);
+  const [conta, setConta] = useState({});
+  useEffect(() => {
+    if (!lojaId || acessoTotal) { setSug([]); return; }
+    const t = setTimeout(async () => {
+      const { data } = await supabase.rpc("listar_marcas", { p_loja: lojaId, p_busca: txt.trim() });
+      setSug(Array.isArray(data) ? data.filter((m) => !marcas.includes(m.nome)).slice(0, 8) : []);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [txt, lojaId, acessoTotal, marcas.length]);
+  async function adicionar(bruto) {
+    const m = String(bruto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9 .&'-]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+    if (m.length < 3 || m.length > 30) { showToast("A marca precisa ter de 3 a 30 letras.", "warn"); return; }
+    if (marcas.includes(m)) { setTxt(""); return; }
+    if (marcas.length >= 5) { showToast("No máximo 5 marcas por convite.", "warn"); return; }
+    setMarcas([...marcas, m]); setTxt("");
+    const { data } = await supabase.rpc("contar_produtos_marca", { p_loja: lojaId, p_marca: m });
+    setConta((c) => ({ ...c, [m]: typeof data === "number" ? data : null }));
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {podeTotal && (
+        <label style={{ background: acessoTotal ? RED_SOFT : T.chipBg, color: acessoTotal ? RED_DARK : T.text }} className="rounded-xl px-3 py-2.5 flex items-start gap-2.5 text-xs cursor-pointer">
+          <input type="checkbox" checked={acessoTotal} onChange={(e) => setAcessoTotal(e.target.checked)} className="mt-0.5" />
+          <span><b>Acesso total</b> — pode lançar produto de QUALQUER marca (para quem trabalha fora do horário da loja). Fica registrado na auditoria.</span>
+        </label>
+      )}
+      {!acessoTotal && (
+        <>
+          <div className="flex flex-wrap gap-1.5">
+            {marcas.map((m) => (
+              <span key={m} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[11px] font-bold rounded-full pl-2.5 pr-1.5 py-1 flex items-center gap-1">
+                {m}{conta[m] === 0 ? " · nenhum produto casa ainda" : typeof conta[m] === "number" ? ` · ${conta[m]} prod.` : ""}
+                <button type="button" aria-label={`Remover ${m}`} onClick={() => setMarcas(marcas.filter((x) => x !== m))} className="h-4 w-4 rounded-full flex items-center justify-center"><X size={11} /></button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input value={txt} onChange={(e) => setTxt(e.target.value)} maxLength={30} placeholder={marcas.length ? "Outra marca do mesmo promotor" : "Marca (ex.: Nestlé, Melitta)"}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); adicionar(txt); } }} style={inputStyle} className={inputCls} />
+            <button type="button" onClick={() => adicionar(txt)} disabled={marcas.length >= 5} style={{ background: BLUE, color: "#fff" }} className="px-3 rounded-xl text-sm font-bold disabled:opacity-50 shrink-0">+</button>
+          </div>
+          {sug.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {sug.map((m) => (
+                <button key={m.nome} type="button" onClick={() => adicionar(m.nome)} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-semibold rounded-full px-2.5 py-1">{m.nome}{m.produtos ? ` · ${m.produtos}` : ""}</button>
+              ))}
+            </div>
+          )}
+          <p style={{ color: T.subtext }} className="text-[10.5px]">De 1 a 5 marcas. O promotor só lança produtos cujo nome tem uma dessas marcas.</p>
+        </>
+      )}
+    </div>
+  );
+}
 const slugMarca = (m) => String(m || "marca").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "marca";
 const linkDoConvite = (c) => c.codigo ? `${SITE_URL}/promotor/${slugMarca(c.marca)}/${c.codigo}` : `${SITE_URL}/?convite=${c.token}`;
 const conviteSemPrazo = (c) => new Date(c.expira_em).getTime() - Date.now() > 50 * 365 * 864e5;
 const validadeConvite = (c) => conviteSemPrazo(c) ? "sem prazo (link permanente)" : `vale até ${formatarDataHoraExtenso(c.expira_em)}`;
 
-function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
+function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
   const [nome, setNome] = useState("");
-  const [marca, setMarca] = useState("");
+  const [marcas, setMarcas] = useState([]);
+  const [acessoTotal, setAcessoTotal] = useState(false);
   const [duracao, setDuracao] = useState("1d");
   const [gerando, setGerando] = useState(false);
   const [recente, setRecente] = useState(null); // convite recém-criado, pra copiar/enviar
@@ -6121,7 +6187,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
   async function carregar() {
     if (!lojaAtiva?.id) return;
     const { data, error } = await supabase.from("convites_promotor")
-      .select("id, token, codigo, nome, marca, expira_em, criado_em, revogado, pausado, usos, ultimo_uso")
+      .select(COLUNAS_CONVITE)
       .eq("loja_id", lojaAtiva.id).order("criado_em", { ascending: false }).limit(100);
     if (error) { console.error(error); showToast("Erro ao carregar convites.", "warn"); setConvites([]); return; }
     setConvites(data || []);
@@ -6129,17 +6195,22 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
   useEffect(() => { carregar(); }, [lojaAtiva?.id]);
 
   async function gerar() {
-    if (!nome.trim() || !marca.trim()) { showToast("Preencha o nome do promotor e a marca.", "warn"); return; }
+    if (!nome.trim() || (!acessoTotal && marcas.length === 0)) { showToast("Preencha o nome do promotor e pelo menos uma marca (ou marque acesso total).", "warn"); return; }
     const horas = DURACOES_CONVITE.find((d) => d.id === duracao)?.horas || 24;
     setGerando(true);
     const { data, error } = await supabase.from("convites_promotor").insert({
-      nome: nome.trim(), marca: marca.trim(), loja_id: lojaAtiva.id,
+      nome: nome.trim(), marca: acessoTotal ? "TODAS AS MARCAS" : marcas[0], marcas: acessoTotal ? [] : marcas, acesso_total: acessoTotal, loja_id: lojaAtiva.id,
       expira_em: new Date(Date.now() + horas * 3600000).toISOString(),
-    }).select("id, token, codigo, nome, marca, expira_em, criado_em, revogado, pausado, usos, ultimo_uso").single();
+    }).select(COLUNAS_CONVITE).single();
     setGerando(false);
-    if (error) { console.error(error); showToast("Não foi possível gerar o convite.", "warn"); return; }
+    if (error) {
+      console.error(error);
+      const em = String(error.message || "");
+      showToast(/acesso_total_exige_gerencia/.test(em) ? "Só gerência ou diretoria pode dar acesso total." : /marcas_demais/.test(em) ? "No máximo 5 marcas por convite." : /marca_invalida/.test(em) ? "Marca inválida: use de 3 a 30 letras ou números." : /sem_permissao/.test(em) ? "Você não tem permissão para gerar convites." : "Não foi possível gerar o convite.", "warn");
+      return;
+    }
     setRecente(data);
-    setNome(""); setMarca("");
+    setNome(""); setMarcas([]); setAcessoTotal(false);
     setConvites((prev) => [data, ...(prev || [])]);
   }
 
@@ -6148,7 +6219,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
     catch { showToast("Não deu pra copiar. Segure o link pra copiar manualmente.", "warn"); }
   }
   function mensagem(c) {
-    return `Olá, ${c.nome}! Este é seu acesso ao app da Condor (${c.marca}). Abra o link pra entrar — ${validadeConvite(c)}.${c.codigo ? ` Seu código do promotor: ${c.codigo} (envie no Telegram do bot para lançar validade).` : ""}\n${linkDoConvite(c)}`;
+    return `Olá, ${c.nome}! Este é seu acesso ao app da Condor (${marcasConvite(c)}). Abra o link pra entrar — ${validadeConvite(c)}.${c.codigo ? ` Seu código do promotor: ${c.codigo} (envie no Telegram do bot para lançar validade).` : ""}\n${linkDoConvite(c)}`;
   }
   async function compartilhar(c) {
     if (navigator.share) {
@@ -6190,7 +6261,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
           <DashCard T={T} title="Novo convite" subtitle="Nome, marca e duração">
             <div className="flex flex-col gap-2.5">
               <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do promotor" style={inputStyle} className={inputCls} />
-              <input value={marca} onChange={(e) => setMarca(e.target.value)} placeholder="Marca (ex: Nestlé, Coca-Cola)" style={inputStyle} className={inputCls} />
+              <MarcasPicker T={T} lojaId={lojaAtiva?.id} marcas={marcas} setMarcas={setMarcas} acessoTotal={acessoTotal} setAcessoTotal={setAcessoTotal} podeTotal={nivelUsuario <= 4} inputStyle={inputStyle} inputCls={inputCls} showToast={showToast} />
               <select value={duracao} onChange={(e) => setDuracao(e.target.value)} style={inputStyle} className={inputCls}>
                 {DURACOES_CONVITE.map((d) => <option key={d.id} value={d.id}>Duração: {d.label}</option>)}
               </select>
@@ -6200,7 +6271,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
             </div>
           </DashCard>
           {recente && (
-            <DashCard T={T} title={`Convite de ${recente.nome} pronto`} subtitle={`${recente.marca} · ${validadeConvite(recente)}`}>
+            <DashCard T={T} title={`Convite de ${recente.nome} pronto`} subtitle={`${marcasConvite(recente)} · ${validadeConvite(recente)}`}>
               <p style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-mono break-all rounded-xl px-3 py-2 select-all mb-3">{linkDoConvite(recente)}</p>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => copiar(recente)} style={{ background: T.chipBg, color: T.text }} className="py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"><Copy size={13} /> Copiar link</button>
@@ -6212,7 +6283,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
         <DashCard T={T} title="Convites da loja" subtitle="Quem tem acesso e quando vence" className="col-span-2">
           {convites === null ? <div className="text-center py-8"><Loader2 size={22} className="animate-spin mx-auto" color={T.subtext} /></div> : (
             <DashTable T={T} rows={convites} empty="Nenhum convite gerado ainda." cols={[
-              { key: "nome", label: "Promotor", render: (c) => <div><p className="font-semibold">{c.nome}</p><p style={{ color: T.subtext }} className="text-[11px]">{c.marca}</p></div> },
+              { key: "nome", label: "Promotor", render: (c) => <div><p className="font-semibold">{c.nome}</p><p style={{ color: T.subtext }} className="text-[11px]">{marcasConvite(c)}</p></div> },
               { key: "expira_em", label: "Validade", render: (c) => <span className="text-xs">{formatarDataHoraExtenso(c.expira_em)}</span> },
               { key: "usos", label: "Uso", render: (c) => <span style={{ color: T.subtext }} className="text-xs">{c.usos ? `${c.usos}x · ${tempoDesde(c.ultimo_uso)}` : "não aberto"}</span> },
               { key: "st", label: "Status", render: (c) => { const st = statusDe(c); return <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>; } },
@@ -6232,7 +6303,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
         <p className="text-sm font-bold flex items-center gap-2"><Ticket size={16} color={BLUE} /> Novo convite</p>
         <p style={{ color: T.subtext }} className="text-[11px] -mt-1">O promotor abre o link e já entra, sem e-mail nem senha. Loja {lojaAtiva?.numero_loja || "—"}.</p>
         <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do promotor" style={inputStyle} className={inputCls} />
-        <input value={marca} onChange={(e) => setMarca(e.target.value)} placeholder="Marca (ex: Nestlé, Coca-Cola)" style={inputStyle} className={inputCls} />
+        <MarcasPicker T={T} lojaId={lojaAtiva?.id} marcas={marcas} setMarcas={setMarcas} acessoTotal={acessoTotal} setAcessoTotal={setAcessoTotal} podeTotal={nivelUsuario <= 4} inputStyle={inputStyle} inputCls={inputCls} showToast={showToast} />
         <select value={duracao} onChange={(e) => setDuracao(e.target.value)} style={inputStyle} className={inputCls}>
           {DURACOES_CONVITE.map((d) => <option key={d.id} value={d.id}>Duração: {d.label}</option>)}
         </select>
@@ -6245,7 +6316,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
       {recente && (
         <div style={{ background: BLUE_SOFT, borderColor: BLUE }} className="rounded-2xl p-4 border flex flex-col gap-2">
           <p className="text-sm font-bold">Convite de {recente.nome} pronto</p>
-          <p style={{ color: T.subtext }} className="text-[11px]">{recente.marca} · {validadeConvite(recente)}</p>
+          <p style={{ color: T.subtext }} className="text-[11px]">{marcasConvite(recente)} · {validadeConvite(recente)}</p>
           <p style={{ background: T.card, color: T.text }} className="text-[11px] font-mono break-all rounded-xl px-3 py-2 select-all">{linkDoConvite(recente)}</p>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={() => copiar(recente)} style={{ background: T.card, color: T.text }} className="py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"><Copy size={14} /> Copiar link</button>
@@ -6266,7 +6337,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva }) {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold truncate">{c.nome}</p>
-                  <p style={{ color: T.subtext }} className="text-[11px]">{c.marca} · {ativo ? "vale até" : "venceu em"} {formatarDataHoraExtenso(c.expira_em)}</p>
+                  <p style={{ color: T.subtext }} className="text-[11px]">{marcasConvite(c)} · {ativo ? "vale até" : "venceu em"} {formatarDataHoraExtenso(c.expira_em)}</p>
                   <p style={{ color: T.subtext }} className="text-[10px]">{c.usos ? `Aberto ${c.usos}x · último ${formatarDataHoraExtenso(c.ultimo_uso)}` : "Ainda não aberto"}</p>
                 </div>
                 <span style={{ background: st.bg, color: st.color }} className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0">{st.label}</span>

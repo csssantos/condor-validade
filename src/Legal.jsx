@@ -24,7 +24,7 @@ export const TERMOS_ALTERACOES = [
   { versao: "2026-10-31", docs: {
     termos: [
       "Novo recurso opcional: lançar validade pelo Telegram, conversando com um bot. Nada é lançado sem a sua confirmação.",
-      "Promotores ganham um código próprio (ex.: ABC-12345) que vale para um único Telegram e só permite lançar produtos da própria marca.",
+      "Promotores ganham um código próprio (ex.: ABC-12345) que vale para um único Telegram e permite lançar produtos de até 5 marcas definidas no convite (ou, em convites específicos criados pela gerência, de todas as marcas).",
       "As ações feitas pelo Telegram passam a aparecer na auditoria da loja, como as ações do app.",
       "Pelo Telegram, o funcionário pode cadastrar produto novo: o bot busca a imagem na internet e, depois da sua confirmação, envia o pedido (produto, validade e quantidade) para aprovação de um encarregado ou superior, que pode corrigir o produto, aprovar ou recusar com um motivo; o motivo é enviado a você pelo Telegram. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro).",
     ],
@@ -104,7 +104,7 @@ export const DOCUMENTOS = [
         "O app pode ter recursos de assistente de IA e cadastro por voz. As respostas da IA podem conter erros e são apoio à decisão, não substituem o seu julgamento nem as regras da empresa. Nenhuma ação é criada sem a sua confirmação.",
         "O cadastro por voz usa o reconhecimento de voz do seu navegador/aparelho, que pode ser processado pelo fornecedor dele (por exemplo, Google ou Apple). Você escolhe quando usar.",
         "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro). Para um produto que ainda não está no app, o bot consulta o código de barras no Open Food Facts (base pública na internet, que recebe apenas esse número), mostra a imagem encontrada e, se você confirmar, envia o pedido para aprovação de um encarregado ou superior da loja, que pode editar o produto, aprovar (o produto entra no app com essa imagem e a sua validade é lançada) ou recusar com um motivo, que o bot envia a você. O pedido (produto, código, validade, quantidade, seu nome, decisão, motivo e quem decidiu) fica guardado e é apagado 90 dias depois de decidido. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
-        "Promotores: o código do promotor (ex.: ABC-12345) vale para um único Telegram por vez e só permite lançar produtos da própria marca enquanto o acesso estiver ativo.",
+        "Promotores: o código do promotor (ex.: ABC-12345) vale para um único Telegram por vez e permite lançar apenas produtos das marcas definidas no convite (de 1 a 5) enquanto o acesso estiver ativo; a gerência ou diretoria pode criar um convite com acesso total a todas as marcas, e essa criação fica registrada na auditoria.",
       ] },
       { t: "8. Disponibilidade e mudanças", p: [
         "Nos esforçamos para manter o app disponível, mas ele pode ficar indisponível por manutenção, falhas de internet ou de terceiros. O app guarda algumas ações offline e envia quando a conexão volta.",
@@ -135,7 +135,7 @@ export const DOCUMENTOS = [
           "Este é um aplicativo avulso, sem CNPJ e sem encarregado (DPO) formal. Para falar sobre seus dados use Mais → Privacidade e termos → Solicitar um direito (Falar com o responsável).",
         ] },
         { t: "2. Quais dados coletamos", p: [
-          "Dados de cadastro: nome, matrícula, e-mail, cargo, setor, loja e, quando informado, telefone. Para promotores: nome e marca.",
+          "Dados de cadastro: nome, matrícula, e-mail, cargo, setor, loja e, quando informado, telefone. Para promotores: nome e marcas (de 1 a 5) ou acesso total.",
           "Dados de uso e segurança: registros de login (data, hora, endereço IP e dispositivo), ações feitas no app (cadastros, baixas, rondas, ocorrências, alterações de validade) e o aparelho usado.",
           "Conteúdo que você cria: fotos de produtos e de ocorrências, observações, quantidades, mensagens com o assistente de IA e ações pedidas a ele.",
           "Dados do aparelho para notificações: identificador de inscrição de notificações push (sem acesso ao conteúdo do seu aparelho).",
