@@ -9402,7 +9402,8 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
   // por que o botão Salvar está cinza (nunca deixar a pessoa sem explicação)
   const motivoBloqueio = !validade ? "Informe a validade."
     : dataRuim ? "Confira o ano da validade."
-    : diasRestantesAtual !== null && diasRestantesAtual <= 0 ? "Esse produto já venceu: use o registro de perda acima."
+    : diasRestantesAtual !== null && diasRestantesAtual === 0 ? "Esse produto vence hoje: use o registro de perda acima (não entra em alerta)."
+    : diasRestantesAtual !== null && diasRestantesAtual < 0 ? "Esse produto já venceu: use o registro de perda acima."
     : qtdMsg ? qtdMsg
     : !tamanho.trim() ? "Preencha o tamanho/embalagem."
     : !loteOk ? "Informe o lote impresso na embalagem (precisa ter ao menos um número) ou marque que não tem lote."
@@ -9638,7 +9639,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
         )}
       </div>
 
-      {!podeSalvar && motivoBloqueio && validade && (
+      {!podeSalvar && motivoBloqueio && (
         <p style={{ color: RED_DARK }} className="text-[11px] font-medium text-center mt-4 -mb-2" role="status">{motivoBloqueio}</p>
       )}
       <div className="flex gap-2 mt-5">

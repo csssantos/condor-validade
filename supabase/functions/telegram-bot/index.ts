@@ -472,7 +472,7 @@ const ERRO_VINC: Record<string, string> = {
 async function vincular(chat: number, texto: string) {
   const t = texto.trim().replace(/^\/start(@\w+)?\s*/i, "").trim();
   if (!t) return falar(chat, "👋 Oi! Para começar, me envie o seu código de acesso:\n\n🧑‍💼 Funcionário: gere no app em Mais → Conta → Telegram (8 letras e números)\n🏷️ Promotor: envie o código da sua marca (ex.: BAU-7K3QP8M2XC)\n\nO código do app vale por 10 minutos.", undefined, "codigo");
-  const func = /^[A-Za-z0-9]{4}\s?[A-Za-z0-9]{4}$/.test(t) && /\d/.test(t) && !/^[A-Za-z]{3}-/.test(t); // o código do app sempre tem ao menos 1 número: palavra comum de 8 letras ("obrigado") não conta como tentativa
+  const func = /^[A-Za-z0-9]{4}[\s-]?[A-Za-z0-9]{4}$/.test(t) && /\d/.test(t) && !/^[A-Za-z]{3}-/.test(t); // o código do app sempre tem ao menos 1 número: palavra comum de 8 letras ("obrigado") não conta como tentativa
   const prom = /^[A-Za-z]{3}-[A-Za-z0-9]{5,10}$/.test(t);
   if (!func && !prom) return falar(chat, "Não reconheci esse código. Funcionário: 8 letras e números do app. Promotor: código tipo BAU-7K3QP8M2XC.", undefined, "atencao");
   // trava por erros: depois de 5 códigos errados o chat espera (15 min, 1 h, 24 h). Quem acerta de primeira nunca é afetado
@@ -484,7 +484,11 @@ async function vincular(chat: number, texto: string) {
     ? await sb.rpc("telegram_vincular_funcionario", { p_chat_id: chat, p_codigo: t })
     : await sb.rpc("telegram_vincular_promotor", { p_chat_id: chat, p_codigo: t.toUpperCase() });
   if (error) {
-    if ((error.message || "").includes("codigo_invalido")) await sb.rpc("telegram_vinc_falha", { p_chat_id: chat });
+    if ((error.message || "").includes("codigo_invalido")) {
+      const { data: bl } = await sb.rpc("telegram_vinc_falha", { p_chat_id: chat });
+      if (typeof bl === "number" && bl > 0) return falar(chat, `⚠️ Código inválido. Foram 5 erros seguidos: este chat ficou bloqueado por ${bl >= 3600 ? Math.round(bl / 3600) + " h" : Math.round(bl / 60) + " min"}, mesmo que você mande o código certo depois.`, undefined, "atencao");
+      return falar(chat, "⚠️ " + ERRO_VINC.codigo_invalido + "\n\n(5 erros seguidos bloqueiam este chat por 15 minutos.)", undefined, "atencao");
+    }
     const k = Object.keys(ERRO_VINC).find((x) => (error.message || "").includes(x));
     return falar(chat, k ? "⚠️ " + ERRO_VINC[k] : "Não consegui vincular agora. Tente de novo.", undefined, "atencao");
   }

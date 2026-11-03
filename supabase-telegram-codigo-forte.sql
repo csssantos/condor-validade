@@ -1,6 +1,6 @@
 -- Item 3: código do Telegram forte + trava de erros. Rode no SQL Editor (tem auto-teste). Rode DEPOIS de supabase-revisao.sql.
 -- Antes: 8 DÍGITOS (100 milhões de combinações) e um balde GLOBAL que qualquer um esgotava para travar a vinculação de todos.
--- Agora: 8 caracteres de um alfabeto de 32 (~1,1 trilhão de combinações), gerado só pelo servidor, e trava por chat após erros.
+-- Agora: 8 caracteres de um alfabeto de 32 (mais de 500 bilhões de combinações), gerado só pelo servidor, e trava por chat após erros.
 
 -- 1) trava por erros (por chat do Telegram): só o bot (service_role) mexe
 create table if not exists public.telegram_falhas (
