@@ -471,10 +471,10 @@ const ERRO_VINC: Record<string, string> = {
 };
 async function vincular(chat: number, texto: string) {
   const t = texto.trim().replace(/^\/start(@\w+)?\s*/i, "").trim();
-  if (!t) return falar(chat, "👋 Oi! Para começar, me envie o seu código de acesso:\n\n🧑‍💼 Funcionário: gere no app em Mais → Conta → Telegram (8 números)\n🏷️ Promotor: envie o código da sua marca (ex.: BAU-7K3QP)\n\nO código do app vale por 10 minutos.", undefined, "codigo");
+  if (!t) return falar(chat, "👋 Oi! Para começar, me envie o seu código de acesso:\n\n🧑‍💼 Funcionário: gere no app em Mais → Conta → Telegram (8 números)\n🏷️ Promotor: envie o código da sua marca (ex.: BAU-7K3QP8M2XC)\n\nO código do app vale por 10 minutos.", undefined, "codigo");
   const func = /^\d{4}\s?-?\s?\d{4}$/.test(t);
-  const prom = /^[A-Za-z]{3}-[A-Za-z0-9]{5}$/.test(t);
-  if (!func && !prom) return falar(chat, "Não reconheci esse código. Funcionário: 8 dígitos do app. Promotor: código tipo BAU-7K3QP.", undefined, "atencao");
+  const prom = /^[A-Za-z]{3}-[A-Za-z0-9]{5,10}$/.test(t);
+  if (!func && !prom) return falar(chat, "Não reconheci esse código. Funcionário: 8 dígitos do app. Promotor: código tipo BAU-7K3QP8M2XC.", undefined, "atencao");
   const [a, b] = await Promise.all([
     sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg_vinc", p_max: 8 }),
     sb.rpc("rl_servico", { p_chave: "global", p_bucket: "tg_vinc", p_max: 1000 }),

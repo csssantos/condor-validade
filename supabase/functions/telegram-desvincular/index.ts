@@ -47,7 +47,7 @@ Deno.serve(async (req: Request) => {
     const { data: ainda } = await admin.from("telegram_vinculos").select("id").eq("id", alvo.id).maybeSingle();
     if (!ainda) {
       const como = alvo.tipo === "promotor"
-        ? "Para continuar lançando validade, vincule de novo: envie aqui o código da sua marca (ex.: BAU-7K3QP)."
+        ? "Para continuar lançando validade, vincule de novo: envie aqui o código da sua marca (ex.: BAU-7K3QP8M2XC)."
         : "Para continuar lançando validade, vincule de novo: gere um novo código no app (Mais → Conta → Telegram) e envie aqui.";
       const texto = `🔒 Seu Telegram foi desvinculado do aplicativo.\n\nEnquanto não vincular de novo, eu não consigo lançar validade.\n\n${como}`;
       const r = await tg("sendPhoto", { chat_id: alvo.chat_id, photo: `${SITE}/bot/codigo.jpg`, caption: texto.slice(0, 1000) });
