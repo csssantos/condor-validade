@@ -792,6 +792,7 @@ function enfileirar(tipo, payload) {
 function erroDeRede(e) {
   if (!navigator.onLine) return true;
   const m = String((e && (e.message || e.details)) || e || "");
+  if (/limite_excedido/.test(m)) return true; // limite por minuto: não é falha definitiva, a operação fica na fila e tenta de novo
   return !(e && e.code) && /fetch|network|timeout|conex|load failed|abort/i.test(m);
 }
 function mensagemErroGravacao(e) {

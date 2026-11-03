@@ -63,11 +63,11 @@ create or replace function public._produtos_del_ck() returns trigger language pl
 declare nv int;
 begin
   if auth.uid() is null then return old; end if;
+  if coalesce(current_setting('app.via_baixa', true), '') = '1' then return old; end if; -- veio da RPC dar_baixa (que tem o limite dela)
   perform public.rl_checar('produtos_del', 60);
   nv := coalesce(public.nivel_do_usuario(), 99);
   if nv <= 5 then return old; end if;
-  if coalesce(current_setting('app.via_baixa', true), '') = '1' then return old; end if; -- veio da RPC dar_baixa
-  if old.cadastrado_por is not distinct from public.nome_do_usuario() and old.criado_em > now() - interval '24 hours' then return old; end if;
+  if (old.lancado_por_id = auth.uid() or (old.lancado_por_id is null and old.cadastrado_por is not distinct from public.nome_do_usuario())) and old.criado_em > now() - interval '24 hours' then return old; end if;
   raise exception 'excluir_exige_encarregado';
 end $f$;
 revoke all on function public._produtos_del_ck() from public, anon, authenticated;
@@ -127,8 +127,8 @@ revoke all on function public.somar_ao_lote(text, integer) from public, anon;
 grant execute on function public.somar_ao_lote(text, integer) to authenticated;
 
 -- RPC de baixa: o histórico sai do PRODUTO REAL (não do que o cliente diz) e a exclusão acontece na mesma transação
-create or replace function public.dar_baixa(p_id text, p_motivo text, p_qtd integer default null) returns void language plpgsql security definer set search_path = public as $f$
-declare x record; v_q int; m text := btrim(coalesce(p_motivo, ''));
+create or replace function public.dar_baixa(p_id text, p_motivo text, p_qtd numeric default null) returns void language plpgsql security definer set search_path = public as $f$
+declare x record; v_q numeric; m text := btrim(coalesce(p_motivo, ''));
 begin
   if auth.uid() is null or public.nivel_do_usuario() is null then raise exception 'sem_permissao'; end if;
   perform public.rl_checar('dar_baixa', 120);
@@ -136,15 +136,15 @@ begin
   select * into x from public.produtos where id = p_id for update;
   if not found or not public.loja_ok(x.loja_id) then raise exception 'produto_nao_encontrado'; end if;
   v_q := coalesce(p_qtd, x.quantidade);
-  if v_q < 1 or v_q > x.quantidade then raise exception 'quantidade_invalida'; end if;
-  insert into public.historico (barcode, nome, setor, foto, quantidade, preco_unitario, validade, motivo, vencido_antes, loja_id, por_peso, lote, sem_lote)
-  values (x.barcode, x.nome, x.setor, x.foto, v_q, coalesce(x.preco_unitario, 0), x.validade, m, x.validade < public.hoje_br(), x.loja_id, coalesce(x.por_peso, false), x.lote, coalesce(x.sem_lote, false));
+  if v_q > x.quantidade or v_q < (case when coalesce(x.por_peso, false) then 0.001 else 1 end) or (not coalesce(x.por_peso, false) and v_q <> trunc(v_q)) then raise exception 'quantidade_invalida'; end if;
+  insert into public.historico (barcode, nome, setor, foto, quantidade, quantidade_medida, preco_unitario, validade, motivo, vencido_antes, loja_id, por_peso, lote, sem_lote)
+  values (x.barcode, x.nome, x.setor, x.foto, greatest(1, round(v_q))::int, case when coalesce(x.por_peso, false) then v_q else null end, coalesce(x.preco_unitario, 0), x.validade, m, x.validade < public.hoje_br(), x.loja_id, coalesce(x.por_peso, false), x.lote, coalesce(x.sem_lote, false));
   perform set_config('app.via_baixa', '1', true);
   delete from public.produtos where id = p_id;
   perform set_config('app.via_baixa', '', true);
 end $f$;
-revoke all on function public.dar_baixa(text, text, integer) from public, anon;
-grant execute on function public.dar_baixa(text, text, integer) to authenticated;
+revoke all on function public.dar_baixa(text, text, numeric) from public, anon;
+grant execute on function public.dar_baixa(text, text, numeric) to authenticated;
 
 -- AUTO-TESTE
 do $do$
@@ -153,7 +153,7 @@ begin
   select count(*) into n from pg_trigger where tgrelid = 'public.produtos'::regclass and tgname in ('trg_produtos_blindagem_ins', 'trg_produtos_blindagem', 'trg_produtos_trilha_upd', 'trg_produtos_trilha_del', 'trg_produtos_del', 'trg_produtos_regras');
   if n <> 6 then raise exception 'auto-teste: gatilhos de produtos incompletos (%)', n; end if;
   if position('via_rpc' in pg_get_functiondef('public.somar_ao_lote(text,integer)'::regprocedure)) = 0 then raise exception 'auto-teste: somar_ao_lote'; end if;
-  if position('via_baixa' in pg_get_functiondef('public._produtos_del_ck()'::regprocedure)) = 0 or position('via_baixa' in pg_get_functiondef('public.dar_baixa(text,text,integer)'::regprocedure)) = 0 then raise exception 'auto-teste: baixa/exclusao'; end if;
-  if has_function_privilege('anon', 'public.dar_baixa(text,text,integer)', 'execute') or not has_function_privilege('authenticated', 'public.dar_baixa(text,text,integer)', 'execute') then raise exception 'auto-teste: permissoes dar_baixa'; end if;
+  if position('via_baixa' in pg_get_functiondef('public._produtos_del_ck()'::regprocedure)) = 0 or position('via_baixa' in pg_get_functiondef('public.dar_baixa(text,text,numeric)'::regprocedure)) = 0 then raise exception 'auto-teste: baixa/exclusao'; end if;
+  if has_function_privilege('anon', 'public.dar_baixa(text,text,numeric)', 'execute') or not has_function_privilege('authenticated', 'public.dar_baixa(text,text,numeric)', 'execute') then raise exception 'auto-teste: permissoes dar_baixa'; end if;
   if has_function_privilege('anon', 'public.somar_ao_lote(text,integer)', 'execute') or not has_function_privilege('authenticated', 'public.somar_ao_lote(text,integer)', 'execute') then raise exception 'auto-teste: permissoes somar_ao_lote'; end if;
 end $do$;
