@@ -144,8 +144,8 @@ const LOTE_RE = /^[A-Z0-9][A-Z0-9./ -]{0,19}$/;
 const normLote = (t: string) => String(t || "").replace(/^\s*lote(?:\s*[:\-]\s*|\s+)/i, "").replace(/\s+/g, " ").trim().toUpperCase();
 const loteValido = (lt: string) => LOTE_RE.test(lt) && /\d/.test(lt); // lote real tem pelo menos um número
 // datas escritas "do jeito do povo": 15122026, 15 12 2026, 12/2026 (último dia do mês) -> dd/mm/aaaa
-function prepararData(t: string) {
-  let x = t.replace(/\b(\d{2})(\d{2})(\d{4})\b/g, (m, d, mo, a) => (!eanOk(m) && +d >= 1 && +d <= 31 && +mo >= 1 && +mo <= 12 && +a >= 2000 && +a <= 2100) ? `${d}/${mo}/${a}` : m);
+function prepararData(t: string, semProduto = false) { // semProduto: ainda não há produto na conversa, então 8 dígitos válidos são EAN-8, não data
+  let x = t.replace(/\b(\d{2})(\d{2})(\d{4})\b/g, (m, d, mo, a) => (!(semProduto && eanOk(m)) && +d >= 1 && +d <= 31 && +mo >= 1 && +mo <= 12 && +a >= 2000 && +a <= 2100) ? `${d}/${mo}/${a}` : m);
   x = x.replace(/\b(\d{1,2})[ ](\d{1,2})[ ](20\d{2})\b/g, (m, d, mo, a) => (+d >= 1 && +d <= 31 && +mo >= 1 && +mo <= 12) ? `${d}/${mo}/${a}` : m);
   x = x.replace(/(?<![\w\/])(\d{1,2})\/(20\d{2})\b/g, (m, mo, a) => { if (+mo < 1 || +mo > 12) return m; const u = new Date(Date.UTC(+a, +mo, 0)).getUTCDate(); return `${u}/${String(mo).padStart(2, "0")}/${a}`; });
   return x;
@@ -307,7 +307,7 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   let textoSemLote = texto;
   const ml = texto.match(/\blote\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9./-]{0,19})/i);
   if (ml) { const lt = normLote(ml[1]); if (loteValido(lt)) { d.lote = lt; textoSemLote = texto.replace(ml[0], " "); } }
-  textoSemLote = prepararData(textoSemLote);
+  textoSemLote = prepararData(textoSemLote, !d.barcode);
   const mb = textoSemLote.match(/\b\d{8,14}\b/);
 
   if (s.estado === "aguardando_confirmacao") {
