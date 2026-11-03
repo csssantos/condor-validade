@@ -302,7 +302,7 @@ function saveLocal(key, value) {
 // ---------- Supabase: mapeamento de linhas <-> objetos do app ----------
 function produtoFromRow(r) {
   return {
-    lancadoPorId: r.lancado_por_id || null, cadastradoPor: r.cadastrado_por || null,
+    lancadoPorId: r.lancado_por_id || null,
     id: r.id, barcode: r.barcode, nome: r.nome, setor: r.setor, subsetor: r.subsetor || null, foto: r.foto,
     quantidade: r.quantidade, precoUnitario: Number(r.preco_unitario) || 0, porPeso: !!r.por_peso,
     tamanho: r.tamanho || null, unidadeMedida: r.unidade_medida || null,
@@ -1343,14 +1343,15 @@ function AppInner() {
     if (!it) return false;
     if (nivelUsuario <= 4) return true;
     if (nivelUsuario !== 5) return false;
-    const meu = String(perfil?.setor || "").trim().toLowerCase();
-    return !meu || meu === String(it.setor || "").trim().toLowerCase();
+    const norm = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s\u00a0]+/g, " ").trim().toLowerCase();
+    const meu = norm(perfil?.setor), dele = norm(it.setor);
+    return !meu || dele === meu || dele.startsWith(meu + " ") || meu.startsWith(dele + " ");
   };
   const podeEditarProduto = (it) => {
     if (!it) return false;
     if (podeGerirProduto(it)) return true;
     if (nivelUsuario <= 5) return false;
-    return (it.lancadoPorId && it.lancadoPorId === idDoUsuario) || (!it.lancadoPorId && !!perfil?.nome && it.cadastradoPor === perfil.nome);
+    return (it.lancadoPorId && it.lancadoPorId === idDoUsuario) || (!it.lancadoPorId && !!perfil?.nome && (it.cadastradoPor === perfil.nome || String(it.cadastradoPor || "").startsWith(perfil.nome + " - ")));
   };
   useEffect(() => {
     if (!idDoUsuario || !perfil) { return; }
@@ -2126,7 +2127,7 @@ function AppInner() {
       showToast("Alerta atualizado.");
       notificarSeNecessarioAgora(novoItem);
     } else {
-      const novo = { id: `${pendingBarcode}-${Date.now()}`, barcode: pendingBarcode, ...draftProduct, ...dados, criadoEm: new Date().toISOString(), cadastradoPor: usuario || null };
+      const novo = { id: `${pendingBarcode}-${Date.now()}`, barcode: pendingBarcode, ...draftProduct, ...dados, criadoEm: new Date().toISOString(), cadastradoPor: usuario || null, lancadoPorId: idDoUsuario };
       setItems((prev) => [...prev, novo]);
       gravarProduto(novo);
       logAuditoria(usuario, "cadastrou produto", novo.nome, novo.barcode);
@@ -2230,7 +2231,8 @@ function AppInner() {
     setDetalheItem(null);
     setEditingItemId(null);
     setPendingBarcode(item.barcode);
-    setDraftProduct({ ...item });
+    const { id: _idAntigo, lancadoPorId: _lp, cadastradoPor: _cp, atualizadoPor: _ap, criadoEm: _ce, ...copia } = item;
+    setDraftProduct({ ...copia });
     setFlow("expiry");
   }
 
@@ -2428,7 +2430,7 @@ function AppInner() {
           <ExpiryView T={T} product={draftProduct} barcode={pendingBarcode} items={items} vozPre={vozPre}
             editing={editingItemId ? items.find((i) => i.id === editingItemId) : null}
             onCancel={resetFlow} onVoltar={() => setFlow("confirm")} onSave={saveAlertItem}
-            onBaixaDireta={!editingItemId && nivelUsuario <= 5 ? registrarBaixaDireta : null} />
+            onBaixaDireta={!editingItemId && nivelUsuario <= 5 && podeGerirProduto(draftProduct) ? registrarBaixaDireta : null} />
         )}
 
         {flow === "auditoria" && <AuditoriaView T={T} auditoria={auditoria} />}
@@ -2482,7 +2484,7 @@ function AppInner() {
           <SetorDetalheView T={T} setor={setorAtivo} items={items} catalog={catalog} rondas={rondas} subInicial={subAtivo}
             onVoltar={() => setSubAtivo(null)} onIniciarRonda={iniciarRonda} onOpenDetail={setDetalheItem}
             onLancarValidade={ehDesktop ? null : lancarValidadeDoCadastro} onCadastrarNoSetor={ehDesktop ? null : (s) => abrirCadastroDireto(s)}
-            onExcluir={nivelUsuario <= 5 ? excluirProduto : null} usuario={usuario} ehEncarregado={ehEncarregado} perfil={perfil} />
+            onExcluir={nivelUsuario <= 5 ? excluirProduto : null} podeGerirProduto={podeGerirProduto} usuario={usuario} ehEncarregado={ehEncarregado} perfil={perfil} />
         )}
         {flow === "prioridade" && (
           <PrioridadeInteligenteView T={T} items={items} historico={historico} onOpenDetail={setDetalheItem} />
@@ -2510,7 +2512,7 @@ function AppInner() {
           outrosLotes={items.filter((i) => i.barcode === detalheItem.barcode && i.setor === detalheItem.setor && i.id !== detalheItem.id)}
           onTrocarLote={setDetalheItem}
           onClose={() => setDetalheItem(null)}
-          onEdit={ehDesktop || !podeEditarProduto(detalheItem) ? null : startEdit} onDuplicate={ehDesktop ? null : duplicarItem}
+          onEdit={ehDesktop || !podeEditarProduto(detalheItem) ? null : startEdit} onDuplicate={ehDesktop || !podeEditarProduto(detalheItem) ? null : duplicarItem}
           onBaixa={podeGerirProduto(detalheItem) ? darBaixa : null} onShare={compartilharItem}
           onAplicarPromocao={podeGerirProduto(detalheItem) ? aplicarPromocao : null} onExcluir={podeGerirProduto(detalheItem) ? excluirProduto : null} />
       )}
@@ -3598,7 +3600,7 @@ function SetorSubcategoriasView({ T, setor, items, catalog, extras, onVoltar, on
   );
 }
 
-function SetorDetalheView({ T, setor, items, catalog, rondas, subInicial, onVoltar, onIniciarRonda, onOpenDetail, onLancarValidade, onCadastrarNoSetor, onExcluir, usuario, ehEncarregado, perfil }) {
+function SetorDetalheView({ T, setor, items, catalog, rondas, subInicial, onVoltar, onIniciarRonda, onOpenDetail, onLancarValidade, onCadastrarNoSetor, onExcluir, podeGerirProduto, usuario, ehEncarregado, perfil }) {
   const podeVerValores = useValoresVisiveis();
   const [itemParaExcluir, setItemParaExcluir] = useState(null);
   const [search, setSearch] = useState("");
@@ -3743,7 +3745,7 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, subInicial, onVolt
             {agruparItensPorProduto(filtrados.filter((i) => !i.semValidade)).map((g, i) => (
               <LinhaProduto key={g.unico ? g.item.id : `grupo-${i}`} T={T} idx={i} podeVerValores={podeVerValores}
                 item={g.unico ? g.item : g.base} lotes={g.unico ? null : g.lotes} totalQuantidade={g.totalQuantidade} piorStatus={g.unico ? g.item.status : g.piorStatus}
-                onOpenDetail={onOpenDetail} onExcluir={g.unico && onExcluir ? () => setItemParaExcluir(g.item) : null} />
+                onOpenDetail={onOpenDetail} onExcluir={g.unico && onExcluir && (!podeGerirProduto || podeGerirProduto(g.item)) ? () => setItemParaExcluir(g.item) : null} />
             ))}
             {onLancarValidade && filtrados.filter((i) => i.semValidade).map((item, i) => (
               <LinhaProduto key={item.id} T={T} idx={i} item={item} semValidade onOpenDetail={() => onLancarValidade(item)} />
@@ -9628,6 +9630,9 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
                 <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                 <span>{diasRestantesAtual <= 0 ? "Esta data já venceu ou vence hoje." : "Data muito próxima."} Não é possível definir uma antecedência de alerta.</span>
               </div>
+              {!onBaixaDireta && jaVencido && (
+                <p className="text-[10.5px] font-semibold px-3 pb-3">Produto vencido: avise o encarregado do setor para registrar a perda.</p>
+              )}
               {onBaixaDireta && jaVencido && (
                 <div className="px-3 pb-3">
                   <p className="text-[10.5px] font-semibold mb-1.5">Quantas {porPeso ? "kg" : "unidade(s)"} estão sendo descartadas?</p>

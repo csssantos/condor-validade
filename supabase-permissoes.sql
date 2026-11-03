@@ -6,23 +6,32 @@
 -- Telegram/serviço (auth.uid() nulo) e RPCs internas (app.via_rpc / app.via_baixa) ficam fora.
 -- Rodar DEPOIS de supabase-promotor-marcas.sql. Tem auto-teste de existência no final.
 
+create or replace function public._norm_setor(p text)
+returns text language sql immutable set search_path = public as $$
+  select lower(btrim(regexp_replace(translate(coalesce(p, ''), 'áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ', 'aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC'), '[\s\u00a0]+', ' ', 'g')));
+$$;
+
+-- nível 5 sem setor cadastrado = encarregado geral (ex.: Encarregado de Reposição): vale para todos os setores
 create or replace function public._setor_ok(p_setor text)
 returns boolean language plpgsql stable security definer set search_path = public as $$
-declare nv int; s text;
+declare nv int; s text; d text;
 begin
   if auth.uid() is null then return true; end if;
   nv := coalesce(public.nivel_do_usuario(), 99);
   if nv <= 4 then return true; end if;
   if nv <> 5 then return false; end if;
-  select nullif(btrim(setor), '') into s from public.usuarios where id = auth.uid();
-  if s is null then return true; end if;
-  return lower(btrim(coalesce(p_setor, ''))) = lower(s);
+  select public._norm_setor(setor) into s from public.usuarios where id = auth.uid();
+  if s is null or s = '' then return true; end if;
+  d := public._norm_setor(p_setor);
+  return d = s or d like s || ' %' or s like d || ' %';
 end $$;
 
+-- autor: pelo id; produto antigo (sem id) pelo nome gravado ("Nome" ou "Nome - CARGO")
 create or replace function public._eh_autor(p_id uuid, p_nome text)
 returns boolean language sql stable security definer set search_path = public as $$
-  select p_id = auth.uid()
-      or (p_id is null and public.nome_do_usuario() is not null and p_nome = public.nome_do_usuario());
+  select coalesce(p_id = auth.uid()
+      or (p_id is null and public.nome_do_usuario() is not null
+          and (p_nome = public.nome_do_usuario() or p_nome like public.nome_do_usuario() || ' - %')), false);
 $$;
 
 -- BAIXA (RPC)
@@ -50,8 +59,12 @@ create or replace function public._historico_quem()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if auth.uid() is not null then
-    if coalesce(current_setting('app.via_baixa', true), '') <> '1' and not public._setor_ok(new.setor) then
-      raise exception 'baixa_exige_encarregado';
+    if coalesce(current_setting('app.via_baixa', true), '') <> '1' then
+      -- o setor informado pelo cliente não basta: vale também o setor real do produto (mesmo código de barras, mesma loja)
+      if not public._setor_ok(new.setor)
+         or exists (select 1 from public.produtos p where p.barcode = new.barcode and p.loja_id = new.loja_id and not public._setor_ok(p.setor)) then
+        raise exception 'baixa_exige_encarregado';
+      end if;
     end if;
     new.registrado_por_id := auth.uid();
     new.registrado_por := coalesce(public.nome_do_usuario(), new.registrado_por);
@@ -77,14 +90,14 @@ returns trigger language plpgsql security definer set search_path = public as $$
 declare o record; nv int;
 begin
   if auth.uid() is null then return new; end if;
-  if coalesce(current_setting('app.via_rpc', true), '') = '1' or coalesce(current_setting('app.via_baixa', true), '') = '1' then return new; end if;
-  if tg_op = 'UPDATE' then o := old;
-  else
-    select * into o from public.produtos where id = new.id;
-    if not found then return new; end if; -- lançamento novo
-  end if;
+  if coalesce(current_setting('app.via_rpc', true), '') = '1' then return new; end if;
   nv := coalesce(public.nivel_do_usuario(), 99);
   if nv <= 4 then return new; end if;
+  if tg_op = 'UPDATE' then o := old;
+  else
+    select * into o from (select id, setor, lancado_por_id, cadastrado_por from public.produtos where id = new.id) q;
+    if not found then return new; end if; -- lançamento novo
+  end if;
   if nv = 5 then
     if public._setor_ok(o.setor) and public._setor_ok(new.setor) then return new; end if;
     raise exception 'editar_exige_encarregado';
@@ -94,19 +107,50 @@ begin
 end $$;
 
 drop trigger if exists trg_produtos_perm_upd on public.produtos;
-create trigger trg_produtos_perm_upd before update on public.produtos for each row execute function public._produtos_perm();
 drop trigger if exists trg_produtos_perm_ins on public.produtos;
-create trigger trg_produtos_perm_ins before insert on public.produtos for each row execute function public._produtos_perm();
+drop trigger if exists trg_a_perm_upd on public.produtos;
+drop trigger if exists trg_a_perm_ins on public.produtos;
+create trigger trg_a_perm_upd before update on public.produtos for each row execute function public._produtos_perm();
+create trigger trg_a_perm_ins before insert on public.produtos for each row execute function public._produtos_perm();
 
-revoke all on function public._setor_ok(text), public._eh_autor(uuid, text), public._produtos_perm() from public, anon;
-grant execute on function public._setor_ok(text) to authenticated;
-
--- AUTO-TESTE
-do $$
+-- SOMAR AO LOTE: soma é "editar" a quantidade; só autor ou quem gere o setor
+create or replace function public.somar_ao_lote(p_id text, p_qtd integer)
+returns integer language plpgsql security definer set search_path = public as $$
+declare x record; nova int;
 begin
-  if not exists (select 1 from pg_trigger where tgname = 'trg_produtos_perm_upd')
-     or not exists (select 1 from pg_trigger where tgname = 'trg_produtos_perm_ins')
-     or to_regprocedure('public._setor_ok(text)') is null then
-    raise exception 'permissoes: instalação incompleta';
+  if auth.uid() is null or public.nivel_do_usuario() is null then raise exception 'sem_permissao'; end if;
+  perform public.rl_checar('somar_lote', 60);
+  if p_qtd is null or p_qtd < 1 or p_qtd > 99999 then raise exception 'quantidade_invalida'; end if;
+  select id, nome, barcode, lote, quantidade, loja_id, por_peso, setor, lancado_por_id, cadastrado_por into x from public.produtos where id = p_id for update;
+  if not found or not public.loja_ok(x.loja_id) then raise exception 'produto_nao_encontrado'; end if;
+  if not (public._setor_ok(x.setor) or public._eh_autor(x.lancado_por_id, x.cadastrado_por)) then raise exception 'editar_exige_autor'; end if;
+  if x.lote is null or coalesce(x.por_peso, false) then raise exception 'lote_obrigatorio'; end if;
+  if p_qtd > greatest(10, ceil(x.quantidade * 0.5)) then raise exception 'aumento_excessivo'; end if;
+  nova := x.quantidade + p_qtd;
+  if nova > 99999 then raise exception 'quantidade_invalida'; end if;
+  perform set_config('app.via_rpc', '1', true);
+  update public.produtos set quantidade = nova, atualizado_por = public.nome_do_usuario() where id = p_id;
+  perform set_config('app.via_rpc', '', true);
+  insert into public.auditoria (usuario, acao, detalhe, produto_barcode, loja_id)
+    values (public.nome_do_usuario(), 'somou quantidade ao lote', x.nome || ' · lote ' || x.lote || ' · +' || p_qtd::text || ' (de ' || x.quantidade::text || ' para ' || nova::text || ')', x.barcode, x.loja_id);
+  return nova;
+end $$;
+revoke all on function public.somar_ao_lote(text, integer) from public, anon;
+grant execute on function public.somar_ao_lote(text, integer) to authenticated;
+
+revoke all on function public._norm_setor(text), public._setor_ok(text), public._eh_autor(uuid, text), public._produtos_perm() from public, anon, authenticated;
+
+-- AUTO-TESTE (se reaplicar blindagem/revisao depois, estas funções voltam ao antigo: rode este arquivo de novo)
+do $$
+declare d text;
+begin
+  if not exists (select 1 from pg_trigger where tgname = 'trg_a_perm_upd') or not exists (select 1 from pg_trigger where tgname = 'trg_a_perm_ins') then
+    raise exception 'permissoes: triggers ausentes';
   end if;
+  for d in select pg_get_functiondef(p) from unnest(array['public.dar_baixa(text,text,numeric)'::regprocedure, 'public._historico_quem()'::regprocedure]) p loop
+    if position('baixa_exige_encarregado' in d) = 0 then raise exception 'permissoes: baixa sem trava'; end if;
+  end loop;
+  if position('_setor_ok' in pg_get_functiondef('public._produtos_del_ck()'::regprocedure)) = 0 then raise exception 'permissoes: exclusao sem trava'; end if;
+  if position('_eh_autor' in pg_get_functiondef('public.somar_ao_lote(text,integer)'::regprocedure)) = 0 then raise exception 'permissoes: somar_ao_lote sem trava'; end if;
+  if has_function_privilege('authenticated', 'public._produtos_perm()', 'execute') or has_function_privilege('anon', 'public._setor_ok(text)', 'execute') then raise exception 'permissoes: funcoes internas abertas'; end if;
 end $$;
