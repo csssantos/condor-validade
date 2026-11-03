@@ -272,7 +272,7 @@ function calcularOpcoesAlerta(validadeISO, perecivel) {
     return { opcoes: [maxPermitido], maxPermitido, restritivo: true, diasRestantesAtual: dias };
   }
   if (dias >= 1) { // falta só 1 dia: qualquer produto (perecível ou não) pode ser lançado com alerta de 1 dia, senão o botão ficava cinza sem explicação
-    return { opcoes: [1], maxPermitido: 1, restritivo: true, diasRestantesAtual: dias, motivoPerecivel: true };
+    return { opcoes: [1], maxPermitido: 1, restritivo: true, diasRestantesAtual: dias, motivoUmDia: true };
   }
   return { opcoes: [], maxPermitido: 0, restritivo: true, diasRestantesAtual: dias };
 }
@@ -2710,6 +2710,10 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-03-telegram-codigo", data: "03/11/2026", itens: [
+    { tipo: "melhorado", ate: 7, texto: "Código do Telegram agora tem 8 letras e números (mais seguro). Depois de 5 erros seguidos o bot bloqueia o chat por um tempo." },
+    { tipo: "melhorado", ate: 7, texto: "Produto que vence amanhã pode ser lançado com alerta de 1 dia, e o botão Salvar cinza agora explica o que falta." },
+  ] },
   { id: "2026-11-03-baixa", data: "03/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "Dar baixa ficou mais seguro: o servidor registra a baixa e tira o produto numa operação só, com o nome de quem fez." },
     { tipo: "melhorado", ate: 5, texto: "Aumento de quantidade tem limite por dia (metade do estoque, mínimo 10) para evitar erro de digitação." },
@@ -9355,7 +9359,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
   const [motivoBaixaDireta, setMotivoBaixaDireta] = useState("Enviado para descarte");
 
   const perecivel = ehPerecivel(product.setor);
-  const { opcoes, restritivo, diasRestantesAtual, motivoPerecivel } = useMemo(() => calcularOpcoesAlerta(validade, perecivel), [validade, perecivel]);
+  const { opcoes, restritivo, diasRestantesAtual, motivoUmDia } = useMemo(() => calcularOpcoesAlerta(validade, perecivel), [validade, perecivel]);
 
   useEffect(() => {
     if (opcoes.length) setDiasSelecionados((prev) => { const filtrado = prev.filter((d) => opcoes.includes(d)); return filtrado.length ? filtrado : [opcoes[opcoes.length - 1]]; });
@@ -9556,12 +9560,12 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
                   );
                 })}
               </div>
-              {motivoPerecivel && (
+              {motivoUmDia && (
                 <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[11px] font-medium px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5">
                   <Sparkles size={13} className="mt-0.5 shrink-0" /> <span>{perecivel ? "Produto perecível: liberado o lançamento mesmo faltando só 1 dia para o vencimento." : "Falta só 1 dia para o vencimento: o alerta fica em 1 dia."}</span>
                 </div>
               )}
-              {restritivo && !motivoPerecivel && opcoes.length > 0 && (
+              {restritivo && !motivoUmDia && opcoes.length > 0 && (
                 <div style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-medium px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5">
                   <ShieldAlert size={13} className="mt-0.5 shrink-0" />
                   <span>Faltam apenas {diasRestantesAtual} dia(s) para o vencimento — por segurança, só é possível escolher {opcoes[0]} dia(s) de antecedência.</span>

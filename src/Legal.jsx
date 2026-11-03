@@ -29,7 +29,7 @@ export const TERMOS_ALTERACOES = [
       "Pelo Telegram, o funcionário pode cadastrar produto novo: o bot busca a imagem na internet e, depois da sua confirmação, envia o pedido (produto, validade e quantidade) para aprovação de um encarregado ou superior, que pode corrigir o produto, aprovar ou recusar com um motivo; o motivo é enviado a você pelo Telegram. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro).",
     ],
     privacidade: [
-      "Se você vincular o Telegram, guardamos o identificador da sua conversa (não o seu telefone) e as mensagens enviadas ao bot, por até 30 dias.",
+      "Se você vincular o Telegram, guardamos o identificador da sua conversa (não o seu telefone) e as mensagens enviadas ao bot, por até 30 dias. Se alguém errar o código de vínculo várias vezes, guardamos por até 2 dias o identificador da conversa e o número de erros, só para bloquear tentativas de adivinhação.",
       "Novos fornecedores: Telegram (apenas se você vincular) e Open Food Facts (base pública de produtos: recebe só o código de barras para buscar nome e imagem de produto novo).",
       "Gestores da loja podem remover o vínculo do seu Telegram.",
       "Ações feitas pelo Telegram (vincular, lançar, cancelar, tentativas barradas, consultas, envio de produto novo para aprovação, aprovação e recusa com motivo) ficam na auditoria da loja, como as ações do app.",
@@ -167,7 +167,7 @@ export const DOCUMENTOS = [
           "Conta e dados de cadastro: enquanto você tiver conta e acesso ao app. Depois do desligamento ou da exclusão da conta, o acesso é encerrado e os dados de cadastro são eliminados ou anonimizados quando deixarem de ser necessários.",
           "Registros de auditoria, baixas, rondas e perdas: mantidos pelo prazo necessário para controle operacional, contábil e fiscal e para defesa em processos (em regra, até 5 anos), podendo ser anonimizados antes.",
           "Registros de login e aceite dos termos: mantidos por pelo menos 6 meses (Marco Civil da Internet) e enquanto necessários para comprovar o aceite.",
-          "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos; pedidos de produto novo (com decisão e motivo) são apagados 90 dias após a decisão.",
+          "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos; o registro de erros de código (identificador da conversa e contagem) é apagado em até 2 dias; pedidos de produto novo (com decisão e motivo) são apagados 90 dias após a decisão.",
           "Conversas com o assistente de IA: mantidas pelo tempo necessário à operação e ao suporte e eliminadas quando não forem mais úteis.",
         ] },
         { t: "8. Como protegemos", p: [

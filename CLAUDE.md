@@ -138,3 +138,9 @@ Telas internas ainda no layout antigo: Confirm/Expiry, execução de ronda, Assi
 - Código do promotor: prefixo de 3 letras + '-' + 10 chars (alfabeto de 32), só gerado pelo servidor (`_gerar_codigo_promotor`). Bot aceita `{5,10}` após o hífen.
 - Pendências menores: tela da baixa é otimista (item some antes do servidor responder); retry após resposta perdida mostra `produto_nao_encontrado`.
 - Próximos itens da lista adiada: 3 (força bruta no código de 8 dígitos do Telegram / balde global), 8 (alerta p/ não perecível em 1 dia, motivo do botão Salvar cinza), 4, 6, 7, 9–15.
+
+## TELEGRAM CÓDIGO FORTE + ALERTA DE 1 DIA (2026-11-03) — `supabase-telegram-codigo-forte.sql` (usuário roda; auto-teste; subir o BOT ANTES do SQL, senão o bot antigo rejeita código com letras)
+- Código de vínculo do funcionário: 8 caracteres do alfabeto de 32 (sem 0/O/1/I), sempre com ao menos 1 número, gerado só no servidor (`gerar_codigo_telegram`, mantém auditoria "gerou código do Telegram"). Bot: regex `[A-Za-z0-9]{4}[\s-]?[A-Za-z0-9]{4}` + exige dígito; promotor `AAA-XXXXX..`.
+- Trava por chat: tabela `telegram_falhas` + RPCs `telegram_vinc_bloqueio/falha/ok` (service_role). 5 erros → 15 min, 10 → 1 h, 15 → 24 h, vale mesmo com código certo; o bot avisa. Balde global `tg_vinc` REMOVIDO (qualquer um esgotava e travava todos). Só erro `codigo_invalido` conta. Limpeza: cron + oportunista.
+- ExpiryView: faltando 1 dia qualquer produto lança com alerta de 1 dia (`motivoUmDia`); `motivoBloqueio` explica o botão Salvar cinza; `podeSalvar` agora vem DEPOIS de `somaErro` (antes usava const antes de declarar).
+- Legal: Privacidade cita o registro de erros (2 dias); sem troca de `TERMOS_VERSAO`.

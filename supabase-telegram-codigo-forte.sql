@@ -1,6 +1,6 @@
 -- Item 3: código do Telegram forte + trava de erros. Rode no SQL Editor (tem auto-teste). Rode DEPOIS de supabase-revisao.sql.
 -- Antes: 8 DÍGITOS (100 milhões de combinações) e um balde GLOBAL que qualquer um esgotava para travar a vinculação de todos.
--- Agora: 8 caracteres de um alfabeto de 32 (mais de 500 bilhões de combinações), gerado só pelo servidor, e trava por chat após erros.
+-- Agora: 8 caracteres de um alfabeto de 32 (~1,1 trilhão de combinações), gerado só pelo servidor, e trava por chat após erros.
 
 -- 1) trava por erros (por chat do Telegram): só o bot (service_role) mexe
 create table if not exists public.telegram_falhas (
@@ -15,8 +15,8 @@ revoke all on public.telegram_falhas from public, anon, authenticated;
 -- devolve quantos segundos o chat ainda está bloqueado (0 = livre)
 create or replace function public.telegram_vinc_bloqueio(p_chat_id bigint) returns int
 language sql security definer set search_path = public as $$
-  select coalesce(greatest(0, ceil(extract(epoch from (bloqueado_ate - now()))))::int, 0)
-  from public.telegram_falhas where chat_id = p_chat_id;
+  select coalesce((select greatest(0, ceil(extract(epoch from (bloqueado_ate - now()))))::int
+                   from public.telegram_falhas where chat_id = p_chat_id), 0);
 $$;
 
 -- registra 1 código errado; a cada 5 erros bloqueia (15 min, depois 1 h, depois 24 h)
@@ -24,6 +24,7 @@ create or replace function public.telegram_vinc_falha(p_chat_id bigint) returns 
 language plpgsql security definer set search_path = public as $$
 declare f public.telegram_falhas%rowtype; v_bloq interval;
 begin
+  delete from public.telegram_falhas where atualizado_em < now() - interval '2 days' and (bloqueado_ate is null or bloqueado_ate < now()); -- limpeza mesmo sem pg_cron
   insert into public.telegram_falhas(chat_id, n) values (p_chat_id, 1)
   on conflict (chat_id) do update set n = public.telegram_falhas.n + 1, atualizado_em = now()
   returning * into f;
@@ -55,7 +56,7 @@ end $$;
 create or replace function public.gerar_codigo_telegram()
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare u record; v_cod text; v_exp timestamptz := now() + interval '10 minutes'; tent int := 0;
-        alfa text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; i int;
+        alfa text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; i int; h text;
 begin
   if auth.uid() is null then raise exception 'nao_autenticado'; end if;
   perform public.rl_checar('tg_codigo', 5);
@@ -64,8 +65,9 @@ begin
   if exists (select 1 from public.telegram_vinculos where usuario_id = u.id) then raise exception 'ja_vinculado'; end if;
   loop
     v_cod := '';
+    h := substr(replace(gen_random_uuid()::text, '-', ''), 1, 12) || substr(replace(gen_random_uuid()::text, '-', ''), 1, 4); -- 16 hex = 8 bytes, sem o nibble fixo de versão do UUID
     for i in 1..8 loop
-      v_cod := v_cod || substr(alfa, 1 + (('x' || substr(replace(gen_random_uuid()::text, '-', ''), i * 2 - 1, 2))::bit(8)::int % 32), 1);
+      v_cod := v_cod || substr(alfa, 1 + (('x' || substr(h, i * 2 - 1, 2))::bit(8)::int % 32), 1);
     end loop;
     continue when v_cod !~ '[2-9]'; -- sempre ao menos 1 número (o bot ignora palavras só de letras)
     begin
@@ -76,6 +78,7 @@ begin
       tent := tent + 1; if tent > 10 then raise exception 'codigo_indisponivel'; end if;
     end;
   end loop;
+  insert into public.auditoria (usuario, acao, detalhe, loja_id) values ((select nome from public.usuarios where id = u.id), 'gerou código do Telegram', 'válido por 10 minutos', u.loja_id);
   return jsonb_build_object('codigo', v_cod, 'expira_em', v_exp);
 end $$;
 revoke all on function public.gerar_codigo_telegram() from public, anon;
@@ -118,4 +121,5 @@ begin
   perform public.telegram_vinc_ok(-999000111);
   if public.telegram_vinc_bloqueio(-999000111) <> 0 then raise exception 'auto-teste: ok nao zerou'; end if;
   if pg_get_functiondef('public.gerar_codigo_telegram()'::regprocedure) not like '%23456789%' or pg_get_functiondef('public.gerar_codigo_telegram()'::regprocedure) not like '%[2-9]%' then raise exception 'auto-teste: gerador antigo'; end if;
+  if pg_get_functiondef('public.gerar_codigo_telegram()'::regprocedure) not like '%gerou código do Telegram%' then raise exception 'auto-teste: auditoria do codigo sumiu'; end if;
 end $do$;
