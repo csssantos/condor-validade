@@ -407,6 +407,10 @@ async function supaUpsertProduto(item) {
   }
   if (error) { console.error("Erro ao salvar produto no Supabase:", error); throw error; }
 }
+async function supaBaixarProduto({ id, motivo, quantidade }) {
+  const { error } = await supabase.rpc("dar_baixa", { p_id: id, p_motivo: motivo, p_qtd: quantidade != null ? quantidade : null });
+  if (error) { console.error("Erro ao dar baixa no Supabase:", error); throw error; }
+}
 async function supaDeleteProduto(id) {
   const { error } = await supabase.from("produtos").delete().eq("id", id);
   if (error) { console.error("Erro ao excluir produto no Supabase:", error); throw error; }
@@ -799,6 +803,8 @@ function mensagemErroGravacao(e) {
   if (/validade_vencida/.test(m)) return "a validade já passou";
   if (/validade_invalida/.test(m)) return "validade longe demais (máximo 10 anos)";
   if (/quantidade_invalida/.test(m)) return "quantidade inválida";
+  if (/motivo_invalido/.test(m)) return "motivo da baixa inválido";
+  if (/produto_nao_encontrado/.test(m)) return "esse produto não existe mais (talvez outra pessoa já deu baixa)";
   if (/aumento_excessivo/.test(m)) return "o aumento de quantidade passou do limite do dia para esse produto (máx. +10 ou metade). Peça a um encarregado para ajustar";
   if (/limite_excedido/.test(m)) return "muitas ações em pouco tempo; espere um minuto";
   if (/row-level security|permission|42501/i.test(m + (e && e.code))) return "você não tem permissão para isso";
@@ -814,8 +820,9 @@ async function executarOp(op) {
   else if (op.tipo === "deleteProduto") await supaDeleteProduto(op.payload.id);
   else if (op.tipo === "upsertCatalogo") await supaUpsertCatalogo(op.payload.barcode, op.payload.dados);
   else if (op.tipo === "inserirHistorico") await supaInserirHistorico(op.payload);
+  else if (op.tipo === "baixarProduto") await supaBaixarProduto(op.payload);
 }
-const NOME_OP = { upsertProduto: "o produto", deleteProduto: "a exclusão do produto", upsertCatalogo: "o cadastro do produto", inserirHistorico: "a baixa" };
+const NOME_OP = { upsertProduto: "o produto", deleteProduto: "a exclusão do produto", upsertCatalogo: "o cadastro do produto", inserirHistorico: "a baixa", baixarProduto: "a baixa" };
 async function processarFila(onProgresso) {
   const fila = lerFila();
   if (!fila.length) return 0;
@@ -2222,8 +2229,8 @@ function AppInner() {
     setItems((prev) => prev.filter((i) => i.id !== item.id));
     const registro = { ...item, quantidade: quantidadeFinal, motivo, dataBaixa: new Date().toISOString(), registradoPor: usuario || null, vencidoAntes: st.level === "expired" };
     setHistorico((prev) => [registro, ...prev]);
-    // o banco só deixa funcionário excluir depois que a baixa está registrada: histórico primeiro, exclusão em seguida
-    gravarHistorico(registro).then(() => removerProduto(item.id));
+    // baixa = uma RPC só: o servidor grava o histórico a partir do produto real e apaga o produto na mesma transação (funcionário não consegue apagar de outro jeito)
+    gravarComFila("baixarProduto", { id: item.id, motivo, quantidade: quantidadeOverride != null ? quantidadeOverride : null });
     logAuditoria(usuario, `deu baixa (${motivo})`, item.nome, item.barcode);
     showToast(`Baixa registrada: ${motivo}${quantidadeOverride != null ? ` (${quantidadeOverride} un. remanescente da promoção)` : ""}.`, st.level === "expired" ? "warn" : "ok");
   }
