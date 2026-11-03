@@ -147,3 +147,21 @@ Telas internas ainda no layout antigo: Confirm/Expiry, execução de ronda, Assi
 
 ## VALIDADE A ATÉ 2 DIAS = IGUAL NO APP E NO TELEGRAM (2026-11-03, pedido do dono) — `supabase-validade-proxima.sql` (rodar DEPOIS de supabase-revisao.sql)
 - Lançamento novo (ou validade alterada) com validade hoje/amanhã/depois de amanhã é barrado: "leve ao gerente ou encarregado o mais rápido possível, para pedir o preço direto". Vale para TODOS os cargos. App: `muitoProxima`/`MSG_PROXIMA` no ExpiryView (hoje/vencido continuam no "Registrar perda"). Banco: trigger `trg_produtos_prox` (`validade_muito_proxima`), isenta `app.via_rpc` (lancar_validade/somar_ao_lote têm a própria regra) e editar produto sem mudar a validade. O alerta de 1 dia (`motivoUmDia`) só sobra para editar produto já cadastrado.
+
+## ITENS GUARDADOS (o dono pediu para guardar e vai pedir de volta; fazer de 2 em 2, cada um pela banca)
+Feitos: 1 (blindagem de produtos + baixa atômica), 2 (código do promotor), 3 (código do Telegram forte), 8 (alerta de 1 dia/motivo do Salvar) e "validade a 2 dias igual ao Telegram".
+SQLs que o dono precisa rodar (conferir com execute_sql antes de assumir): `supabase-telegram-codigo-forte.sql` e `supabase-validade-proxima.sql`.
+Faltam:
+- 4: limites que falham abertos (`rl_servico` fail-open nas Edge Functions).
+- 5: sw.js redirect (já melhorado).
+- 6: `telegram-desvincular` quando recebe usuario e convite juntos.
+- 7: backfill de `validade_alteracoes.loja_id` nas linhas antigas.
+- 9: bot ignora em silêncio data que não entendeu; "DEZ 2026" vira quantidade 10.
+- 10: lote do bot que parece data ("10/24") vira data; lote "8".
+- 11: baixa do encarregado quando a gravação do histórico falha.
+- 12: `somar_ao_lote` sem internet.
+- 13: `supaUpsertProduto` tenta de novo sem lote e mascara erro real (usar códigos 42703/PGRST204; mapear 23505).
+- 14: mensagens (ean_invalido na aprovação só cita EAN-13; toast "enviado pelo Telegram" sem vínculo).
+- 15: dívida técnica (App.jsx ~11,4k linhas, callback_data do setor por índice, CSP `img-src https:`).
+- Menores da banca: soma ao lote no banco não barra lote a ≤2 dias; fila offline descarta lançamento que passou a ≤2 dias; tela da baixa otimista; reenvio após resposta perdida mostra produto_nao_encontrado.
+Ideia em avaliação (sem decisão): localização ao lançar validade (modo "sinalizar" primeiro; guardar só dentro/fora; exige atualizar Legal.jsx e TERMOS_VERSAO).
