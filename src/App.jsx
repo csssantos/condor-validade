@@ -405,11 +405,11 @@ async function supaUpsertProduto(item) {
     const { lote, sem_lote, ...semLote } = produtoToRow(item);
     ({ error } = await supabase.from("produtos").upsert({ ...semLote, loja_id: LOJA_ID_ATIVA }));
   }
-  if (error) console.error("Erro ao salvar produto no Supabase:", error);
+  if (error) { console.error("Erro ao salvar produto no Supabase:", error); throw error; }
 }
 async function supaDeleteProduto(id) {
   const { error } = await supabase.from("produtos").delete().eq("id", id);
-  if (error) console.error("Erro ao excluir produto no Supabase:", error);
+  if (error) { console.error("Erro ao excluir produto no Supabase:", error); throw error; }
 }
 async function supaUpsertCatalogo(barcode, dados) {
   const { error } = await supabase.from("catalogo").upsert({
@@ -422,7 +422,7 @@ async function supaUpsertCatalogo(barcode, dados) {
     nivel_deposito: dados.nivelDeposito || null, vao_deposito: dados.vaoDeposito || null,
     familia: dados.familia || detectarFamilia(dados.nome) || null
   }, { onConflict: "barcode,loja_id" });
-  if (error) console.error("Erro ao salvar catálogo no Supabase:", error);
+  if (error) { console.error("Erro ao salvar catálogo no Supabase:", error); throw error; }
 }
 async function supaInserirHistorico(registro) {
   const { error } = await supabase.from("historico").insert({
@@ -432,12 +432,13 @@ async function supaInserirHistorico(registro) {
     vencido_antes: !!registro.vencidoAntes, lote: registro.lote || null, sem_lote: !registro.lote && !!registro.semLote
   });
   if (error && /lote/i.test(error.message || "")) { // banco ainda sem a coluna de lote no histórico: grava sem ela
-    await supabase.from("historico").insert({
+    const r2 = await supabase.from("historico").insert({
       barcode: registro.barcode, loja_id: LOJA_ID_ATIVA, nome: registro.nome, setor: registro.setor, foto: registro.foto,
       quantidade: registro.quantidade || 1, preco_unitario: registro.precoUnitario || 0, por_peso: !!registro.porPeso,
       validade: registro.validade, motivo: registro.motivo, registrado_por: registro.registradoPor || null, vencido_antes: !!registro.vencidoAntes
     });
-  } else if (error) console.error("Erro ao registrar histórico no Supabase:", error);
+    if (r2.error) { console.error("Erro ao registrar histórico no Supabase:", r2.error); throw r2.error; }
+  } else if (error) { console.error("Erro ao registrar histórico no Supabase:", error); throw error; }
 }
 
 // Item 37: trilha de auditoria — nunca bloqueia a ação principal se falhar (fire-and-forget)
@@ -783,40 +784,69 @@ function enfileirar(tipo, payload) {
   fila.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, tipo, payload, criadoEm: new Date().toISOString() });
   gravarFila(fila);
 }
+// Erro de rede (volta sozinho) x erro do banco (regra/permissão: reenviar não adianta)
+function erroDeRede(e) {
+  if (!navigator.onLine) return true;
+  const m = String((e && (e.message || e.details)) || e || "");
+  return !(e && e.code) && /fetch|network|timeout|conex|load failed|abort/i.test(m);
+}
+function mensagemErroGravacao(e) {
+  const m = String((e && e.message) || "");
+  if (/ean_invalido/.test(m)) return "código de barras inválido (precisa ser EAN-8, UPC-A ou EAN-13 válido)";
+  if (/excluir_exige_encarregado/.test(m)) return "só encarregado ou superior pode excluir esse produto (use \"Dar baixa\")";
+  if (/lote_obrigatorio/.test(m)) return "falta o lote (ou marcar que não tem lote impresso)";
+  if (/lote_invalido/.test(m)) return "lote inválido (use letras, números, . / - e até 20 caracteres)";
+  if (/validade_vencida/.test(m)) return "a validade já passou";
+  if (/validade_invalida/.test(m)) return "validade longe demais (máximo 10 anos)";
+  if (/quantidade_invalida/.test(m)) return "quantidade inválida";
+  if (/aumento_excessivo/.test(m)) return "o aumento do lote passou do limite por vez";
+  if (/limite_excedido/.test(m)) return "muitas ações em pouco tempo; espere um minuto";
+  if (/row-level security|permission|42501/i.test(m + (e && e.code))) return "você não tem permissão para isso";
+  if (/limite|rate/i.test(m)) return "muitas ações em pouco tempo; espere um pouco";
+  return "o banco recusou o registro";
+}
+// Avisa a tela quando uma gravação foi RECUSADA pelo banco (o "salvo" otimista não é verdade) e pede recarregar os dados reais
+function avisarErroGravacao(e, o_que) {
+  try { window.dispatchEvent(new CustomEvent("condor-erro-gravacao", { detail: { mensagem: `Não foi possível gravar ${o_que}: ${mensagemErroGravacao(e)}.` } })); } catch {}
+}
+async function executarOp(op) {
+  if (op.tipo === "upsertProduto") await supaUpsertProduto(op.payload);
+  else if (op.tipo === "deleteProduto") await supaDeleteProduto(op.payload.id);
+  else if (op.tipo === "upsertCatalogo") await supaUpsertCatalogo(op.payload.barcode, op.payload.dados);
+  else if (op.tipo === "inserirHistorico") await supaInserirHistorico(op.payload);
+}
+const NOME_OP = { upsertProduto: "o produto", deleteProduto: "a exclusão do produto", upsertCatalogo: "o cadastro do produto", inserirHistorico: "a baixa" };
 async function processarFila(onProgresso) {
   const fila = lerFila();
   if (!fila.length) return 0;
   let processados = 0;
+  const restantes = [];
   for (const op of fila) {
     try {
-      if (op.tipo === "upsertProduto") await supaUpsertProduto(op.payload);
-      else if (op.tipo === "deleteProduto") await supaDeleteProduto(op.payload.id);
-      else if (op.tipo === "upsertCatalogo") await supaUpsertCatalogo(op.payload.barcode, op.payload.dados);
-      else if (op.tipo === "inserirHistorico") await supaInserirHistorico(op.payload);
+      await executarOp(op);
       processados++;
       if (onProgresso) onProgresso(processados, fila.length);
-    } catch (e) { console.error("Falha ao sincronizar item da fila offline:", e); }
+    } catch (e) {
+      if (erroDeRede(e)) restantes.push(op); // sem internet de verdade: tenta de novo depois, NÃO apaga
+      else avisarErroGravacao(e, NOME_OP[op.tipo] || "o registro"); // recusado pelo banco: avisa, não adianta reenviar
+    }
   }
-  gravarFila([]);
+  gravarFila(restantes);
   return processados;
 }
 // wrappers que caem pra fila automaticamente quando offline
-async function gravarProduto(item) {
-  if (!navigator.onLine) { enfileirar("upsertProduto", item); return; }
-  await supaUpsertProduto(item);
+async function gravarComFila(tipo, payload) {
+  if (!navigator.onLine) { enfileirar(tipo, payload); return; }
+  try { await executarOp({ tipo, payload }); }
+  catch (e) {
+    if (erroDeRede(e)) enfileirar(tipo, payload);
+    else avisarErroGravacao(e, NOME_OP[tipo] || "o registro");
+  }
 }
-async function removerProduto(id) {
-  if (!navigator.onLine) { enfileirar("deleteProduto", { id }); return; }
-  await supaDeleteProduto(id);
-}
-async function gravarCatalogo(barcode, dados) {
-  if (!navigator.onLine) { enfileirar("upsertCatalogo", { barcode, dados }); return; }
-  await supaUpsertCatalogo(barcode, dados);
-}
-async function gravarHistorico(registro) {
-  if (!navigator.onLine) { enfileirar("inserirHistorico", registro); return; }
-  await supaInserirHistorico(registro);
-}
+async function gravarProduto(item) { return gravarComFila("upsertProduto", item); }
+async function removerProduto(id) { return gravarComFila("deleteProduto", { id }); }
+async function gravarCatalogo(barcode, dados) { return gravarComFila("upsertCatalogo", { barcode, dados }); }
+async function gravarHistorico(registro) { return gravarComFila("inserirHistorico", registro); }
 
 // ---------- Push de verdade (chega mesmo com o app fechado) ----------
 function urlBase64ToUint8Array(base64String) {
@@ -946,14 +976,30 @@ function AuthScreen({ T, antesDeEntrar }) {
   const [leitorLegal, setLeitorLegal] = useState(null);
 
   async function aoBiparCracha(codigoLido) {
-    const matricula = String(codigoLido).replace(/\D/g, "");
+    const bruto = String(codigoLido || "").trim();
+    // Crachá só tem números: letras no meio (ex.: "A123B456") não viram outra matrícula em silêncio
+    if (!bruto || /[^\d\s]/.test(bruto)) { setErro("Código do crachá não reconhecido: a matrícula só tem números."); setModo("login"); return; }
+    const matricula = bruto.replace(/\D/g, "");
     if (!matricula) { setErro("Código do crachá não reconhecido."); setModo("login"); return; }
     setCarregando(true); setErro("");
-    const { data: linhas, error } = await supabase.rpc("buscar_funcionario_pendente", { p_matricula: matricula });
-    const data = Array.isArray(linhas) ? linhas[0] : linhas;
+    // O pré-cadastro pode ter zeros à esquerda ("00123") e o crachá trazer "123" (ou o contrário): tenta as duas formas
+    const semZeros = matricula.replace(/^0+/, "") || "0";
+    const tentativas = [...new Set([matricula, semZeros])];
+    let data = null, falhou = false;
+    for (const m of tentativas) {
+      const { data: linhas, error } = await supabase.rpc("buscar_funcionario_pendente", { p_matricula: m });
+      if (error) { falhou = true; continue; }
+      data = Array.isArray(linhas) ? linhas[0] : linhas;
+      if (data) break;
+    }
     setCarregando(false);
-    if (error || !data) {
-      setErro(`Matrícula ${matricula} não encontrada (ou já foi usada). Peça pro encarregado ou pro CPD te pré-cadastrar em "Gestão de Funcionários".`);
+    if (!data && falhou) {
+      setErro("Não consegui verificar a matrícula agora (conexão ou muitas tentativas). Espere um pouco e tente de novo.");
+      setModo("cadastro-info");
+      return;
+    }
+    if (!data) {
+      setErro(`Matrícula ${matricula} não encontrada ou já usada. Confira o número do crachá; se estiver certo, peça pro encarregado ou pro CPD te pré-cadastrar em "Gestão de Funcionários" (ou refazer o pré-cadastro, se você errou o e-mail antes).`);
       setModo("cadastro-info");
       return;
     }
@@ -970,6 +1016,8 @@ function AuthScreen({ T, antesDeEntrar }) {
     setCarregando(true);
     if (antesDeEntrar && (await antesDeEntrar())) { setCarregando(false); return; }
     const emailLimpo = cadEmail.trim();
+    // O pré-cadastro é marcado como usado assim que a conta é criada: e-mail errado queima a matrícula. Confirma antes.
+    if (!window.confirm(`O link de confirmação será enviado para:\n${emailLimpo}\n\nO e-mail está certo?`)) { setCarregando(false); return; }
     // A matrícula vai nos metadados: o servidor (trigger no banco) cria o perfil e marca o pré-cadastro como
     // usado NA HORA do signUp, mesmo sem sessão aberta. Antes o app tentava inserir em "usuarios" pelo navegador
     // e o banco barrava (sem sessão não há permissão) — daí o "chame o CPD".
@@ -995,7 +1043,7 @@ function AuthScreen({ T, antesDeEntrar }) {
     setEmail(emailLimpo);
     setMensagem(/not confirmed/i.test(erroLogin.message)
       ? "Conta criada! Enviamos um e-mail de confirmação — abra o link e depois entre."
-      : "Conta criada! Você já pode entrar.");
+      : "Conta criada! Entre com seu e-mail e senha.");
     setModo("login");
   }
 
@@ -1017,6 +1065,8 @@ function AuthScreen({ T, antesDeEntrar }) {
       setErro(
         error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." :
         error.message === "Email not confirmed" ? "Confirme seu e-mail antes de entrar (veja sua caixa de entrada)." :
+        error.status === 429 ? "Muitas tentativas. Espere alguns minutos e tente de novo." :
+        !navigator.onLine || /fetch|network/i.test(error.message || "") ? "Sem conexão com a internet. Confira o sinal e tente de novo." :
         "Não foi possível entrar. Tente novamente."
       );
     }
@@ -1226,13 +1276,14 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// EAN-13 de verdade: 13 dígitos e dígito verificador correto (códigos de balança e produto por peso ficam de fora, tratados à parte)
-function eanValido13(c) {
+// Código de barras de verdade: EAN-8 (ex.: Kinder Ovo), UPC-A (12) ou EAN-13, com dígito verificador correto e fora tudo-zero.
+// Códigos de balança e produto por peso ficam de fora, tratados à parte.
+function eanValido(c) {
   const t = String(c || "");
-  if (!/^\d{13}$/.test(t)) return false;
+  if (!/^\d+$/.test(t) || ![8, 12, 13].includes(t.length) || /^0+$/.test(t)) return false;
   let soma = 0;
-  for (let i = 0; i < 12; i++) soma += Number(t[i]) * (i % 2 === 0 ? 1 : 3);
-  return (10 - (soma % 10)) % 10 === Number(t[12]);
+  for (let i = t.length - 2, peso = 3; i >= 0; i--, peso = peso === 3 ? 1 : 3) soma += Number(t[i]) * peso;
+  return (10 - (soma % 10)) % 10 === Number(t[t.length - 1]);
 }
 // Desvincular o Telegram: a função remove (com a permissão do banco) e o bot AVISA no Telegram que foi desvinculado
 async function removerTelegramComAviso(alvo) {
@@ -1519,6 +1570,17 @@ function AppInner() {
       setDadosProntos(true);
     })();
   }, [lojaAtiva?.id]);
+
+  // O banco recusou uma gravação que a tela já tinha mostrado como salva: avisa e recarrega os dados reais
+  useEffect(() => {
+    function aoErroGravacao(ev) {
+      showToast((ev.detail && ev.detail.mensagem) || "Não foi possível gravar.", "warn");
+      Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]).then(([cat, its, hist]) => { setCatalog(cat); setItems(its); setHistorico(hist); }).catch(() => {});
+    }
+    window.addEventListener("condor-erro-gravacao", aoErroGravacao);
+    return () => window.removeEventListener("condor-erro-gravacao", aoErroGravacao);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // modo offline: detecta queda/volta de conexão e sincroniza a fila de alterações pendentes sozinho
   useEffect(() => {
@@ -1822,7 +1884,7 @@ function AppInner() {
   function handleBarcodeCaptured(codeRaw) {
     const clean = apenasNumeros(codeRaw, 14);
     if (clean.length < 4) {
-      showToast("Código lido não é numérico. Tente novamente ou digite manualmente.", "warn");
+      showToast("Código lido muito curto. Tente novamente ou digite manualmente.", "warn");
       return;
     }
     playBeep(prefs.som);
@@ -1851,8 +1913,8 @@ function AppInner() {
     }
 
     const known = catalog[clean];
-    if (!known && !eanValido13(clean)) {
-      showToast("Código de barras inválido: o EAN-13 tem 13 dígitos e o último é o de verificação. Confira o número e tente de novo.", "warn");
+    if (!known && !eanValido(clean)) {
+      showToast(`Código de barras inválido (${clean.length} dígitos): precisa ser EAN-8 (8), UPC-A (12) ou EAN-13 (13), com o último dígito de verificação certo. Confira e tente de novo.`, "warn");
       return;
     }
     setPendingBarcode(clean);
@@ -2010,8 +2072,12 @@ function AppInner() {
       if (add < 1 || add > limiteSomaLote(orig.quantidade)) { showToast(`Só dá para somar até ${limiteSomaLote(orig.quantidade)} un de uma vez.`, "warn"); return; }
       const novoItem = { ...orig, quantidade: orig.quantidade + add, atualizadoPor: usuario || null };
       setItems((prev) => prev.map((it) => (it.id === orig.id ? novoItem : it)));
-      gravarProduto(novoItem);
-      logAuditoria(usuario, "somou quantidade ao lote", `${orig.nome} · lote ${orig.lote} · +${add} (de ${orig.quantidade} para ${novoItem.quantidade})`, orig.barcode);
+      // A soma é feita no SERVIDOR (teto, trava de linha e auditoria); se ele recusar, a tela volta ao valor real
+      supabase.rpc("somar_ao_lote", { p_id: orig.id, p_qtd: add }).then(({ error }) => {
+        if (!error) return;
+        if (erroDeRede(error)) window.dispatchEvent(new CustomEvent("condor-erro-gravacao", { detail: { mensagem: "Sem internet: a soma ao lote não foi enviada. Tente de novo quando a conexão voltar." } }));
+        else avisarErroGravacao(error, "a soma ao lote");
+      });
       showToast(`Somado ao lote ${orig.lote}: agora ${novoItem.quantidade} un.`);
       resetFlow();
       return;
@@ -2081,7 +2147,7 @@ function AppInner() {
       setIntencaoFluxo("validade");
       setFlow(res.validade ? "expiry" : "confirm");
     } else {
-      setPendingBarcode("99" + String(Date.now()).slice(-12)); // código interno: ainda sem código de barras de verdade
+      setPendingBarcode("int:" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)); // código interno ("int:"): ainda sem código de barras de verdade; o banco aceita sem EAN
       setDraftProduct({ nome: res.nome, setor: res.setorSugerido || "", foto: null, ...extraPreco });
       setIntencaoFluxo(res.validade ? "validade" : "cadastro");
       setFlow("confirm");
@@ -2156,8 +2222,8 @@ function AppInner() {
     setItems((prev) => prev.filter((i) => i.id !== item.id));
     const registro = { ...item, quantidade: quantidadeFinal, motivo, dataBaixa: new Date().toISOString(), registradoPor: usuario || null, vencidoAntes: st.level === "expired" };
     setHistorico((prev) => [registro, ...prev]);
-    removerProduto(item.id);
-    gravarHistorico(registro);
+    // o banco só deixa funcionário excluir depois que a baixa está registrada: histórico primeiro, exclusão em seguida
+    gravarHistorico(registro).then(() => removerProduto(item.id));
     logAuditoria(usuario, `deu baixa (${motivo})`, item.nome, item.barcode);
     showToast(`Baixa registrada: ${motivo}${quantidadeOverride != null ? ` (${quantidadeOverride} un. remanescente da promoção)` : ""}.`, st.level === "expired" ? "warn" : "ok");
   }
@@ -2636,6 +2702,12 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-03-revisao", data: "03/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Código de barras: agora o app aceita EAN-8 (como o Kinder Ovo), UPC-A (12) e EAN-13, sempre com dígito verificador válido." },
+    { tipo: "melhorado", ate: 7, texto: "Se o servidor recusar um lançamento, o app avisa na hora o motivo (em vez de dizer que salvou) e não perde o que estava na fila sem internet." },
+    { tipo: "melhorado", ate: 7, texto: "Lote: lançar o mesmo lote de novo soma a quantidade; o lote é conferido (letras e números) e a validade precisa ser de hoje em diante." },
+    { tipo: "melhorado", ate: 5, texto: "Aprovar produtos novos: mostra o lote e atualiza na hora quando chega um pedido." },
+  ] },
   { id: "2026-11-01-barra", data: "01/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "A faixa de baixo no iPhone agora acompanha a cor do app (claro ou escuro)." },
   ] },
@@ -5646,7 +5718,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
   }, [lojaSel]);
 
   async function criarPendente() {
-    const mat = f.matricula.replace(/\D/g, "");
+    const mat = (f.matricula.replace(/\D/g, "").replace(/^0+/, "")) || "";
     if (!lojaSel) { showToast("Escolha a loja do funcionário.", "warn"); return; }
     if (!f.nome.trim() || !mat || !f.cargoId) { showToast("Preencha nome, matrícula (só números) e cargo no app.", "warn"); return; }
     const cg = cargos.find((c) => String(c.id) === String(f.cargoId));
@@ -5661,8 +5733,10 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
     setSalvando(false);
     if (error) {
       console.error(error);
-      showToast(error.code === "23505" ? "Já existe alguém com essa matrícula." :
-        error.code === "42501" ? "Sem permissão pra cadastrar nessa loja/cargo. Rode o SQL supabase-gestao-lojas.sql." : "Erro ao pré-cadastrar.", "warn");
+      showToast(error.code === "23505" ? "Já existe um pré-cadastro ou conta com essa matrícula (pode ser de outra loja ou já usada)." :
+        error.code === "42501" ? "Você não tem permissão para cadastrar nesse cargo ou nessa loja." :
+        error.code === "22023" && error.message ? error.message :
+        "Não foi possível pré-cadastrar agora. Confira os dados e tente de novo.", "warn");
       return;
     }
     showToast(`${f.nome} pré-cadastrado(a) na loja ${lojaObj?.numero_loja}. Já pode bipar o crachá pra criar a conta.`);
@@ -9283,12 +9357,25 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
     });
   }
 
+  // Validade fora do normal (ano de 2 dígitos vira 0026; ano 9999): bloqueia em vez de tratar como "vencido" ou aceitar
+  const anoValidade = validade ? Number(String(validade).slice(0, 4)) : null;
+  const anoAtual = new Date().getFullYear();
+  const dataRuim = !!validade && (!(anoValidade >= anoAtual - 1) || anoValidade > anoAtual + 10);
+  // Quantidade: sem corrigir em silêncio; mostra o motivo e não deixa salvar
+  const qtdNum = Number(quantidade);
+  const qtdMsg = String(quantidade) === "" ? "Informe a quantidade."
+    : !Number.isFinite(qtdNum) || qtdNum <= 0 ? "A quantidade precisa ser maior que zero."
+    : porPeso ? (qtdNum > 9999 ? "O máximo é 9999 kg." : "")
+    : !Number.isInteger(qtdNum) ? "Use só números inteiros (sem vírgula nem ponto)." : qtdNum > 99999 ? "O máximo é 99999 unidades." : "";
+  const sujo = !editing && (!!validade || !!lote.trim());
+  const cancelar = () => { if (sujo && !window.confirm("Descartar o que você digitou?")) return; onCancel(); };
+  const voltar = () => { if (sujo && !window.confirm("Voltar e perder a validade e o lote digitados?")) return; onVoltar(); };
   const loteNorm = lote.trim().toUpperCase();
   const loteValido = /^[A-Z0-9][A-Z0-9./ -]{0,19}$/.test(loteNorm);
   const loteOk = !!editing || porPeso || semLote || loteValido; // lançamento novo exige o lote impresso (ou "sem lote" dito de propósito)
-  const podeSalvar = !!validade && opcoes.length > 0 && !!tamanho.trim() && loteOk && !(loteExistente && somaErro);
-  const jaVencido = !!validade && diasRestantesAtual !== null && diasRestantesAtual <= 0;
-  const podeRegistrarPerda = jaVencido && !!tamanho.trim() && !!motivoBaixaDireta && Number(quantidade) > 0;
+  const podeSalvar = !!validade && !dataRuim && !qtdMsg && opcoes.length > 0 && !!tamanho.trim() && loteOk && !(loteExistente && somaErro);
+  const jaVencido = !!validade && !dataRuim && diasRestantesAtual !== null && diasRestantesAtual <= 0;
+  const podeRegistrarPerda = jaVencido && !!tamanho.trim() && !!motivoBaixaDireta && !qtdMsg;
   const valorTotal = (Number(quantidade) || 0) * (Number(precoUnitario) || 0);
 
   // Itens por peso costumam repetir o mesmo código de barras (etiqueta da balança) com pesos diferentes —
@@ -9350,6 +9437,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
           <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)}
             style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder, boxSizing: "border-box", maxWidth: "100%", WebkitAppearance: "none", appearance: "none" }}
             className="w-full min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
+          {dataRuim && <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">Data fora do normal ({String(validade).slice(0, 4)}). Confira o ano: use 4 dígitos, entre {anoAtual - 1} e {anoAtual + 10}.</p>}
         </div>
 
         {!porPeso && (
@@ -9403,9 +9491,8 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
                 <div className="px-3 pb-3">
                   <p className="text-[10.5px] font-semibold mb-1.5">Quantas {porPeso ? "kg" : "unidade(s)"} estão sendo descartadas?</p>
                   <input type="number" inputMode="decimal" min={porPeso ? 0.001 : 1} step={porPeso ? "0.001" : "1"} autoFocus
-                    value={quantidade} onChange={(e) => setQuantidade(porPeso ? e.target.value.replace(/[^\d.,]/g, "").replace(",", ".") : e.target.value.replace(/[^\d]/g, ""))}
-                    onBlur={(e) => setQuantidade(porPeso ? clampNumero(e.target.value, 0.001, 9999) : clampNumero(e.target.value, 1, 99999))}
-                    placeholder={porPeso ? "Ex: 1,235" : "Ex: 3"}
+                    value={quantidade} onChange={(e) => setQuantidade(e.target.value.replace(",", "."))}
+                                        placeholder={porPeso ? "Ex: 1,235" : "Ex: 3"}
                     style={{ background: "rgba(255,255,255,0.7)", borderColor: "transparent" }}
                     className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 mb-2.5" />
                   <p className="text-[10.5px] font-semibold mb-1.5">Motivo do descarte:</p>
@@ -9480,10 +9567,10 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
           <div>
             <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">{porPeso ? "Quantidade (KG)" : "Quantidade"}</label>
             <input type="number" inputMode="decimal" min={porPeso ? "0.001" : "1"} step={porPeso ? "0.001" : "1"} max="99999" value={quantidade}
-              onChange={(e) => setQuantidade(porPeso ? e.target.value.replace(/[^\d.,]/g, "").replace(",", ".") : e.target.value.replace(/[^\d]/g, ""))}
-              onBlur={(e) => setQuantidade(porPeso ? clampNumero(e.target.value, 0.001, 9999) : clampNumero(e.target.value, 1, 99999))}
-              placeholder={porPeso ? "Ex: 1,235" : ""}
-              style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
+              onChange={(e) => setQuantidade(e.target.value.replace(",", "."))}
+                            placeholder={porPeso ? "Ex: 1,235" : ""}
+              style={{ background: T.inputBg, color: T.text, borderColor: qtdMsg ? RED : T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
+            {qtdMsg && <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">{qtdMsg}</p>}
             {(product.pesoLido || product.precoLidoEmbutido) && !editing && (
               <p style={{ color: "#1F9D55" }} className="text-[10px] mt-1 font-medium">✓ Peso lido direto da etiqueta da balança</p>
             )}
@@ -9531,11 +9618,11 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
 
       <div className="flex gap-2 mt-5">
         {!editing && onVoltar && (
-          <button onClick={onVoltar} style={{ color: T.subtext, borderColor: T.border }} className="flex items-center justify-center gap-1 text-sm font-medium py-3 px-4 rounded-2xl border">
+          <button onClick={voltar} style={{ color: T.subtext, borderColor: T.border }} className="flex items-center justify-center gap-1 text-sm font-medium py-3 px-4 rounded-2xl border">
             <ArrowLeft size={15} /> Voltar
           </button>
         )}
-        <button onClick={onCancel} style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-3 rounded-2xl border">Cancelar</button>
+        <button onClick={cancelar} style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-3 rounded-2xl border">Cancelar</button>
         <button disabled={!podeSalvar} onClick={handleSalvar}
           style={{ background: podeSalvar ? BLUE : "#C7CEDA" }} className="flex-[2] text-sm font-semibold py-3 rounded-2xl text-white flex items-center justify-center gap-1.5">
           <Check size={16} /> {editing ? "Salvar alterações" : loteExistente ? "Somar ao lote" : duplicado && confirmarDuplicado ? "Salvar mesmo assim" : "Salvar alerta"}
@@ -11183,19 +11270,32 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
 
   const carregar = useCallback(async () => {
     const { data, error } = await supabase.from("aprovacoes_produto")
-      .select("id, solicitante, barcode, nome, setor, foto, validade, quantidade, status, motivo, decidido_por, decidido_em, criado_em, notificado, decidido_por_id")
+      .select("id, solicitante, barcode, nome, setor, validade, quantidade, lote, sem_lote, status, motivo, decidido_por, decidido_em, criado_em, notificado, decidido_por_id") // sem a foto: ela é pesada, só vem ao abrir o pedido
       .order("criado_em", { ascending: false }).limit(60);
-    if (error) { setLista([]); return; }
+    if (error) { setLista((l) => l ?? []); return; }
     setLista(data || []);
   }, []);
-  useEffect(() => { carregar(); const t = setInterval(carregar, 20000); return () => clearInterval(t); }, [carregar]);
+  // tempo real: pedido novo/decidido aparece na hora (a tabela está na publicação supabase_realtime); poll de 60 s e eventos da janela como segurança
+  useEffect(() => {
+    carregar();
+    const ch = supabase.channel("aprovacoes_produto_" + (perfil?.loja_id ?? "x")).on("postgres_changes", { event: "*", schema: "public", table: "aprovacoes_produto" }, () => carregar()).subscribe();
+    const t = setInterval(carregar, 60000);
+    const volta = () => { if (document.visibilityState === "visible") carregar(); };
+    document.addEventListener("visibilitychange", volta); window.addEventListener("online", carregar); window.addEventListener("focus", carregar);
+    return () => { clearInterval(t); supabase.removeChannel(ch); document.removeEventListener("visibilitychange", volta); window.removeEventListener("online", carregar); window.removeEventListener("focus", carregar); };
+  }, [carregar, perfil?.loja_id]);
 
   const avisar = (id) => supabase.functions.invoke("telegram-avisar", { body: { id } }).catch(() => {});
   // se uma decisão minha ficou sem aviso (falha de rede), tenta de novo
   useEffect(() => { (lista || []).filter((a) => a.status !== "pendente" && !a.notificado && a.decidido_por_id === perfil?.id).forEach((a) => avisar(a.id)); }, [lista, perfil?.id]);
 
   const msgErro = (e) => { const m = e?.message || ""; const k = Object.keys(ERROS_APROVACAO).find((x) => m.includes(x)); return k ? ERROS_APROVACAO[k] : "Não consegui agora. Tente de novo."; };
-  const abrir = (a) => { if (aberto === a.id) { setAberto(null); return; } setAberto(a.id); setRecusando(null); setMotivo(""); setEd({ nome: a.nome, setor: a.setor, foto: a.foto, trocouFoto: false }); };
+  const abrir = async (a) => {
+    if (aberto === a.id) { setAberto(null); return; }
+    setAberto(a.id); setRecusando(null); setMotivo(""); setEd({ nome: a.nome, setor: a.setor, foto: null, trocouFoto: false, carregandoFoto: true });
+    const { data } = await supabase.from("aprovacoes_produto").select("foto").eq("id", a.id).maybeSingle();
+    setEd((e) => (e.nome === a.nome && !e.trocouFoto ? { ...e, foto: data?.foto || null, carregandoFoto: false } : e));
+  };
   async function trocarFoto(file) {
     if (!file) return;
     try { const d = await compressImage(file, 480, 0.62); setEd((e) => ({ ...e, foto: d, trocouFoto: true })); } catch { showToast?.("Não consegui ler a imagem", "warn"); }
@@ -11241,12 +11341,12 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
         <MaisBloco T={T} key={a.id} i={k + 1}>
           <button onClick={() => a.status === "pendente" && abrir(a)} className="w-full flex items-center gap-3 p-3.5 text-left">
             <div style={{ background: T.chipBg }} className="h-14 w-14 rounded-2xl overflow-hidden flex items-center justify-center shrink-0">
-              {a.foto ? <img src={a.foto} alt="" className="h-full w-full object-cover" /> : <Package size={22} style={{ color: T.subtext }} />}
+              <Package size={22} style={{ color: T.subtext }} />
             </div>
             <div className="min-w-0 flex-1">
               <p style={{ color: T.text }} className="text-[13.5px] font-bold leading-tight break-words">{a.nome}</p>
               <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5">{a.setor} · {a.barcode}</p>
-              <p style={{ color: T.subtext }} className="text-[11.5px]">Validade {fmt(a.validade)} · {a.quantidade} un · por {a.solicitante}</p>
+              <p style={{ color: T.subtext }} className="text-[11.5px]">Validade {fmt(a.validade)} · {a.sem_lote || !a.lote ? "sem lote" : `lote ${a.lote}`} · {a.quantidade} un · por {a.solicitante}</p>
               {a.status !== "pendente" && (
                 <p style={{ color: a.status === "aprovado" ? "#1F7A4D" : RED }} className="text-[11.5px] font-bold mt-1">{a.status === "aprovado" ? "Aprovado" : "Recusado"} por {a.decidido_por}{a.status === "recusado" && a.motivo ? ` · ${a.motivo}` : ""}</p>
               )}

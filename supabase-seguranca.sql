@@ -1,3 +1,4 @@
+-- >>> JÁ APLICADO NO BANCO. NÃO REAPLICAR (o arquivo atual é supabase-revisao.sql). Os UUIDs do auto-teste foram trocados por placeholders: para reusar, ponha ids reais. <<<
 -- ============================================================================
 -- Condor · Alerta de Validade — REFORÇO DE SEGURANÇA (2026-10-31)
 -- Rode inteiro no SQL Editor do Supabase. É idempotente (pode rodar de novo).
@@ -270,8 +271,8 @@ end $$;
 do $$
 declare
   falhas text := '';
-  dev  constant text := '66fc204f-99d3-4cbf-ac20-f75b7be16c6c';
-  outro constant text := 'd2840fa1-6c2b-4b4e-a735-fd355a5c35d4';
+  dev  constant text := '00000000-0000-0000-0000-0000000000d1';
+  outro constant text := '00000000-0000-0000-0000-0000000000d2';
   n int; i int; msg text;
 begin
   begin

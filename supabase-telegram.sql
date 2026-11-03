@@ -1,3 +1,4 @@
+-- >>> JÁ APLICADO. NÃO REAPLICAR: reaplicar desfaz regras novas. Versão final das funções: supabase-revisao.sql <<<
 -- ============================================================================
 -- TELEGRAM: bot de lançamento de validade + código permanente do promotor
 -- Rode no SQL Editor do Supabase (pode rodar mais de uma vez). Nada é apagado.

@@ -1,3 +1,4 @@
+-- >>> JÁ APLICADO. NÃO REAPLICAR: reaplicar desfaz regras novas. Versão final das funções: supabase-revisao.sql <<<
 -- Lote REAL no lançamento de validade (app e Telegram). Rode DEPOIS de supabase-telegram-aprovacao.sql. Pode rodar mais de uma vez; tem auto-teste.
 -- Antes o "lote" era só a validade (o app agrupava por data). Agora cada lançamento leva o número do lote impresso na embalagem
 -- (ou "sem lote", dito de propósito). Lote igual já lançado no produto é barrado (precisa confirmar); lote novo = novo lote do produto.

@@ -1,3 +1,4 @@
+-- >>> JÁ APLICADO. NÃO REAPLICAR: reaplicar desfaz regras novas. Versão final das funções: supabase-revisao.sql <<<
 -- Telegram: cadastro de PRODUTO NOVO pelo bot (código de barras + imagem da internet confirmada pelo funcionário).
 -- Regras no banco (não só no bot): só funcionário vinculado e ativo; EAN válido; nome limpo; setor da lista; imagem pequena;
 -- não duplica produto; limite por hora; tudo vai para a auditoria. Também ajusta as ações permitidas de auditoria do bot.

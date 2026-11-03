@@ -1,3 +1,4 @@
+-- >>> JÁ APLICADO. NÃO REAPLICAR: reaplicar desfaz regras novas. Versão final das funções: supabase-revisao.sql <<<
 -- Regras do Telegram + EAN-13. Rode DEPOIS de supabase-lote.sql. Pode rodar mais de uma vez; tem auto-teste.
 -- 1) Telegram: validade com até 2 dias (hoje, amanhã, depois de amanhã) NÃO é lançada: tem que levar ao gerente para pedir preço direto.
 -- 2) Telegram: lote é OBRIGATÓRIO (sem lote não lança), exceto produto por peso.

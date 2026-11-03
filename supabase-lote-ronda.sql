@@ -1,3 +1,4 @@
+-- >>> JÁ APLICADO. NÃO REAPLICAR: reaplicar desfaz regras novas. Versão final das funções: supabase-revisao.sql <<<
 -- Lote na RONDA e nos RELATÓRIOS. Rode DEPOIS de supabase-lote.sql. Pode rodar mais de uma vez; tem auto-teste.
 -- 1) ronda_itens guarda uma foto dos lotes cadastrados no momento em que a ronda é criada; a conferência guarda validade + lote encontrados.
 -- 2) historico (baixas) passa a guardar o lote.

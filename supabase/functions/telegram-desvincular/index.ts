@@ -28,7 +28,9 @@ Deno.serve(async (req: Request) => {
   const { data: u } = await admin.auth.getUser(jwt);
   if (!u?.user) return resp({ erro: "nao_autenticado" }, 401);
   let usuario: string | null = null, convite: string | null = null;
-  try { const b = await req.json(); usuario = uuid(b?.usuario); convite = uuid(b?.convite); } catch { return resp({ erro: "pedido" }, 400); }
+  let b: any; try { b = await req.json(); } catch { return resp({ erro: "pedido" }, 400); }
+  usuario = uuid(b?.usuario); convite = uuid(b?.convite);
+  if ((b?.usuario != null && !usuario) || (b?.convite != null && !convite)) return resp({ erro: "id_invalido" }, 400); // id inválido nunca vira "a própria pessoa"
 
   // quem é o alvo (guarda o chat ANTES de apagar; isso não é devolvido a quem chamou)
   let q = admin.from("telegram_vinculos").select("id, chat_id, tipo");

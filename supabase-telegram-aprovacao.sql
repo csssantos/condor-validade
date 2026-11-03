@@ -1,3 +1,4 @@
+-- >>> JÁ APLICADO. NÃO REAPLICAR: reaplicar desfaz regras novas. Versão final das funções: supabase-revisao.sql <<<
 -- Telegram: produto NOVO vai para APROVAÇÃO de encarregado (nível <= 5) ou superior antes de entrar no catálogo.
 -- Quem lançou pelo bot não cria produto direto: o pedido (produto + validade + quantidade) fica pendente.
 -- Encarregado+ pode EDITAR o produto (nome, setor, imagem), APROVAR (cadastra o produto e lança a validade) ou RECUSAR (com motivo, que volta pelo Telegram).

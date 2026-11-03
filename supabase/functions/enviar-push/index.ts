@@ -26,6 +26,9 @@ Deno.serve(async (req) => {
     let inscricoes: any[] = [];
 
     if (corpoReq.avisoId) {
+      const { data: existe } = await supabase.from("avisos").select("id").eq("id", String(corpoReq.avisoId)).is("push_enviado_em", null)
+        .gte("criado_em", new Date(Date.now() - 15 * 60_000).toISOString()).maybeSingle();
+      if (!existe) return resposta(req, { ok: false, erro: "aviso_inexistente_ou_ja_enviado" }, 409); // chamada à toa não gasta o limite global
       if (!(await dentroDoLimite(supabase, "global", "push_total", 300))) return resposta(req, { ok: false, erro: "limite" }, 429);
       const { data: aviso, error: eMarca } = await supabase.from("avisos")
         .update({ push_enviado_em: new Date().toISOString() })
@@ -57,12 +60,12 @@ Deno.serve(async (req) => {
       // produto: só o id vale; título, validade, setor, foto etc. vêm do banco
       const id = String(corpoReq?.id ?? "").slice(0, 80);
       if (!id) return resposta(req, { ok: false, erro: "id_obrigatorio" }, 400);
-      if (!(await dentroDoLimite(supabase, "produto:" + id, "push_produto", 2))) return resposta(req, { ok: false, erro: "limite_produto" }, 429);
-      if (!(await dentroDoLimite(supabase, "global", "push_total", 300))) return resposta(req, { ok: false, erro: "limite" }, 429);
       const { data: prod, error: eP } = await supabase.from("produtos")
         .select("id, nome, setor, foto, validade, quantidade, preco_unitario, loja_id").eq("id", id).maybeSingle();
       if (eP) throw eP;
-      if (!prod) return resposta(req, { ok: false, erro: "produto_inexistente" }, 404);
+      if (!prod) return resposta(req, { ok: false, erro: "produto_inexistente" }, 404); // id que não existe não gasta limite
+      if (!(await dentroDoLimite(supabase, "produto:" + id, "push_produto", 2))) return resposta(req, { ok: false, erro: "limite_produto" }, 429);
+      if (!(await dentroDoLimite(supabase, "global", "push_total", 300))) return resposta(req, { ok: false, erro: "limite" }, 429);
       let q = supabase.from("push_subscriptions").select("*");
       if (prod.loja_id) q = q.eq("loja_id", prod.loja_id);
       const { data, error } = await q;

@@ -3,7 +3,7 @@
 // Webhook do Telegram -> valida segredo -> identifica quem é (vínculo) -> conversa em etapas -> confirma -> lancar_validade (mesma regra do app).
 // Mascote: Bipi (banners em public/bot/*.jpg, gerados por scripts/gerar-banners-bot.py). TODA mensagem sai com banner.
 // Foto do usuário só é aceita no produto novo sem imagem na internet (etapa "foto"). Produto que não existe no app: o bot busca nome e imagem na internet (Open Food Facts),
-// o funcionário confirma e o produto é cadastrado no app (telegram_criar_produto) junto com o lançamento.
+// o funcionário confirma e o produto vai para a fila de aprovação de um encarregado (telegram_enviar_aprovacao).
 // Segredos (Supabase → Edge Functions → Secrets): TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET.
 // verify_jwt = false (o Telegram não manda JWT); a proteção é o cabeçalho secreto + vínculo + limites.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -14,7 +14,9 @@ const TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
 const SEGREDO = Deno.env.get("TELEGRAM_WEBHOOK_SECRET") || "";
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
-const hoje = () => new Date(Date.now() - 3 * 3600 * 1000); // horário de Brasília
+// data de hoje em Brasília (meio-dia UTC daquele dia, para os getUTC* darem a data certa)
+const hoje = () => { const [a, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()).split("-").map(Number); return new Date(Date.UTC(a, m - 1, d, 12)); };
+const limpa = (e: unknown) => (TOKEN ? String(e).split(TOKEN).join("***") : String(e)); // nunca deixa o token do bot nos logs
 const iguais = (a: string, b: string) => { if (a.length !== b.length) return false; let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0; };
 const fmtData = (iso: string) => { const [a, m, d] = iso.split("-"); return `${d}/${m}/${a}`; };
 const num = (n: number) => String(n).replace(".", ",");
@@ -29,7 +31,7 @@ async function tg(method: string, body: Record<string, unknown>) {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(8000),
     });
     return await r.json();
-  } catch (e) { console.error("telegram", method, String(e)); return null; }
+  } catch (e) { console.error("telegram", method, limpa(e)); return null; }
 }
 const teclado = (botoes?: { t: string; d: string }[][]) =>
   botoes ? { reply_markup: { inline_keyboard: botoes.map((l) => l.map((b) => ({ text: b.t.slice(0, 60), callback_data: b.d }))) } } : {};
@@ -42,11 +44,11 @@ async function falar(chat: number, texto: string, botoes?: { t: string; d: strin
 // Auditoria: tudo que o bot faz de relevante aparece na Auditoria do app (nunca bloqueia a conversa se falhar)
 const auditar = async (chat: number, acao: string, detalhe?: string, barcode?: string) => {
   try { await sb.rpc("telegram_auditar", { p_chat_id: chat, p_acao: acao, p_detalhe: detalhe ?? null, p_barcode: barcode ?? null }); }
-  catch (e) { console.error("auditar", String(e)); }
+  catch (e) { console.error("auditar", limpa(e)); }
 };
 
 function eanOk(c: string) {
-  if (c.length !== 13 || !/^\d{13}$/.test(c)) return false; // só EAN-13, com dígito verificador
+  if (!/^\d+$/.test(c) || ![8, 12, 13].includes(c.length) || /^0+$/.test(c)) return false; // EAN-8, UPC-A ou EAN-13, com dígito verificador
   const d = c.split("").map(Number); const chk = d.pop()!; let s = 0;
   d.reverse().forEach((x, i) => { s += x * (i % 2 === 0 ? 3 : 1); });
   return (10 - (s % 10)) % 10 === chk;
@@ -65,7 +67,7 @@ async function baixarImagem(url: string): Promise<string | null> {
     if (!jpeg && !png) return null;
     let bin = ""; for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
     return `data:image/${jpeg ? "jpeg" : "png"};base64,${btoa(bin)}`;
-  } catch (e) { console.error("imagem", String(e)); return null; }
+  } catch (e) { console.error("imagem", limpa(e)); return null; }
 }
 async function buscarNaInternet(bc: string) {
   try {
@@ -86,7 +88,7 @@ async function buscarNaInternet(bc: string) {
       if (d) { urlImg = u; dataUrl = d; break; }
     }
     return { nome, urlImg, dataUrl };
-  } catch (e) { console.error("openfoodfacts", String(e)); return null; }
+  } catch (e) { console.error("openfoodfacts", limpa(e)); return null; }
 }
 
 // ---------- Catálogo e sessão ----------
@@ -94,17 +96,26 @@ type Novo = { barcode: string; nome: string; foto: string | null; fotoUsuario?: 
 type Dados = { barcode?: string; nome?: string; porPeso?: boolean; validade?: string; quantidade?: number; lote?: string; semLote?: boolean; opcoes?: { barcode: string; nome: string }[]; dupAsk?: boolean; novo?: Novo; criouProduto?: boolean };
 type Ctx = { vinculo_id: string; tipo: "funcionario" | "promotor"; usuario_id?: string; convite_id?: string; loja_id: number; nome: string; marca?: string };
 
+const cacheCat = new Map<number, { t: number; rows: { barcode: string; nome: string; por_peso: boolean }[] }>(); // catálogo por loja, 60 s (evita ~40 consultas por mensagem)
 async function carregarCatalogo(ctx: Ctx) {
-  const cat: Record<string, { nome: string; por_peso: boolean; barcode: string }> = {};
-  for (let p = 0; p < 40; p++) {
-    const { data, error } = await sb.from("catalogo").select("barcode, nome, por_peso").eq("loja_id", ctx.loja_id).range(p * 1000, p * 1000 + 999);
-    if (error || !data) break;
-    for (const r of data) {
-      if (!r.barcode || !r.nome) continue;
-      if (ctx.tipo === "promotor" && !String(r.nome).toUpperCase().includes(String(ctx.marca || "").trim().toUpperCase())) continue;
-      cat[r.barcode] = { nome: r.nome, por_peso: !!r.por_peso, barcode: r.barcode };
+  const marca = String(ctx.marca || "").trim().toUpperCase();
+  if (ctx.tipo === "promotor" && marca.length < 3) return {}; // marca vazia/curta casaria com tudo
+  let c = cacheCat.get(ctx.loja_id);
+  if (!c || Date.now() - c.t > 60000) {
+    const rows: { barcode: string; nome: string; por_peso: boolean }[] = [];
+    for (let p = 0; p < 40; p++) {
+      const { data, error } = await sb.from("catalogo").select("barcode, nome, por_peso").eq("loja_id", ctx.loja_id).range(p * 1000, p * 1000 + 999);
+      if (error || !data) break;
+      for (const r of data) if (r.barcode && r.nome) rows.push({ barcode: r.barcode, nome: r.nome, por_peso: !!r.por_peso });
+      if (data.length < 1000) break;
     }
-    if (data.length < 1000) break;
+    c = { t: Date.now(), rows }; cacheCat.set(ctx.loja_id, c);
+    if (cacheCat.size > 50) cacheCat.delete(cacheCat.keys().next().value);
+  }
+  const cat: Record<string, { nome: string; por_peso: boolean; barcode: string }> = {};
+  for (const r of c.rows) {
+    if (ctx.tipo === "promotor" && !String(r.nome).toUpperCase().includes(marca)) continue;
+    cat[r.barcode] = { nome: r.nome, por_peso: r.por_peso, barcode: r.barcode };
   }
   return cat;
 }
@@ -130,7 +141,15 @@ const salvar = (id: string, estado: string, dados: Dados, erro?: string) =>
 
 // ---------- Lote (número impresso na embalagem) ----------
 const LOTE_RE = /^[A-Z0-9][A-Z0-9./ -]{0,19}$/;
-const normLote = (t: string) => String(t || "").replace(/^\s*lote\s*[:\-]?\s*/i, "").replace(/\s+/g, " ").trim().toUpperCase();
+const normLote = (t: string) => String(t || "").replace(/^\s*lote(?:\s*[:\-]\s*|\s+)/i, "").replace(/\s+/g, " ").trim().toUpperCase();
+const loteValido = (lt: string) => LOTE_RE.test(lt) && /\d/.test(lt); // lote real tem pelo menos um número
+// datas escritas "do jeito do povo": 15122026, 15 12 2026, 12/2026 (último dia do mês) -> dd/mm/aaaa
+function prepararData(t: string) {
+  let x = t.replace(/\b(\d{2})(\d{2})(\d{4})\b/g, (m, d, mo, a) => (!eanOk(m) && +d >= 1 && +d <= 31 && +mo >= 1 && +mo <= 12 && +a >= 2000 && +a <= 2100) ? `${d}/${mo}/${a}` : m);
+  x = x.replace(/\b(\d{1,2})[ ](\d{1,2})[ ](20\d{2})\b/g, (m, d, mo, a) => (+d >= 1 && +d <= 31 && +mo >= 1 && +mo <= 12) ? `${d}/${mo}/${a}` : m);
+  x = x.replace(/(?<![\w\/])(\d{1,2})\/(20\d{2})\b/g, (m, mo, a) => { if (+mo < 1 || +mo > 12) return m; const u = new Date(Date.UTC(+a, +mo, 0)).getUTCDate(); return `${u}/${String(mo).padStart(2, "0")}/${a}`; });
+  return x;
+}
 async function lotesDoProduto(ctx: Ctx, barcode: string) {
   const { data } = await sb.from("produtos").select("lote, sem_lote, validade, quantidade").eq("loja_id", ctx.loja_id).eq("barcode", barcode).order("validade").limit(6);
   const l = data || [];
@@ -142,7 +161,7 @@ async function lotesDoProduto(ctx: Ctx, barcode: string) {
 const diasAte = (iso: string) => { const h = hoje(); const [vy, vm, vd] = iso.split("-").map(Number); return Math.round((Date.UTC(vy, vm - 1, vd) - Date.UTC(h.getUTCFullYear(), h.getUTCMonth(), h.getUTCDate())) / 86400000); };
 const MSG_SEM_LOTE = "Sem lote não dá para lançar pelo Telegram. Confira a embalagem: o lote fica impresso perto da validade. Se o produto realmente não tem lote, avise o encarregado para lançar pelo app.\n\nPara desistir, envie /cancelar.";
 const MSG_PERTO = (nome: string | undefined, validade: string, dias: number) =>
-  `⚠️ ${nome ? nome + "\n" : ""}Esse produto ${dias <= 0 ? "vence HOJE" : dias === 1 ? "vence AMANHÃ" : "vence em 2 dias"} (${fmtData(validade)}).\n\nProduto com até 2 dias para vencer não é lançado pelo Telegram. Leve o produto ao gerente o mais rápido possível, para pedir o preço direto.\n\nNada foi lançado.`;
+  `⚠️ ${nome ? nome + "\n" : ""}Esse produto ${dias <= 0 ? "vence HOJE" : dias === 1 ? "vence AMANHÃ" : "vence em 2 dias"} (${fmtData(validade)}).\n\nProduto com até 2 dias para vencer não é lançado pelo Telegram. Leve o produto ao gerente o mais rápido possível, para pedir o preço direto.\n\nNada foi lançado.\n\nSe digitou a data errada, mande a data certa. Para desistir, envie /cancelar.`;
 function perguntarSetor(chat: number, sid: string) {
   const linhas: { t: string; d: string }[][] = [];
   SETORES.forEach((s, i) => { if (i % 2 === 0) linhas.push([]); linhas[linhas.length - 1].push({ t: s, d: `st:${sid}:${i}` }); });
@@ -162,9 +181,9 @@ async function proximoPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados,
   if (d.validade) {
     const dias = diasAte(d.validade);
     if (dias <= 2) {
-      await sb.from("telegram_sessoes").update({ estado: "cancelado", atualizado_em: new Date().toISOString() }).eq("id", s.id);
-      await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? "produto não definido"}: validade ${fmtData(d.validade)} (${dias <= 0 ? "vence hoje" : dias + " dia(s)"}), levar ao gerente`, d.barcode);
-      return falar(chat, MSG_PERTO(d.nome, d.validade, dias), undefined, "atencao");
+      const vd = d.validade; delete d.validade; await salvar(s.id, "aguardando_info", d); // não lança, mas não perde a conversa (pode ter digitado a data errada)
+      await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? "produto não definido"}: validade ${fmtData(vd)} (${dias <= 0 ? "vence hoje" : dias + " dia(s)"}), levar ao gerente`, d.barcode);
+      return falar(chat, MSG_PERTO(d.nome, vd, dias), undefined, "atencao");
     }
   }
   const pre = aviso ? aviso + "\n\n" : "";
@@ -185,7 +204,7 @@ async function proximoPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados,
 
 async function escolherProduto(ctx: Ctx, chat: number, s: { id: string }, d: Dados, nomeFalado: string) {
   const cat = await carregarCatalogo(ctx);
-  const r = buscarNoCatalogo(nomeFalado, cat);
+  const r = buscarNoCatalogo(String(nomeFalado).split(/\s+/).slice(0, 14).join(" ").slice(0, 120), cat); // limite de tamanho: busca fonética é pesada
   if (r.tipo === "encontrado") {
     const e = r.candidatos[0].entrada; d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; delete d.novo; delete d.lote; delete d.semLote;
     return proximoPasso(ctx, chat, s, d);
@@ -208,7 +227,7 @@ async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, b
   if (e) { d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; delete d.lote; delete d.semLote; return proximoPasso(ctx, chat, s, d); }
   delete d.barcode; delete d.nome;
   if (ctx.tipo === "promotor") { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código não é de um produto da sua marca nesta loja. Confira o número.", undefined, "atencao"); }
-  if (!eanOk(bc)) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código de barras não é válido: o EAN-13 tem 13 dígitos e o último é o de verificação. Confira o número e envie de novo.", undefined, "atencao"); }
+  if (!eanOk(bc)) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código de barras não é válido: aceito EAN-8 (8 dígitos), UPC-A (12) ou EAN-13 (13), e o último dígito é o de verificação. Confira o número e envie de novo.", undefined, "atencao"); }
   // produto novo: busca nome e imagem na internet e pede a confirmação do funcionário
   const { data: lim } = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg_web", p_max: 6 });
   if (lim === false) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Muitas buscas em pouco tempo. Aguarde 1 minuto.", undefined, "atencao"); }
@@ -251,7 +270,7 @@ async function baixarFotoTelegram(fotos: any[]): Promise<{ ok: true; dataUrl: st
     if (!(buf[0] === 0xff && buf[1] === 0xd8)) return { ok: false, motivo: "Formato de foto n\u00e3o aceito. Envie como foto (n\u00e3o como arquivo)." };
     let bin = ""; for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
     return { ok: true, dataUrl: `data:image/jpeg;base64,${btoa(bin)}` };
-  } catch (e) { console.error("foto", String(e)); return { ok: false, motivo: "N\u00e3o consegui receber a foto. Envie de novo." }; }
+  } catch (e) { console.error("foto", limpa(e)); return { ok: false, motivo: "N\u00e3o consegui receber a foto. Envie de novo." }; }
 }
 const MSG_PEDIR_FOTO = "N\u00e3o consegui uma imagem desse produto na internet.\n\nEnvie uma FOTO leg\u00edvel da embalagem (frente do produto, de perto, com boa luz e sem tremer). Ela vai para o cadastro do app depois que o encarregado aprovar.\n\nPara desistir, envie /cancelar.";
 
@@ -269,21 +288,26 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   if (!s) return falar(chat, "Não consegui iniciar agora. Tente de novo em instantes.", undefined, "atencao");
   const d: Dados = { ...(s.dados || {}) };
   const low = semAcento(texto).trim();
+  if (texto.length > 300) return falar(chat, "Mensagem muito longa. Envie só o código de barras ou o nome do produto.", undefined, "atencao");
+  // "cancelar" vale em qualquer etapa (inclusive na pergunta do lote)
+  if (/^(cancelar|cancela)$/.test(low)) return cancelar(chat, s.id);
+  // "sem lote" em qualquer lugar da frase: Telegram não lança sem lote
+  if (/\b(sem|nao tem|nao possui)\s+lote\b/.test(low) || /^(sem numero|nao tem|sem)$/.test(low)) return falar(chat, MSG_SEM_LOTE, undefined, "atencao");
   // pergunta do lote em aberto: a resposta (mesmo só números) é o lote, a não ser que traga data ou quantidade
   const aguardaLote = s.estado === "aguardando_info" && !!d.barcode && !!d.validade && d.lote === undefined && !d.semLote && !d.porPeso && !d.novo?.etapa;
   if (aguardaLote) {
-    const pl = interpretarVoz(texto, hoje());
+    const pl = interpretarVoz(prepararData(texto), hoje());
     const temKw = /quantidade|unidade|\bun\b|\bkg\b/i.test(texto);
     if (!pl.validade && !temKw && !/^\/(?!\w)/.test(texto)) {
-      if (/^(sem lote|sem|nao tem|n[aã]o tem lote|nao tem lote|sem numero)$/.test(low)) return falar(chat, MSG_SEM_LOTE, undefined, "atencao");
       const lt = normLote(texto);
-      if (!LOTE_RE.test(lt)) return falar(chat, "Lote inválido. Use só letras, números, ponto, barra ou traço (até 20 caracteres), como está na embalagem.", undefined, "atencao");
+      if (!loteValido(lt)) return falar(chat, "Lote inválido. Use só letras, números, ponto, barra ou traço (até 20 caracteres) e pelo menos um número, como está na embalagem.", undefined, "atencao");
       d.lote = lt; return proximoPasso(ctx, chat, s, d);
     }
   }
   let textoSemLote = texto;
   const ml = texto.match(/\blote\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9./-]{0,19})/i);
-  if (ml) { const lt = normLote(ml[1]); if (LOTE_RE.test(lt)) d.lote = lt; textoSemLote = texto.replace(ml[0], " "); }
+  if (ml) { const lt = normLote(ml[1]); if (loteValido(lt)) { d.lote = lt; textoSemLote = texto.replace(ml[0], " "); } }
+  textoSemLote = prepararData(textoSemLote);
   const mb = textoSemLote.match(/\b\d{8,14}\b/);
 
   if (s.estado === "aguardando_confirmacao") {
@@ -401,7 +425,7 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
     else {
       await salvar(s.id, "aguardando_confirmacao", d);
       const k = Object.keys(ERROS_NOVO).find((x) => mc.includes(x));
-      if (k === "validade_muito_proxima") { await salvar(s.id, "cancelado", d); await auditar(chat, "lançamento barrado no Telegram", `${d.novo.nome}: ${ERROS_NOVO[k]}`, d.novo.barcode); return falar(chat, MSG_PERTO(d.novo.nome, d.validade!, diasAte(d.validade!)), undefined, "atencao"); }
+      if (k === "validade_muito_proxima") { const vd = d.validade!; delete d.validade; await salvar(s.id, "aguardando_info", d); await auditar(chat, "lançamento barrado no Telegram", `${d.novo.nome}: ${ERROS_NOVO[k]}`, d.novo.barcode); return falar(chat, MSG_PERTO(d.novo.nome, vd, diasAte(vd)), undefined, "atencao"); }
       await auditar(chat, "lançamento barrado no Telegram", `${d.novo.nome}: ${k ? ERROS_NOVO[k] : "erro ao enviar produto novo"}`, d.novo.barcode);
       return falar(chat, "⚠️ " + (k ? ERROS_NOVO[k] : "Não consegui enviar o produto novo agora. Nada foi lançado, tente de novo em instantes."), [[{ t: "✅ Tentar de novo", d: `ok:${s.id}` }, { t: "✏️ Corrigir", d: `fx:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }]], "atencao");
     }
@@ -420,14 +444,15 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
     }
     const chave = Object.keys(ERROS).find((k) => m.includes(k));
     if (chave === "validade_muito_proxima") {
-      await salvar(s.id, "cancelado", d);
+      const vd = d.validade!; delete d.validade; await salvar(s.id, "aguardando_info", d);
       await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? ""}: ${ERROS[chave]}`, d.barcode);
-      return falar(chat, MSG_PERTO(d.nome, d.validade!, diasAte(d.validade!)), undefined, "atencao");
+      return falar(chat, MSG_PERTO(d.nome, vd, diasAte(vd)), undefined, "atencao");
     }
     if (chave) await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? ""}: ${ERROS[chave]}`, d.barcode);
     if (chave && chave !== "usuario_fora_da_loja" && chave !== "limite_excedido") { if (chave.startsWith("lote_")) { delete d.lote; delete d.semLote; } else if (chave !== "aumento_excessivo") delete d.validade; if (chave === "quantidade_invalida" || chave === "aumento_excessivo") delete d.quantidade; await salvar(s.id, "aguardando_info", d); return falar(chat, "⚠️ " + ERROS[chave], undefined, "atencao"); }
-    await salvar(s.id, "erro", d, m.slice(0, 300));
-    return falar(chat, chave ? "⚠️ " + ERROS[chave] : "Não consegui gravar agora. Nada foi lançado — tente de novo em instantes.", undefined, "atencao");
+    if (chave === "usuario_fora_da_loja") { await salvar(s.id, "cancelado", d, m.slice(0, 300)); return falar(chat, "⚠️ " + ERROS[chave], undefined, "atencao"); }
+    await salvar(s.id, "aguardando_confirmacao", d, m.slice(0, 300)); // volta para a confirmação: a pessoa pode tentar de novo sem recomeçar
+    return falar(chat, chave ? "⚠️ " + ERROS[chave] : "Não consegui gravar agora. Nada foi lançado — tente de novo em instantes.", [[{ t: "✅ Tentar de novo", d: `ok:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }]], "atencao");
   }
   await salvar(s.id, "registrado", d);
   if (forcarDup) await auditar(chat, "confirmou lançamento duplicado no Telegram", `${d.nome} · validade ${fmtData(d.validade)}`, d.barcode);
@@ -452,7 +477,7 @@ async function vincular(chat: number, texto: string) {
   if (!func && !prom) return falar(chat, "Não reconheci esse código. Funcionário: 8 dígitos do app. Promotor: código tipo BAU-7K3QP.", undefined, "atencao");
   const [a, b] = await Promise.all([
     sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg_vinc", p_max: 8 }),
-    sb.rpc("rl_servico", { p_chave: "global", p_bucket: "tg_vinc", p_max: 200 }),
+    sb.rpc("rl_servico", { p_chave: "global", p_bucket: "tg_vinc", p_max: 1000 }),
   ]);
   if (a.data === false || b.data === false) return falar(chat, "Muitas tentativas. Aguarde 1 minuto.", undefined, "atencao");
   const { data, error } = func
@@ -465,7 +490,7 @@ async function vincular(chat: number, texto: string) {
   return falar(chat, `✅ Pronto, ${String(data?.nome || "").split(" ")[0]}! Seu Telegram está vinculado.\n\nAgora é só me mandar o código de barras ou o nome do produto.`, undefined, "vinculado");
 }
 
-const AJUDA = "Como usar:\n\n🔢 Mande o código de barras ou o nome do produto\n🏷️ Eu pergunto o lote (impresso na embalagem, perto da validade). Sem lote não lanço\n⚠️ Produto que vence em até 2 dias não é lançado: leve ao gerente para pedir preço direto\n🔢 O código de barras precisa ser EAN-13 válido\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n🆕 Produto que não está no app? Mande o código de barras: eu busco a imagem na internet (se não achar, peço uma foto legível sua), você confirma e o produto vai para aprovação de um encarregado\n✅ Só lanço depois do seu “sim”\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
+const AJUDA = "Como usar:\n\n🔢 Mande o código de barras ou o nome do produto\n🏷️ Eu pergunto o lote (impresso na embalagem, perto da validade). Sem lote não lanço\n⚠️ Produto que vence em até 2 dias não é lançado: leve ao gerente para pedir preço direto\n🔢 O código de barras precisa ser válido (EAN-8, UPC-A ou EAN-13)\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n🆕 Produto que não está no app? Mande o código de barras: eu busco a imagem na internet (se não achar, peço uma foto legível sua), você confirma e o produto vai para aprovação de um encarregado\n✅ Só lanço depois do seu “sim”\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
 
 // ---------- Entrada ----------
 async function processar(up: Record<string, any>) {
@@ -476,12 +501,12 @@ async function processar(up: Record<string, any>) {
   const chat: number = chatObj.id;
   const texto: string = String(msg?.text ?? msg?.caption ?? "").slice(0, 500);
 
+  const { data: lim } = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg", p_max: 30 });
+  if (lim === false) return; // excesso: ignora sem gravar nada (não deixa encher a tabela)
   const { error: eDup } = await sb.from("telegram_mensagens").insert({ update_id: up.update_id, chat_id: chat, tipo: cb ? "botao" : msg?.photo ? "foto" : msg?.text ? "texto" : "outro", texto: cb ? String(cb.data).slice(0, 100) : texto });
   if (eDup) { if (eDup.code === "23505") return; console.error(eDup); return; }
   const marcar = (status: string, erro?: string) => sb.from("telegram_mensagens").update({ status_proc: status, erro: erro?.slice(0, 500) ?? null }).eq("update_id", up.update_id);
 
-  const { data: lim } = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg", p_max: 30 });
-  if (lim === false) { await marcar("ignorada", "limite"); return; }
 
   const { data: ctxRaw } = await sb.rpc("telegram_contexto", { p_chat_id: chat });
   if (!ctxRaw) { if (cb) await tg("answerCallbackQuery", { callback_query_id: cb.id }); if (msg) await vincular(chat, texto); await marcar("processada"); return; }
@@ -528,13 +553,14 @@ async function processar(up: Record<string, any>) {
   if (/^\/start/i.test(texto)) { await falar(chat, `Olá, ${String(ctx.nome).split(" ")[0]}! 👋\nPode mandar o código de barras ou o nome do produto.`, undefined, "produto"); await marcar("processada"); return; }
   if (/^\/ajuda/i.test(texto)) { await falar(chat, AJUDA, undefined, "ajuda"); await marcar("processada"); return; }
   if (/^\/cancelar/i.test(texto)) { const s = await sessaoAtiva(chat); if (s) await cancelar(chat, s.id); else await falar(chat, "Não há lançamento em andamento.", undefined, "ajuda"); await marcar("processada"); return; }
-  if (/^\/sair/i.test(texto)) { await auditar(chat, "desvinculou o Telegram (/sair)", ctx.nome); await sb.from("telegram_vinculos").delete().eq("chat_id", chat); await falar(chat, "Telegram desvinculado. Para usar de novo, vincule outra vez com um código.", undefined, "cancelado"); await marcar("processada"); return; }
+  if (/^\/sair/i.test(texto)) { await auditar(chat, "desvinculou o Telegram (/sair)", ctx.nome); await sb.from("telegram_sessoes").update({ estado: "cancelado", atualizado_em: new Date().toISOString() }).eq("chat_id", chat).in("estado", ["aguardando_info", "aguardando_confirmacao", "confirmado"]); await sb.from("telegram_vinculos").delete().eq("chat_id", chat); await falar(chat, "Telegram desvinculado. Para usar de novo, vincule outra vez com um código.", undefined, "cancelado"); await marcar("processada"); return; }
   if (texto.startsWith("/")) { await falar(chat, AJUDA, undefined, "ajuda"); await marcar("processada"); return; }
 
   // foto: so e aceita na etapa "foto" do produto novo (sem imagem na internet). Em qualquer outro momento nao recebe fotos nem arquivos.
   if (msg.photo?.length || msg.document || msg.video || msg.sticker) {
-    const s = msg.photo?.length ? await sessaoAtiva(chat) : null;
+    const s = (msg.photo?.length || msg.document) ? await sessaoAtiva(chat) : null;
     const dd: Dados = s?.dados || {};
+    if (s && !msg.photo?.length && msg.document && s.estado === "aguardando_info" && dd.novo?.etapa === "foto") { await falar(chat, "Envie como FOTO (não como arquivo): toque no clipe e escolha a câmera ou a galeria.", undefined, "atencao"); await marcar("ignorada", "foto_como_arquivo"); return; }
     if (s && s.estado === "aguardando_info" && dd.novo?.etapa === "foto" && ctx.tipo === "funcionario") {
       const f = await baixarFotoTelegram(msg.photo);
       if (!f.ok) { await falar(chat, "⚠️ " + f.motivo, undefined, "atencao"); await marcar("ignorada", "foto_invalida"); return; }
@@ -556,6 +582,6 @@ Deno.serve(async (req: Request) => {
   if (!TOKEN || !SEGREDO || !iguais(seg, SEGREDO)) return new Response("forbidden", { status: 403 });
   let up: Record<string, any>;
   try { up = await req.json(); } catch { return new Response("ok"); }
-  try { await processar(up); } catch (e) { console.error("telegram-bot", String(e)); }
+  try { await processar(up); } catch (e) { console.error("telegram-bot", limpa(e)); }
   return new Response("ok"); // sempre 200: o Telegram não reenvia, e a duplicidade é barrada por update_id
 });

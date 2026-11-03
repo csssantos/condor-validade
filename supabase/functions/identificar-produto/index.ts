@@ -48,9 +48,9 @@ Deno.serve(async (req: Request) => {
       const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
       try {
         const r = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
           {
-            method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
+            method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey }, signal: controller.signal,
             body: JSON.stringify({ contents: [{ parts: [
               { text: `Identifique o produto de supermercado nesta foto (nome comercial completo, com marca se visível). ` +
                 `Escolha o setor mais adequado dentre exatamente estas opções: ${SETORES.join(", ")}. ` +
@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
         return resp({ nome: String(resultado.nome).slice(0, 200), setor: SETORES.includes(resultado.setor) ? resultado.setor : "Outro" });
       } catch (e) {
         clearTimeout(timeoutId);
-        ultimoErro = (e as Error).name === "AbortError" ? `modelo ${modelo} demorou mais de ${TIMEOUT_MS / 1000}s` : String(e);
+        ultimoErro = (e as Error).name === "AbortError" ? `modelo ${modelo} demorou mais de ${TIMEOUT_MS / 1000}s` : String(e).split(apiKey).join("***");
         console.error(`Falha no modelo ${modelo}:`, ultimoErro);
       }
     }
