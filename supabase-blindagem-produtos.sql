@@ -24,7 +24,7 @@ revoke all on function public._produtos_blindagem() from public, anon, authentic
 drop trigger if exists trg_produtos_blindagem on public.produtos;
 create trigger trg_produtos_blindagem before update on public.produtos for each row execute function public._produtos_blindagem();
 
--- exclusão: a baixa própria precisa cobrir a quantidade do produto
+-- exclusão: mesma regra da revisão (baixa própria em 24 h ou produto criado por si em 24 h)
 create or replace function public._produtos_del_ck() returns trigger language plpgsql security definer set search_path = public as $f$
 declare nv int;
 begin
@@ -47,7 +47,7 @@ begin
   quem := coalesce(public.nome_do_usuario(), 'desconhecido');
   if tg_op = 'DELETE' then
     insert into public.auditoria (usuario, acao, detalhe, produto_barcode, loja_id)
-    values (quem, 'excluiu produto (registro do servidor)', left(old.nome || ' · ' || coalesce('lote ' || old.lote, 'sem lote') || ' · validade ' || old.validade::text || ' · ' || old.quantidade::text || ' un', 400), old.barcode, old.loja_id);
+    values (quem, 'excluiu produto (registro do servidor)', left(coalesce(old.nome, '?') || ' · ' || coalesce('lote ' || old.lote, 'sem lote') || ' · validade ' || coalesce(old.validade::text, '-') || ' · ' || coalesce(old.quantidade::text, '?') || ' un', 400), old.barcode, old.loja_id);
     return old;
   end if;
   if coalesce(current_setting('app.via_rpc', true), '') = '1' then return new; end if; -- a RPC já audita sozinha
@@ -57,7 +57,7 @@ begin
   if new.lote is distinct from old.lote then d := d || ' lote ' || coalesce(old.lote, '-') || '→' || coalesce(new.lote, '-'); end if;
   if d <> '' then
     insert into public.auditoria (usuario, acao, detalhe, produto_barcode, loja_id)
-    values (quem, 'alterou produto (registro do servidor)', left(new.nome || ' ·' || d, 400), new.barcode, new.loja_id);
+    values (quem, 'alterou produto (registro do servidor)', left(coalesce(new.nome, '?') || ' ·' || d, 400), new.barcode, new.loja_id);
   end if;
   return new;
 end $f$;
