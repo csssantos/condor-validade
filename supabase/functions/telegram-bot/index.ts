@@ -471,22 +471,24 @@ const ERRO_VINC: Record<string, string> = {
 };
 async function vincular(chat: number, texto: string) {
   const t = texto.trim().replace(/^\/start(@\w+)?\s*/i, "").trim();
-  if (!t) return falar(chat, "👋 Oi! Para começar, me envie o seu código de acesso:\n\n🧑‍💼 Funcionário: gere no app em Mais → Conta → Telegram (8 números)\n🏷️ Promotor: envie o código da sua marca (ex.: BAU-7K3QP8M2XC)\n\nO código do app vale por 10 minutos.", undefined, "codigo");
-  const func = /^\d{4}\s?-?\s?\d{4}$/.test(t);
+  if (!t) return falar(chat, "👋 Oi! Para começar, me envie o seu código de acesso:\n\n🧑‍💼 Funcionário: gere no app em Mais → Conta → Telegram (8 letras e números)\n🏷️ Promotor: envie o código da sua marca (ex.: BAU-7K3QP8M2XC)\n\nO código do app vale por 10 minutos.", undefined, "codigo");
+  const func = /^[A-Za-z0-9]{4}\s?[A-Za-z0-9]{4}$/.test(t) && !/^[A-Za-z]{3}-/.test(t);
   const prom = /^[A-Za-z]{3}-[A-Za-z0-9]{5,10}$/.test(t);
-  if (!func && !prom) return falar(chat, "Não reconheci esse código. Funcionário: 8 dígitos do app. Promotor: código tipo BAU-7K3QP8M2XC.", undefined, "atencao");
-  const [a, b] = await Promise.all([
-    sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg_vinc", p_max: 8 }),
-    sb.rpc("rl_servico", { p_chave: "global", p_bucket: "tg_vinc", p_max: 1000 }),
-  ]);
-  if (a.data === false || b.data === false) return falar(chat, "Muitas tentativas. Aguarde 1 minuto.", undefined, "atencao");
+  if (!func && !prom) return falar(chat, "Não reconheci esse código. Funcionário: 8 letras e números do app. Promotor: código tipo BAU-7K3QP8M2XC.", undefined, "atencao");
+  // trava por erros: depois de 5 códigos errados o chat espera (15 min, 1 h, 24 h). Quem acerta de primeira nunca é afetado
+  const { data: seg } = await sb.rpc("telegram_vinc_bloqueio", { p_chat_id: chat });
+  if (typeof seg === "number" && seg > 0) return falar(chat, `Muitos códigos errados. Tente de novo em ${seg >= 3600 ? Math.ceil(seg / 3600) + " h" : Math.ceil(seg / 60) + " min"}.`, undefined, "atencao");
+  const a = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg_vinc", p_max: 8 });
+  if (a.data === false) return falar(chat, "Muitas tentativas. Aguarde 1 minuto.", undefined, "atencao");
   const { data, error } = func
     ? await sb.rpc("telegram_vincular_funcionario", { p_chat_id: chat, p_codigo: t })
     : await sb.rpc("telegram_vincular_promotor", { p_chat_id: chat, p_codigo: t.toUpperCase() });
   if (error) {
+    if ((error.message || "").includes("codigo_invalido")) await sb.rpc("telegram_vinc_falha", { p_chat_id: chat });
     const k = Object.keys(ERRO_VINC).find((x) => (error.message || "").includes(x));
     return falar(chat, k ? "⚠️ " + ERRO_VINC[k] : "Não consegui vincular agora. Tente de novo.", undefined, "atencao");
   }
+  await sb.rpc("telegram_vinc_ok", { p_chat_id: chat });
   return falar(chat, `✅ Pronto, ${String(data?.nome || "").split(" ")[0]}! Seu Telegram está vinculado.\n\nAgora é só me mandar o código de barras ou o nome do produto.`, undefined, "vinculado");
 }
 

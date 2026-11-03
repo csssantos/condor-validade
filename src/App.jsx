@@ -260,7 +260,7 @@ function precisaNotificar(item) {
 // ---------- Regra dinâmica de dias de alerta ----------
 // A antecedência do alerta não pode ser maior ou igual aos dias restantes até o vencimento,
 // para que o produto nunca entre em alerta no exato momento em que é cadastrado.
-// Perecíveis (item 10) têm uma exceção: podem ser lançados mesmo faltando só 1 dia pra vencer.
+// Faltando só 1 dia pra vencer, o único alerta possível é o de 1 dia (vale para perecível e não perecível).
 function calcularOpcoesAlerta(validadeISO, perecivel) {
   if (!validadeISO) return { opcoes: DIAS_ALERTA_BASE, maxPermitido: 15, restritivo: false, diasRestantesAtual: null };
   const dias = diasRestantes(validadeISO);
@@ -271,7 +271,7 @@ function calcularOpcoesAlerta(validadeISO, perecivel) {
   if (maxPermitido >= 1) {
     return { opcoes: [maxPermitido], maxPermitido, restritivo: true, diasRestantesAtual: dias };
   }
-  if (perecivel && dias >= 1) {
+  if (dias >= 1) { // falta só 1 dia: qualquer produto (perecível ou não) pode ser lançado com alerta de 1 dia, senão o botão ficava cinza sem explicação
     return { opcoes: [1], maxPermitido: 1, restritivo: true, diasRestantesAtual: dias, motivoPerecivel: true };
   }
   return { opcoes: [], maxPermitido: 0, restritivo: true, diasRestantesAtual: dias };
@@ -9386,7 +9386,6 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
   const loteNorm = lote.trim().toUpperCase();
   const loteValido = /^[A-Z0-9][A-Z0-9./ -]{0,19}$/.test(loteNorm) && /\d/.test(loteNorm);
   const loteOk = !!editing || porPeso || semLote || loteValido; // lançamento novo exige o lote impresso (ou "sem lote" dito de propósito)
-  const podeSalvar = !!validade && !dataRuim && !qtdMsg && opcoes.length > 0 && !!tamanho.trim() && loteOk && !(loteExistente && somaErro);
   const jaVencido = !!validade && !dataRuim && diasRestantesAtual !== null && diasRestantesAtual <= 0;
   const podeRegistrarPerda = jaVencido && !!tamanho.trim() && !!motivoBaixaDireta && !qtdMsg;
   const valorTotal = (Number(quantidade) || 0) * (Number(precoUnitario) || 0);
@@ -9399,6 +9398,16 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
   const limiteSoma = loteExistente ? limiteSomaLote(loteExistente.quantidade) : 0;
   const qtdSomar = Number(quantidade) || 0;
   const somaErro = !loteExistente ? "" : (validade && validade !== loteExistente.validade) ? `Esse lote vence em ${formatarData(loteExistente.validade)}. A validade precisa ser a mesma.` : qtdSomar > limiteSoma ? `Só dá para somar até ${limiteSoma} un de uma vez nesse lote. Se a contagem mudou muito, edite o lote.` : "";
+  const podeSalvar = !!validade && !dataRuim && !qtdMsg && opcoes.length > 0 && !!tamanho.trim() && loteOk && !(loteExistente && somaErro);
+  // por que o botão Salvar está cinza (nunca deixar a pessoa sem explicação)
+  const motivoBloqueio = !validade ? "Informe a validade."
+    : dataRuim ? "Confira o ano da validade."
+    : diasRestantesAtual !== null && diasRestantesAtual <= 0 ? "Esse produto já venceu: use o registro de perda acima."
+    : qtdMsg ? qtdMsg
+    : !tamanho.trim() ? "Preencha o tamanho/embalagem."
+    : !loteOk ? "Informe o lote impresso na embalagem (precisa ter ao menos um número) ou marque que não tem lote."
+    : loteExistente && somaErro ? somaErro
+    : opcoes.length === 0 ? "Não há alerta possível para essa validade." : "";
   const duplicado = !editing && validade && !porPeso && !loteNorm
     ? lotesDoProduto.some((i) => i.validade === validade && !i.lote)
     : false;
@@ -9548,7 +9557,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
               </div>
               {motivoPerecivel && (
                 <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[11px] font-medium px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5">
-                  <Sparkles size={13} className="mt-0.5 shrink-0" /> <span>Produto perecível: liberado o lançamento mesmo faltando só 1 dia para o vencimento.</span>
+                  <Sparkles size={13} className="mt-0.5 shrink-0" /> <span>{perecivel ? "Produto perecível: liberado o lançamento mesmo faltando só 1 dia para o vencimento." : "Falta só 1 dia para o vencimento: o alerta fica em 1 dia."}</span>
                 </div>
               )}
               {restritivo && !motivoPerecivel && opcoes.length > 0 && (
@@ -9629,6 +9638,9 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
         )}
       </div>
 
+      {!podeSalvar && motivoBloqueio && validade && (
+        <p style={{ color: RED_DARK }} className="text-[11px] font-medium text-center mt-4 -mb-2" role="status">{motivoBloqueio}</p>
+      )}
       <div className="flex gap-2 mt-5">
         {!editing && onVoltar && (
           <button onClick={voltar} style={{ color: T.subtext, borderColor: T.border }} className="flex items-center justify-center gap-1 text-sm font-medium py-3 px-4 rounded-2xl border">
@@ -10632,7 +10644,7 @@ function TelegramVinculo({ T, showToast }) {
     if (error) { console.error(error); showToast("Não foi possível desvincular.", "warn"); return; }
     setCod(null); showToast("Telegram desvinculado."); carregar();
   }
-  const fmt = (c) => String(c).replace(/^(\d{4})(\d{4})$/, "$1 $2");
+  const fmt = (c) => String(c).replace(/^([A-Za-z0-9]{4})([A-Za-z0-9]{4})$/, "$1 $2");
   async function copiarCodigo(c) {
     try { await navigator.clipboard.writeText(String(c)); showToast("Código copiado. Cole no bot do Telegram."); }
     catch { showToast("Não deu pra copiar. Segure o código para copiar manualmente.", "warn"); }
