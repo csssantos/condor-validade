@@ -302,6 +302,7 @@ function saveLocal(key, value) {
 // ---------- Supabase: mapeamento de linhas <-> objetos do app ----------
 function produtoFromRow(r) {
   return {
+    lancadoPorId: r.lancado_por_id || null, cadastradoPor: r.cadastrado_por || null,
     id: r.id, barcode: r.barcode, nome: r.nome, setor: r.setor, subsetor: r.subsetor || null, foto: r.foto,
     quantidade: r.quantidade, precoUnitario: Number(r.preco_unitario) || 0, porPeso: !!r.por_peso,
     tamanho: r.tamanho || null, unidadeMedida: r.unidade_medida || null,
@@ -798,6 +799,9 @@ function erroDeRede(e) {
 function mensagemErroGravacao(e) {
   const m = String((e && e.message) || "");
   if (/ean_invalido/.test(m)) return "código de barras inválido (precisa ser EAN-8, UPC-A ou EAN-13 válido)";
+  if (/baixa_exige_encarregado/.test(m)) return "só o encarregado do setor (ou superior) pode dar baixa";
+  if (/editar_exige_autor/.test(m)) return "você só pode editar produtos que você mesmo lançou";
+  if (/editar_exige_encarregado/.test(m)) return "só o encarregado do setor (ou superior) pode editar esse produto";
   if (/excluir_exige_encarregado/.test(m)) return "só encarregado ou superior pode excluir esse produto (use \"Dar baixa\")";
   if (/lote_obrigatorio/.test(m)) return "falta o lote (ou marcar que não tem lote impresso)";
   if (/lote_invalido/.test(m)) return "lote inválido (use letras, números, . / - e até 20 caracteres)";
@@ -1333,6 +1337,21 @@ function AppInner() {
   const [maisPagina, setMaisPagina] = useState(null); // página aberta em Mais (lembra ao voltar de uma tela aberta pelos Atalhos)
   useEffect(() => { if (flow === null && tab !== "ajustes") setMaisPagina(null); }, [tab, flow]);
   const idDoUsuario = sessao?.user?.id || null;
+  // Permissões (também valem no banco): <=4 tudo; 5 só o próprio setor; >=6 e promotor só editam o que lançaram, sem baixa/exclusão
+  const nivelUsuario = perfil?.cargos?.nivel ?? 99;
+  const podeGerirProduto = (it) => {
+    if (!it) return false;
+    if (nivelUsuario <= 4) return true;
+    if (nivelUsuario !== 5) return false;
+    const meu = String(perfil?.setor || "").trim().toLowerCase();
+    return !meu || meu === String(it.setor || "").trim().toLowerCase();
+  };
+  const podeEditarProduto = (it) => {
+    if (!it) return false;
+    if (podeGerirProduto(it)) return true;
+    if (nivelUsuario <= 5) return false;
+    return (it.lancadoPorId && it.lancadoPorId === idDoUsuario) || (!it.lancadoPorId && !!perfil?.nome && it.cadastradoPor === perfil.nome);
+  };
   useEffect(() => {
     if (!idDoUsuario || !perfil) { return; }
     let vivo = true;
@@ -2409,7 +2428,7 @@ function AppInner() {
           <ExpiryView T={T} product={draftProduct} barcode={pendingBarcode} items={items} vozPre={vozPre}
             editing={editingItemId ? items.find((i) => i.id === editingItemId) : null}
             onCancel={resetFlow} onVoltar={() => setFlow("confirm")} onSave={saveAlertItem}
-            onBaixaDireta={!editingItemId ? registrarBaixaDireta : null} />
+            onBaixaDireta={!editingItemId && nivelUsuario <= 5 ? registrarBaixaDireta : null} />
         )}
 
         {flow === "auditoria" && <AuditoriaView T={T} auditoria={auditoria} />}
@@ -2463,7 +2482,7 @@ function AppInner() {
           <SetorDetalheView T={T} setor={setorAtivo} items={items} catalog={catalog} rondas={rondas} subInicial={subAtivo}
             onVoltar={() => setSubAtivo(null)} onIniciarRonda={iniciarRonda} onOpenDetail={setDetalheItem}
             onLancarValidade={ehDesktop ? null : lancarValidadeDoCadastro} onCadastrarNoSetor={ehDesktop ? null : (s) => abrirCadastroDireto(s)}
-            onExcluir={excluirProduto} usuario={usuario} ehEncarregado={ehEncarregado} perfil={perfil} />
+            onExcluir={nivelUsuario <= 5 ? excluirProduto : null} usuario={usuario} ehEncarregado={ehEncarregado} perfil={perfil} />
         )}
         {flow === "prioridade" && (
           <PrioridadeInteligenteView T={T} items={items} historico={historico} onOpenDetail={setDetalheItem} />
@@ -2491,8 +2510,9 @@ function AppInner() {
           outrosLotes={items.filter((i) => i.barcode === detalheItem.barcode && i.setor === detalheItem.setor && i.id !== detalheItem.id)}
           onTrocarLote={setDetalheItem}
           onClose={() => setDetalheItem(null)}
-          onEdit={ehDesktop ? null : startEdit} onDuplicate={ehDesktop ? null : duplicarItem} onBaixa={darBaixa} onShare={compartilharItem}
-          onAplicarPromocao={aplicarPromocao} onExcluir={excluirProduto} />
+          onEdit={ehDesktop || !podeEditarProduto(detalheItem) ? null : startEdit} onDuplicate={ehDesktop ? null : duplicarItem}
+          onBaixa={podeGerirProduto(detalheItem) ? darBaixa : null} onShare={compartilharItem}
+          onAplicarPromocao={podeGerirProduto(detalheItem) ? aplicarPromocao : null} onExcluir={podeGerirProduto(detalheItem) ? excluirProduto : null} />
       )}
 
       {perfil?.id && <RondaAvisosHost T={T} usuarioId={perfil.id} showToast={showToast} onIrParaRondas={() => { setFlow(null); setSetorAtivo(null); setTab("rondas"); }} />}
@@ -2712,6 +2732,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-03-permissoes", data: "03/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Permissões novas: baixa, exclusão e edição de produto são do encarregado do setor (ou gerência). Funcionário e promotor só lançam e editam o que eles mesmos lançaram, sem baixa e sem excluir." },
+  ] },
   { id: "2026-11-03-promotor-marcas", data: "03/11/2026", itens: [
     { tipo: "novo", ate: 5, texto: "Convite de promotor com várias marcas (de 1 a 5): o promotor só lança produtos dessas marcas. O sistema sugere as marcas que já existem no catálogo da loja." },
     { tipo: "novo", ate: 4, texto: "Convite com acesso total (gerência e diretoria): o promotor lança produto de qualquer marca, inclusive fora do horário da loja. Fica registrado na auditoria." },
@@ -8318,12 +8341,14 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 
         </div>
         <div style={{ borderColor: T.border, background: T.card }} className="shrink-0 max-h-[55%] overflow-y-auto px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t">
+          {onBaixa && (
           <motion.button whileTap={{ scale: 0.98 }} onClick={() => setConfirmandoBaixa(true)}
             style={{ background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)` }}
             className="w-full py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-red-900/20">
             <PackageX className="w-5 h-5 text-white" />
             <span className="text-white font-bold text-sm">Registrar ação</span>
           </motion.button>
+          )}
 
           <div className="flex items-center justify-around mt-3.5">
             {onEdit && (
@@ -8342,10 +8367,12 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
               <div style={{ background: T.chipBg }} className="h-11 w-11 rounded-2xl flex items-center justify-center"><Share2 size={16} style={{ color: T.text }} /></div>
               <span style={{ color: T.subtext }} className="text-[10px] font-medium">Compartilhar</span>
             </button>
+            {onExcluir && (
             <button onClick={() => setConfirmandoExclusao(true)} className="flex flex-col items-center gap-1.5">
               <div style={{ background: RED_SOFT }} className="h-11 w-11 rounded-2xl flex items-center justify-center"><Trash2 size={16} color={RED_DARK} /></div>
               <span style={{ color: RED_DARK }} className="text-[10px] font-medium">Excluir</span>
             </button>
+            )}
           </div>
 
           {confirmandoExclusao && (

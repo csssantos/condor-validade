@@ -7,10 +7,16 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-11-01";
+export const TERMOS_VERSAO = "2026-11-03";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-03", docs: {
+    termos: [
+      "Permissões por cargo: dar baixa, excluir e editar produtos é função do encarregado do setor (ou da gerência/diretoria). Funcionários e promotores só lançam produtos e editam os que eles mesmos lançaram, sem dar baixa e sem excluir.",
+      "Convite de promotor pode ter de 1 a 5 marcas ou acesso total (concedido só pela gerência/diretoria); o promotor só lança produtos dessas marcas.",
+    ],
+  } },
   { versao: "2026-11-01", docs: {
     termos: [
       "Produto novo pelo Telegram: se o bot não achar a imagem do produto na internet, o funcionário envia uma foto legível da embalagem. Ela vai para aprovação do encarregado e, se aprovada, vira a imagem do produto no cadastro da loja.",
