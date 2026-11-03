@@ -82,7 +82,7 @@ end $do$;
 
 -- Regras de dado para quem escreve pela API (usuário logado). RPCs de servidor/bot (sem auth.uid) já validam por conta própria.
 create or replace function public._produtos_regras() returns trigger language plpgsql as $f$
-declare ex boolean := (tg_op = 'UPDATE'); q_ant int; v_ant date;
+declare ex boolean := (tg_op = 'UPDATE'); q_ant numeric; v_ant date;
 begin
   if auth.uid() is null then return new; end if;
   if tg_op = 'UPDATE' then q_ant := old.quantidade; v_ant := old.validade;
@@ -91,7 +91,7 @@ begin
     select quantidade, validade into q_ant, v_ant from public.produtos where id = new.id;
     ex := found;
   end if;
-  if (not ex or new.quantidade is distinct from q_ant) and (new.quantidade is null or new.quantidade < 1 or new.quantidade > 99999) then raise exception 'quantidade_invalida'; end if;
+  if (not ex or new.quantidade is distinct from q_ant) and (new.quantidade is null or new.quantidade < (case when coalesce(new.por_peso, false) then 0.001 else 1 end) or new.quantidade > 99999) then raise exception 'quantidade_invalida'; end if;
   if not ex or new.validade is distinct from v_ant then
     if new.validade is null then raise exception 'validade_obrigatoria'; end if;
     if new.validade < public.hoje_br() then raise exception 'validade_vencida'; end if;
@@ -106,7 +106,7 @@ revoke all on function public._produtos_regras() from public, anon, authenticate
 drop trigger if exists trg_produtos_regras on public.produtos;
 create trigger trg_produtos_regras before insert or update on public.produtos for each row execute function public._produtos_regras();
 
--- Exclusão: limite por minuto; funcionário (nível 6) só exclui com baixa recém-registrada por ele ou produto que ele mesmo criou nas últimas 24 h
+-- Exclusão: limite por minuto; funcionário (nível 6) só exclui com baixa registrada por ele nas últimas 24 h (cobre baixa feita offline) ou produto que ele mesmo criou nas últimas 24 h
 create or replace function public._produtos_del_ck() returns trigger language plpgsql security definer set search_path = public as $f$
 declare nv int;
 begin
@@ -115,7 +115,7 @@ begin
   nv := coalesce(public.nivel_do_usuario(), 99);
   if nv <= 5 then return old; end if;
   if exists (select 1 from public.historico h where h.loja_id = old.loja_id and h.barcode = old.barcode
-             and h.registrado_por_id = auth.uid() and h.data_baixa > now() - interval '10 minutes') then return old; end if;
+             and h.registrado_por_id = auth.uid() and h.data_baixa > now() - interval '24 hours') then return old; end if;
   if old.cadastrado_por is not distinct from public.nome_do_usuario() and old.criado_em > now() - interval '24 hours' then return old; end if;
   raise exception 'excluir_exige_encarregado';
 end $f$;
@@ -177,6 +177,8 @@ create or replace function public._pendente_regra_setor() returns trigger langua
 declare v_nivel_criador int; v_setor_criador text; v_nivel_cargo int; v_padrao text;
 begin
   if auth.uid() is null then return new; end if;
+  -- UPDATE que não muda cargo/loja/setor (ex.: o próprio vínculo no 1º login, que roda como o usuário novo) não reaplica as regras de quem cadastra
+  if tg_op = 'UPDATE' and new.cargo_id is not distinct from old.cargo_id and new.loja_id is not distinct from old.loja_id and new.setor is not distinct from old.setor then return new; end if;
   v_nivel_criador := public.nivel_do_usuario();
   select nivel, setor_padrao into v_nivel_cargo, v_padrao from public.cargos where id = new.cargo_id;
   if v_nivel_cargo is null then raise exception 'Cargo inválido.' using errcode = '22023'; end if;

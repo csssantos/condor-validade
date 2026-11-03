@@ -123,7 +123,7 @@ self.addEventListener("notificationclick", (event) => {
   if (event.action === "fechar") return;
   const dadosNotif = event.notification.data || {};
   const produtoId = dadosNotif.itemId;
-  const urlSegura = typeof dadosNotif.url === "string" && /^\/(?!\/)/.test(dadosNotif.url) ? dadosNotif.url : "/"; // só caminho do próprio app
+  const urlSegura = typeof dadosNotif.url === "string" && /^\/(?![\/\\])/.test(dadosNotif.url) ? dadosNotif.url : "/"; // só caminho do próprio app
   const urlAlvo = produtoId ? `/?produto=${encodeURIComponent(produtoId)}` : urlSegura;
 
   event.waitUntil(

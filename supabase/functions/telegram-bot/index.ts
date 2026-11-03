@@ -287,7 +287,7 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   const s = await garantirSessao(ctx, chat);
   if (!s) return falar(chat, "Não consegui iniciar agora. Tente de novo em instantes.", undefined, "atencao");
   const d: Dados = { ...(s.dados || {}) };
-  const low = semAcento(texto).trim();
+  const low = semAcento(texto).replace(/[!.,;:?]+\s*$/g, "").trim();
   if (texto.length > 300) return falar(chat, "Mensagem muito longa. Envie só o código de barras ou o nome do produto.", undefined, "atencao");
   // "cancelar" vale em qualquer etapa (inclusive na pergunta do lote)
   if (/^(cancelar|cancela)$/.test(low)) return cancelar(chat, s.id);
@@ -340,7 +340,7 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   const soNumero = /^\s*\d+(?:[.,]\d+)?\s*(?:kg|un|unidades?)?\s*$/i.test(resto) && !mb;
   let mudou = false;
   if (p.validade) { d.validade = p.validade; mudou = true; }
-  if (p.quantidade != null) { d.quantidade = p.quantidade; if (p.porPeso) d.porPeso = true; mudou = true; }
+  if (p.quantidade != null) { d.quantidade = p.quantidade; if (p.porPeso && !d.barcode) d.porPeso = true; mudou = true; }
   else if (soNumero && d.barcode && d.quantidade == null) { d.quantidade = Number(resto.replace(/[^\d.,]/g, "").replace(",", ".")); mudou = true; }
 
   if (mb) return porBarcode(ctx, chat, s, d, mb[0]);

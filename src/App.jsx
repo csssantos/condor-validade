@@ -9371,7 +9371,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
   const cancelar = () => { if (sujo && !window.confirm("Descartar o que você digitou?")) return; onCancel(); };
   const voltar = () => { if (sujo && !window.confirm("Voltar e perder a validade e o lote digitados?")) return; onVoltar(); };
   const loteNorm = lote.trim().toUpperCase();
-  const loteValido = /^[A-Z0-9][A-Z0-9./ -]{0,19}$/.test(loteNorm);
+  const loteValido = /^[A-Z0-9][A-Z0-9./ -]{0,19}$/.test(loteNorm) && /\d/.test(loteNorm);
   const loteOk = !!editing || porPeso || semLote || loteValido; // lançamento novo exige o lote impresso (ou "sem lote" dito de propósito)
   const podeSalvar = !!validade && !dataRuim && !qtdMsg && opcoes.length > 0 && !!tamanho.trim() && loteOk && !(loteExistente && somaErro);
   const jaVencido = !!validade && !dataRuim && diasRestantesAtual !== null && diasRestantesAtual <= 0;
