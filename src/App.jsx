@@ -2710,6 +2710,11 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-03-baixa", data: "03/11/2026", itens: [
+    { tipo: "melhorado", ate: 7, texto: "Dar baixa ficou mais seguro: o servidor registra a baixa e tira o produto numa operação só, com o nome de quem fez." },
+    { tipo: "melhorado", ate: 5, texto: "Aumento de quantidade tem limite por dia (metade do estoque, mínimo 10) para evitar erro de digitação." },
+    { tipo: "melhorado", ate: 5, texto: "Código do promotor ficou maior e mais difícil de adivinhar (ex.: BAU-7K3QP8M2XC)." },
+  ] },
   { id: "2026-11-03-revisao", data: "03/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "Código de barras: agora o app aceita EAN-8 (como o Kinder Ovo), UPC-A (12) e EAN-13, sempre com dígito verificador válido." },
     { tipo: "melhorado", ate: 7, texto: "Se o servidor recusar um lançamento, o app avisa na hora o motivo (em vez de dizer que salvou) e não perde o que estava na fila sem internet." },

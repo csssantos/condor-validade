@@ -130,3 +130,11 @@ Polling 20s (`buscarVersaoPublicada`) → `novaVersao`. Deslogado: overlay `Atua
 
 ## Pendências conhecidas
 Telas internas ainda no layout antigo: Confirm/Expiry, execução de ronda, Assistente IA/Prevenção, página de dentro de cada setor (lista de produtos). Rodar `supabase-setores-subcategorias.sql` (migra Mercearia para Seca leve/pesada/doce/salgada, Saudáveis, Bolachas, Perfumaria) e `supabase-seguranca.sql` se o usuário ainda não rodou; `assistente-ia` v10 já publicada (Gemini grátis: Flash-Lite primeiro, sem Pro; precisa do secret GEMINI_API_KEY). Decisão de iPhone/Android (branch `capacitor-android`) em aberto. Agente WhatsApp pausado (Telegram o substituiu; falta o usuário criar o bot, rodar o SQL e colocar os secrets). Falta tela do responsável responder `solicitacoes_lgpd`.
+
+
+## BLINDAGEM DE PRODUTOS + CÓDIGO DO PROMOTOR (2026-11-03) — `supabase-blindagem-produtos.sql` e `supabase-promotor-codigo.sql` (JÁ APLICADOS)
+- Baixa = RPC atômica `dar_baixa(p_id,p_motivo,p_qtd numeric)`: grava `historico` a partir do produto real (quantidade inteira + `quantidade_medida` p/ peso) e apaga o produto com `app.via_baixa='1'`. App: `supaBaixarProduto` / `gravarComFila("baixarProduto")`; `erroDeRede` repete na fila em `limite_excedido`. Funcionário (nível ≥6) NÃO apaga por DELETE direto, exceto produto próprio em 24 h (`lancado_por_id`, ou nome não nulo).
+- `_produtos_blindagem` (UPDATE) trava id/loja/criado_em/autor e limita aumento diário de quantidade (`produtos_aumento`; `greatest(10, ceil(base*0.5))`, isento com `app.via_rpc`); `_produtos_blindagem_ins` força autor no INSERT; `_produtos_trilha` grava auditoria do servidor. `somar_ao_lote` usa `app.via_rpc`.
+- Código do promotor: prefixo de 3 letras + '-' + 10 chars (alfabeto de 32), só gerado pelo servidor (`_gerar_codigo_promotor`). Bot aceita `{5,10}` após o hífen.
+- Pendências menores: tela da baixa é otimista (item some antes do servidor responder); retry após resposta perdida mostra `produto_nao_encontrado`.
+- Próximos itens da lista adiada: 3 (força bruta no código de 8 dígitos do Telegram / balde global), 8 (alerta p/ não perecível em 1 dia, motivo do botão Salvar cinza), 4, 6, 7, 9–15.
