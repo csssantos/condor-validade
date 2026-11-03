@@ -472,7 +472,7 @@ const ERRO_VINC: Record<string, string> = {
 async function vincular(chat: number, texto: string) {
   const t = texto.trim().replace(/^\/start(@\w+)?\s*/i, "").trim();
   if (!t) return falar(chat, "👋 Oi! Para começar, me envie o seu código de acesso:\n\n🧑‍💼 Funcionário: gere no app em Mais → Conta → Telegram (8 letras e números)\n🏷️ Promotor: envie o código da sua marca (ex.: BAU-7K3QP8M2XC)\n\nO código do app vale por 10 minutos.", undefined, "codigo");
-  const func = /^[A-Za-z0-9]{4}\s?[A-Za-z0-9]{4}$/.test(t) && !/^[A-Za-z]{3}-/.test(t);
+  const func = /^[A-Za-z0-9]{4}\s?[A-Za-z0-9]{4}$/.test(t) && /\d/.test(t) && !/^[A-Za-z]{3}-/.test(t); // o código do app sempre tem ao menos 1 número: palavra comum de 8 letras ("obrigado") não conta como tentativa
   const prom = /^[A-Za-z]{3}-[A-Za-z0-9]{5,10}$/.test(t);
   if (!func && !prom) return falar(chat, "Não reconheci esse código. Funcionário: 8 letras e números do app. Promotor: código tipo BAU-7K3QP8M2XC.", undefined, "atencao");
   // trava por erros: depois de 5 códigos errados o chat espera (15 min, 1 h, 24 h). Quem acerta de primeira nunca é afetado

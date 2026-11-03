@@ -67,6 +67,7 @@ begin
     for i in 1..8 loop
       v_cod := v_cod || substr(alfa, 1 + (('x' || substr(replace(gen_random_uuid()::text, '-', ''), i * 2 - 1, 2))::bit(8)::int % 32), 1);
     end loop;
+    continue when v_cod !~ '[2-9]'; -- sempre ao menos 1 número (o bot ignora palavras só de letras)
     begin
       insert into public.telegram_codigos (usuario_id, codigo, expira_em) values (u.id, v_cod, v_exp)
         on conflict (usuario_id) do update set codigo = excluded.codigo, expira_em = excluded.expira_em;
@@ -116,5 +117,5 @@ begin
   if public.telegram_vinc_bloqueio(-999000111) <= 0 then raise exception 'auto-teste: bloqueio nao ficou'; end if;
   perform public.telegram_vinc_ok(-999000111);
   if public.telegram_vinc_bloqueio(-999000111) <> 0 then raise exception 'auto-teste: ok nao zerou'; end if;
-  if pg_get_functiondef('public.gerar_codigo_telegram()'::regprocedure) not like '%23456789%' then raise exception 'auto-teste: gerador antigo'; end if;
+  if pg_get_functiondef('public.gerar_codigo_telegram()'::regprocedure) not like '%23456789%' or pg_get_functiondef('public.gerar_codigo_telegram()'::regprocedure) not like '%[2-9]%' then raise exception 'auto-teste: gerador antigo'; end if;
 end $do$;
