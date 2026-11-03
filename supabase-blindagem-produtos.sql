@@ -62,7 +62,7 @@ create trigger trg_produtos_blindagem_ins before insert on public.produtos for e
 
 -- exclusão: baixa própria em 24 h (de uso único, mesmo lote e validade) ou produto criado por si em 24 h
 create or replace function public._produtos_del_ck() returns trigger language plpgsql security definer set search_path = public as $f$
-declare nv int; hid uuid;
+declare nv int; hid public.historico.id%type;
 begin
   if auth.uid() is null then return old; end if;
   perform public.rl_checar('produtos_del', 60);
