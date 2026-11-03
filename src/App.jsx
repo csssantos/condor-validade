@@ -802,6 +802,7 @@ function mensagemErroGravacao(e) {
   if (/lote_obrigatorio/.test(m)) return "falta o lote (ou marcar que não tem lote impresso)";
   if (/lote_invalido/.test(m)) return "lote inválido (use letras, números, . / - e até 20 caracteres)";
   if (/validade_vencida/.test(m)) return "a validade já passou";
+  if (/validade_muito_proxima/.test(m)) return "o produto vence em até 2 dias: leve ao gerente ou encarregado para pedir o preço direto";
   if (/validade_invalida/.test(m)) return "validade longe demais (máximo 10 anos)";
   if (/quantidade_invalida/.test(m)) return "quantidade inválida";
   if (/motivo_invalido/.test(m)) return "motivo da baixa inválido";
@@ -2710,6 +2711,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-03-validade-proxima", data: "03/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Produto que vence em até 2 dias não é mais lançado no app (igual ao Telegram): leve ao gerente ou encarregado para pedir o preço direto." },
+  ] },
   { id: "2026-11-03-telegram-codigo", data: "03/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "Código do Telegram agora tem 8 letras e números (mais seguro). Depois de 5 erros seguidos o bot bloqueia o chat por um tempo." },
     { tipo: "melhorado", ate: 7, texto: "Produto que vence amanhã pode ser lançado com alerta de 1 dia, e o botão Salvar cinza agora explica o que falta." },
@@ -9402,12 +9406,16 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
   const limiteSoma = loteExistente ? limiteSomaLote(loteExistente.quantidade) : 0;
   const qtdSomar = Number(quantidade) || 0;
   const somaErro = !loteExistente ? "" : (validade && validade !== loteExistente.validade) ? `Esse lote vence em ${formatarData(loteExistente.validade)}. A validade precisa ser a mesma.` : qtdSomar > limiteSoma ? `Só dá para somar até ${limiteSoma} un de uma vez nesse lote. Se a contagem mudou muito, edite o lote.` : "";
-  const podeSalvar = !!validade && !dataRuim && !qtdMsg && opcoes.length > 0 && !!tamanho.trim() && loteOk && !(loteExistente && somaErro);
+  // mesma regra do Telegram: lançamento novo (ou validade alterada) que vence em até 2 dias não é lançado; leve ao gerente/encarregado para pedir o preço direto
+  const MSG_PROXIMA = "Esse produto vence em até 2 dias. Leve ao gerente ou encarregado o mais rápido possível, para pedir o preço direto.";
+  const muitoProxima = !!validade && !dataRuim && diasRestantesAtual !== null && diasRestantesAtual >= 1 && diasRestantesAtual <= 2 && (!editing || validade !== editing.validade);
+  const podeSalvar = !muitoProxima && !!validade && !dataRuim && !qtdMsg && opcoes.length > 0 && !!tamanho.trim() && loteOk && !(loteExistente && somaErro);
   // por que o botão Salvar está cinza (nunca deixar a pessoa sem explicação)
   const motivoBloqueio = !validade ? "Informe a validade."
     : dataRuim ? "Confira o ano da validade."
     : diasRestantesAtual !== null && diasRestantesAtual === 0 ? "Esse produto vence hoje: use o registro de perda acima (não entra em alerta)."
     : diasRestantesAtual !== null && diasRestantesAtual < 0 ? "Esse produto já venceu: use o registro de perda acima."
+    : muitoProxima ? MSG_PROXIMA
     : qtdMsg ? qtdMsg
     : !tamanho.trim() ? "Preencha o tamanho/embalagem."
     : !loteOk ? "Informe o lote impresso na embalagem (precisa ter ao menos um número) ou marque que não tem lote."
@@ -9560,7 +9568,12 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
                   );
                 })}
               </div>
-              {motivoUmDia && (
+              {muitoProxima && (
+                <div style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-semibold px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5" role="alert">
+                  <ShieldAlert size={13} className="mt-0.5 shrink-0" /> <span>{MSG_PROXIMA}</span>
+                </div>
+              )}
+              {motivoUmDia && !muitoProxima && (
                 <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[11px] font-medium px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5">
                   <Sparkles size={13} className="mt-0.5 shrink-0" /> <span>{perecivel ? "Produto perecível: liberado o lançamento mesmo faltando só 1 dia para o vencimento." : "Falta só 1 dia para o vencimento: o alerta fica em 1 dia."}</span>
                 </div>
