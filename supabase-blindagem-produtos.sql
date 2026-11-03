@@ -67,7 +67,7 @@ begin
   perform public.rl_checar('produtos_del', 60);
   nv := coalesce(public.nivel_do_usuario(), 99);
   if nv <= 5 then return old; end if;
-  if (old.lancado_por_id = auth.uid() or (old.lancado_por_id is null and old.cadastrado_por is not distinct from public.nome_do_usuario())) and old.criado_em > now() - interval '24 hours' then return old; end if;
+  if (old.lancado_por_id = auth.uid() or (old.lancado_por_id is null and public.nome_do_usuario() is not null and old.cadastrado_por = public.nome_do_usuario())) and old.criado_em > now() - interval '24 hours' then return old; end if;
   raise exception 'excluir_exige_encarregado';
 end $f$;
 revoke all on function public._produtos_del_ck() from public, anon, authenticated;
