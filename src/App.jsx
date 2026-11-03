@@ -799,7 +799,7 @@ function mensagemErroGravacao(e) {
   if (/validade_vencida/.test(m)) return "a validade já passou";
   if (/validade_invalida/.test(m)) return "validade longe demais (máximo 10 anos)";
   if (/quantidade_invalida/.test(m)) return "quantidade inválida";
-  if (/aumento_excessivo/.test(m)) return "o aumento do lote passou do limite por vez";
+  if (/aumento_excessivo/.test(m)) return "o aumento de quantidade passou do limite do dia para esse produto (máx. +10 ou metade). Peça a um encarregado para ajustar";
   if (/limite_excedido/.test(m)) return "muitas ações em pouco tempo; espere um minuto";
   if (/row-level security|permission|42501/i.test(m + (e && e.code))) return "você não tem permissão para isso";
   if (/limite|rate/i.test(m)) return "muitas ações em pouco tempo; espere um pouco";
