@@ -24,7 +24,7 @@ export const TERMOS_ALTERACOES = [
   { versao: "2026-10-31", docs: {
     termos: [
       "Novo recurso opcional: lançar validade pelo Telegram, conversando com um bot. Nada é lançado sem a sua confirmação.",
-      "Promotores ganham um código próprio (ex.: ABC-12345) que vale para um único Telegram e permite lançar produtos de até 5 marcas definidas no convite (ou, em convites específicos criados pela gerência, de todas as marcas).",
+      "Promotores ganham um código próprio (ex.: ABC-12345) que vale para um único Telegram e só permite lançar produtos da própria marca.",
       "As ações feitas pelo Telegram passam a aparecer na auditoria da loja, como as ações do app.",
       "Pelo Telegram, o funcionário pode cadastrar produto novo: o bot busca a imagem na internet e, depois da sua confirmação, envia o pedido (produto, validade e quantidade) para aprovação de um encarregado ou superior, que pode corrigir o produto, aprovar ou recusar com um motivo; o motivo é enviado a você pelo Telegram. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro).",
     ],

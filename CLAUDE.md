@@ -165,3 +165,10 @@ Faltam:
 - 15: dívida técnica (App.jsx ~11,4k linhas, callback_data do setor por índice, CSP `img-src https:`).
 - Menores da banca: soma ao lote no banco não barra lote a ≤2 dias; fila offline descarta lançamento que passou a ≤2 dias; tela da baixa otimista; reenvio após resposta perdida mostra produto_nao_encontrado.
 Ideia em avaliação (sem decisão): localização ao lançar validade (modo "sinalizar" primeiro; guardar só dentro/fora; exige atualizar Legal.jsx e TERMOS_VERSAO).
+
+## PROMOTOR COM VÁRIAS MARCAS / ACESSO TOTAL (2026-11-03, pedido do dono) — `supabase-promotor-marcas.sql` (rodar DEPOIS de supabase-revisao.sql e supabase-promotor-codigo.sql; auto-teste)
+- Decisão do dono: convite tem 1 a 5 marcas OU "acesso total" (qualquer marca, p/ promotor que trabalha fora do horário); acesso total só nível ≤4 (gerência/diretoria/DEV), auditado ("criou convite de promotor (ACESSO TOTAL)"). Colunas `convites_promotor.marcas text[]`, `acesso_total`; `marca` = primeira marca (prefixo do código). Trigger `trg_a_convite_marcas` (roda antes do gerador de código) normaliza/valida.
+- Casamento: `_marca_casa(nome, marca)` palavra inteira, sem acento (bot: `marcaCasa`); `_produto_da_marca(nome, convite)` usado em `lancar_validade` (patch por replace) e no trigger `_produtos_promotor_marca` (promotor pelo app: nome ATUAL e novo precisam ser da marca). `telegram_contexto` devolve `marcas`/`acesso_total`.
+- Registro de marcas: tabela `marcas(loja_id,nome,origem)` (RLS sem acesso direto), preenchida por `_catalogo_marca` (trigger no catálogo, caminho barato se o nome já tem marca registrada) e pelos convites; `extrair_marca` escolhe a palavra mais frequente do catálogo (heurística: pode errar, é sugestão); RPCs `listar_marcas(p_loja,p_busca)` e `contar_produtos_marca(p_loja,p_marca)` (nível ≤5). App: `MarcasPicker` em `ConvitesPromotorView` (chips, sugestões, contagem, texto pendente entra ao gerar).
+- Ordem: rodar o SQL ANTES de publicar o app (o app seleciona `marcas, acesso_total`).
+- Pendente (Etapa 2 do pedido): permissões por cargo/setor (baixa/edição/exclusão só encarregado do setor; funcionário e promotor só lançam e editam o que lançaram).

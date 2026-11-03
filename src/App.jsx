@@ -2415,7 +2415,7 @@ function AppInner() {
         {flow === "auditoria" && <AuditoriaView T={T} auditoria={auditoria} />}
         {flow === "torre" && <TorreControleView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
         {flow === "rede" && ehCorporativo && <PainelRedeView T={T} showToast={showToast} />}
-        {flow === "convites" && ehEncarregado && <ConvitesPromotorView T={T} showToast={showToast} lojaAtiva={lojaAtiva} nivelUsuario={nivelUsuario} />}
+        {flow === "convites" && ehEncarregado && <ConvitesPromotorView T={T} showToast={showToast} lojaAtiva={lojaAtiva} nivelUsuario={perfil?.cargos?.nivel ?? 99} />}
         {flow === "gestao" && ehDev && <GestaoAplicativoView T={T} showToast={showToast} lojaAtiva={lojaAtiva} lojas={todasLojas} onRecarregarLojas={recarregarLojas} nivelUsuario={perfil?.cargos?.nivel} onTrocarLoja={(l) => { setLojaAtivaOverride(l); showToast(`Trocado pra loja ${l.numero_loja}.`); }} />}
         {flow === "relatorios" && <RelatoriosView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} onOpenDetail={setDetalheItem} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
         {/* Inteligência operacional (módulos novos, em src/inteligencia.jsx) */}
@@ -6111,10 +6111,10 @@ const DURACOES_CONVITE = [
   { id: "perm", label: "Permanente (link fixo)", horas: 876000 },
 ];
 const marcasConvite = (c) => c.acesso_total ? "Todas as marcas" : (Array.isArray(c.marcas) && c.marcas.length ? c.marcas.join(", ") : (c.marca || ""));
+const normalizarMarca = (bruto) => String(bruto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9 .&'-]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
 const COLUNAS_CONVITE = "id, token, codigo, nome, marca, marcas, acesso_total, expira_em, criado_em, revogado, pausado, usos, ultimo_uso";
 // Escolha de 1 a 5 marcas (com sugestões das marcas já registradas na loja e quantos produtos casam) ou acesso total
-function MarcasPicker({ T, lojaId, marcas, setMarcas, acessoTotal, setAcessoTotal, podeTotal, inputStyle, inputCls, showToast }) {
-  const [txt, setTxt] = useState("");
+function MarcasPicker({ T, lojaId, marcas, setMarcas, acessoTotal, setAcessoTotal, podeTotal, inputStyle, inputCls, showToast, txt, setTxt }) {
   const [sug, setSug] = useState([]);
   const [conta, setConta] = useState({});
   useEffect(() => {
@@ -6126,7 +6126,7 @@ function MarcasPicker({ T, lojaId, marcas, setMarcas, acessoTotal, setAcessoTota
     return () => clearTimeout(t);
   }, [txt, lojaId, acessoTotal, marcas.length]);
   async function adicionar(bruto) {
-    const m = String(bruto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9 .&'-]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+    const m = normalizarMarca(bruto);
     if (m.length < 3 || m.length > 30) { showToast("A marca precisa ter de 3 a 30 letras.", "warn"); return; }
     if (marcas.includes(m)) { setTxt(""); return; }
     if (marcas.length >= 5) { showToast("No máximo 5 marcas por convite.", "warn"); return; }
@@ -6179,6 +6179,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
   const [nome, setNome] = useState("");
   const [marcas, setMarcas] = useState([]);
   const [acessoTotal, setAcessoTotal] = useState(false);
+  const [marcaTxt, setMarcaTxt] = useState("");
   const [duracao, setDuracao] = useState("1d");
   const [gerando, setGerando] = useState(false);
   const [recente, setRecente] = useState(null); // convite recém-criado, pra copiar/enviar
@@ -6195,11 +6196,18 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
   useEffect(() => { carregar(); }, [lojaAtiva?.id]);
 
   async function gerar() {
-    if (!nome.trim() || (!acessoTotal && marcas.length === 0)) { showToast("Preencha o nome do promotor e pelo menos uma marca (ou marque acesso total).", "warn"); return; }
+    let lista = marcas;
+    const pend = normalizarMarca(marcaTxt);
+    if (!acessoTotal && pend && !lista.includes(pend)) {
+      if (pend.length < 3 || pend.length > 30) { showToast("A marca digitada precisa ter de 3 a 30 letras.", "warn"); return; }
+      if (lista.length >= 5) { showToast("No máximo 5 marcas por convite.", "warn"); return; }
+      lista = [...lista, pend];
+    }
+    if (!nome.trim() || (!acessoTotal && lista.length === 0)) { showToast("Preencha o nome do promotor e pelo menos uma marca (ou marque acesso total).", "warn"); return; }
     const horas = DURACOES_CONVITE.find((d) => d.id === duracao)?.horas || 24;
     setGerando(true);
     const { data, error } = await supabase.from("convites_promotor").insert({
-      nome: nome.trim(), marca: acessoTotal ? "TODAS AS MARCAS" : marcas[0], marcas: acessoTotal ? [] : marcas, acesso_total: acessoTotal, loja_id: lojaAtiva.id,
+      nome: nome.trim(), marca: acessoTotal ? "TODAS AS MARCAS" : lista[0], marcas: acessoTotal ? [] : lista, acesso_total: acessoTotal, loja_id: lojaAtiva.id,
       expira_em: new Date(Date.now() + horas * 3600000).toISOString(),
     }).select(COLUNAS_CONVITE).single();
     setGerando(false);
@@ -6210,7 +6218,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
       return;
     }
     setRecente(data);
-    setNome(""); setMarcas([]); setAcessoTotal(false);
+    setNome(""); setMarcas([]); setMarcaTxt(""); setAcessoTotal(false);
     setConvites((prev) => [data, ...(prev || [])]);
   }
 
@@ -6261,7 +6269,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
           <DashCard T={T} title="Novo convite" subtitle="Nome, marca e duração">
             <div className="flex flex-col gap-2.5">
               <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do promotor" style={inputStyle} className={inputCls} />
-              <MarcasPicker T={T} lojaId={lojaAtiva?.id} marcas={marcas} setMarcas={setMarcas} acessoTotal={acessoTotal} setAcessoTotal={setAcessoTotal} podeTotal={nivelUsuario <= 4} inputStyle={inputStyle} inputCls={inputCls} showToast={showToast} />
+              <MarcasPicker T={T} lojaId={lojaAtiva?.id} marcas={marcas} setMarcas={setMarcas} acessoTotal={acessoTotal} setAcessoTotal={setAcessoTotal} podeTotal={nivelUsuario <= 4} inputStyle={inputStyle} inputCls={inputCls} showToast={showToast} txt={marcaTxt} setTxt={setMarcaTxt} />
               <select value={duracao} onChange={(e) => setDuracao(e.target.value)} style={inputStyle} className={inputCls}>
                 {DURACOES_CONVITE.map((d) => <option key={d.id} value={d.id}>Duração: {d.label}</option>)}
               </select>
@@ -6303,7 +6311,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
         <p className="text-sm font-bold flex items-center gap-2"><Ticket size={16} color={BLUE} /> Novo convite</p>
         <p style={{ color: T.subtext }} className="text-[11px] -mt-1">O promotor abre o link e já entra, sem e-mail nem senha. Loja {lojaAtiva?.numero_loja || "—"}.</p>
         <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do promotor" style={inputStyle} className={inputCls} />
-        <MarcasPicker T={T} lojaId={lojaAtiva?.id} marcas={marcas} setMarcas={setMarcas} acessoTotal={acessoTotal} setAcessoTotal={setAcessoTotal} podeTotal={nivelUsuario <= 4} inputStyle={inputStyle} inputCls={inputCls} showToast={showToast} />
+        <MarcasPicker T={T} lojaId={lojaAtiva?.id} marcas={marcas} setMarcas={setMarcas} acessoTotal={acessoTotal} setAcessoTotal={setAcessoTotal} podeTotal={nivelUsuario <= 4} inputStyle={inputStyle} inputCls={inputCls} showToast={showToast} txt={marcaTxt} setTxt={setMarcaTxt} />
         <select value={duracao} onChange={(e) => setDuracao(e.target.value)} style={inputStyle} className={inputCls}>
           {DURACOES_CONVITE.map((d) => <option key={d.id} value={d.id}>Duração: {d.label}</option>)}
         </select>

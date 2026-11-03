@@ -105,8 +105,9 @@ begin
   if auth.uid() is null then return new; end if;
   select promotor, convite_id into u from public.usuarios where id = auth.uid();
   if not found or not coalesce(u.promotor, false) then return new; end if;
-  if tg_op = 'UPDATE' and new.nome is not distinct from old.nome then return new; end if;
+  -- vale para o nome ATUAL e para o novo: promotor não mexe em produto de outra marca nem renomeia para "virar dono"
   if u.convite_id is null or not public._produto_da_marca(new.nome, u.convite_id) then raise exception 'produto_fora_da_marca'; end if;
+  if tg_op = 'UPDATE' and not public._produto_da_marca(old.nome, u.convite_id) then raise exception 'produto_fora_da_marca'; end if;
   return new;
 end $f$;
 revoke all on function public._produtos_promotor_marca() from public, anon, authenticated;
@@ -124,20 +125,27 @@ create table if not exists public.marcas (
 alter table public.marcas enable row level security;
 revoke all on public.marcas from public, anon, authenticated;
 
+-- palavras que nunca são marca (categorias, medidas, adjetivos)
+create or replace function public._marca_stop() returns text[] language sql immutable as $f$
+  select array['CAFE','ARROZ','FEIJAO','ACUCAR','BISCOITO','BOLACHA','CHOCOLATE','LINGUICA','MACARRAO','MOLHO','OLEO','LEITE','QUEIJO','IOGURTE','MANTEIGA','MARGARINA','REFRIGERANTE','REFRI','SUCO','AGUA','CERVEJA','VINHO','SABAO','DETERGENTE','AMACIANTE','SHAMPOO','CONDICIONADOR','SABONETE','CREME','PAPEL','HIGIENICO','FARINHA','FUBA','SAL','TEMPERO','EXTRATO','PACOTE','CAIXA','LATA','GARRAFA','POTE','SACHE','UNIDADE','TRADICIONAL','INTEGRAL','LIGHT','ZERO','DIET','SABOR','COM','SEM','PARA','PRESUNTO','MORTADELA','SALSICHA','HAMBURGUER','PAO','BOLO','TORTA','GELATINA','SOBREMESA','CEREAL','MATINAL','BARRA','BALA','CHICLETE','PIRULITO','SORVETE','PICOLE','LIQUIDO','CLASSICO','SUAVE','FORTE','EXTRA','PREMIUM','SELECIONADO','ESPECIAL','NATURAL','ORGANICO']
+$f$;
+
 -- escolhe a marca do nome do produto: ignora palavras comuns, abreviações (com ponto), números e medidas;
--- entre as candidatas prefere a que mais aparece no catálogo da loja (é a mais provável de ser marca)
+-- entre as candidatas prefere a que aparece em mais produtos do catálogo da loja (uma passada só, sem regex por palavra)
 create or replace function public.extrair_marca(p_nome text, p_loja bigint) returns text
-language plpgsql stable security definer set search_path = public as $f$
-declare t text; best text; bestn int := -1; n int;
-  stop text[] := array['CAFE','ARROZ','FEIJAO','ACUCAR','BISCOITO','BOLACHA','CHOCOLATE','LINGUICA','MACARRAO','MOLHO','OLEO','LEITE','QUEIJO','IOGURTE','MANTEIGA','MARGARINA','REFRIGERANTE','REFRI','SUCO','AGUA','CERVEJA','VINHO','SABAO','DETERGENTE','AMACIANTE','SHAMPOO','CONDICIONADOR','SABONETE','CREME','PAPEL','HIGIENICO','FARINHA','FUBA','SAL','TEMPERO','EXTRATO','PACOTE','CAIXA','LATA','GARRAFA','POTE','SACHE','UNIDADE','TRADICIONAL','INTEGRAL','LIGHT','ZERO','DIET','SABOR','COM','SEM','PARA','DE','DA','DO','EM','AO','E','A','O','PRESUNTO','MORTADELA','SALSICHA','HAMBURGUER','PAO','BOLO','TORTA','GELATINA','SOBREMESA','CEREAL','MATINAL','BARRA','BALA','CHICLETE','PIRULITO','SORVETE','PICOLE','PO','LIQUIDO','CLASSICO','SUAVE','FORTE','EXTRA','PREMIUM','SELECIONADO','ESPECIAL','NATURAL','ORGANICO'];
-begin
-  for t in select x from regexp_split_to_table(regexp_replace(public._sem_acento(p_nome), '[^A-Z0-9. ]', ' ', 'g'), '\s+') x loop
-    if length(t) < 3 or t ~ '[0-9.]' or t = any(stop) then continue; end if;
-    select count(*) into n from public.catalogo where loja_id = p_loja and public._marca_casa(nome, t);
-    if n > bestn then best := t; bestn := n; end if;
-  end loop;
-  return best;
-end $f$;
+language sql stable security definer set search_path = public as $f$
+  with toks as (
+    select t.w, t.ord from regexp_split_to_table(regexp_replace(public._sem_acento(p_nome), '[^A-Z0-9. ]', ' ', 'g'), '\s+') with ordinality t(w, ord)
+    where length(t.w) >= 3 and t.w !~ '[0-9.]' and t.w <> all(public._marca_stop())
+  ), freq as (
+    select x.w, count(*) n from (
+      select distinct c.barcode, w from public.catalogo c,
+        lateral regexp_split_to_table(regexp_replace(public._sem_acento(c.nome), '[^A-Z0-9. ]', ' ', 'g'), '\s+') w
+      where c.loja_id = p_loja) x
+    where x.w in (select w from toks) group by x.w
+  )
+  select toks.w from toks left join freq on freq.w = toks.w order by coalesce(freq.n, 0) desc, toks.ord limit 1
+$f$;
 revoke all on function public.extrair_marca(text, bigint) from public, anon, authenticated;
 
 create or replace function public._catalogo_marca() returns trigger language plpgsql security definer set search_path = public as $f$
@@ -145,6 +153,9 @@ declare m text;
 begin
   begin
     if new.loja_id is null then return new; end if;
+    -- caminho barato: se o nome já tem uma marca registrada, não faz mais nada (importação grande não fica lenta)
+    if exists (select 1 from regexp_split_to_table(regexp_replace(public._sem_acento(new.nome), '[^A-Z0-9. ]', ' ', 'g'), '\s+') w
+               join public.marcas k on k.loja_id = new.loja_id and k.nome = w) then return new; end if;
     if (select count(*) from public.marcas where loja_id = new.loja_id) >= 3000 then return new; end if;
     m := public.extrair_marca(new.nome, new.loja_id);
     if m is not null then insert into public.marcas (loja_id, nome, origem) values (new.loja_id, m, 'catalogo') on conflict do nothing; end if;
@@ -183,7 +194,7 @@ begin
     select m.nome, (select count(*)::int from public.catalogo c where c.loja_id = m.loja_id and public._marca_casa(c.nome, m.nome))
     from public.marcas m
     where m.loja_id = p_loja and (coalesce(btrim(p_busca), '') = '' or public._sem_acento(m.nome) like '%' || public._sem_acento(left(btrim(p_busca), 30)) || '%')
-    order by m.nome limit 30;
+    order by m.nome limit 15;
 end $f$;
 revoke all on function public.listar_marcas(bigint, text) from public, anon;
 grant execute on function public.listar_marcas(bigint, text) to authenticated;
@@ -201,13 +212,27 @@ end $f$;
 revoke all on function public.contar_produtos_marca(bigint, text) from public, anon;
 grant execute on function public.contar_produtos_marca(bigint, text) to authenticated;
 
--- preenche o registro com o catálogo que já existe
+-- preenche o registro com o catálogo que já existe (uma consulta por loja, sem laço por produto)
 do $$
-declare r record; m text;
+declare l bigint;
 begin
-  for r in select distinct loja_id, nome from public.catalogo where loja_id is not null loop
-    m := public.extrair_marca(r.nome, r.loja_id);
-    if m is not null then insert into public.marcas (loja_id, nome, origem) values (r.loja_id, m, 'catalogo') on conflict do nothing; end if;
+  for l in select distinct loja_id from public.catalogo where loja_id is not null loop
+    with palavras as (
+      select distinct c.barcode, w from public.catalogo c,
+        lateral regexp_split_to_table(regexp_replace(public._sem_acento(c.nome), '[^A-Z0-9. ]', ' ', 'g'), '\s+') w
+      where c.loja_id = l and length(w) >= 3 and w !~ '[0-9.]' and w <> all(public._marca_stop())
+    ), freq as (select w, count(*) n from palavras group by w),
+    cand as (
+      select c.barcode, t.w, t.ord, f.n from public.catalogo c,
+        lateral regexp_split_to_table(regexp_replace(public._sem_acento(c.nome), '[^A-Z0-9. ]', ' ', 'g'), '\s+') with ordinality t(w, ord)
+        join freq f on f.w = t.w
+      where c.loja_id = l
+    )
+    insert into public.marcas (loja_id, nome, origem)
+    select distinct l, w, 'catalogo' from (
+      select distinct on (barcode) barcode, w from cand order by barcode, n desc, ord
+    ) z
+    on conflict do nothing;
   end loop;
 end $$;
 
