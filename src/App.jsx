@@ -839,6 +839,14 @@ async function executarOp(op) {
   else if (op.tipo === "baixarProduto") await supaBaixarProduto(op.payload);
 }
 const NOME_OP = { upsertProduto: "o produto", deleteProduto: "a exclusão do produto", upsertCatalogo: "o cadastro do produto", inserirHistorico: "a baixa", baixarProduto: "a baixa" };
+// texto do aviso com o nome do produto quando há (a fila pode rodar horas depois e a pessoa não lembra qual era)
+function nomeDaOp(op) {
+  const base = NOME_OP[op.tipo] || "o registro";
+  const nome = op.payload && (op.payload.nome || (op.payload.dados && op.payload.dados.nome));
+  return nome ? `${base} "${String(nome).slice(0, 40)}"` : base;
+}
+// baixa reenviada depois de uma resposta perdida: se o produto já não existe, a baixa JÁ aconteceu (ou outra pessoa fez); não é erro
+function jaFeita(op, e) { return op.tipo === "baixarProduto" && /produto_nao_encontrado/.test(String((e && e.message) || "")); }
 async function processarFila(onProgresso) {
   const fila = lerFila();
   if (!fila.length) return 0;
@@ -850,8 +858,11 @@ async function processarFila(onProgresso) {
       processados++;
       if (onProgresso) onProgresso(processados, fila.length);
     } catch (e) {
-      if (erroDeRede(e)) restantes.push(op); // sem internet de verdade: tenta de novo depois, NÃO apaga
-      else avisarErroGravacao(e, NOME_OP[op.tipo] || "o registro"); // recusado pelo banco: avisa, não adianta reenviar
+      if (jaFeita(op, e)) { // só na FILA (reenvio depois de resposta perdida): a baixa já existe no servidor; alinha a tela sem aviso
+        processados++; if (onProgresso) onProgresso(processados, fila.length);
+        try { window.dispatchEvent(new CustomEvent("condor-recarregar-dados")); } catch {}
+      } else if (erroDeRede(e)) restantes.push(op); // sem internet de verdade: tenta de novo depois, NÃO apaga
+      else avisarErroGravacao(e, nomeDaOp(op)); // recusado pelo banco: avisa (com o nome do produto), não adianta reenviar
     }
   }
   gravarFila(restantes);
@@ -860,14 +871,15 @@ async function processarFila(onProgresso) {
 // wrappers que caem pra fila automaticamente quando offline
 async function gravarComFila(tipo, payload) {
   if (!navigator.onLine) { enfileirar(tipo, payload); return; }
-  try { await executarOp({ tipo, payload }); }
+  const op = { tipo, payload };
+  try { await executarOp(op); }
   catch (e) {
     if (erroDeRede(e)) enfileirar(tipo, payload);
-    else avisarErroGravacao(e, NOME_OP[tipo] || "o registro");
+    else avisarErroGravacao(e, nomeDaOp(op));
   }
 }
 async function gravarProduto(item) { return gravarComFila("upsertProduto", item); }
-async function removerProduto(id) { return gravarComFila("deleteProduto", { id }); }
+async function removerProduto(id, nome) { return gravarComFila("deleteProduto", { id, nome }); }
 async function gravarCatalogo(barcode, dados) { return gravarComFila("upsertCatalogo", { barcode, dados }); }
 async function gravarHistorico(registro) { return gravarComFila("inserirHistorico", registro); }
 
@@ -1612,12 +1624,14 @@ function AppInner() {
 
   // O banco recusou uma gravação que a tela já tinha mostrado como salva: avisa e recarrega os dados reais
   useEffect(() => {
+    const recarregar = () => Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]).then(([cat, its, hist]) => { setCatalog(cat); setItems(its); setHistorico(hist); }).catch(() => {});
     function aoErroGravacao(ev) {
       showToast((ev.detail && ev.detail.mensagem) || "Não foi possível gravar.", "warn");
-      Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]).then(([cat, its, hist]) => { setCatalog(cat); setItems(its); setHistorico(hist); }).catch(() => {});
+      recarregar();
     }
     window.addEventListener("condor-erro-gravacao", aoErroGravacao);
-    return () => window.removeEventListener("condor-erro-gravacao", aoErroGravacao);
+    window.addEventListener("condor-recarregar-dados", recarregar);
+    return () => { window.removeEventListener("condor-erro-gravacao", aoErroGravacao); window.removeEventListener("condor-recarregar-dados", recarregar); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2328,7 +2342,7 @@ function AppInner() {
     const registro = { ...item, quantidade: quantidadeFinal, motivo, dataBaixa: new Date().toISOString(), registradoPor: usuario || null, vencidoAntes: st.level === "expired" };
     setHistorico((prev) => [registro, ...prev]);
     // baixa = uma RPC só: o servidor grava o histórico a partir do produto real e apaga o produto na mesma transação (funcionário não consegue apagar de outro jeito)
-    gravarComFila("baixarProduto", { id: item.id, motivo, quantidade: quantidadeOverride != null ? quantidadeOverride : null });
+    gravarComFila("baixarProduto", { id: item.id, motivo, quantidade: quantidadeOverride != null ? quantidadeOverride : null, nome: item.nome }); // nome só serve para o aviso de erro (a RPC ignora)
     logAuditoria(usuario, `deu baixa (${motivo})`, item.nome, item.barcode);
     showToast(`Baixa registrada: ${motivo}${quantidadeOverride != null ? ` (${quantidadeOverride} un. remanescente da promoção)` : ""}.`, st.level === "expired" ? "warn" : "ok");
   }
@@ -2392,7 +2406,7 @@ function AppInner() {
   function excluirProduto(item, motivo) {
     setDetalheItem(null);
     setItems((prev) => prev.filter((i) => i.id !== item.id));
-    removerProduto(item.id);
+    removerProduto(item.id, item.nome);
     logAuditoria(usuario, `excluiu produto (${motivo || "sem motivo informado"})`, item.nome, item.barcode);
     showToast("Produto excluído.", "warn");
   }
@@ -2872,6 +2886,10 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-fila-baixa", data: "04/11/2026", itens: [
+    { tipo: "corrigido", ate: 7, texto: "Avisos de gravação recusada agora dizem o nome do produto; baixa reenviada depois de uma queda de internet não mostra mais erro falso." },
+    { tipo: "corrigido", ate: 5, texto: "Somar quantidade a um lote que vence em até 2 dias (ou já venceu) passa a ser barrado também no banco, igual ao lançamento novo." },
+  ] },
   { id: "2026-11-04-campanha-valor", data: "04/11/2026", itens: [
     { tipo: "novo", ate: 6, texto: "Pedido de promoção ou preço direto agora leva o VALOR PEDIDO (obrigatório). Quem lançou o lote pelo Telegram recebe um aviso no Telegram com a campanha e o valor, lembrando que o valor é só uma sugestão e depende da central liberar." },
     { tipo: "corrigido", ate: 7, texto: "Campo de data ao lançar validade: tocar nele vazio não seleciona mais a data de hoje sozinho." },
