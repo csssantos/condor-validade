@@ -35,7 +35,7 @@ import { PalcoInicio, PalcoPagina } from "./Inicio";
 import { AceiteCampo, AceiteObrigatorio, LegalLeitor, LinksLegais, PaginaPrivacidade, TERMOS_VERSAO, lerAceiteLocal, gravarAceiteLocal, marcarAceitePendente, temAceitePendente, limparAceitePendente, registrarAceite } from "./Legal";
 import { TelaCarregando, FUNDO_MARCA, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
 import { gerarImagemProduto } from "./compartilharImagem";
-import { AvisoToast, AvisoDesfazer, classificarTom, TONS } from "./Avisos";
+import { AvisoToast, AvisoDesfazer, classificarTom, TONS, DESFAZER_MS } from "./Avisos";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
@@ -1871,12 +1871,15 @@ function AppInner() {
   }, [items, loading, notifPermission]);
 
   const toastTimerRef = useRef(null);
-  function showToast(msg, tone = "ok") {
+  const toastIdRef = useRef(0);
+  const showToast = useCallback((msg, tone) => {
     const tom = classificarTom(msg, tone);
-    setToast({ msg, tone: tom });
+    toastIdRef.current += 1;
+    setToast({ msg, tone: tom, id: toastIdRef.current });
     clearTimeout(toastTimerRef.current); // o aviso novo não pode ser apagado pelo tempo do anterior
     toastTimerRef.current = setTimeout(() => setToast(null), TONS[tom].ms);
-  }
+  }, []);
+  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
   // Ação com "desfazer" de 5s: a mudança já aparece na tela na hora, mas só grava de verdade
   // no Supabase depois desse tempo (a não ser que a pessoa cancele antes).
@@ -1888,7 +1891,7 @@ function AppInner() {
       setDesfazer((d) => (d && d.id === id ? null : d));
       desfazerTimeoutRef.current = null;
       onConfirmar();
-    }, 5000) };
+    }, DESFAZER_MS) };
     setDesfazer({ id, mensagem, onDesfazer: () => {
       clearTimeout(desfazerTimeoutRef.current.timeoutId);
       desfazerTimeoutRef.current = null;
@@ -2102,7 +2105,7 @@ function AppInner() {
   function saveAlertItem(dados) {
     if (dados.somarAoLoteId) {
       const orig = items.find((it) => it.id === dados.somarAoLoteId);
-      if (!orig) { showToast("Lote não encontrado.", "warn"); return; }
+      if (!orig) { showToast("Lote não encontrado.", "erro"); return; }
       if (!podeEditarProduto(orig)) { showToast("Esse lote foi lançado por outra pessoa: peça ao encarregado do setor para somar.", "warn"); return; }
       const add = Math.round(Number(dados.quantidade) || 0);
       if (add < 1 || add > limiteSomaLote(orig.quantidade)) { showToast(`Só dá para somar até ${limiteSomaLote(orig.quantidade)} un de uma vez.`, "warn"); return; }
@@ -2615,7 +2618,7 @@ function AppInner() {
           style={{ position: "fixed", top: 0, left: 0, width: 1, height: 1, opacity: 0, border: "none", padding: 0, pointerEvents: "none" }}
           aria-hidden="true" tabIndex={-1} />
       )}
-      {toast && <AvisoToast msg={toast.msg} tom={toast.tone} />}
+      {toast && <AvisoToast msg={toast.msg} tom={toast.tone} id={toast.id} />}
       {desfazer && <AvisoDesfazer mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} />}
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
@@ -11480,7 +11483,7 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
     const { error } = await supabase.rpc("recusar_produto_novo", { p_id: a.id, p_motivo: motivo });
     setOcupado(false);
     if (error) { showToast?.(msgErro(error), "warn"); carregar(); return; }
-    avisar(a.id); showToast?.("Lançamento recusado. Motivo enviado pelo Telegram", "ok"); setAberto(null); setRecusando(null); setMotivo(""); carregar();
+    avisar(a.id); showToast?.("Lançamento recusado. Motivo enviado pelo Telegram", "aviso"); setAberto(null); setRecusando(null); setMotivo(""); carregar();
   }
 
   const pend = (lista || []).filter((a) => a.status === "pendente");

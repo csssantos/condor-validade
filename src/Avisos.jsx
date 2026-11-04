@@ -12,17 +12,21 @@ export const TONS = {
   erro: { cor: "#FF5A5F", rotulo: "Não deu certo", ms: 5200 },
 };
 
-// Os pontos de chamada continuam usando showToast(msg, "ok"|"warn"); o tom certo sai do texto.
+// Os pontos de chamada usam showToast(msg, tom?): tom pode ser "ok" (forçado), "info", "carregando", "aviso", "erro"
+// ou o antigo "warn" (vira erro se o texto for de falha, senão aviso). Sem tom: o texto decide.
+// Validação de formulário ("Preencha…", "Escolha…", "No máximo…") é AVISO; falha/recusa é ERRO.
+const RE_ERRO = /não foi possível|nao foi possivel|\berro\b|inválid|invalid|falh|recusad|não (foram )?aceit|sem conexão com|algo deu errado|não encontrad|não consegui|não deu|sem permiss|não tem permiss|você não pode|só pode agir|não é do seu|já existe|não suporta/;
 export function classificarTom(msg, tom) {
-  if (TONS[tom] && tom !== "ok") return tom;
+  if (tom === "ok") return "ok";
+  if (TONS[tom]) return tom;
   const m = String(msg || "").toLowerCase();
-  if (tom === "warn") {
-    return /não foi possível|nao foi possivel|erro|inválid|invalid|falhou|falha|recusad|não aceit|sem permiss|já existe|não deu|precisa ser|só dá para|só pode|só gerência|escolha|preencha|no máximo|muito curto|não suporta|peça|não tem/.test(m) ? "erro" : "aviso";
-  }
+  if (RE_ERRO.test(m)) return "erro";
+  if (tom === "warn") return "aviso";
   if (/gerando|sincronizando|aguarde|enviando|carregando/.test(m)) return "carregando";
   if (/copiad|copiei|coletad|salva na pasta|baixad|imagem pronta/.test(m)) return "info";
   return "ok";
 }
+export const DESFAZER_MS = 5000;
 
 function Bolinhas({ cor, animar }) {
   return (
@@ -38,13 +42,13 @@ function Bolinhas({ cor, animar }) {
 
 const CARTAO = { background: FUNDO_MARCA, boxShadow: "0 14px 34px rgba(6,28,58,0.38)", border: "1px solid rgba(255,255,255,0.14)" };
 
-export function AvisoToast({ msg, tom }) {
+export function AvisoToast({ msg, tom, id }) {
   const reduzir = useReducedMotion();
   const t = TONS[tom] || TONS.ok;
   const carregando = tom === "carregando";
   return (
-    <div className="fixed left-0 right-0 bottom-20 lg:bottom-6 z-50 px-4 flex justify-center pointer-events-none lg:pl-64">
-      <motion.div key={msg + tom} role={tom === "erro" ? "alert" : "status"} aria-live={tom === "erro" ? "assertive" : "polite"}
+    <div className="fixed left-0 right-0 bottom-28 lg:bottom-6 z-[100] px-4 flex justify-center pointer-events-none lg:pl-64">
+      <motion.div key={id ?? msg + tom} role={tom === "erro" ? "alert" : "status"} aria-live={tom === "erro" ? "assertive" : "polite"}
         initial={reduzir ? false : { y: 24, opacity: 0, scale: 0.96 }} animate={{ y: 0, opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 380, damping: 28 }}
         style={CARTAO} className="relative overflow-hidden rounded-2xl text-white w-full max-w-sm">
         <div className="flex items-start gap-3 px-4 pt-3 pb-3.5">
@@ -67,15 +71,15 @@ export function AvisoDesfazer({ mensagem, onDesfazer }) {
   const reduzir = useReducedMotion();
   const t = TONS.aviso;
   return (
-    <div className="fixed left-0 right-0 bottom-20 lg:bottom-6 z-50 px-4 flex justify-center lg:pl-64">
+    <div className="fixed left-0 right-0 bottom-28 lg:bottom-6 z-[100] px-4 flex justify-center pointer-events-none lg:pl-64">
       <motion.div role="status" initial={reduzir ? false : { y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 380, damping: 28 }}
-        style={CARTAO} className="relative overflow-hidden rounded-2xl text-white w-full max-w-sm">
+        style={CARTAO} className="relative overflow-hidden rounded-2xl text-white w-full max-w-sm pointer-events-auto">
         <div className="flex items-center gap-3 px-4 py-3">
           <Bolinhas cor={t.cor} animar={false} />
           <p className="text-[13px] font-medium flex-1 leading-snug">{mensagem}</p>
           <button onClick={onDesfazer} style={{ color: "#8FC1FF", background: "rgba(255,255,255,0.12)" }} className="text-xs font-bold shrink-0 rounded-full px-3 py-1.5">Desfazer</button>
         </div>
-        <motion.span aria-hidden className="absolute left-0 bottom-0 h-[3px]" style={{ background: t.cor }} initial={{ width: "100%" }} animate={{ width: "0%" }} transition={{ duration: 5, ease: "linear" }} />
+        <motion.span aria-hidden className="absolute left-0 bottom-0 h-[3px]" style={{ background: t.cor }} initial={{ width: "100%" }} animate={{ width: "0%" }} transition={{ duration: DESFAZER_MS / 1000, ease: "linear" }} />
       </motion.div>
     </div>
   );
