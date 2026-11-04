@@ -93,7 +93,7 @@ async function buscarNaInternet(bc: string) {
 
 // ---------- Catálogo e sessão ----------
 type Novo = { barcode: string; nome: string; foto: string | null; fotoUsuario?: boolean; setor: string | null; etapa: "imagem" | "nome" | "foto" | "setor" | null };
-type Dados = { barcode?: string; nome?: string; porPeso?: boolean; validade?: string; quantidade?: number; lote?: string; semLote?: boolean; opcoes?: { barcode: string; nome: string }[]; dupAsk?: boolean; novo?: Novo; criouProduto?: boolean };
+type Dados = { pilha?: string[]; barcode?: string; nome?: string; porPeso?: boolean; validade?: string; quantidade?: number; lote?: string; semLote?: boolean; opcoes?: { barcode: string; nome: string }[]; dupAsk?: boolean; novo?: Novo; criouProduto?: boolean };
 type Ctx = { vinculo_id: string; tipo: "funcionario" | "promotor"; usuario_id?: string; convite_id?: string; loja_id: number; nome: string; marca?: string; marcas?: string[]; acesso_total?: boolean };
 // marca casa só como palavra inteira, sem diferenciar acento/maiúscula (igual ao banco: _marca_casa)
 const escRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -129,6 +129,20 @@ async function carregarCatalogo(ctx: Ctx) {
   return cat;
 }
 
+// cada resposta tem 5 minutos; passou disso, o lançamento em andamento é cancelado (e a pessoa é avisada na próxima mensagem)
+const TEMPO_RESPOSTA_MS = 5 * 60000;
+async function sessaoExpirada(chat: number): Promise<Dados | null> {
+  const { data } = await sb.from("telegram_sessoes").update({ estado: "expirada", atualizado_em: new Date().toISOString() })
+    .eq("chat_id", chat).in("estado", ["aguardando_info", "aguardando_confirmacao"]).lt("expira_em", new Date().toISOString()).select("dados").maybeSingle();
+  if (!data) return null;
+  const d = (data.dados || {}) as Dados;
+  return d.barcode || d.novo || d.validade || d.quantidade != null || d.lote ? d : null; // conversa vazia que expirou não precisa de aviso
+}
+async function avisarExpirou(chat: number, d: Dados) {
+  const nome = d.nome ?? d.novo?.nome;
+  await auditar(chat, "cancelou lançamento no Telegram", `${nome ?? "produto não definido"} (tempo esgotado: 5 min sem resposta)`, d.barcode ?? d.novo?.barcode);
+  return falar(chat, `⏱️ Passaram mais de 5 minutos sem resposta, então cancelei o lançamento${nome ? " de " + nome : ""}. Nada foi lançado.\n\nPara começar de novo, mande o código de barras ou o nome do produto.`, undefined, "cancelado");
+}
 async function sessaoAtiva(chat: number) {
   const { data } = await sb.from("telegram_sessoes").select("*").eq("chat_id", chat)
     .in("estado", ["aguardando_info", "aguardando_confirmacao", "confirmado"]).maybeSingle();
@@ -142,11 +156,11 @@ async function sessaoAtiva(chat: number) {
 async function garantirSessao(ctx: Ctx, chat: number) {
   const s = await sessaoAtiva(chat);
   if (s) return s;
-  const { data } = await sb.from("telegram_sessoes").insert({ chat_id: chat, vinculo_id: ctx.vinculo_id, estado: "aguardando_info", dados: {} }).select("*").single();
+  const { data } = await sb.from("telegram_sessoes").insert({ chat_id: chat, vinculo_id: ctx.vinculo_id, estado: "aguardando_info", dados: {}, expira_em: new Date(Date.now() + TEMPO_RESPOSTA_MS).toISOString() }).select("*").single();
   return data ?? (await sessaoAtiva(chat));
 }
 const salvar = (id: string, estado: string, dados: Dados, erro?: string) =>
-  sb.from("telegram_sessoes").update({ estado, dados, erro: erro ?? null, atualizado_em: new Date().toISOString(), expira_em: new Date(Date.now() + 30 * 60000).toISOString() }).eq("id", id);
+  sb.from("telegram_sessoes").update({ estado, dados, erro: erro ?? null, atualizado_em: new Date().toISOString(), expira_em: new Date(Date.now() + TEMPO_RESPOSTA_MS).toISOString() }).eq("id", id);
 
 // ---------- Lote (número impresso na embalagem) ----------
 const LOTE_RE = /^[A-Z0-9][A-Z0-9./ -]{0,19}$/;
@@ -298,8 +312,10 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   const d: Dados = { ...(s.dados || {}) };
   const low = semAcento(texto).replace(/[!.,;:?]+\s*$/g, "").trim();
   if (texto.length > 300) return falar(chat, "Mensagem muito longa. Envie só o código de barras ou o nome do produto.", undefined, "atencao");
-  // "cancelar" vale em qualquer etapa (inclusive na pergunta do lote)
-  if (/^(cancelar|cancela)$/.test(low)) return cancelar(chat, s.id);
+  // "cancelar" vale em qualquer etapa (inclusive na pergunta do lote), mas pede confirmação; "voltar" desfaz a última resposta
+  if (/^(cancelar|cancela)$/.test(low)) return pedirCancelar(chat, s);
+  if (/^(voltar|volta|corrigir anterior|errei)$/.test(low)) return voltar(ctx, chat, s);
+  empilhar(d, (s.dados || {}) as Dados);
   // "sem lote" em qualquer lugar da frase: Telegram não lança sem lote
   if (/\b(sem|nao tem|nao possui)\s+lote\b/.test(low) || /^(sem numero|nao tem|sem)$/.test(low)) return falar(chat, MSG_SEM_LOTE, undefined, "atencao");
   // pergunta do lote em aberto: a resposta (mesmo só números) é o lote, a não ser que traga data ou quantidade
@@ -321,7 +337,7 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
 
   if (s.estado === "aguardando_confirmacao") {
     if (/^(sim|s|confirmar|confirmo|confirma|pode lancar|pode lancar sim|isso|ok)$/.test(low)) return confirmar(ctx, chat, s.id, false);
-    if (/^(nao|n|cancelar|cancela)$/.test(low)) return cancelar(chat, s.id);
+    if (/^(nao|n)$/.test(low)) return pedirCancelar(chat, s);
     if (/^(corrigir|corrige)$/.test(low)) return perguntarCorrecao(chat, s.id, !!d.novo);
   }
   // produto novo: etapa do nome (sem imagem) ou respostas que precisam de botão
@@ -356,6 +372,51 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   if (!d.barcode && p.nome && !soNumero) return escolherProduto(ctx, chat, s, d, p.nome);
   if (!mudou && !d.barcode) return falar(chat, "Não entendi. Envie o código de barras ou o nome do produto.", undefined, "atencao");
   return proximoPasso(ctx, chat, s, d);
+}
+
+// ---------- Voltar uma resposta / cancelar com confirmação ----------
+// cada resposta guarda uma "foto" do estado anterior (sem a imagem do produto novo, que é pesada)
+const snap = (d: Dados) => JSON.stringify({ ...d, pilha: undefined, novo: d.novo ? { ...d.novo, foto: d.novo.foto ? "__keep__" : null } : undefined });
+const temProgresso = (d: Dados) => !!(d.barcode || d.novo || d.validade || d.quantidade != null || d.lote || d.semLote);
+function empilhar(d: Dados, atual: Dados) {
+  if (!temProgresso(atual)) return;
+  const p = [...(atual.pilha || [])];
+  const sn = snap(atual);
+  if (p[p.length - 1] !== sn) p.push(sn);
+  d.pilha = p.slice(-6);
+}
+// refaz a pergunta da etapa em que a conversa está (usado ao voltar ou ao desistir de cancelar)
+async function reperguntar(ctx: Ctx, chat: number, s: { id: string }, d: Dados, aviso = "") {
+  const pre = aviso ? aviso + "\n\n" : "";
+  const n = d.novo;
+  if (n?.etapa === "imagem") {
+    await salvar(s.id, "aguardando_info", d);
+    return falar(chat, pre + `Esse produto não está no app. Achei na internet:\n\n${n.nome}\nCódigo: ${n.barcode}\n\nÉ esse o produto?`, [[{ t: "✅ Sim, é esse", d: `im:${s.id}:1` }, { t: "❌ Não é", d: `im:${s.id}:0` }]], "novo");
+  }
+  if (n?.etapa === "nome") { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + "Envie o nome completo do produto, com marca e produto (ex.: Bauducco Biscoito Maria 200g).", undefined, "novo"); }
+  if (n?.etapa === "foto") { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + MSG_PEDIR_FOTO, undefined, "novo"); }
+  if (n?.etapa === "setor") { await salvar(s.id, "aguardando_info", d); if (pre) await falar(chat, aviso, undefined, "novo"); return perguntarSetor(chat, s.id); }
+  return proximoPasso(ctx, chat, s, d, aviso);
+}
+async function voltar(ctx: Ctx, chat: number, s: { id: string; dados: Dados }) {
+  const d = (s.dados || {}) as Dados;
+  const pilha = [...(d.pilha || [])];
+  const atual = snap(d);
+  while (pilha.length && pilha[pilha.length - 1] === atual) pilha.pop(); // ignora respostas que não mudaram nada
+  const ant = pilha.pop();
+  if (!ant) return falar(chat, "Não há resposta anterior para voltar. Para desistir do lançamento, envie /cancelar.", undefined, "atencao");
+  const r = JSON.parse(ant) as Dados;
+  if (r.novo) r.novo.foto = (r.novo.foto as unknown) === "__keep__" ? (d.novo?.barcode === r.novo.barcode ? d.novo.foto : null) : r.novo.foto;
+  r.pilha = pilha;
+  return reperguntar(ctx, chat, s, r, "↩️ Voltei uma resposta. Pode corrigir.");
+}
+// "cancelar": se já há dados na conversa, confirma antes (cancelar, voltar uma resposta ou continuar)
+async function pedirCancelar(chat: number, s: { id: string; dados: Dados }) {
+  const d = (s.dados || {}) as Dados;
+  if (!temProgresso(d)) return cancelar(chat, s.id);
+  const nome = d.nome ?? d.novo?.nome;
+  return falar(chat, `Quer mesmo cancelar${nome ? " o lançamento de " + nome : " o lançamento"}? O que já respondeu será perdido.`,
+    [[{ t: "🗑️ Sim, cancelar", d: `cc:${s.id}:s` }], [{ t: "↩️ Voltar uma resposta", d: `cc:${s.id}:v` }, { t: "▶️ Continuar", d: `cc:${s.id}:c` }]], "atencao");
 }
 
 async function perguntarCorrecao(chat: number, sid: string, novo = false) {
@@ -505,7 +566,7 @@ async function vincular(chat: number, texto: string) {
   return falar(chat, `✅ Pronto, ${String(data?.nome || "").split(" ")[0]}! Seu Telegram está vinculado.\n\nAgora é só me mandar o código de barras ou o nome do produto.`, undefined, "vinculado");
 }
 
-const AJUDA = "Como usar:\n\n🔢 Mande o código de barras ou o nome do produto\n🏷️ Eu pergunto o lote (impresso na embalagem, perto da validade). Sem lote não lanço\n⚠️ Produto que vence em até 2 dias não é lançado: leve ao gerente para pedir preço direto\n🔢 O código de barras precisa ser válido (EAN-8, UPC-A ou EAN-13)\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n🆕 Produto que não está no app? Mande o código de barras: eu busco a imagem na internet (se não achar, peço uma foto legível sua), você confirma e o produto vai para aprovação de um encarregado\n✅ Só lanço depois do seu “sim”\n\n/cancelar – cancela o lançamento atual\n/sair – desvincula este Telegram";
+const AJUDA = "Como usar:\n\n🔢 Mande o código de barras ou o nome do produto\n🏷️ Eu pergunto o lote (impresso na embalagem, perto da validade). Sem lote não lanço\n⚠️ Produto que vence em até 2 dias não é lançado: leve ao gerente para pedir preço direto\n🔢 O código de barras precisa ser válido (EAN-8, UPC-A ou EAN-13)\n💬 Ou escreva tudo de uma vez: “7891234567890 validade 20/11/2026 quantidade 8”\n🆕 Produto que não está no app? Mande o código de barras: eu busco a imagem na internet (se não achar, peço uma foto legível sua), você confirma e o produto vai para aprovação de um encarregado\n✅ Só lanço depois do seu “sim”\n\n/voltar – desfaz a última resposta para corrigir\n/cancelar – cancela o lançamento atual (peço confirmação)\n⏱️ Cada resposta tem 5 minutos; passou disso, cancelo o lançamento\n/sair – desvincula este Telegram";
 
 // ---------- Entrada ----------
 async function processar(up: Record<string, any>) {
@@ -534,14 +595,22 @@ async function processar(up: Record<string, any>) {
   if (cb) {
     await tg("answerCallbackQuery", { callback_query_id: cb.id });
     const [acao, sid, extra] = String(cb.data || "").split(":");
-    const s = await sessaoAtiva(chat);
     const tirarBotoes = () => tg("editMessageReplyMarkup", { chat_id: chat, message_id: cb.message.message_id, reply_markup: { inline_keyboard: [] } });
+    const exp = await sessaoExpirada(chat);
+    if (exp) { await tirarBotoes(); await avisarExpirou(chat, exp); await marcar("processada"); return; }
+    const s = await sessaoAtiva(chat);
     if (!s || s.id !== sid) { await tirarBotoes(); await falar(chat, "Esse lançamento já foi tratado ou expirou.", undefined, "atencao"); await marcar("processada"); return; }
     await tirarBotoes();
     const d: Dados = s.dados || {};
+    if (["cx", "pr", "im", "st"].includes(acao)) empilhar(d, s.dados || {}); // dá para voltar depois desta escolha
     if (acao === "ok") await confirmar(ctx, chat, s.id, false);
     else if (acao === "dp") await confirmar(ctx, chat, s.id, true);
-    else if (acao === "no") await cancelar(chat, s.id);
+    else if (acao === "no") await pedirCancelar(chat, s);
+    else if (acao === "cc") {
+      if (extra === "s") await cancelar(chat, s.id);
+      else if (extra === "v") await voltar(ctx, chat, s);
+      else await reperguntar(ctx, chat, s, d, "Ok, vamos continuar.");
+    }
     else if (acao === "fx") await perguntarCorrecao(chat, s.id, !!d.novo);
     else if (acao === "cx") {
       if (extra === "p") { delete d.barcode; delete d.nome; delete d.porPeso; delete d.novo; delete d.criouProduto; delete d.lote; delete d.semLote; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual é o produto? Código de barras ou nome.", undefined, "produto"); }
@@ -567,7 +636,12 @@ async function processar(up: Record<string, any>) {
   if (!msg) return;
   if (/^\/start/i.test(texto)) { await falar(chat, `Olá, ${String(ctx.nome).split(" ")[0]}! 👋\nPode mandar o código de barras ou o nome do produto.`, undefined, "produto"); await marcar("processada"); return; }
   if (/^\/ajuda/i.test(texto)) { await falar(chat, AJUDA, undefined, "ajuda"); await marcar("processada"); return; }
-  if (/^\/cancelar/i.test(texto)) { const s = await sessaoAtiva(chat); if (s) await cancelar(chat, s.id); else await falar(chat, "Não há lançamento em andamento.", undefined, "ajuda"); await marcar("processada"); return; }
+  { // 5 minutos sem resposta: avisa que o lançamento anterior foi cancelado (e segue com a mensagem como conversa nova)
+    const exp = await sessaoExpirada(chat);
+    if (exp) await avisarExpirou(chat, exp);
+  }
+  if (/^\/voltar/i.test(texto)) { const s = await sessaoAtiva(chat); if (s) await voltar(ctx, chat, s); else await falar(chat, "Não há lançamento em andamento.", undefined, "ajuda"); await marcar("processada"); return; }
+  if (/^\/cancelar/i.test(texto)) { const s = await sessaoAtiva(chat); if (s) await pedirCancelar(chat, s); else await falar(chat, "Não há lançamento em andamento.", undefined, "ajuda"); await marcar("processada"); return; }
   if (/^\/sair/i.test(texto)) { await auditar(chat, "desvinculou o Telegram (/sair)", ctx.nome); await sb.from("telegram_sessoes").update({ estado: "cancelado", atualizado_em: new Date().toISOString() }).eq("chat_id", chat).in("estado", ["aguardando_info", "aguardando_confirmacao", "confirmado"]); await sb.from("telegram_vinculos").delete().eq("chat_id", chat); await falar(chat, "Telegram desvinculado. Para usar de novo, vincule outra vez com um código.", undefined, "cancelado"); await marcar("processada"); return; }
   if (texto.startsWith("/")) { await falar(chat, AJUDA, undefined, "ajuda"); await marcar("processada"); return; }
 
