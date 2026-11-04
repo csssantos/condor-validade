@@ -7,10 +7,18 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-11-03";
+export const TERMOS_VERSAO = "2026-11-04";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-04", docs: {
+    termos: [
+      "Pedido de promoção ou preço direto passa a levar o valor pedido (uma sugestão, que depende da liberação da central). Se o lote foi lançado pelo Telegram, quem lançou recebe um aviso no Telegram com a campanha e o valor pedido; no caso de promotor, o aviso inclui o nome de quem fez o pedido.",
+    ],
+    privacidade: [
+      "O valor pedido, o nome de quem fez o pedido e o número da campanha ficam guardados no lote e na auditoria da loja, e são enviados pelo Telegram a quem lançou o lote por lá.",
+    ],
+  } },
   { versao: "2026-11-03", docs: {
     termos: [
       "Permissões por cargo: dar baixa, excluir e editar produtos é função do encarregado do setor (ou da gerência/diretoria). Funcionários e promotores só lançam produtos e editam os que eles mesmos lançaram, sem dar baixa e sem excluir.",
@@ -32,7 +40,7 @@ export const TERMOS_ALTERACOES = [
       "Novo recurso opcional: lançar validade pelo Telegram, conversando com um bot. Nada é lançado sem a sua confirmação.",
       "Promotores ganham um código próprio (ex.: ABC-12345) que vale para um único Telegram e só permite lançar produtos da própria marca.",
       "As ações feitas pelo Telegram passam a aparecer na auditoria da loja, como as ações do app.",
-      "Pelo Telegram, o funcionário pode cadastrar produto novo: o bot busca a imagem na internet e, depois da sua confirmação, envia o pedido (produto, validade e quantidade) para aprovação de um encarregado ou superior, que pode corrigir o produto, aprovar ou recusar com um motivo; o motivo é enviado a você pelo Telegram. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro).",
+      "Pelo Telegram, o funcionário pode cadastrar produto novo: o bot busca a imagem na internet e, depois da sua confirmação, envia o pedido (produto, validade e quantidade) para aprovação de um encarregado ou superior, que pode corrigir o produto, aprovar ou recusar com um motivo; o motivo é enviado a você pelo Telegram. O bot também avisa você quando alguém registra um pedido de promoção ou preço direto (campanha) num lote que você lançou pelo Telegram, com o valor pedido, que é só uma sugestão e depende da liberação da central. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro).",
     ],
     privacidade: [
       "Se você vincular o Telegram, guardamos o identificador da sua conversa (não o seu telefone) e as mensagens enviadas ao bot, por até 30 dias. Se alguém errar o código de vínculo várias vezes, guardamos por até 2 dias o identificador da conversa e o número de erros, só para bloquear tentativas de adivinhação.",
@@ -109,7 +117,7 @@ export const DOCUMENTOS = [
       { t: "7. Recursos de IA e voz", p: [
         "O app pode ter recursos de assistente de IA e cadastro por voz. As respostas da IA podem conter erros e são apoio à decisão, não substituem o seu julgamento nem as regras da empresa. Nenhuma ação é criada sem a sua confirmação.",
         "O cadastro por voz usa o reconhecimento de voz do seu navegador/aparelho, que pode ser processado pelo fornecedor dele (por exemplo, Google ou Apple). Você escolhe quando usar.",
-        "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro). Para um produto que ainda não está no app, o bot consulta o código de barras no Open Food Facts (base pública na internet, que recebe apenas esse número), mostra a imagem encontrada e, se você confirmar, envia o pedido para aprovação de um encarregado ou superior da loja, que pode editar o produto, aprovar (o produto entra no app com essa imagem e a sua validade é lançada) ou recusar com um motivo, que o bot envia a você. O pedido (produto, código, validade, quantidade, seu nome, decisão, motivo e quem decidiu) fica guardado e é apagado 90 dias depois de decidido. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
+        "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro). Para um produto que ainda não está no app, o bot consulta o código de barras no Open Food Facts (base pública na internet, que recebe apenas esse número), mostra a imagem encontrada e, se você confirmar, envia o pedido para aprovação de um encarregado ou superior da loja, que pode editar o produto, aprovar (o produto entra no app com essa imagem e a sua validade é lançada) ou recusar com um motivo, que o bot envia a você. O bot também avisa você quando alguém registra pedido de promoção ou preço direto (campanha, com o valor pedido) num lote que você lançou pelo Telegram. O pedido (produto, código, validade, quantidade, seu nome, decisão, motivo e quem decidiu) fica guardado e é apagado 90 dias depois de decidido. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
         "Promotores: o código do promotor (ex.: ABC-12345) vale para um único Telegram por vez e permite lançar apenas produtos das marcas definidas no convite (de 1 a 5) enquanto o acesso estiver ativo; a gerência ou diretoria pode criar um convite com acesso total a todas as marcas, e essa criação fica registrada na auditoria.",
       ] },
       { t: "8. Disponibilidade e mudanças", p: [
@@ -173,7 +181,7 @@ export const DOCUMENTOS = [
           "Conta e dados de cadastro: enquanto você tiver conta e acesso ao app. Depois do desligamento ou da exclusão da conta, o acesso é encerrado e os dados de cadastro são eliminados ou anonimizados quando deixarem de ser necessários.",
           "Registros de auditoria, baixas, rondas e perdas: mantidos pelo prazo necessário para controle operacional, contábil e fiscal e para defesa em processos (em regra, até 5 anos), podendo ser anonimizados antes.",
           "Registros de login e aceite dos termos: mantidos por pelo menos 6 meses (Marco Civil da Internet) e enquanto necessários para comprovar o aceite.",
-          "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos; o registro de erros de código (identificador da conversa e contagem) é apagado em até 2 dias; pedidos de produto novo (com decisão e motivo) são apagados 90 dias após a decisão.",
+          "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos; o registro de erros de código (identificador da conversa e contagem) é apagado em até 2 dias; pedidos de produto novo (com decisão e motivo) são apagados 90 dias após a decisão. O valor pedido, o número da campanha e quem fez o pedido de promoção ou preço direto ficam no lote até a baixa dele e na auditoria da loja (até 5 anos); o controle do aviso enviado pelo Telegram some junto com o lote.",
           "Conversas com o assistente de IA: mantidas pelo tempo necessário à operação e ao suporte e eliminadas quando não forem mais úteis.",
         ] },
         { t: "8. Como protegemos", p: [

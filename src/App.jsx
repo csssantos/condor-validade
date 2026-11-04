@@ -318,7 +318,7 @@ function produtoFromRow(r) {
     criadoEm: r.criado_em, cadastradoPor: r.cadastrado_por || null, atualizadoPor: r.atualizado_por || null,
     notificado10d: !!r.notificado_10d, familia: r.familia || null,
     lote: r.lote || null, semLote: !!r.sem_lote,
-    pedidoTipo: r.pedido_tipo || null, pedidoCampanha: r.pedido_campanha || null, pedidoEm: r.pedido_em || null, pedidoPor: r.pedido_por || null
+    pedidoTipo: r.pedido_tipo || null, pedidoCampanha: r.pedido_campanha || null, pedidoValor: r.pedido_valor != null ? Number(r.pedido_valor) : null, pedidoEm: r.pedido_em || null, pedidoPor: r.pedido_por || null
   };
 }
 function produtoToRow(item) {
@@ -415,8 +415,8 @@ async function supaBaixarProduto({ id, motivo, quantidade }) {
   const { error } = await supabase.rpc("dar_baixa", { p_id: id, p_motivo: motivo, p_qtd: quantidade != null ? quantidade : null });
   if (error) { console.error("Erro ao dar baixa no Supabase:", error); throw error; }
 }
-async function supaRegistrarPedido(id, tipo, campanha) {
-  const { error } = await supabase.rpc("registrar_pedido_promocao", { p_id: id, p_tipo: tipo || null, p_campanha: campanha || null });
+async function supaRegistrarPedido(id, tipo, campanha, valor) {
+  const { error } = await supabase.rpc("registrar_pedido_promocao", { p_id: id, p_tipo: tipo || null, p_campanha: campanha || null, p_valor: tipo && valor != null ? valor : null });
   if (error) { console.error("Erro ao registrar pedido:", error); throw error; }
 }
 async function supaDeleteProduto(id) {
@@ -808,6 +808,8 @@ function mensagemErroGravacao(e) {
   if (/lote_obrigatorio/.test(m)) return "falta o lote (ou marcar que não tem lote impresso)";
   if (/lote_invalido/.test(m)) return "lote inválido (use letras, números, . / - e até 20 caracteres)";
   if (/produto_travado_pedido/.test(m)) return "esse lote tem pedido de promoção ou preço direto registrado e está travado: o encarregado do setor precisa remover o pedido antes de alterar";
+  if (/valor_pedido_obrigatorio/.test(m)) return "informe o valor pedido";
+  if (/valor_pedido_invalido/.test(m)) return "valor pedido inválido (de R$ 0,01 a R$ 5.000,00)";
   if (/campanha_invalida/.test(m)) return "número da campanha inválido (use letras, números, . / - e até 20 caracteres)";
   if (/pedido_promocao_invalido/.test(m)) return "tipo de pedido inválido";
   if (/pedido_so_pela_funcao/.test(m)) return "esse campo só muda pelo botão de pedido";
@@ -2186,7 +2188,7 @@ function AppInner() {
     }
     if (editingItemId) {
       const original = items.find((it) => it.id === editingItemId);
-      const novoItem = { ...original, ...draftProduct, ...dados, ...(((dados.validade ?? draftProduct.validade ?? original.validade) === original.validade) ? { pedidoTipo: original.pedidoTipo || null, pedidoCampanha: original.pedidoCampanha || null, pedidoEm: original.pedidoEm || null, pedidoPor: original.pedidoPor || null } : { pedidoTipo: null, pedidoCampanha: null, pedidoEm: null, pedidoPor: null }), atualizadoPor: usuario || null };
+      const novoItem = { ...original, ...draftProduct, ...dados, ...(((dados.validade ?? draftProduct.validade ?? original.validade) === original.validade) ? { pedidoTipo: original.pedidoTipo || null, pedidoCampanha: original.pedidoCampanha || null, pedidoValor: original.pedidoValor ?? null, pedidoEm: original.pedidoEm || null, pedidoPor: original.pedidoPor || null } : { pedidoTipo: null, pedidoCampanha: null, pedidoValor: null, pedidoEm: null, pedidoPor: null }), atualizadoPor: usuario || null };
       setItems((prev) => prev.map((it) => (it.id === editingItemId ? novoItem : it)));
       gravarProduto(novoItem);
       logAuditoria(usuario, "editou produto", novoItem.nome, novoItem.barcode);
@@ -2303,7 +2305,7 @@ function AppInner() {
     setDetalheItem(null);
     setEditingItemId(null);
     setPendingBarcode(item.barcode);
-    const { id: _idAntigo, lancadoPorId: _lp, cadastradoPor: _cp, atualizadoPor: _ap, criadoEm: _ce, pedidoTipo: _pt, pedidoCampanha: _pc, pedidoEm: _pe, pedidoPor: _pp, ...copia } = item;
+    const { id: _idAntigo, lancadoPorId: _lp, cadastradoPor: _cp, atualizadoPor: _ap, criadoEm: _ce, pedidoTipo: _pt, pedidoCampanha: _pc, pedidoValor: _pv, pedidoEm: _pe, pedidoPor: _pp, ...copia } = item;
     setDraftProduct({ ...copia });
     setFlow("expiry");
   }
@@ -2367,9 +2369,9 @@ function AppInner() {
   }
 
   // Pedido de promoção / preço direto: só pela função do banco (permissão, auditoria e quem pediu ficam no servidor)
-  async function registrarPedido(item, tipo, campanha) {
+  async function registrarPedido(item, tipo, campanha, valor) {
     try {
-      await supaRegistrarPedido(item.id, tipo, campanha);
+      await supaRegistrarPedido(item.id, tipo, campanha, valor);
     } catch (e) {
       const motivo = erroDeRede(e) ? "sem internet agora, tente de novo" : /PGRST202|registrar_pedido_promocao/.test(String((e && e.message) || "") + (e && e.code)) ? "o banco ainda não foi atualizado para esse recurso" : mensagemErroGravacao(e);
       showToast(`Não foi possível registrar o pedido: ${motivo}.`, "erro");
@@ -2377,7 +2379,8 @@ function AppInner() {
     }
     const camp = tipo ? (String(campanha || "").trim().toUpperCase() || null) : null;
     // mexe SÓ nos campos do pedido (o item aberto pode estar velho: quantidade/validade mudaram por outra pessoa)
-    const campos = { pedidoTipo: tipo || null, pedidoCampanha: camp, pedidoEm: tipo ? new Date().toISOString() : null, pedidoPor: tipo ? (usuario || null) : null };
+    const campos = { pedidoTipo: tipo || null, pedidoCampanha: camp, pedidoValor: tipo ? Number(valor) : null, pedidoEm: tipo ? new Date().toISOString() : null, pedidoPor: tipo ? (usuario || null) : null };
+    if (tipo) supabase.functions.invoke("telegram-avisar-pedido", { body: { id: item.id } }).catch(() => {}); // se o lote veio do Telegram, avisa lá quem lançou (o servidor decide)
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, ...campos } : i)));
     setDetalheItem((d) => (d && d.id === item.id ? { ...d, ...campos } : d));
     const rotulo = (tipo || item.pedidoTipo) === "preco_direto" ? "preço direto" : "promoção";
@@ -2703,8 +2706,8 @@ function AppInner() {
           aria-hidden="true" tabIndex={-1} />
       )}
       <div aria-live="polite" aria-atomic="true" className="sr-only">{toast ? toast.msg : ""}</div>
-      {toast && <AvisoToast msg={toast.msg} tom={toast.tone} id={toast.id} elevar={!!desfazer} />}
-      {desfazer && <AvisoDesfazer mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} />}
+      {toast && <AvisoToast msg={toast.msg} tom={toast.tone} id={toast.id} elevar={!!desfazer} onFechar={() => { if (toastIdRef.current === toast.id) { clearTimeout(toastTimerRef.current); setToast(null); } }} />}
+      {desfazer && <AvisoDesfazer key={desfazer.id} mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} onFechar={() => setDesfazer(null)} />}
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
         {avisoAtual && <AvisoModal T={T} aviso={avisoAtual} onFechar={() => marcarAvisoVisto(avisoAtual.id)} />}
@@ -2869,6 +2872,10 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-campanha-valor", data: "04/11/2026", itens: [
+    { tipo: "novo", ate: 6, texto: "Pedido de promoção ou preço direto agora leva o VALOR PEDIDO (obrigatório). Quem lançou o lote pelo Telegram recebe um aviso no Telegram com a campanha e o valor, lembrando que o valor é só uma sugestão e depende da central liberar." },
+    { tipo: "corrigido", ate: 7, texto: "Campo de data ao lançar validade: tocar nele vazio não seleciona mais a data de hoje sozinho." },
+  ] },
   { id: "2026-11-04-ia-ultimos", data: "04/11/2026", itens: [
     { tipo: "novo", ate: 5, texto: "Assistente IA: pergunte pelos últimos lançamentos de validade (1, 2, 4, 6, 10, 15…) e peça só os campos que quiser. Ex.: \"me retorne os 3 últimos lançamentos de validade, apenas o nome, código e quantidade\". Também dá para filtrar por hoje/semana ou setor. A resposta vem em tabela, com o produto e só os campos que você pediu." },
   ] },
@@ -8350,11 +8357,14 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   const salvandoPedidoRef = useRef(false);
   const [pedidoCampanha, setPedidoCampanha] = useState(item.pedidoCampanha || "");
   const [salvandoPedido, setSalvandoPedido] = useState(false);
-  useEffect(() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); }, [item.id, item.pedidoTipo, item.pedidoCampanha]);
-  async function salvarPedido(tipo, campanha) {
+  const valorTxt0 = (v) => (v != null ? String(v).replace(".", ",") : "");
+  const [pedidoValor, setPedidoValor] = useState(valorTxt0(item.pedidoValor));
+  const pedidoValorNum = (() => { const n = Number(String(pedidoValor).replace(",", ".")); return /^\d{1,4}([.,]\d{1,2})?$/.test(String(pedidoValor).trim()) && n >= 0.01 && n <= 5000 ? n : null; })();
+  useEffect(() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); setPedidoValor(valorTxt0(item.pedidoValor)); }, [item.id, item.pedidoTipo, item.pedidoCampanha, item.pedidoValor]);
+  async function salvarPedido(tipo, campanha, valor) {
     if (salvandoPedidoRef.current) return;
     salvandoPedidoRef.current = true; setSalvandoPedido(true);
-    const ok = await onPedido(item, tipo, campanha);
+    const ok = await onPedido(item, tipo, campanha, valor);
     salvandoPedidoRef.current = false; setSalvandoPedido(false);
     if (ok) { setEditandoPedido(false); setConfirmandoRemoverPedido(false); }
   }
@@ -8427,7 +8437,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
               {item.pedidoTipo && !editandoPedido && (
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p style={{ color: "#1F7A45" }} className="text-[13px] font-bold">{item.pedidoTipo === "preco_direto" ? "Preço direto pedido" : "Promoção pedida"}{item.pedidoCampanha ? ` · campanha ${item.pedidoCampanha}` : ""}</p>
+                    <p style={{ color: "#1F7A45" }} className="text-[13px] font-bold">{item.pedidoTipo === "preco_direto" ? "Preço direto pedido" : "Promoção pedida"}{item.pedidoCampanha ? ` · campanha ${item.pedidoCampanha}` : ""}{item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")}` : ""}</p>
                     <p style={{ color: T.subtext }} className="text-[10.5px] mt-0.5">{item.pedidoPor || "—"}{item.pedidoEm ? ` · ${formatarDataHoraExtenso(item.pedidoEm)}` : ""}</p>
                   </div>
                   {onPedido && podeGerirPedido && <button onClick={() => setEditandoPedido(true)} style={{ color: BLUE }} className="text-[11px] font-bold shrink-0 px-1">Alterar</button>}
@@ -8454,13 +8464,17 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                   <input value={pedidoCampanha} onChange={(e) => setPedidoCampanha(e.target.value.toUpperCase().replace(/[^A-Z0-9./ -]/g, "").slice(0, 20))}
                     placeholder="Número da campanha (opcional)" inputMode="text" maxLength={20} aria-label="Número da campanha"
                     style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full min-w-0 mt-2 border rounded-xl px-3 py-2 text-xs outline-none" />
-                  <p style={{ color: T.subtext }} className="text-[10px] mt-1">Aceita letras sem acento, números, . / - e até 20 caracteres.{!item.pedidoTipo && " Atenção: depois de salvar, este lote fica travado (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
+                  <input value={pedidoValor} onChange={(e) => setPedidoValor(e.target.value.replace(/[^0-9.,]/g, "").slice(0, 8))}
+                    placeholder="Valor pedido em R$ (obrigatório)" inputMode="decimal" maxLength={8} aria-label="Valor pedido em reais"
+                    style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full min-w-0 mt-2 border rounded-xl px-3 py-2 text-xs outline-none" />
+                  {pedidoTipo && pedidoValorNum == null && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o valor pedido (de 0,01 a 5000, com até 2 casas, ex.: 5,90).</p>}
+                  <p style={{ color: T.subtext }} className="text-[10px] mt-1">O valor é só uma sugestão: depende da central liberar. Campanha: letras sem acento, números, . / - e até 20 caracteres.{!item.pedidoTipo && " Atenção: depois de salvar, este lote fica travado (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
                   <div className="flex gap-2 mt-2.5">
-                    <button onClick={() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
+                    <button onClick={() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); setPedidoValor(valorTxt0(item.pedidoValor)); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
                     {item.pedidoTipo && podeGerirPedido && (confirmandoRemoverPedido
-                      ? <button onClick={() => salvarPedido(null, null)} disabled={salvandoPedido} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">Confirmar remoção</button>
+                      ? <button onClick={() => salvarPedido(null, null, null)} disabled={salvandoPedido} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">Confirmar remoção</button>
                       : <button onClick={() => setConfirmandoRemoverPedido(true)} style={{ color: RED_DARK }} className="flex-1 text-[11px] font-semibold py-1.5">Remover</button>)}
-                    <button onClick={() => salvarPedido(pedidoTipo, pedidoCampanha)} disabled={salvandoPedido || !pedidoTipo} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : "Salvar"}</button>
+                    <button onClick={() => salvarPedido(pedidoTipo, pedidoCampanha, pedidoValorNum)} disabled={salvandoPedido || !pedidoTipo || pedidoValorNum == null} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : "Salvar"}</button>
                   </div>
                 </div>
               )}
@@ -9687,7 +9701,7 @@ function hojeISOLocal() { const d = new Date(); return `${d.getFullYear()}-${Str
 function CampoData({ value, onChange, style, className = "", T }) {
   const [txt, setTxt] = useState(isoParaBR(value));
   const [saiu, setSaiu] = useState(false);
-  const abertoEm = useRef(0);
+  const [avisoHoje, setAvisoHoje] = useState(false);
   useEffect(() => { setTxt((t) => (brParaISO(t) === (value || "") ? t : isoParaBR(value))); }, [value]);
   const digitar = (e) => {
     const bruto = e.target.value;
@@ -9696,10 +9710,12 @@ function CampoData({ value, onChange, style, className = "", T }) {
   };
   const escolher = (e) => {
     const v = e.target.value;
-    if (v && v === hojeISOLocal() && !value && Date.now() - abertoEm.current < 900) { e.target.value = ""; return; } // preenchimento automático do iPhone, não foi escolha
-    setTxt(isoParaBR(v)); onChange(v || "");
+    // Campo vazio: o calendário nativo devolve "hoje" sozinho ao abrir (e em alguns aparelhos só ao fechar). Hoje nunca vem do calendário com o campo vazio;
+    // quem quer a data de hoje digita (ou escolhe outro dia e volta). Sem limite de tempo, porque o iPhone pode avisar depois de 1 s.
+    if (v && v === hojeISOLocal() && !value) { e.target.value = ""; setAvisoHoje(true); return; }
+    setAvisoHoje(false); setTxt(isoParaBR(v)); onChange(v || "");
   };
-  const abrir = (e) => { abertoEm.current = Date.now(); try { e.currentTarget.showPicker?.(); } catch { /* o toque já abre no celular */ } };
+  const abrir = (e) => { try { e.currentTarget.showPicker?.(); } catch { /* o toque já abre no celular */ } };
   const incompleta = txt.length > 0 && !brParaISO(txt) && (txt.length === 10 || saiu);
   return (
     <div>
@@ -9708,9 +9724,10 @@ function CampoData({ value, onChange, style, className = "", T }) {
           placeholder="dd/mm/aaaa" maxLength={10} aria-label="Data de validade (dia, mês e ano)" aria-invalid={incompleta}
           style={{ ...style, paddingRight: 44 }} className={className} />
         <span className="absolute right-0 top-0 h-full w-11 flex items-center justify-center pointer-events-none" style={{ color: T?.subtext }}><Calendar size={17} /></span>
-        <input type="date" aria-label="Escolher a data no calendário" value={value || ""} onChange={escolher} onClick={abrir} onFocus={() => { abertoEm.current = Date.now(); }}
+        <input type="date" aria-label="Escolher a data no calendário" value={value || ""} onChange={escolher} onClick={abrir}
           className="absolute right-0 top-0 h-full w-11 opacity-0 cursor-pointer" style={{ fontSize: 16 }} />
       </div>
+      {avisoHoje && !value && <p style={{ color: T?.subtext }} className="text-[11px] font-medium mt-1.5">Para a data de hoje, digite no campo (dd/mm/aaaa).</p>}
       {incompleta && <p role="alert" style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">{txt.length === 10 ? "Essa data não existe. Confira o dia e o mês." : "Digite a data completa: dd/mm/aaaa."}</p>}
     </div>
   );

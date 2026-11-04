@@ -22,6 +22,7 @@ GLIFOS = {
  "plus": f'<circle cx="334" cy="150" r="15" fill="{GREEN}"/><path d="M334 141 V159 M325 150 H343" stroke="#fff" stroke-width="5" stroke-linecap="round"/>',
  "clock": f'<circle cx="334" cy="150" r="15" fill="{AMBER}"/><circle cx="334" cy="150" r="10.5" fill="#fff"/><path d="M334 143 V150 L339 153" fill="none" stroke="{NAVY}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>',
  "lote": f'<rect x="316" y="136" width="36" height="28" rx="5" fill="#fff" stroke="{BLUE}" stroke-width="2.6"/><text x="334" y="149" font-family="Helvetica,Arial,sans-serif" font-size="9" font-weight="800" text-anchor="middle" fill="{RED}">LOTE</text><path d="M322 155 H346 M322 159 H339" stroke="{NAVY}" stroke-width="2.2" stroke-linecap="round"/>',
+ "tag": f'<path d="M318 140 H340 L352 152 L340 164 H318Z" fill="{AMBER}" stroke="{NAVY}" stroke-width="2.4" stroke-linejoin="round"/><circle cx="324" cy="152" r="2.6" fill="#fff"/><text x="337" y="156.5" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="800" text-anchor="middle" fill="{NAVY}">%</text>',
  "info": f'<circle cx="334" cy="150" r="15" fill="{BLUE}"/><circle cx="334" cy="142" r="2.4" fill="#fff"/><path d="M334 148 V159" stroke="#fff" stroke-width="4" stroke-linecap="round"/>',
 }
 OLHOS_OK = "#2ECC71"
@@ -49,6 +50,7 @@ ESTADOS = {
  "aprovacao":  ("clock",    OLHOS_OK, "sorriso", "Aguardando aprovação", "Um encarregado vai conferir o produto novo.", AMBER, "EM ANÁLISE"),
  "aprovado":   ("check",    OLHOS_OK, "sorriso", "Produto aprovado!", "Cadastrado no app, com a sua validade.", GREEN, "APROVADO"),
  "rejeitado":  ("x",        "#9FB6D1","reta",    "Produto rejeitado", "O encarregado não aprovou. Veja o motivo abaixo.", RED, "REJEITADO"),
+ "campanha":   ("tag",      OLHOS_OK, "sorriso", "Campanha pedida", "Pediram promoção ou preço direto do seu lote.", AMBER, "CAMPANHA"),
  "ajuda":      ("info",     OLHOS_OK, "sorriso", "Como posso ajudar", "Lanço validades com você, passo a passo.", BLUE, "AJUDA"),
 }
 def html(k):

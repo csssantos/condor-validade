@@ -24,7 +24,7 @@ end $f$;
 revoke all on function public._gerar_codigo_promotor(text) from public, anon, authenticated;
 
 -- o código é SEMPRE gerado pelo servidor no cadastro do convite
-create or replace function public._convite_codigo_trg() returns trigger language plpgsql set search_path = public as $f$
+create or replace function public._convite_codigo_trg() returns trigger language plpgsql security definer set search_path = public as $f$
 begin
   new.codigo := public._gerar_codigo_promotor(new.marca);
   return new;

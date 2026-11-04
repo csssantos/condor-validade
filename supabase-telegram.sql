@@ -31,7 +31,7 @@ end $$;
 revoke all on function public._gerar_codigo_promotor(text) from public, anon, authenticated;
 
 create or replace function public._convite_codigo_trg()
-returns trigger language plpgsql set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if new.codigo is null or btrim(new.codigo) = '' then new.codigo := public._gerar_codigo_promotor(new.marca);
   else new.codigo := upper(btrim(new.codigo)); end if;
