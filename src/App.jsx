@@ -1716,6 +1716,7 @@ function AppInner() {
   const [estadoAtualizacao, setEstadoAtualizacao] = useState("idle"); // idle | baixando
   const [progressoAtualizacao, setProgressoAtualizacao] = useState(0);
   const [erroAtualizacao, setErroAtualizacao] = useState(false);
+  const baixandoRef = useRef(false); // trava de toque duplo e de polling durante o download
   useEffect(() => {
     // Depois de atualizar (ou ao abrir com uma versão que a pessoa ainda não viu), mostra a lista de novidades.
     const veioDeAtualizacao = sessionStorage.getItem("avdc_acabou_de_atualizar") === "1";
@@ -1726,7 +1727,7 @@ function AppInner() {
     // Checagem "em tempo real": ao abrir, ao voltar pro app/aba, ao reconectar e a cada 20 s com o app aberto.
     let ativo = true;
     async function checar() {
-      if (!navigator.onLine || document.visibilityState === "hidden") return;
+      if (!navigator.onLine || document.visibilityState === "hidden" || baixandoRef.current) return;
       try { const v = await buscarVersaoPublicada(); if (ativo) setNovaVersao((atual) => (v ? (atual?.assinatura === v.assinatura ? atual : v) : null)); } catch {}
     }
     checar();
@@ -1739,14 +1740,40 @@ function AppInner() {
     return () => { ativo = false; clearInterval(intervalo); document.removeEventListener("visibilitychange", checar); window.removeEventListener("focus", checar); window.removeEventListener("online", checar); };
   }, []);
   async function aplicarAtualizacao() {
-    if (!novaVersao || estadoAtualizacao === "baixando") return;
+    if (!novaVersao || baixandoRef.current) return;
+    baixandoRef.current = true;
     setErroAtualizacao(false); setProgressoAtualizacao(0); setEstadoAtualizacao("baixando");
     try {
-      await baixarVersaoNova(novaVersao, setProgressoAtualizacao);
+      // Várias publicações seguidas viram UMA atualização só: pega sempre a versão mais nova no momento do toque
+      // e, depois de baixar, confere se saiu outra no meio do caminho (até 3 voltas) antes de reiniciar.
+      let alvo = novaVersao;
+      try {
+        const mais = await buscarVersaoPublicada();
+        if (!mais) { // a publicada voltou a ser a que está rodando (rollback): nada a instalar
+          baixandoRef.current = false; setEstadoAtualizacao("idle"); setNovaVersao(null); return;
+        }
+        alvo = mais;
+      } catch { /* sem resposta agora: tenta com a que já tinha */ }
+      for (let volta = 0; volta < 3; volta++) {
+        try {
+          await baixarVersaoNova(alvo, (p) => setProgressoAtualizacao((a) => Math.max(a, Math.min(p, 0.97))));
+        } catch (e) {
+          if (volta === 0) throw e; // 1ª volta falhou: nada foi trocado, mostra "Tentar de novo"
+          break; // volta extra falhou: a anterior já está instalada por inteiro; reinicia com ela (o polling oferece a mais nova depois)
+        }
+        let outra = null;
+        try { outra = await buscarVersaoPublicada(); } catch { /* sem internet agora: reinicia com o que baixou */ }
+        if (!outra || outra.assinatura === alvo.assinatura) break;
+        alvo = outra; // na 3ª volta isto não é baixado: reinicia na última baixada e o polling oferece a mais nova
+      }
+      setProgressoAtualizacao(1);
       sessionStorage.setItem("avdc_acabou_de_atualizar", "1");
       setTimeout(() => window.location.reload(), 700);
+      // se o sistema ignorar o reinício, não deixa a tela presa em "Reiniciando": volta o botão
+      setTimeout(() => { baixandoRef.current = false; setEstadoAtualizacao("idle"); setErroAtualizacao(true); }, 8000);
     } catch (e) {
       console.error(e);
+      baixandoRef.current = false;
       setEstadoAtualizacao("idle"); setErroAtualizacao(true);
     }
   }
@@ -2668,8 +2695,9 @@ function AvisoModal({ T, aviso, onFechar }) {
 // O service worker serve SEMPRE a versão já instalada (cache) e o app compara, em segundo plano, com o que
 // está publicado. Se for diferente, aparece o aviso; só quando a pessoa toca em "Atualizar" o app baixa a
 // versão nova (com barra de progresso), troca o cache e reinicia. Nunca atualiza sozinho.
-const CACHE_SHELL = "condor-shell-v7";
-const CACHE_ASSETS = "condor-assets-v7";
+// ATENÇÃO: estes nomes TÊM de ser iguais aos de public/sw.js (o SW só lê estes caches). Ao trocar um, troque o outro.
+const CACHE_SHELL = "condor-shell-v10";
+const CACHE_ASSETS = "condor-assets-v10";
 function assetsDoDocumento(doc) {
   return Array.from(doc.querySelectorAll("script[src], link[href]"))
     .map((el) => { try { return new URL(el.getAttribute("src") || el.getAttribute("href"), window.location.origin).pathname; } catch { return null; } })
@@ -2679,11 +2707,11 @@ function assetsDoDocumento(doc) {
 async function buscarVersaoPublicada() {
   const atuais = assetsDoDocumento(document);
   if (!atuais.length) return null; // modo desenvolvimento: sem build, nada a comparar
-  const resp = await fetch(`/index.html?__v=${Date.now()}`, { cache: "no-store" });
-  if (!resp.ok) return null;
+  const resp = await fetch(`/index.html?__v=${Date.now()}`, { cache: "no-store", signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined });
+  if (!resp.ok) throw new Error("index indisponível"); // erro de rede/deploy NÃO é "sem versão nova": quem chama decide (null = igual à que roda)
   const html = await resp.text();
   const novos = assetsDoDocumento(new DOMParser().parseFromString(html, "text/html"));
-  if (!novos.length) return null; // resposta que não é o app (ex.: página de erro)
+  if (!novos.length) throw new Error("resposta que não é o app"); // ex.: página de erro
   if (novos.join("|") === atuais.join("|")) return null;
   return { html, assets: novos, assinatura: novos.join("|") };
 }
@@ -2693,6 +2721,7 @@ async function baixarVersaoNova(versao, aoProgredir) {
   const total = versao.assets.length;
   for (let i = 0; i < total; i++) {
     const url = versao.assets[i];
+    if (await cacheAssets.match(url)) { aoProgredir(((i + 1) / total) * 0.95); continue; } // nome tem hash: arquivo já guardado não muda
     const resp = await fetch(url, { cache: "reload" });
     if (!resp.ok) throw new Error(`Falha ao baixar ${url}`);
     const tamanho = Number(resp.headers.get("content-length")) || 0;
@@ -2787,6 +2816,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-atualizar-tudo", data: "04/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Atualizações acumuladas: se saírem várias versões seguidas, o botão Atualizar baixa a mais nova de uma vez só (e confere se saiu outra durante o download), sem precisar atualizar uma por uma." },
+  ] },
   { id: "2026-11-04-pc-config", data: "04/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "No computador, as páginas de Configurações (Conta, Aparência, Notificações, Privacidade e termos, Sobre, Avisos, Código de balança e Aprovar produtos novos) foram refeitas em formato de dashboard, com várias colunas; nos Termos, o texto do documento abre ao lado da lista." },
   ] },

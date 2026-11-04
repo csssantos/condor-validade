@@ -58,6 +58,8 @@ Fonte oficial: `public/mascote.svg` (viewBox 400x400). Reaproveitar o arquivo (o
 
 ## Atualização de versão
 Polling 20s (`buscarVersaoPublicada`) → `novaVersao`. Deslogado: overlay `AtualizacaoObrigatoria` bloqueia login. Logado + "Depois": ícone `BotaoAtualizacao` ao lado do sino. Telas de carregamento nunca mostram aviso.
+- ATUALIZAÇÕES ACUMULADAS (2026-11-04, pedido do dono): `aplicarAtualizacao` re-busca a versão mais nova no toque, baixa, confere se saiu outra (até 3 voltas) e só então reinicia; falha na 1ª volta = "Tentar de novo", falha em volta extra = reinicia com a já instalada. Trava `baixandoRef` (toque duplo e polling parado durante o download). `buscarVersaoPublicada`: null = igual à que roda; erro de rede/HTML inválido LANÇA (quem chama decide); fetch com timeout de 8 s. Assets com hash já em cache são pulados. Se o reinício for ignorado, em 8 s volta o botão.
+- BUG ACHADO: `CACHE_SHELL/CACHE_ASSETS` do App.jsx (eram v7) TÊM de ser iguais aos do `public/sw.js` (v10); ao trocar um, trocar o outro (o SW só lê o dele). Pendências: ordenação monotônica de versão (rollback de CDN pode causar downgrade), teto/integridade dos assets, barra parada a 97% nas voltas extras, loop sem teste automatizado, fetch de asset sem timeout (download travado prende em "Baixando…"), pulo de asset já em cache não valida o conteúdo.
 
 ## Supabase
 - `apply_migration` costuma ser cancelado pelo cliente: gerar arquivo .sql, enviar com SendUserFile e o usuário roda; depois conferir com `execute_sql`.
