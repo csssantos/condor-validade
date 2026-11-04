@@ -23,7 +23,7 @@ begin
   select public._norm_setor(setor) into s from public.usuarios where id = auth.uid();
   if s is null or s = '' then return true; end if;
   d := public._norm_setor(p_setor);
-  return d = s or d like s || ' %' or s like d || ' %';
+  return d = s or left(d, length(s) + 1) = s || ' ' or left(s, length(d) + 1) = d || ' ';
 end $$;
 
 -- autor: pelo id; produto antigo (sem id) pelo nome gravado ("Nome" ou "Nome - CARGO")
@@ -31,7 +31,7 @@ create or replace function public._eh_autor(p_id uuid, p_nome text)
 returns boolean language sql stable security definer set search_path = public as $$
   select coalesce(p_id = auth.uid()
       or (p_id is null and public.nome_do_usuario() is not null
-          and (p_nome = public.nome_do_usuario() or p_nome like public.nome_do_usuario() || ' - %')), false);
+          and (p_nome = public.nome_do_usuario() or left(p_nome, length(public.nome_do_usuario()) + 3) = public.nome_do_usuario() || ' - ')), false);
 $$;
 
 -- BAIXA (RPC)
@@ -152,5 +152,13 @@ begin
   end loop;
   if position('_setor_ok' in pg_get_functiondef('public._produtos_del_ck()'::regprocedure)) = 0 then raise exception 'permissoes: exclusao sem trava'; end if;
   if position('_eh_autor' in pg_get_functiondef('public.somar_ao_lote(text,integer)'::regprocedure)) = 0 then raise exception 'permissoes: somar_ao_lote sem trava'; end if;
+  if (select count(*) from pg_trigger t where t.tgrelid = 'public.produtos'::regclass and t.tgname in ('trg_a_perm_upd','trg_a_perm_ins') and t.tgfoid = 'public._produtos_perm()'::regprocedure) <> 2 then raise exception 'permissoes: triggers de permissao nao apontam para _produtos_perm'; end if;
+  if exists (select 1 from pg_trigger where tgrelid = 'public.produtos'::regclass and tgname in ('trg_produtos_perm_upd','trg_produtos_perm_ins')) then raise exception 'permissoes: triggers antigos'; end if;
+  if not exists (select 1 from pg_trigger where tgrelid = 'public.produtos'::regclass and tgname = 'trg_produtos_del' and tgfoid = 'public._produtos_del_ck()'::regprocedure)
+     or not exists (select 1 from pg_trigger where tgrelid = 'public.historico'::regclass and tgname = 'trg_historico_quem' and tgfoid = 'public._historico_quem()'::regprocedure) then
+    raise exception 'permissoes: triggers de exclusao/historico ausentes';
+  end if;
+  if 'trg_a_perm_upd' > 'trg_produtos_blindagem' then raise exception 'permissoes: ordem dos triggers'; end if;
+  if public._norm_setor('  Laticínios   Á ') <> 'laticinios a' then raise exception 'permissoes: _norm_setor'; end if;
   if has_function_privilege('authenticated', 'public._produtos_perm()', 'execute') or has_function_privilege('anon', 'public._setor_ok(text)', 'execute') then raise exception 'permissoes: funcoes internas abertas'; end if;
 end $$;

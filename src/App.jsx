@@ -2098,6 +2098,7 @@ function AppInner() {
     if (dados.somarAoLoteId) {
       const orig = items.find((it) => it.id === dados.somarAoLoteId);
       if (!orig) { showToast("Lote não encontrado.", "warn"); return; }
+      if (!podeEditarProduto(orig)) { showToast("Esse lote foi lançado por outra pessoa: peça ao encarregado do setor para somar.", "warn"); return; }
       const add = Math.round(Number(dados.quantidade) || 0);
       if (add < 1 || add > limiteSomaLote(orig.quantidade)) { showToast(`Só dá para somar até ${limiteSomaLote(orig.quantidade)} un de uma vez.`, "warn"); return; }
       const novoItem = { ...orig, quantidade: orig.quantidade + add, atualizadoPor: usuario || null };
@@ -9630,7 +9631,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
                 <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                 <span>{diasRestantesAtual <= 0 ? "Esta data já venceu ou vence hoje." : "Data muito próxima."} Não é possível definir uma antecedência de alerta.</span>
               </div>
-              {!onBaixaDireta && jaVencido && (
+              {!onBaixaDireta && !editing && jaVencido && (
                 <p className="text-[10.5px] font-semibold px-3 pb-3">Produto vencido: avise o encarregado do setor para registrar a perda.</p>
               )}
               {onBaixaDireta && jaVencido && (
