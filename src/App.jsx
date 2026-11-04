@@ -35,6 +35,7 @@ import { PalcoInicio, PalcoPagina } from "./Inicio";
 import { AceiteCampo, AceiteObrigatorio, LegalLeitor, LinksLegais, PaginaPrivacidade, TERMOS_VERSAO, lerAceiteLocal, gravarAceiteLocal, marcarAceitePendente, temAceitePendente, limparAceitePendente, registrarAceite } from "./Legal";
 import { TelaCarregando, FUNDO_MARCA, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
 import { gerarImagemProduto } from "./compartilharImagem";
+import { AvisoToast, AvisoDesfazer, classificarTom, TONS } from "./Avisos";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
@@ -1869,9 +1870,12 @@ function AppInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, loading, notifPermission]);
 
+  const toastTimerRef = useRef(null);
   function showToast(msg, tone = "ok") {
-    setToast({ msg, tone });
-    setTimeout(() => setToast(null), 2600);
+    const tom = classificarTom(msg, tone);
+    setToast({ msg, tone: tom });
+    clearTimeout(toastTimerRef.current); // o aviso novo não pode ser apagado pelo tempo do anterior
+    toastTimerRef.current = setTimeout(() => setToast(null), TONS[tom].ms);
   }
 
   // Ação com "desfazer" de 5s: a mudança já aparece na tela na hora, mas só grava de verdade
@@ -2611,8 +2615,8 @@ function AppInner() {
           style={{ position: "fixed", top: 0, left: 0, width: 1, height: 1, opacity: 0, border: "none", padding: 0, pointerEvents: "none" }}
           aria-hidden="true" tabIndex={-1} />
       )}
-      {toast && <Toast msg={toast.msg} tone={toast.tone} />}
-      {desfazer && <DesfazerToast T={T} mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} />}
+      {toast && <AvisoToast msg={toast.msg} tom={toast.tone} />}
+      {desfazer && <AvisoDesfazer mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} />}
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
         {avisoAtual && <AvisoModal T={T} aviso={avisoAtual} onFechar={() => marcarAvisoVisto(avisoAtual.id)} />}
@@ -2775,6 +2779,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-avisos", data: "04/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Avisos do app refeitos no estilo da tela de carregamento, com bolinhas e a cor do status (verde pronto, azul aguarde, laranja atenção, vermelho erro), sem a caixa vermelha." },
+  ] },
   { id: "2026-11-04-compartilhar-imagem", data: "04/11/2026", itens: [
     { tipo: "novo", ate: 7, texto: "Compartilhar produto agora envia uma imagem no estilo do app, com a foto, a validade, o lote, a quantidade, o setor e o código, mais a data e a hora em que foi gerada." },
   ] },
@@ -7660,43 +7667,6 @@ function DashboardView({ T, items, historico, rondas, auditoria, nome, lojaNumer
             {d.feed.length === 0 && <p style={{ color: T.subtext }} className="text-xs py-8 text-center">Nenhuma ação registrada ainda.</p>}
           </div>
         </DashCard>
-      </div>
-    </div>
-  );
-}
-
-// ============ Toast ============
-function Toast({ msg, tone }) {
-  const bg = tone === "warn" ? RED_DARK : BLUE_DARK;
-  return (
-    <div className="fixed bottom-20 lg:bottom-6 left-1/2 lg:left-[calc(50%+8rem)] -translate-x-1/2 z-50 max-w-[90%]">
-      <div style={{ background: bg }} className="text-white text-sm font-medium px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2">
-        <Check size={15} />{msg}
-      </div>
-    </div>
-  );
-}
-
-// Toast com "Desfazer" — some sozinho em 5s (com contagem visual), ou a pessoa cancela antes
-function DesfazerToast({ T, mensagem, onDesfazer }) {
-  const [progresso, setProgresso] = useState(100);
-  useEffect(() => {
-    const inicio = Date.now();
-    const intervalo = setInterval(() => {
-      const restante = Math.max(0, 100 - ((Date.now() - inicio) / 5000) * 100);
-      setProgresso(restante);
-      if (restante <= 0) clearInterval(intervalo);
-    }, 50);
-    return () => clearInterval(intervalo);
-  }, []);
-  return (
-    <div className="fixed bottom-20 lg:bottom-6 left-4 right-4 lg:left-72 z-50">
-      <div style={{ background: "#1F2430" }} className="max-w-md mx-auto rounded-2xl px-4 py-3 shadow-lg overflow-hidden relative">
-        <div style={{ width: `${progresso}%`, background: "rgba(255,255,255,0.15)" }} className="absolute inset-y-0 left-0 transition-[width] duration-75 ease-linear" />
-        <div className="relative flex items-center gap-3">
-          <p className="text-white text-xs font-medium flex-1">{mensagem}</p>
-          <button onClick={onDesfazer} style={{ color: "#7FB2FF" }} className="text-xs font-bold shrink-0">Desfazer</button>
-        </div>
       </div>
     </div>
   );
