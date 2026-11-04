@@ -54,7 +54,8 @@ export function erroInteligencia(error) {
     ["descricao_obrigatoria", "Descreva a tarefa."], ["Failed to fetch", "Sem conexão com o servidor."],
   ];
   const achado = mapa.find(([k]) => m.includes(k));
-  return achado ? achado[1] : (m || "Algo deu errado.");
+  if (!achado && m) console.error("[erroInteligencia]", m); // detalhe técnico só no console, nunca na tela
+  return achado ? achado[1] : "Algo deu errado. Tente de novo.";
 }
 
 function comprimirFoto(file, maxW = 720, quality = 0.62) {

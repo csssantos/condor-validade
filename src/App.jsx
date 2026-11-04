@@ -35,7 +35,7 @@ import { PalcoInicio, PalcoPagina } from "./Inicio";
 import { AceiteCampo, AceiteObrigatorio, LegalLeitor, LinksLegais, PaginaPrivacidade, TERMOS_VERSAO, lerAceiteLocal, gravarAceiteLocal, marcarAceitePendente, temAceitePendente, limparAceitePendente, registrarAceite } from "./Legal";
 import { TelaCarregando, FUNDO_MARCA, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
 import { gerarImagemProduto } from "./compartilharImagem";
-import { AvisoToast, AvisoDesfazer, classificarTom, TONS, DESFAZER_MS } from "./Avisos";
+import { AvisoToast, AvisoDesfazer, classificarTom, duracaoAviso, DESFAZER_MS } from "./Avisos";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
@@ -1621,12 +1621,16 @@ function AppInner() {
       (async () => {
         const fila = lerFila();
         if (!fila.length) return;
-        showToast(`☁️ Sincronizando ${fila.length} registro(s)…`);
-        await processarFila();
-        const [cat, its, hist] = await Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]);
-        setCatalog(cat); setItems(its); setHistorico(hist);
-        saveLocal(SNAPSHOT_KEY, { cat, its, hist });
-        showToast("Sincronizado com sucesso!");
+        showToast(`Sincronizando ${fila.length} registro(s)…`, "carregando");
+        try {
+          await processarFila();
+          const [cat, its, hist] = await Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]);
+          setCatalog(cat); setItems(its); setHistorico(hist);
+          saveLocal(SNAPSHOT_KEY, { cat, its, hist });
+          const restam = lerFila().length;
+          if (restam > 0) showToast(`${restam} registro(s) ainda não foram enviados e continuam guardados no aparelho.`, "aviso");
+          else showToast("Tudo sincronizado.");
+        } catch { showToast("Não foi possível sincronizar agora. Os registros continuam guardados no aparelho.", "erro"); }
       })();
     }
     function aoFicarOffline() { setOnline(false); }
@@ -1877,7 +1881,7 @@ function AppInner() {
     toastIdRef.current += 1;
     setToast({ msg, tone: tom, id: toastIdRef.current });
     clearTimeout(toastTimerRef.current); // o aviso novo não pode ser apagado pelo tempo do anterior
-    toastTimerRef.current = setTimeout(() => setToast(null), TONS[tom].ms);
+    toastTimerRef.current = setTimeout(() => setToast(null), duracaoAviso(msg, tom));
   }, []);
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
@@ -2190,7 +2194,7 @@ function AppInner() {
       setDraftProduct({ nome: res.nome, setor: res.setorSugerido || "", foto: null, ...extraPreco });
       setIntencaoFluxo(res.validade ? "validade" : "cadastro");
       setFlow("confirm");
-      showToast("Produto novo: complete setor e localização.");
+      showToast("Produto novo: complete setor e localização.", "aviso");
     }
   }
 
@@ -2618,7 +2622,8 @@ function AppInner() {
           style={{ position: "fixed", top: 0, left: 0, width: 1, height: 1, opacity: 0, border: "none", padding: 0, pointerEvents: "none" }}
           aria-hidden="true" tabIndex={-1} />
       )}
-      {toast && <AvisoToast msg={toast.msg} tom={toast.tone} id={toast.id} />}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">{toast ? toast.msg : ""}</div>
+      {toast && <AvisoToast msg={toast.msg} tom={toast.tone} id={toast.id} elevar={!!desfazer} />}
       {desfazer && <AvisoDesfazer mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} />}
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
@@ -4007,7 +4012,7 @@ function RondaAvisosHost({ T, usuarioId, onIrParaRondas, showToast }) {
         a.tipo === "tarefa" ? `Nova tarefa: ${d.descricao || ""}` :
         a.tipo === "tarefa_aprovada" ? "Sua tarefa foi aprovada." :
         a.tipo === "tarefa_concluida" ? `${d.por || "Um funcionário"} concluiu uma tarefa para aprovar.` : null;
-      if (msg) showToast(msg);
+      if (msg) showToast(msg, "info"); // texto de outra pessoa: tom fixo, nunca decidido pelo conteúdo
       supabase.rpc("marcar_aviso_lido", { p_id: a.id });
     }
   }, [showToast]);
@@ -4240,7 +4245,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
     if (!error) { setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, _pendente: false } : x))); setAberto(null); return true; }
     if (ehErroDeRede(error)) {
       gravarFilaRonda([...lerFilaRonda(), args]); setNaFila((n) => n + 1);
-      showToast("Sem internet: conferência guardada no aparelho. Ela é enviada sozinha quando a conexão voltar.");
+      showToast("Sem internet: conferência guardada no aparelho. Ela é enviada sozinha quando a conexão voltar.", "aviso");
       setAberto(null); return true;
     }
     setItens((prev) => prev.map((x) => (x.id === item.id ? antes : x)));
