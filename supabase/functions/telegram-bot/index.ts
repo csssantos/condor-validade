@@ -93,7 +93,7 @@ async function buscarNaInternet(bc: string) {
 
 // ---------- Catálogo e sessão ----------
 type Novo = { barcode: string; nome: string; foto: string | null; fotoUsuario?: boolean; setor: string | null; etapa: "imagem" | "nome" | "foto" | "setor" | null };
-type Dados = { pilha?: string[]; barcode?: string; nome?: string; porPeso?: boolean; validade?: string; quantidade?: number; lote?: string; semLote?: boolean; opcoes?: { barcode: string; nome: string }[]; dupAsk?: boolean; novo?: Novo; criouProduto?: boolean };
+type Dados = { pilha?: string[]; cancelando?: boolean; avisou?: boolean; fotoStash?: { barcode: string; foto: string }; barcode?: string; nome?: string; porPeso?: boolean; validade?: string; quantidade?: number; lote?: string; semLote?: boolean; opcoes?: { barcode: string; nome: string }[]; dupAsk?: boolean; novo?: Novo; criouProduto?: boolean };
 type Ctx = { vinculo_id: string; tipo: "funcionario" | "promotor"; usuario_id?: string; convite_id?: string; loja_id: number; nome: string; marca?: string; marcas?: string[]; acesso_total?: boolean };
 // marca casa só como palavra inteira, sem diferenciar acento/maiúscula (igual ao banco: _marca_casa)
 const escRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -131,12 +131,22 @@ async function carregarCatalogo(ctx: Ctx) {
 
 // cada resposta tem 5 minutos; passou disso, o lançamento em andamento é cancelado (e a pessoa é avisada na próxima mensagem)
 const TEMPO_RESPOSTA_MS = 5 * 60000;
+// descarta o produto novo, mas guarda a foto (uma só) para o "voltar" poder recuperá-la
+function descartarNovo(d: Dados) { if (d.novo?.foto) d.fotoStash = { barcode: d.novo.barcode, foto: d.novo.foto }; delete d.novo; }
 async function sessaoExpirada(chat: number): Promise<Dados | null> {
-  const { data } = await sb.from("telegram_sessoes").update({ estado: "expirada", atualizado_em: new Date().toISOString() })
-    .eq("chat_id", chat).in("estado", ["aguardando_info", "aguardando_confirmacao"]).lt("expira_em", new Date().toISOString()).select("dados").maybeSingle();
+  const agora = new Date().toISOString();
+  await sb.from("telegram_sessoes").update({ estado: "expirada", atualizado_em: agora })
+    .eq("chat_id", chat).in("estado", ["aguardando_info", "aguardando_confirmacao"]).lt("expira_em", agora);
+  // o cron também marca sessões como expiradas: avisa uma única vez (flag "avisou") a sessão com progresso que expirou na última hora, se não há outra em andamento
+  const { count } = await sb.from("telegram_sessoes").select("id", { count: "exact", head: true }).eq("chat_id", chat).in("estado", ["aguardando_info", "aguardando_confirmacao", "confirmado"]);
+  if (count) return null;
+  const { data } = await sb.from("telegram_sessoes").select("id,dados").eq("chat_id", chat).eq("estado", "expirada")
+    .gt("atualizado_em", new Date(Date.now() - 3600000).toISOString()).order("atualizado_em", { ascending: false }).limit(1).maybeSingle();
   if (!data) return null;
   const d = (data.dados || {}) as Dados;
-  return d.barcode || d.novo || d.validade || d.quantidade != null || d.lote ? d : null; // conversa vazia que expirou não precisa de aviso
+  if (d.avisou || !temProgresso(d)) return null; // conversa vazia que expirou não precisa de aviso
+  await sb.from("telegram_sessoes").update({ dados: { ...d, avisou: true } }).eq("id", data.id);
+  return d;
 }
 async function avisarExpirou(chat: number, d: Dados) {
   const nome = d.nome ?? d.novo?.nome;
@@ -185,10 +195,10 @@ const diasAte = (iso: string) => { const h = hoje(); const [vy, vm, vd] = iso.sp
 const MSG_SEM_LOTE = "Sem lote não dá para lançar pelo Telegram. Confira a embalagem: o lote fica impresso perto da validade. Se o produto realmente não tem lote, avise o encarregado para lançar pelo app.\n\nPara desistir, envie /cancelar.";
 const MSG_PERTO = (nome: string | undefined, validade: string, dias: number) =>
   `⚠️ ${nome ? nome + "\n" : ""}Esse produto ${dias <= 0 ? "vence HOJE" : dias === 1 ? "vence AMANHÃ" : "vence em 2 dias"} (${fmtData(validade)}).\n\nProduto com até 2 dias para vencer não é lançado pelo Telegram. Leve o produto ao gerente o mais rápido possível, para pedir o preço direto.\n\nNada foi lançado.\n\nSe digitou a data errada, mande a data certa. Para desistir, envie /cancelar.`;
-function perguntarSetor(chat: number, sid: string) {
+function perguntarSetor(chat: number, sid: string, pre = "") {
   const linhas: { t: string; d: string }[][] = [];
   SETORES.forEach((s, i) => { if (i % 2 === 0) linhas.push([]); linhas[linhas.length - 1].push({ t: s, d: `st:${sid}:${i}` }); });
-  return falar(chat, "Em qual setor esse produto novo fica?", linhas, "novo");
+  return falar(chat, pre + "Em qual setor esse produto novo fica?", linhas, "novo");
 }
 async function proximoPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados, aviso = "") {
   // travas (mesmas da voz): data passada, quantidade absurda...
@@ -229,7 +239,7 @@ async function escolherProduto(ctx: Ctx, chat: number, s: { id: string }, d: Dad
   const cat = await carregarCatalogo(ctx);
   const r = buscarNoCatalogo(String(nomeFalado).split(/\s+/).slice(0, 14).join(" ").slice(0, 120), cat); // limite de tamanho: busca fonética é pesada
   if (r.tipo === "encontrado") {
-    const e = r.candidatos[0].entrada; d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; delete d.novo; delete d.lote; delete d.semLote;
+    const e = r.candidatos[0].entrada; d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; descartarNovo(d); delete d.lote; delete d.semLote;
     return proximoPasso(ctx, chat, s, d);
   }
   if (r.tipo === "varios" || r.tipo === "marca") {
@@ -244,7 +254,7 @@ async function escolherProduto(ctx: Ctx, chat: number, s: { id: string }, d: Dad
 }
 
 async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, bc: string) {
-  delete d.novo;
+  descartarNovo(d);
   const cat = await carregarCatalogo(ctx);
   const e = cat[bc];
   if (e) { d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; delete d.lote; delete d.semLote; return proximoPasso(ctx, chat, s, d); }
@@ -262,6 +272,7 @@ async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, b
     return falar(chat, "Esse código ainda não está no app e não achei o produto na internet.\n\nSe for um produto novo, envie o nome completo (marca + produto); depois eu peço uma foto legível da embalagem. Ou confira o número do código.", undefined, "novo");
   }
   const nome = formatarNomeNovo(achou.nome, cat).nomeNovo;
+  delete d.fotoStash; // só uma foto pesada por conversa
   d.novo = { barcode: bc, nome, foto: achou.dataUrl, setor: adivinharSetor(nome), etapa: "imagem" };
   await salvar(s.id, "aguardando_info", d);
   const legenda = `Esse produto não está no app. Achei na internet:\n\n${nome}\nCódigo: ${bc}${achou.dataUrl ? "" : "\n(sem imagem disponível: vou pedir uma foto sua)"}\n\nÉ esse o produto${achou.dataUrl ? " e posso usar essa imagem no cadastro do app" : ""}?`;
@@ -307,11 +318,20 @@ async function novoConfirmado(ctx: Ctx, chat: number, s: { id: string }, d: Dado
 }
 
 async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
+  const low0 = semAcento(texto).replace(/[!.,;:?]+\s*$/g, "").trim();
+  if (/^(cancelar|cancela|voltar|volta|corrigir anterior|errei)$/.test(low0) && !(await sessaoAtiva(chat))) return falar(chat, "Não há lançamento em andamento. Para começar, envie o código de barras ou o nome do produto.", undefined, "ajuda");
   const s = await garantirSessao(ctx, chat);
   if (!s) return falar(chat, "Não consegui iniciar agora. Tente de novo em instantes.", undefined, "atencao");
   const d: Dados = { ...(s.dados || {}) };
   const low = semAcento(texto).replace(/[!.,;:?]+\s*$/g, "").trim();
   if (texto.length > 300) return falar(chat, "Mensagem muito longa. Envie só o código de barras ou o nome do produto.", undefined, "atencao");
+  await sb.from("telegram_sessoes").update({ expira_em: new Date(Date.now() + TEMPO_RESPOSTA_MS).toISOString() }).eq("id", s.id); // mensagem recebida renova os 5 minutos
+  // pergunta "quer mesmo cancelar?" aberta: "sim" cancela, "não" continua; nada mais é aceito até responder
+  if (d.cancelando && !/^(voltar|volta|corrigir anterior|errei)$/.test(low)) {
+    if (/^(sim|s|isso|cancelar|cancela)$/.test(low)) return cancelar(chat, s.id);
+    if (/^(nao|n|continuar|continua)$/.test(low)) { delete d.cancelando; return reperguntar(ctx, chat, s, d, "Ok, vamos continuar."); }
+    return falar(chat, "Antes de seguir: quer mesmo cancelar? Toque num dos botões acima, ou escreva SIM para cancelar ou NÃO para continuar.", undefined, "atencao");
+  }
   // "cancelar" vale em qualquer etapa (inclusive na pergunta do lote), mas pede confirmação; "voltar" desfaz a última resposta
   if (/^(cancelar|cancela)$/.test(low)) return pedirCancelar(chat, s);
   if (/^(voltar|volta|corrigir anterior|errei)$/.test(low)) return voltar(ctx, chat, s);
@@ -376,7 +396,7 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
 
 // ---------- Voltar uma resposta / cancelar com confirmação ----------
 // cada resposta guarda uma "foto" do estado anterior (sem a imagem do produto novo, que é pesada)
-const snap = (d: Dados) => JSON.stringify({ ...d, pilha: undefined, novo: d.novo ? { ...d.novo, foto: d.novo.foto ? "__keep__" : null } : undefined });
+const snap = (d: Dados) => JSON.stringify({ ...d, pilha: undefined, cancelando: undefined, avisou: undefined, fotoStash: undefined, novo: d.novo ? { ...d.novo, foto: d.novo.foto ? "__keep__" : null } : undefined });
 const temProgresso = (d: Dados) => !!(d.barcode || d.novo || d.validade || d.quantidade != null || d.lote || d.semLote);
 function empilhar(d: Dados, atual: Dados) {
   if (!temProgresso(atual)) return;
@@ -389,13 +409,14 @@ function empilhar(d: Dados, atual: Dados) {
 async function reperguntar(ctx: Ctx, chat: number, s: { id: string }, d: Dados, aviso = "") {
   const pre = aviso ? aviso + "\n\n" : "";
   const n = d.novo;
+  if (n && !n.foto && !n.etapa) n.etapa = "foto"; // sem imagem recuperada: pede a foto de novo em vez de mandar para aprovação sem imagem
   if (n?.etapa === "imagem") {
     await salvar(s.id, "aguardando_info", d);
-    return falar(chat, pre + `Esse produto não está no app. Achei na internet:\n\n${n.nome}\nCódigo: ${n.barcode}\n\nÉ esse o produto?`, [[{ t: "✅ Sim, é esse", d: `im:${s.id}:1` }, { t: "❌ Não é", d: `im:${s.id}:0` }]], "novo");
+    return falar(chat, pre + `Esse produto não está no app. Achei este na internet:\n\n${n.nome}\nCódigo: ${n.barcode}\n\nÉ esse o produto?`, [[{ t: "✅ Sim, é esse", d: `im:${s.id}:1` }, { t: "❌ Não é", d: `im:${s.id}:0` }]], "novo");
   }
   if (n?.etapa === "nome") { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + "Envie o nome completo do produto, com marca e produto (ex.: Bauducco Biscoito Maria 200g).", undefined, "novo"); }
   if (n?.etapa === "foto") { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + MSG_PEDIR_FOTO, undefined, "novo"); }
-  if (n?.etapa === "setor") { await salvar(s.id, "aguardando_info", d); if (pre) await falar(chat, aviso, undefined, "novo"); return perguntarSetor(chat, s.id); }
+  if (n?.etapa === "setor") { await salvar(s.id, "aguardando_info", d); return perguntarSetor(chat, s.id, pre); }
   return proximoPasso(ctx, chat, s, d, aviso);
 }
 async function voltar(ctx: Ctx, chat: number, s: { id: string; dados: Dados }) {
@@ -407,16 +428,24 @@ async function voltar(ctx: Ctx, chat: number, s: { id: string; dados: Dados }) {
   if (!ant) return falar(chat, "Não há resposta anterior para voltar. Para desistir do lançamento, envie /cancelar.", undefined, "atencao");
   const r = JSON.parse(ant) as Dados;
   if (r.novo) r.novo.foto = (r.novo.foto as unknown) === "__keep__" ? (d.novo?.barcode === r.novo.barcode ? d.novo.foto : null) : r.novo.foto;
+  if (r.novo && !r.novo.foto && d.fotoStash && d.fotoStash.barcode === r.novo.barcode) r.novo.foto = d.fotoStash.foto; // recupera a foto guardada
+  if (!r.novo?.foto && d.fotoStash) r.fotoStash = d.fotoStash;
   r.pilha = pilha;
   return reperguntar(ctx, chat, s, r, "↩️ Voltei uma resposta. Pode corrigir.");
 }
 // "cancelar": se já há dados na conversa, confirma antes (cancelar, voltar uma resposta ou continuar)
-async function pedirCancelar(chat: number, s: { id: string; dados: Dados }) {
-  const d = (s.dados || {}) as Dados;
+async function pedirCancelar(chat: number, s: { id: string; dados: Dados; estado?: string }) {
+  const d = { ...((s.dados || {}) as Dados) };
+  if (s.estado === "confirmado") return falar(chat, "Seu lançamento já está sendo gravado, não dá mais para cancelar.", undefined, "atencao");
   if (!temProgresso(d)) return cancelar(chat, s.id);
+  d.cancelando = true;
+  await salvar(s.id, s.estado === "aguardando_confirmacao" ? "aguardando_confirmacao" : "aguardando_info", d);
+  const atual = snap(d); const p = [...(d.pilha || [])];
+  while (p.length && p[p.length - 1] === atual) p.pop();
   const nome = d.nome ?? d.novo?.nome;
-  return falar(chat, `Quer mesmo cancelar${nome ? " o lançamento de " + nome : " o lançamento"}? O que já respondeu será perdido.`,
-    [[{ t: "🗑️ Sim, cancelar", d: `cc:${s.id}:s` }], [{ t: "↩️ Voltar uma resposta", d: `cc:${s.id}:v` }, { t: "▶️ Continuar", d: `cc:${s.id}:c` }]], "atencao");
+  const linha2 = p.length ? [{ t: "↩️ Voltar uma resposta", d: `cc:${s.id}:v` }, { t: "▶️ Continuar", d: `cc:${s.id}:c` }] : [{ t: "▶️ Continuar", d: `cc:${s.id}:c` }];
+  return falar(chat, `Quer mesmo cancelar${nome ? " o lançamento de " + nome : " o lançamento"}? O que já respondeu será perdido.\n\nToque num botão ou escreva SIM (cancelar) ou NÃO (continuar).`,
+    [[{ t: "🗑️ Sim, cancelar", d: `cc:${s.id}:s` }], linha2], "atencao");
 }
 
 async function perguntarCorrecao(chat: number, sid: string, novo = false) {
@@ -426,6 +455,7 @@ async function perguntarCorrecao(chat: number, sid: string, novo = false) {
 }
 async function cancelar(chat: number, sid: string) {
   const { data: cx } = await sb.from("telegram_sessoes").update({ estado: "cancelado", atualizado_em: new Date().toISOString() }).eq("id", sid).in("estado", ["aguardando_info", "aguardando_confirmacao"]).select("dados").maybeSingle();
+  if (!cx) return falar(chat, "Esse lançamento já foi gravado ou cancelado.", undefined, "atencao");
   if (cx?.dados?.barcode || cx?.dados?.novo?.barcode) await auditar(chat, "cancelou lançamento no Telegram", cx.dados.nome ?? cx.dados.novo?.nome, cx.dados.barcode ?? cx.dados.novo?.barcode);
   return falar(chat, "Lançamento cancelado. Quando quiser, é só mandar um novo produto.", undefined, "cancelado");
 }
@@ -491,7 +521,7 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
       await salvar(s.id, "registrado", d);
       return falar(chat, `⏳ Enviado para aprovação!\n${d.nome}\nValidade ${fmtData(d.validade)} · ${d.lote ? `Lote ${d.lote} · ` : "Sem lote · "}${num(d.quantidade)} un\n\nUm encarregado vai conferir o produto novo. Eu aviso aqui quando ele aprovar ou se recusar.`, undefined, "aprovacao");
     }
-    if (mc.includes("produto_ja_existe")) { delete d.novo; await salvar(s.id, "confirmado", d); } // alguém cadastrou nesse meio tempo: lança direto
+    if (mc.includes("produto_ja_existe")) { descartarNovo(d); await salvar(s.id, "confirmado", d); } // alguém cadastrou nesse meio tempo: lança direto
     else {
       await salvar(s.id, "aguardando_confirmacao", d);
       const k = Object.keys(ERROS_NOVO).find((x) => mc.includes(x));
@@ -602,6 +632,9 @@ async function processar(up: Record<string, any>) {
     if (!s || s.id !== sid) { await tirarBotoes(); await falar(chat, "Esse lançamento já foi tratado ou expirou.", undefined, "atencao"); await marcar("processada"); return; }
     await tirarBotoes();
     const d: Dados = s.dados || {};
+    await sb.from("telegram_sessoes").update({ expira_em: new Date(Date.now() + TEMPO_RESPOSTA_MS).toISOString() }).eq("id", s.id);
+    if (acao === "cc" && !d.cancelando) { await falar(chat, "Esse pedido de cancelamento já foi tratado.", undefined, "atencao"); await marcar("processada"); return; }
+    if (d.cancelando && acao !== "cc") { await pedirCancelar(chat, { ...s, dados: { ...d, cancelando: false } }); await marcar("processada"); return; }
     if (["cx", "pr", "im", "st"].includes(acao)) empilhar(d, s.dados || {}); // dá para voltar depois desta escolha
     if (acao === "ok") await confirmar(ctx, chat, s.id, false);
     else if (acao === "dp") await confirmar(ctx, chat, s.id, true);
@@ -609,11 +642,11 @@ async function processar(up: Record<string, any>) {
     else if (acao === "cc") {
       if (extra === "s") await cancelar(chat, s.id);
       else if (extra === "v") await voltar(ctx, chat, s);
-      else await reperguntar(ctx, chat, s, d, "Ok, vamos continuar.");
+      else { delete d.cancelando; await reperguntar(ctx, chat, s, d, "Ok, vamos continuar."); }
     }
     else if (acao === "fx") await perguntarCorrecao(chat, s.id, !!d.novo);
     else if (acao === "cx") {
-      if (extra === "p") { delete d.barcode; delete d.nome; delete d.porPeso; delete d.novo; delete d.criouProduto; delete d.lote; delete d.semLote; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual é o produto? Código de barras ou nome.", undefined, "produto"); }
+      if (extra === "p") { delete d.barcode; delete d.nome; delete d.porPeso; descartarNovo(d); delete d.criouProduto; delete d.lote; delete d.semLote; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual é o produto? Código de barras ou nome.", undefined, "produto"); }
       else if (extra === "v") { delete d.validade; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual a data de validade? (ex.: 15/12/2026)", undefined, "validade"); }
       else if (extra === "l") { delete d.lote; delete d.semLote; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual o lote? (impresso na embalagem, perto da validade)", undefined, "lote"); }
       else if (extra === "q") { delete d.quantidade; await salvar(s.id, "aguardando_info", d); await falar(chat, d.porPeso ? "Certo. Quantos kg?" : "Certo. Quantas unidades?", undefined, "quantidade"); }
@@ -622,10 +655,10 @@ async function processar(up: Record<string, any>) {
       await falar(chat, MSG_SEM_LOTE, undefined, "atencao");
     } else if (acao === "pr") {
       const o = d.opcoes?.[Number(extra)];
-      if (o) { const cat = await carregarCatalogo(ctx); const e = cat[o.barcode]; if (e) { d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; delete d.novo; delete d.lote; delete d.semLote; await proximoPasso(ctx, chat, s, d); } }
+      if (o) { const cat = await carregarCatalogo(ctx); const e = cat[o.barcode]; if (e) { d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; descartarNovo(d); delete d.lote; delete d.semLote; await proximoPasso(ctx, chat, s, d); } }
     } else if (acao === "im" && d.novo?.etapa === "imagem") {
       if (extra === "1") await novoConfirmado(ctx, chat, s, d);
-      else { delete d.novo; await salvar(s.id, "aguardando_info", d); await falar(chat, "Ok, descartei esse produto. Confira o código ou envie outro produto.", undefined, "produto"); }
+      else { descartarNovo(d); await salvar(s.id, "aguardando_info", d); await falar(chat, "Ok, descartei esse produto. Confira o código ou envie outro produto.", undefined, "produto"); }
     } else if (acao === "st" && d.novo?.etapa === "setor") {
       const setor = SETORES[Number(extra)];
       if (setor) { d.novo.setor = setor; d.novo.etapa = null; await proximoPasso(ctx, chat, s, d); }
@@ -638,7 +671,10 @@ async function processar(up: Record<string, any>) {
   if (/^\/ajuda/i.test(texto)) { await falar(chat, AJUDA, undefined, "ajuda"); await marcar("processada"); return; }
   { // 5 minutos sem resposta: avisa que o lançamento anterior foi cancelado (e segue com a mensagem como conversa nova)
     const exp = await sessaoExpirada(chat);
-    if (exp) await avisarExpirou(chat, exp);
+    if (exp) {
+      await avisarExpirou(chat, exp);
+      if (!/^\/sair/i.test(texto) && !(msg.text && /\b\d{8,14}\b/.test(texto))) { await marcar("processada"); return; } // mensagem tardia (sim, data, foto...) não abre conversa nova
+    }
   }
   if (/^\/voltar/i.test(texto)) { const s = await sessaoAtiva(chat); if (s) await voltar(ctx, chat, s); else await falar(chat, "Não há lançamento em andamento.", undefined, "ajuda"); await marcar("processada"); return; }
   if (/^\/cancelar/i.test(texto)) { const s = await sessaoAtiva(chat); if (s) await pedirCancelar(chat, s); else await falar(chat, "Não há lançamento em andamento.", undefined, "ajuda"); await marcar("processada"); return; }
@@ -653,6 +689,8 @@ async function processar(up: Record<string, any>) {
     if (s && s.estado === "aguardando_info" && dd.novo?.etapa === "foto" && ctx.tipo === "funcionario") {
       const f = await baixarFotoTelegram(msg.photo);
       if (!f.ok) { await falar(chat, "⚠️ " + f.motivo, undefined, "atencao"); await marcar("ignorada", "foto_invalida"); return; }
+      empilhar(dd, dd); // dá para voltar depois da foto
+      delete dd.fotoStash;
       dd.novo.foto = f.dataUrl; dd.novo.fotoUsuario = true;
       await novoConfirmado(ctx, chat, s, dd);
       await marcar("processada"); return;
