@@ -35,6 +35,7 @@ import { PalcoInicio, PalcoPagina } from "./Inicio";
 import { AceiteCampo, AceiteObrigatorio, LegalLeitor, LinksLegais, PaginaPrivacidade, TERMOS_VERSAO, lerAceiteLocal, gravarAceiteLocal, marcarAceitePendente, temAceitePendente, limparAceitePendente, registrarAceite } from "./Legal";
 import { TelaCarregando, FUNDO_MARCA, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
 import { gerarImagemProduto } from "./compartilharImagem";
+import { AvisoToast, AvisoDesfazer, classificarTom, duracaoAviso, DESFAZER_MS } from "./Avisos";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
@@ -1620,12 +1621,16 @@ function AppInner() {
       (async () => {
         const fila = lerFila();
         if (!fila.length) return;
-        showToast(`☁️ Sincronizando ${fila.length} registro(s)…`);
-        await processarFila();
-        const [cat, its, hist] = await Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]);
-        setCatalog(cat); setItems(its); setHistorico(hist);
-        saveLocal(SNAPSHOT_KEY, { cat, its, hist });
-        showToast("Sincronizado com sucesso!");
+        showToast(`Sincronizando ${fila.length} registro(s)…`, "carregando");
+        try {
+          await processarFila();
+          const [cat, its, hist] = await Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]);
+          setCatalog(cat); setItems(its); setHistorico(hist);
+          saveLocal(SNAPSHOT_KEY, { cat, its, hist });
+          const restam = lerFila().length;
+          if (restam > 0) showToast(`${restam} registro(s) ainda não foram enviados e continuam guardados no aparelho.`, "aviso");
+          else showToast("Tudo sincronizado.");
+        } catch { showToast("Não foi possível sincronizar agora. Os registros continuam guardados no aparelho.", "erro"); }
       })();
     }
     function aoFicarOffline() { setOnline(false); }
@@ -1869,10 +1874,16 @@ function AppInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, loading, notifPermission]);
 
-  function showToast(msg, tone = "ok") {
-    setToast({ msg, tone });
-    setTimeout(() => setToast(null), 2600);
-  }
+  const toastTimerRef = useRef(null);
+  const toastIdRef = useRef(0);
+  const showToast = useCallback((msg, tone) => {
+    const tom = classificarTom(msg, tone);
+    toastIdRef.current += 1;
+    setToast({ msg, tone: tom, id: toastIdRef.current });
+    clearTimeout(toastTimerRef.current); // o aviso novo não pode ser apagado pelo tempo do anterior
+    toastTimerRef.current = setTimeout(() => setToast(null), duracaoAviso(msg, tom));
+  }, []);
+  useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
   // Ação com "desfazer" de 5s: a mudança já aparece na tela na hora, mas só grava de verdade
   // no Supabase depois desse tempo (a não ser que a pessoa cancele antes).
@@ -1884,7 +1895,7 @@ function AppInner() {
       setDesfazer((d) => (d && d.id === id ? null : d));
       desfazerTimeoutRef.current = null;
       onConfirmar();
-    }, 5000) };
+    }, DESFAZER_MS) };
     setDesfazer({ id, mensagem, onDesfazer: () => {
       clearTimeout(desfazerTimeoutRef.current.timeoutId);
       desfazerTimeoutRef.current = null;
@@ -2098,7 +2109,7 @@ function AppInner() {
   function saveAlertItem(dados) {
     if (dados.somarAoLoteId) {
       const orig = items.find((it) => it.id === dados.somarAoLoteId);
-      if (!orig) { showToast("Lote não encontrado.", "warn"); return; }
+      if (!orig) { showToast("Lote não encontrado.", "erro"); return; }
       if (!podeEditarProduto(orig)) { showToast("Esse lote foi lançado por outra pessoa: peça ao encarregado do setor para somar.", "warn"); return; }
       const add = Math.round(Number(dados.quantidade) || 0);
       if (add < 1 || add > limiteSomaLote(orig.quantidade)) { showToast(`Só dá para somar até ${limiteSomaLote(orig.quantidade)} un de uma vez.`, "warn"); return; }
@@ -2110,7 +2121,7 @@ function AppInner() {
         if (erroDeRede(error)) window.dispatchEvent(new CustomEvent("condor-erro-gravacao", { detail: { mensagem: "Sem internet: a soma ao lote não foi enviada. Tente de novo quando a conexão voltar." } }));
         else avisarErroGravacao(error, "a soma ao lote");
       });
-      showToast(`Somado ao lote ${orig.lote}: agora ${novoItem.quantidade} un.`);
+      showToast(`Somado ao lote ${orig.lote}: agora ${novoItem.quantidade} un.`, "ok");
       resetFlow();
       return;
     }
@@ -2183,7 +2194,7 @@ function AppInner() {
       setDraftProduct({ nome: res.nome, setor: res.setorSugerido || "", foto: null, ...extraPreco });
       setIntencaoFluxo(res.validade ? "validade" : "cadastro");
       setFlow("confirm");
-      showToast("Produto novo: complete setor e localização.");
+      showToast("Produto novo: complete setor e localização.", "aviso");
     }
   }
 
@@ -2358,7 +2369,7 @@ function AppInner() {
       }
     } catch (e) { console.warn("compartilhar: falha ao gerar imagem", e); }
     finally { compartilhandoRef.current = false; }
-    try { await navigator.clipboard.writeText(texto); showToast("Não deu para gerar a imagem; copiei as informações em texto."); }
+    try { await navigator.clipboard.writeText(texto); showToast("Não deu para gerar a imagem; copiei as informações em texto.", "aviso"); }
     catch { showToast("Não foi possível compartilhar.", "warn"); }
   }
 
@@ -2611,8 +2622,9 @@ function AppInner() {
           style={{ position: "fixed", top: 0, left: 0, width: 1, height: 1, opacity: 0, border: "none", padding: 0, pointerEvents: "none" }}
           aria-hidden="true" tabIndex={-1} />
       )}
-      {toast && <Toast msg={toast.msg} tone={toast.tone} />}
-      {desfazer && <DesfazerToast T={T} mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} />}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">{toast ? toast.msg : ""}</div>
+      {toast && <AvisoToast msg={toast.msg} tom={toast.tone} id={toast.id} elevar={!!desfazer} />}
+      {desfazer && <AvisoDesfazer mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} />}
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
         {avisoAtual && <AvisoModal T={T} aviso={avisoAtual} onFechar={() => marcarAvisoVisto(avisoAtual.id)} />}
@@ -2775,6 +2787,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-avisos", data: "04/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Avisos do app refeitos no estilo da tela de carregamento, com bolinhas e a cor do status (verde pronto, azul aguarde, laranja atenção, vermelho erro), sem a caixa vermelha." },
+  ] },
   { id: "2026-11-04-compartilhar-imagem", data: "04/11/2026", itens: [
     { tipo: "novo", ate: 7, texto: "Compartilhar produto agora envia uma imagem no estilo do app, com a foto, a validade, o lote, a quantidade, o setor e o código, mais a data e a hora em que foi gerada." },
   ] },
@@ -3997,7 +4012,7 @@ function RondaAvisosHost({ T, usuarioId, onIrParaRondas, showToast }) {
         a.tipo === "tarefa" ? `Nova tarefa: ${d.descricao || ""}` :
         a.tipo === "tarefa_aprovada" ? "Sua tarefa foi aprovada." :
         a.tipo === "tarefa_concluida" ? `${d.por || "Um funcionário"} concluiu uma tarefa para aprovar.` : null;
-      if (msg) showToast(msg);
+      if (msg) showToast(msg, "info"); // texto de outra pessoa: tom fixo, nunca decidido pelo conteúdo
       supabase.rpc("marcar_aviso_lido", { p_id: a.id });
     }
   }, [showToast]);
@@ -4230,7 +4245,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
     if (!error) { setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, _pendente: false } : x))); setAberto(null); return true; }
     if (ehErroDeRede(error)) {
       gravarFilaRonda([...lerFilaRonda(), args]); setNaFila((n) => n + 1);
-      showToast("Sem internet: conferência guardada no aparelho. Ela é enviada sozinha quando a conexão voltar.");
+      showToast("Sem internet: conferência guardada no aparelho. Ela é enviada sozinha quando a conexão voltar.", "aviso");
       setAberto(null); return true;
     }
     setItens((prev) => prev.map((x) => (x.id === item.id ? antes : x)));
@@ -5834,7 +5849,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
         "Não foi possível pré-cadastrar agora. Confira os dados e tente de novo.", "warn");
       return;
     }
-    showToast(`${f.nome} pré-cadastrado(a) na loja ${lojaObj?.numero_loja}. Já pode bipar o crachá pra criar a conta.`);
+    showToast(`${f.nome} pré-cadastrado(a) na loja ${lojaObj?.numero_loja}. Já pode bipar o crachá pra criar a conta.`, "ok");
     setF({ nome: "", matricula: "", cargoLoja: "", cargoId: "", setor: "" }); setNovoAberto(false); setSubaba("pendentes");
     carregar();
   }
@@ -5846,7 +5861,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
   async function resolverPedido(pd, aprovar) {
     const { error } = await supabase.rpc("resolver_exclusao", { p_id: pd.id, p_aprovar: aprovar });
     if (error) { console.error(error); showToast(erroAcao(error), "warn"); return; }
-    showToast(aprovar ? `${pd.nome} foi excluído(a).` : "Pedido recusado.");
+    showToast(aprovar ? `${pd.nome} foi excluído(a).` : "Pedido recusado.", aprovar ? "ok" : "aviso");
     carregar();
   }
 
@@ -7660,43 +7675,6 @@ function DashboardView({ T, items, historico, rondas, auditoria, nome, lojaNumer
             {d.feed.length === 0 && <p style={{ color: T.subtext }} className="text-xs py-8 text-center">Nenhuma ação registrada ainda.</p>}
           </div>
         </DashCard>
-      </div>
-    </div>
-  );
-}
-
-// ============ Toast ============
-function Toast({ msg, tone }) {
-  const bg = tone === "warn" ? RED_DARK : BLUE_DARK;
-  return (
-    <div className="fixed bottom-20 lg:bottom-6 left-1/2 lg:left-[calc(50%+8rem)] -translate-x-1/2 z-50 max-w-[90%]">
-      <div style={{ background: bg }} className="text-white text-sm font-medium px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2">
-        <Check size={15} />{msg}
-      </div>
-    </div>
-  );
-}
-
-// Toast com "Desfazer" — some sozinho em 5s (com contagem visual), ou a pessoa cancela antes
-function DesfazerToast({ T, mensagem, onDesfazer }) {
-  const [progresso, setProgresso] = useState(100);
-  useEffect(() => {
-    const inicio = Date.now();
-    const intervalo = setInterval(() => {
-      const restante = Math.max(0, 100 - ((Date.now() - inicio) / 5000) * 100);
-      setProgresso(restante);
-      if (restante <= 0) clearInterval(intervalo);
-    }, 50);
-    return () => clearInterval(intervalo);
-  }, []);
-  return (
-    <div className="fixed bottom-20 lg:bottom-6 left-4 right-4 lg:left-72 z-50">
-      <div style={{ background: "#1F2430" }} className="max-w-md mx-auto rounded-2xl px-4 py-3 shadow-lg overflow-hidden relative">
-        <div style={{ width: `${progresso}%`, background: "rgba(255,255,255,0.15)" }} className="absolute inset-y-0 left-0 transition-[width] duration-75 ease-linear" />
-        <div className="relative flex items-center gap-3">
-          <p className="text-white text-xs font-medium flex-1">{mensagem}</p>
-          <button onClick={onDesfazer} style={{ color: "#7FB2FF" }} className="text-xs font-bold shrink-0">Desfazer</button>
-        </div>
       </div>
     </div>
   );
@@ -11510,7 +11488,7 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
     const { error } = await supabase.rpc("recusar_produto_novo", { p_id: a.id, p_motivo: motivo });
     setOcupado(false);
     if (error) { showToast?.(msgErro(error), "warn"); carregar(); return; }
-    avisar(a.id); showToast?.("Lançamento recusado. Motivo enviado pelo Telegram", "ok"); setAberto(null); setRecusando(null); setMotivo(""); carregar();
+    avisar(a.id); showToast?.("Lançamento recusado. Motivo enviado pelo Telegram", "aviso"); setAberto(null); setRecusando(null); setMotivo(""); carregar();
   }
 
   const pend = (lista || []).filter((a) => a.status === "pendente");
