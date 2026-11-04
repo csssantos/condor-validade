@@ -2516,8 +2516,10 @@ function AppInner() {
   const showBottomNav = flow === null;
   // Desktop (lg+): telas de formulário/ajustes ficam estreitas e legíveis; listas e painéis usam mais largura.
   const larguraMain =
-    flow === null && tab.startsWith("cfg-") ? "max-w-md lg:max-w-5xl" :
-    (flow === null && tab === "ajustes") || ["scan", "confirm", "expiry"].includes(flow) ? "max-w-md lg:max-w-2xl" :
+    flow === null && tab.startsWith("cfg-") ? "max-w-md lg:max-w-[1600px]" :
+    (flow === null && tab === "ajustes") || flow === "scan" ? "max-w-md lg:max-w-2xl" :
+    flow === "confirm" ? "max-w-md lg:max-w-3xl" :
+    flow === "expiry" ? "max-w-md lg:max-w-5xl" :
     ["torre", "relatorios", "historico", "auditoria", "rede", "gestao", "convites"].includes(flow) ? "max-w-md lg:max-w-[1600px]" :
     "max-w-md lg:max-w-[1600px]";
   const alertCount = items.filter((i) => ["alert", "expired"].includes(getStatus(i).level)).length;
@@ -2864,6 +2866,10 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-pc-largura", data: "04/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "No computador: as páginas de Configurações agora usam a largura inteira da tela (sem faixas em branco dos lados). Lançar validade ficou em duas colunas, subcategorias e rondas aparecem em grade, e Rondas ganhou cartões de resumo." },
+    { tipo: "novo", ate: 5, texto: "Notificação no aparelho quando chega pedido de aprovação de produto novo pelo Telegram, mesmo com o app fechado (se as notificações estiverem ligadas)." },
+  ] },
   { id: "2026-11-04-aprovacao-campos", data: "04/11/2026", itens: [
     { tipo: "novo", ate: 5, texto: "Aprovar produtos novos: ao aprovar, você precisa informar subcategoria, gramagem e preço (obrigatórios). Eles já entram no cadastro do produto." },
     { tipo: "novo", ate: 5, texto: "Aviso na hora quando chega um pedido de aprovação do Telegram (aviso na tela e notificação, se estiver ligada), e o menu Mais mostra quantos estão aguardando." },
@@ -3749,12 +3755,12 @@ function SetorSubcategoriasView({ T, setor, items, catalog, extras, onVoltar, on
         ) : <span className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,.15)" }}><Icone size={22} color="#fff" /></span>}>
         <p className="text-[12.5px] text-white/80 font-semibold">Escolha uma subcategoria para ver os produtos.</p>
       </PalcoPagina>
-      <div className="space-y-2.5 pb-6">
+      <div className="space-y-2.5 pb-6 lg:space-y-0 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3 lg:items-stretch">
         <Cartao id="__todos__" nome={`Todos os produtos de ${setor}`} {...geral} destaque />
         {linhas.map((l) => <Cartao key={l.id} {...l} />)}
         {semSub.total > 0 && <Cartao id="__sem__" nome="Sem subcategoria" {...semSub} />}
         {onCriarSubsetor && (criando ? (
-          <div className="flex gap-2">
+          <div className="flex gap-2 lg:col-span-full">
             <input value={novoNome} onChange={(e) => setNovoNome(e.target.value)} maxLength={40} placeholder="Nome da subcategoria" autoFocus
               style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="flex-1 rounded-2xl border px-4 py-3 text-sm outline-none" />
             <button onClick={() => { if (novoNome.trim()) { onCriarSubsetor(setor, novoNome); setNovoNome(""); setCriando(false); } }} style={{ background: BLUE, color: "#fff" }} className="px-4 rounded-2xl text-sm font-bold">Criar</button>
@@ -5164,12 +5170,22 @@ function RondasView({ T, perfil, lojaAtiva, catalog, showToast, intent, onIntent
         <div><h2 className="text-lg font-extrabold">Ronda</h2><p style={{ color: T.subtext }} className="text-xs">Loja {lojaAtiva?.numero_loja ?? "—"}{gestor ? "" : " · só o que foi designado a você"}</p></div>
         {gestor && <button onClick={() => setNova({ setor: null })} style={{ background: "#1F9D55", color: "#fff" }} className="px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5"><Plus size={14} /> Iniciar ronda</button>}
       </div>
+      {lista && (
+        <div className="hidden lg:grid grid-cols-3 gap-4 mb-4">
+          {[["Em curso", lista.filter(emCurso).length, "#1F9D55"], ["Minhas", minhasRondas.length, BLUE], ["Encerradas", lista.length - lista.filter(emCurso).length, T.subtext]].map(([r, n, cor]) => (
+            <div key={r} style={{ background: T.card, borderColor: T.chipBg }} className="rounded-2xl border p-4 shadow-sm">
+              <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide">{r}</p>
+              <p style={{ color: cor }} className="text-3xl font-extrabold tabular-nums mt-1">{n}</p>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="mb-4"><DashTabs T={T} value={aba} onChange={setAba} options={abas} /></div>
 
       {(aba === "rondas" || aba === "minhas") && (
         <>
           <div className="mb-3"><DashTabs T={T} value={filtro} onChange={setFiltro} options={[{ id: "todas", label: "Todas" }, { id: "ativas", label: "Em curso" }, { id: "encerradas", label: "Encerradas" }]} /></div>
-          <div className="grid gap-2.5 lg:grid-cols-2">
+          <div className="grid gap-2.5 lg:grid-cols-2 xl:grid-cols-3">
             {filtrada.map((r) => {
               const st = RONDA_STATUS[r.status] || RONDA_STATUS.finalizada; const Icone = iconeDoSetor(r.setor);
               const pr = progresso[r.id]; const conf = pr ? pr.c : (r.encerrada_conferidos ?? 0); const tot = pr ? pr.t : r.total_itens;
@@ -9813,7 +9829,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
         </div>
       </div>
 
-      <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-4 border shadow-lg shadow-black/5 flex flex-col gap-4">
+      <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-4 border shadow-lg shadow-black/5 flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-x-6 lg:gap-y-4 lg:items-start">
         <div>
           <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 flex items-center gap-1.5"><Calendar size={13} /> Data de validade</label>
           <CampoData T={T} value={validade} onChange={setValidade}
@@ -9845,7 +9861,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
           </div>
         )}
 
-        <div>
+        <div className="lg:col-span-2">
           <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Tamanho / quantidade da embalagem <span style={{ color: RED }}>*</span></label>
           <div className="flex gap-2">
             <input value={tamanho} inputMode="decimal" maxLength={7}
@@ -9860,7 +9876,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
           </div>
         </div>
 
-        <div>
+        <div className="lg:col-span-2">
           <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 flex items-center gap-1.5"><Clock size={13} /> Avisar quantos dias antes de vencer? <span style={{ color: T.subtext, fontWeight: 400 }}>(até 3)</span></label>
 
           {validade && diasRestantesAtual !== null && opcoes.length === 0 ? (
@@ -9940,7 +9956,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
         </div>
 
         {perecivel && (
-          <div>
+          <div className="lg:col-span-2">
             <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Como esse item é vendido?</label>
             <div className="flex rounded-xl overflow-hidden" style={{ border: `1px solid ${T.inputBorder}` }}>
               <button type="button" onClick={() => setPorPeso(true)}
@@ -9953,7 +9969,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 lg:col-span-2">
           <div>
             <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">{porPeso ? "Quantidade (KG)" : "Quantidade"}</label>
             <input type="number" inputMode="decimal" min={porPeso ? "0.001" : "1"} step={porPeso ? "0.001" : "1"} max="99999" value={quantidade}
@@ -9974,7 +9990,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
           </div>
         </div>
         {valorTotal > 0 && (
-          <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2.5 -mt-1">
+          <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2.5 -mt-1 lg:col-span-2">
             <p style={{ color: T.subtext }} className="text-[11px]">
               {porPeso ? "Total (calculado automaticamente, não editável): " : "Valor total estimado: "}
               <strong style={{ color: T.text }}>{formatarMoeda(valorTotal)}</strong>
@@ -9983,7 +9999,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
           </div>
         )}
 
-        <div>
+        <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-1.5">
             <label style={{ color: T.subtext }} className="text-xs font-semibold block">Observações (opcional)</label>
             <span style={{ color: T.subtext }} className="text-[10px]">{observacoes.length}/300</span>
@@ -9993,13 +10009,13 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
         </div>
 
         {loteExistente && (
-          <div style={{ background: somaErro ? RED_SOFT : T.chipBg, color: somaErro ? RED_DARK : T.text }} className="text-xs font-medium px-3 py-2 rounded-xl flex items-start gap-2">
+          <div style={{ background: somaErro ? RED_SOFT : T.chipBg, color: somaErro ? RED_DARK : T.text }} className="lg:col-span-2 lg:-order-1 text-xs font-medium px-3 py-2 rounded-xl flex items-start gap-2">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
             <span>{somaErro || `O lote ${loteNorm} já está lançado (${loteExistente.quantidade} un, vence ${formatarData(loteExistente.validade)}). A quantidade informada será SOMADA: ficará ${loteExistente.quantidade + Math.max(0, Math.round(qtdSomar))} un. Máximo de ${limiteSoma} un por vez.`}</span>
           </div>
         )}
         {duplicado && (
-          <div style={{ background: RED_SOFT, color: RED_DARK }} className="text-xs font-medium px-3 py-2 rounded-xl flex items-start gap-2">
+          <div style={{ background: RED_SOFT, color: RED_DARK }} className="lg:col-span-2 lg:-order-1 text-xs font-medium px-3 py-2 rounded-xl flex items-start gap-2">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
             <span>Já existe um lançamento deste produto com esta validade e sem lote. Confirme novamente para salvar mesmo assim.</span>
           </div>
@@ -12035,7 +12051,7 @@ function MaisView(props) {
 
   if (telaLarga) {
     return (
-      <div className="max-w-6xl">
+      <div className="w-full">
         {meta && <DashPageHeader T={T} title={meta.titulo} subtitle={meta.desc} />}
         {conteudo(ativa)}
         {ondaEl}

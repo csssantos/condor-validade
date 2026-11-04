@@ -1,4 +1,4 @@
-// Edge Function: enviar-push (versão 8 — endurecida)
+// Edge Function: enviar-push (versão 9 — endurecida; v9 aceita { aprovacaoId })
 // Aviso: recebe só { avisoId } (criado pela função enviar_aviso) e envia exatamente aquele aviso.
 // Produto (trigger do banco): recebe só { id }; o conteúdo vem do BANCO, nunca do chamador, e só vai para a loja do produto.
 // Limites: 2 pushes/min por produto e 300/min no total (rl_servico). Sem o SQL de segurança aplicado, o limite é ignorado (fail-open).
@@ -54,6 +54,24 @@ Deno.serve(async (req) => {
       const { data, error } = await q;
       if (error) throw error;
       inscricoes = data || [];
+    } else if (corpoReq.aprovacaoId) {
+      // pedido de aprovação de produto novo (vindo do Telegram): só encarregado+ ativo da MESMA loja recebe; o conteúdo vem do banco
+      // só o bot (chave de serviço) dispara este aviso; qualquer outro chamador é recusado
+      if (req.headers.get("authorization") !== "Bearer " + serviceRoleKey) return resposta(req, { ok: false, erro: "nao_autorizado" }, 403);
+      const idAp = String(corpoReq.aprovacaoId).slice(0, 60);
+      const { data: ap, error: eA } = await supabase.from("aprovacoes_produto").select("id, nome, solicitante, loja_id, status, criado_em").eq("id", idAp).maybeSingle();
+      if (eA) throw eA;
+      if (!ap || ap.status !== "pendente" || new Date(ap.criado_em).getTime() < Date.now() - 15 * 60_000) return resposta(req, { ok: false, erro: "aprovacao_inexistente_ou_antiga" }, 409);
+      if (!(await dentroDoLimite(supabase, "global", "push_total", 300))) return resposta(req, { ok: false, erro: "limite" }, 429);
+      if (!(await dentroDoLimite(supabase, "aprovacao:" + idAp, "push_aprovacao", 1))) return resposta(req, { ok: false, erro: "ja_enviado" }, 429); // no máximo 1 envio por pedido por minuto
+      const { data: enc, error: eE } = await supabase.from("usuarios").select("id, cargos!inner(nivel)").eq("ativo", true).eq("loja_id", ap.loja_id).lte("cargos.nivel", 5);
+      if (eE) throw eE;
+      const ids = (enc || []).map((x: any) => x.id);
+      if (ids.length === 0) return resposta(req, { ok: true, enviados: 0, total: 0 });
+      const { data, error } = await supabase.from("push_subscriptions").select("*").in("usuario_id", ids);
+      if (error) throw error;
+      inscricoes = data || [];
+      payload = JSON.stringify({ title: "📦 Produto novo para aprovar", body: `${String(ap.nome).slice(0, 80)} · lançado por ${String(ap.solicitante).slice(0, 40)} pelo Telegram`, icon: "/icon-192.png", tag: `aprovacao-${ap.id}`, data: { url: "/" } });
     } else if (corpoReq.aviso) {
       return resposta(req, { ok: false, erro: "formato_antigo_nao_aceito" }, 400);
     } else {

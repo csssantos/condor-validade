@@ -650,6 +650,11 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
     const mc = ec?.message || "";
     if (!ec) {
       await salvar(s.id, "registrado", d);
+      // avisa por push os encarregados da loja (app fechado também); falha aqui nunca atrapalha o lançamento
+      try {
+        const { data: ap } = await sb.from("aprovacoes_produto").select("id").eq("loja_id", ctx.loja_id).eq("barcode", d.novo.barcode).eq("status", "pendente").order("criado_em", { ascending: false }).limit(1).maybeSingle();
+        if (ap?.id) { const { error: ep } = await sb.functions.invoke("enviar-push", { body: { aprovacaoId: ap.id } }); if (ep) console.error("push aprovacao", limpa(ep)); }
+      } catch (e) { console.error("push aprovacao", limpa(e)); }
       return falar(chat, `⏳ Enviado para aprovação!\n${d.nome}\nValidade ${fmtData(d.validade)} · ${d.lote ? `Lote ${d.lote} · ` : "Sem lote · "}${num(d.quantidade)} un\n\nUm encarregado vai conferir o produto novo. Eu aviso aqui quando ele aprovar ou se recusar.`, undefined, "aprovacao");
     }
     if (mc.includes("produto_ja_existe")) { descartarNovo(d); await salvar(s.id, "confirmado", d); } // alguém cadastrou nesse meio tempo: lança direto
