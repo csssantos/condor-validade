@@ -2869,6 +2869,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-ia-ultimos", data: "04/11/2026", itens: [
+    { tipo: "novo", ate: 5, texto: "Assistente IA: pergunte pelos últimos lançamentos de validade (1, 2, 4, 6, 10, 15…) e peça só os campos que quiser. Ex.: \"me retorne os 3 últimos lançamentos de validade, apenas o nome, código e quantidade\". Também dá para filtrar por hoje/semana ou setor. A resposta vem em tabela, com o produto e só os campos que você pediu." },
+  ] },
   { id: "2026-11-04-voz-lote", data: "04/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "Cadastro por voz: agora entende o lote falado (ex.: \"lote CC 0132 6492\") e já deixa preenchido na tela de validade, em vez de misturar o lote no nome do produto. \"40 por cento\" vira 40% e sobras como \"e\" no fim do nome saem." },
     { tipo: "alterado", ate: 7, texto: "No computador, o cadastro de produto (confirmar dados) mostra tudo numa tela só, em duas colunas, sem as etapas do celular." },

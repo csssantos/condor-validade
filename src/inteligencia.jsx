@@ -682,6 +682,8 @@ const SUGESTOES = [
   "Quais problemas estão se repetindo?",
   "Gere um plano de ação para reduzir perdas na Mercearia.",
   "Compare as ocorrências desta semana com a semana anterior.",
+  "Me retorne os 3 últimos lançamentos de validade, apenas o nome, código e quantidade.",
+  "Quais foram os 10 últimos lançamentos de validade, com nome, lote e validade?",
 ];
 
 // texto da IA com negrito e tópicos simples (sem HTML vindo de fora)
@@ -739,7 +741,7 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
       if (corpo?.codigo === "sem_chave") setAviso("sem_chave");
       return;
     }
-    setMsgs((m) => [...m, { id: "a" + Date.now(), papel: "assistente", conteudo: data.resposta, graficos: data.graficos, propostas: data.propostas, ferramentas: data.ferramentas, modelo: data.modelo }]);
+    setMsgs((m) => [...m, { id: "a" + Date.now(), papel: "assistente", conteudo: data.resposta, graficos: data.graficos, tabelas: Array.isArray(data.tabelas) ? data.tabelas : [], propostas: data.propostas, ferramentas: data.ferramentas, modelo: data.modelo }]);
   }
 
   async function registrar(tipo, dados, resultado) {
@@ -792,6 +794,19 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
               ) : (
                 <div className="max-w-full lg:max-w-[92%] w-full flex flex-col gap-2">
                   <div style={{ background: T.chipBg }} className="rounded-2xl rounded-bl-md px-3.5 py-3"><TextoIA texto={m.conteudo} /></div>
+                  {m.tabelas?.map((tb, i) => (
+                    <div key={"t" + i} style={{ background: T.bg }} className="rounded-2xl p-3">
+                      <p className="text-[12px] font-bold mb-2">{tb.titulo}</p>
+                      <div className="overflow-x-auto -mx-1 px-1">
+                        <table className="w-full text-[12px] min-w-max">
+                          <thead><tr>{tb.colunas.map((c) => <th key={c.chave} style={{ color: T.subtext }} className="text-left font-semibold pb-1.5 pr-4 whitespace-nowrap">{c.rotulo}</th>)}</tr></thead>
+                          <tbody>{tb.linhas.map((l, j) => (
+                            <tr key={j} style={{ borderTop: `1px solid ${T.chipBg}` }}>{tb.colunas.map((c) => <td key={c.chave} className={`py-1.5 pr-4 align-top ${c.chave === "nome" ? "font-semibold min-w-[160px]" : "whitespace-nowrap"} ${c.chave === "codigo" ? "font-mono" : ""}`}>{String(l[c.chave] ?? "") || "—"}</td>)}</tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
                   {m.graficos?.map((g, i) => (
                     <div key={i} style={{ background: T.bg }} className="rounded-2xl p-3"><p className="text-[12px] font-bold mb-1 flex items-center gap-1.5"><BarChart3 size={13} /> {g.titulo}</p><GraficoSimples T={T} tipo={g.tipo} formato={g.formato} dados={g.dados} altura={190} /></div>
                   ))}

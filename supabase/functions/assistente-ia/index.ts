@@ -84,10 +84,18 @@ Regras obrigatórias:
 6. Você só enxerga o que o usuário tem permissão de ver. Não especule sobre setores ou pessoas que não apareceram nos dados.
 7. Você NÃO executa ações. Quando fizer sentido (ex.: criar ronda priorizada, tarefa, ação preventiva), use as ferramentas propor_* — o app mostrará um botão para o usuário confirmar.
 8. Valores em reais: formato R$ 1.234,56. Datas: DD/MM/AAAA.
-9. Seja breve: no máximo uns 12 tópicos. Termine, quando útil, com 1 a 3 próximos passos práticos.`;
+9. Pedidos do tipo "os N últimos lançamentos de validade" (N pode ser 1, 2, 4, 6, 10, 15...): chame ultimos_lancamentos com EXATAMENTE N em "quantidade" e, em "campos", SÓ o que o usuário pediu (ex.: "apenas o nome, código e quantidade" => campos nome, codigo, quantidade). Se ele não disser os campos, use nome, codigo, quantidade, validade e lote; "sem X" significa o padrão menos X; para "de hoje"/"de ontem"/"da semana" use "dias" (0/1/6). A coluna do produto entra sempre. O app mostra a tabela com esses campos: na resposta escreva no máximo uma frase curta e NÃO repita os dados nem acrescente campos que não foram pedidos. Se vierem menos que N, diga quantos existem (lembrando que lotes baixados não entram). Se pedirem mais de 50, avise que o máximo é 50. Se o aviso da ferramenta trouxer campos ignorados, diga ao usuário.
+10. Seja breve: no máximo uns 12 tópicos. Termine, quando útil, com 1 a 3 próximos passos práticos.`;
 
 // ---------------------------------------------------------------- ferramentas
 const S = (type: string, description?: string, extra: Record<string, unknown> = {}) => ({ type, ...(description ? { description } : {}), ...extra });
+// campos que o usuário pode pedir em "últimos lançamentos": chave -> [rótulo da coluna, coluna do banco]
+const CAMPOS_LANC: Record<string, [string, string]> = {
+  nome: ["Produto", "nome"], codigo: ["Código", "barcode"], quantidade: ["Qtd", "quantidade"], validade: ["Validade", "validade"], lote: ["Lote", "lote"],
+  setor: ["Setor", "setor"], subcategoria: ["Subcategoria", "subsetor"], lancado_por: ["Lançado por", "cadastrado_por"], lancado_em: ["Lançado em", "criado_em"],
+  preco: ["Preço", "preco_unitario"], tamanho: ["Tamanho", "tamanho"],
+};
+const CAMPOS_PADRAO = ["nome", "codigo", "quantidade", "validade", "lote"];
 const FERRAMENTAS = [
   { name: "consultar_perdas", description: "Painel de perdas da loja: totais, por setor, por motivo, produtos com mais perdas, série semanal (12 semanas) e mensal (6 meses), vencidos agora e próximos 7 dias.",
     parameters: S("OBJECT", undefined, { properties: { dias: S("INTEGER", "Período em dias (1 a 365). Padrão 30."), setor: S("STRING", "Filtrar por setor principal (opcional).") } }) },
@@ -109,6 +117,12 @@ const FERRAMENTAS = [
     parameters: S("OBJECT", undefined, { properties: { setor: S("STRING") } }) },
   { name: "resultado_acoes_preventivas", description: "Ações preventivas criadas e seus resultados antes x depois, setores que melhoraram/pioraram e produtos que continuam com problemas.",
     parameters: S("OBJECT", undefined, { properties: {} }) },
+  { name: "ultimos_lancamentos", description: "Os últimos N lançamentos de validade da loja (produtos/lotes cadastrados mais recentemente, do mais novo para o mais antigo), só com os campos pedidos. Lançamentos que já tiveram baixa não aparecem.",
+    parameters: S("OBJECT", undefined, { properties: {
+      quantidade: S("INTEGER", "Quantos lançamentos (1 a 50). Use exatamente o número que o usuário pediu."),
+      campos: S("ARRAY", "Somente os campos que o usuário pediu.", { items: S("STRING", undefined, { enum: Object.keys(CAMPOS_LANC) }) }),
+      dias: S("INTEGER", "Só lançamentos dos últimos X dias, em horário de Brasília (0 = só hoje, 1 = hoje e ontem). Use quando o usuário falar de hoje, ontem, esta semana (6)."),
+      setor: S("STRING", "Filtrar por setor principal, ex.: Frios (opcional; basta parte do nome).") } }) },
   { name: "propor_ronda", description: "Prepara (não cria) uma ronda para o usuário confirmar no app.",
     parameters: S("OBJECT", undefined, { properties: {
       setor: S("STRING"), modo: S("STRING", "completa | priorizada | amostragem | manual", { enum: ["completa", "priorizada", "amostragem", "manual"] }),
@@ -125,7 +139,7 @@ const FERRAMENTAS = [
       problema: S("STRING"), acoes: S("ARRAY", undefined, { items: S("STRING") }) }, required: ["alvo_tipo", "setor", "problema", "acoes"] }) },
 ];
 
-type Ctx = { sb: ReturnType<typeof createClient>; loja: number | null; graficos: any[]; propostas: any[]; usadas: string[] };
+type Ctx = { sb: ReturnType<typeof createClient>; loja: number | null; graficos: any[]; propostas: any[]; usadas: string[]; tabelas: any[] };
 const dias = (n: unknown, pad = 30) => Math.max(1, Math.min(365, Number(n) || pad));
 const iso = (d: number) => new Date(Date.now() - d * 86400000).toISOString();
 const corta = (s: unknown, n = 300) => String(s ?? "").slice(0, n);
@@ -213,6 +227,50 @@ async function executar(nome: string, args: any, c: Ctx): Promise<unknown> {
     case "resultado_acoes_preventivas": {
       const { data, error } = await c.sb.rpc("indicadores_prevencao", { p_loja: c.loja });
       return error ? err(error) : data;
+    }
+    case "ultimos_lancamentos": {
+      const pedido = Math.round(Number(args?.quantidade));
+      const n = Math.max(1, Math.min(50, pedido || 5));
+      const pedidosCampos = (Array.isArray(args?.campos) ? args.campos : []).map((x: unknown) => String(x));
+      const validos: string[] = pedidosCampos.filter((x: string) => Object.hasOwn(CAMPOS_LANC, x));
+      const ignorados = pedidosCampos.filter((x: string) => !Object.hasOwn(CAMPOS_LANC, x));
+      let chaves: string[] = [...new Set(validos)];
+      if (!chaves.length) chaves = [...CAMPOS_PADRAO];
+      // o produto sempre aparece, na frente, para as linhas fazerem sentido
+      if (!chaves.includes("nome")) chaves.unshift("nome");
+      const cols = [...new Set(["id", "criado_em", "sem_lote", "unidade_medida", ...chaves.map((k) => CAMPOS_LANC[k][1])])];
+      let q = c.sb.from("produtos").select(cols.join(", ")).order("criado_em", { ascending: false }).order("id", { ascending: false }).limit(n);
+      if (c.loja) q = q.eq("loja_id", c.loja);
+      // período (dias para trás, 0 = hoje) em horário de Brasília
+      const dias = args?.dias != null ? Math.max(0, Math.min(365, Math.round(Number(args.dias)) || 0)) : null;
+      if (dias != null) {
+        const hojeBR = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+        const ini = new Date(hojeBR + "T00:00:00-03:00");
+        ini.setUTCDate(ini.getUTCDate() - dias);
+        q = q.gte("criado_em", ini.toISOString());
+      }
+      const setorTxt = args?.setor ? String(corta(args.setor, 60)).replace(/[%_,()\\]/g, " ").trim() : "";
+      if (setorTxt) q = q.ilike("setor", "%" + setorTxt + "%");
+      const { data, error } = await q;
+      if (error) return err(error);
+      const fmtData = (v: any) => (v ? String(v).slice(0, 10).split("-").reverse().join("/") : "");
+      const fmtQuando = (v: any) => { if (!v) return ""; const d = new Date(v); return isNaN(d.getTime()) ? "" : d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(",", " às"); };
+      const valor = (k: string, r: any) => {
+        if (k === "validade") return fmtData(r.validade);
+        if (k === "lote") return r.lote || (r.sem_lote ? "Sem lote" : "");
+        if (k === "lancado_em") return fmtQuando(r.criado_em);
+        if (k === "preco") return Number(r.preco_unitario) > 0 ? "R$ " + Number(r.preco_unitario).toFixed(2).replace(".", ",") : "";
+        if (k === "tamanho") return r.tamanho ? `${r.tamanho}${r.unidade_medida ? " " + r.unidade_medida : ""}` : "";
+        return corta(r[CAMPOS_LANC[k][1]] ?? "", 80);
+      };
+      const linhas = ((data as any[]) || []).map((r) => Object.fromEntries(chaves.map((k) => [k, valor(k, r)])));
+      if (linhas.length) c.tabelas.push({ titulo: `${linhas.length > 1 ? "Últimos " + linhas.length + " lançamentos" : "Último lançamento"} de validade${dias != null ? (dias === 0 ? " (hoje)" : ` (últimos ${dias + 1} dias)`) : ""}`, colunas: chaves.map((k) => ({ chave: k, rotulo: CAMPOS_LANC[k][0] })), linhas });
+      const avisos: string[] = ["A tabela já aparece para o usuário; responda em uma frase curta, sem repetir os dados.", "A lista só tem lotes que ainda estão em estoque (os que já tiveram baixa não aparecem) e a coluna Produto sempre entra."];
+      if (pedido > 50) avisos.push("O máximo por consulta é 50: avise o usuário que mostrou 50, não que só existem 50.");
+      if (ignorados.length) avisos.push("Campos que não existem e foram ignorados: " + ignorados.join(", ") + ". Avise o usuário (campos disponíveis: " + Object.keys(CAMPOS_LANC).join(", ") + ").");
+      if (!linhas.length && setorTxt) avisos.push("Nenhum lançamento com esse texto no setor; o nome do setor pode estar diferente. Diga isso em vez de afirmar que não há lançamentos.");
+      if (dias != null && linhas.length === n) avisos.push("Pode haver mais lançamentos no período do que os mostrados.");
+      return { pedidos: n, encontrados: linhas.length, periodo_dias: dias, campos: chaves, lancamentos: linhas, aviso: avisos.join(" ") };
     }
     case "propor_ronda": {
       const p = { tipo: "ronda", setor: corta(args?.setor, 60), modo: ["completa", "priorizada", "amostragem", "manual"].includes(args?.modo) ? args.modo : "priorizada",
@@ -361,7 +419,7 @@ Deno.serve(async (req) => {
     if (!Deno.env.get("GEMINI_API_KEY")) return json({ ok: false, configurado: false });
     const { data: cota } = await sb.rpc("ia_cota_diagnostico");
     if (cota && cota.ok === false) return json({ ok: false, mensagem: "Limite de testes de diagnóstico do dia atingido." }, 429);
-    const ctx: Ctx = { sb, loja: null, graficos: [], propostas: [], usadas: [] };
+    const ctx: Ctx = { sb, loja: null, graficos: [], propostas: [], usadas: [], tabelas: [] };
     try {
       const r = await conversar([{ role: "user", parts: [{ text: "Qual setor teve mais perdas nos últimos 30 dias?" }] }], ctx);
       return json({ ok: true, ferramentas_chamadas: ctx.usadas, modelo: r.modelo, resposta: r.texto.slice(0, 600) });
@@ -391,12 +449,12 @@ Deno.serve(async (req) => {
   while (contents.length && contents[0].role !== "user") contents.shift();
   contents.push({ role: "user", parts: [{ text: pergunta }] });
 
-  const ctx: Ctx = { sb, loja, graficos: [], propostas: [], usadas: [] };
+  const ctx: Ctx = { sb, loja, graficos: [], propostas: [], usadas: [], tabelas: [] };
   try {
     const { texto, modelo } = await conversar(contents, ctx);
     const vistos = new Set<string>();
     const graficos = ctx.graficos.filter((g) => !vistos.has(g.titulo) && vistos.add(g.titulo)).slice(0, 3);
-    const extras = { graficos, propostas: ctx.propostas.slice(0, 4), ferramentas: [...new Set(ctx.usadas)], modelo };
+    const extras = { graficos, tabelas: ctx.tabelas.slice(0, 2), propostas: ctx.propostas.slice(0, 4), ferramentas: [...new Set(ctx.usadas)], modelo };
     return json({ resposta: texto, ...extras, cota });
   } catch (e: any) {
     const msg = e?.name === "AbortError" ? "A IA demorou demais para responder. Tente de novo." : (e?.message || "Erro ao consultar a IA.");
