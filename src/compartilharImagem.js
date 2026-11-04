@@ -2,13 +2,20 @@
 // círculo claro, foto do produto e os dados embaixo). Só desenha no canvas; nada sai do aparelho.
 const L = 1080;
 
+// Só desenha foto de origem conhecida (data URL jpeg/png/webp ou Open Food Facts): evita rastreio por URL de terceiros
+// e SVG (que pode sujar o canvas). Limite de tamanho e de tempo para não travar o aparelho.
+function origemPermitida(src) {
+  if (/^data:image\/(jpeg|png|webp);base64,/i.test(src)) return src.length < 3_000_000;
+  try { const u = new URL(src); return u.protocol === "https:" && /(^|\.)openfoodfacts\.org$/i.test(u.hostname); } catch { return false; }
+}
 function carregarImagem(src) {
   return new Promise((resolve) => {
-    if (!src || typeof src !== "string") return resolve(null);
+    if (!src || typeof src !== "string" || !origemPermitida(src)) return resolve(null);
     const img = new Image();
     if (!src.startsWith("data:")) img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    const t = setTimeout(() => resolve(null), 6000);
+    img.onload = () => { clearTimeout(t); resolve(img.width * img.height > 4_000_000 ? null : img); };
+    img.onerror = () => { clearTimeout(t); resolve(null); };
     img.src = src;
   });
 }
@@ -33,6 +40,14 @@ function quebrar(c, texto, larguraMax, maxLinhas) {
     else { linhas.push(atual); atual = p; }
   }
   if (atual) linhas.push(atual);
+  // palavra maior que a linha (ex.: código colado): corta com reticências
+  for (let i = 0; i < linhas.length; i++) {
+    if (c.measureText(linhas[i]).width > larguraMax) {
+      let u = linhas[i];
+      while (u.length > 1 && c.measureText(u + "…").width > larguraMax) u = u.slice(0, -1);
+      linhas[i] = u + "…";
+    }
+  }
   if (linhas.length > maxLinhas) {
     linhas.length = maxLinhas;
     let u = linhas[maxLinhas - 1];
@@ -43,7 +58,18 @@ function quebrar(c, texto, larguraMax, maxLinhas) {
 }
 
 // dados: { nome, foto, status, corStatus, linhas: [[rótulo, valor], ...], geradoEm }
-export async function gerarImagemProduto(dados) {
+const cortar = (v, n) => String(v ?? "").replace(/[\u202A-\u202E\u2066-\u2069]/g, "").slice(0, n);
+
+export async function gerarImagemProduto(entrada) {
+  const dados = {
+    ...entrada,
+    nome: cortar(entrada.nome, 120) || "Produto",
+    status: cortar(entrada.status, 24),
+    corStatus: entrada.corStatus || "#6B7C93",
+    corTextoStatus: entrada.corTextoStatus || "#FFFFFF",
+    geradoEm: cortar(entrada.geradoEm, 40) || new Date().toLocaleString("pt-BR"),
+    linhas: (entrada.linhas || []).slice(0, 6).map((l) => [cortar(l && l[0], 24), cortar(l && l[1], 60)]),
+  };
   const canvas = document.createElement("canvas");
   const fonte = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
   const linhas = (dados.linhas || []).filter((l) => l && l[1] !== undefined && l[1] !== null && l[1] !== "");
@@ -64,7 +90,8 @@ export async function gerarImagemProduto(dados) {
   c.beginPath(); c.arc(L * 0.72, 330, 330, 0, Math.PI * 2); c.fill();
 
   c.fillStyle = "rgba(255,255,255,0.85)"; c.font = `700 30px ${fonte}`; c.textBaseline = "alphabetic";
-  c.fillText("C O N D O R   ·   A L E R T A   D E   V A L I D A D E".replace(/ {3}/g, "  "), 70, 100);
+  c.font = `700 28px ${fonte}`;
+  c.fillText("C O N D O R  ·  A L E R T A  D E  V A L I D A D E", 70, 100);
 
   // bolinhas de estado (como a tela de carregamento)
   for (let i = 0; i < 3; i++) {
@@ -87,16 +114,18 @@ export async function gerarImagemProduto(dados) {
     c.drawImage(img, fx + (fw - w) / 2, fy + (fh - h) / 2, w, h);
     c.restore();
   } else {
-    c.fillStyle = "#D5E3F7"; c.font = `800 110px ${fonte}`; c.textAlign = "center";
-    c.fillText("📦", fx + fw / 2, fy + fh / 2 + 40); c.textAlign = "left";
+    c.fillStyle = "#C9D9EF"; c.font = `800 54px ${fonte}`; c.textAlign = "center";
+    c.fillText("SEM FOTO", fx + fw / 2, fy + fh / 2 + 18); c.textAlign = "left";
   }
 
   // selo de status
   c.font = `800 34px ${fonte}`;
-  const rot = String(dados.status || "").toUpperCase();
-  const sw = c.measureText(rot).width + 70;
-  c.fillStyle = dados.corStatus; retArredondado(c, 70, 720, sw, 66, 33); c.fill();
-  c.fillStyle = "#FFFFFF"; c.fillText(rot, 105, 766);
+  const rot = dados.status.toUpperCase();
+  if (rot) {
+    const sw = c.measureText(rot).width + 70;
+    c.fillStyle = dados.corStatus; retArredondado(c, 70, 720, sw, 66, 33); c.fill();
+    c.fillStyle = dados.corTextoStatus; c.fillText(rot, 105, 766);
+  }
 
   // nome
   c.fillStyle = "#FFFFFF"; c.font = `800 62px ${fonte}`;
@@ -104,19 +133,26 @@ export async function gerarImagemProduto(dados) {
 
   // dados
   const y = yDados;
-  c.fillStyle = "rgba(255,255,255,0.12)";
-  retArredondado(c, 50, y - 20, L - 100, linhas.length * altLinha + 30, 40); c.fill();
+  if (linhas.length) {
+    c.fillStyle = "rgba(255,255,255,0.12)";
+    retArredondado(c, 50, y - 20, L - 100, linhas.length * altLinha + 30, 40); c.fill();
+  }
   linhas.forEach(([rot2, val], i) => {
     const yy = y + 40 + i * altLinha;
     c.fillStyle = "rgba(255,255,255,0.70)"; c.font = `600 28px ${fonte}`; c.fillText(String(rot2), 90, yy);
     c.fillStyle = "#FFFFFF"; c.font = `700 36px ${fonte}`; c.textAlign = "right";
     let v = String(val);
-    while (v.length > 1 && c.measureText(v).width > L - 420) v = v.slice(0, -1);
+    if (c.measureText(v).width > L - 420) {
+      while (v.length > 1 && c.measureText(v + "…").width > L - 420) v = v.slice(0, -1);
+      v += "…";
+    }
     c.fillText(v, L - 90, yy + 4); c.textAlign = "left";
   });
 
   c.fillStyle = "rgba(255,255,255,0.70)"; c.font = `500 26px ${fonte}`;
   c.fillText(`Imagem gerada em ${dados.geradoEm}`, 70, A - 60);
 
-  return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
+  const blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
+  canvas.width = 0; canvas.height = 0;
+  return blob;
 }

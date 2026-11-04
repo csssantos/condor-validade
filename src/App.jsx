@@ -34,6 +34,7 @@ import TelaBiparCracha from "./TelaBiparCracha";
 import { PalcoInicio, PalcoPagina } from "./Inicio";
 import { AceiteCampo, AceiteObrigatorio, LegalLeitor, LinksLegais, PaginaPrivacidade, TERMOS_VERSAO, lerAceiteLocal, gravarAceiteLocal, marcarAceitePendente, temAceitePendente, limparAceitePendente, registrarAceite } from "./Legal";
 import { TelaCarregando, FUNDO_MARCA, AuthPalco, AuthCampo, AuthBotao, AuthLink, AuthAviso, AuthTitulo, itemForm, grupoForm } from "./TelasEntrada";
+import { gerarImagemProduto } from "./compartilharImagem";
 import { PrevisaoOperacionalView, PrevencaoPerdasView, AssistenteIAView, SeloRisco, MODOS_RONDA, PainelRedeView } from "./inteligencia";
 
 // ---------- Paleta Condor ----------
@@ -2312,42 +2313,52 @@ function AppInner() {
     setSetorAtivo(null); setFlow(null); setTab("rondas");
   }
 
+  const compartilhandoRef = useRef(false);
   async function compartilharItem(item) {
-    const st = getStatus(item);
+    if (compartilhandoRef.current) return;
+    compartilhandoRef.current = true;
     const agora = new Date();
     const geradoEm = agora.toLocaleDateString("pt-BR") + " às " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    const dias = item.validade ? st.d : null;
-    const diasTxt = dias === null ? "" : dias < 0 ? `venceu há ${-dias} dia(s)` : dias === 0 ? "vence hoje" : `faltam ${dias} dia(s)`;
-    const dados = {
-      nome: item.nome, foto: item.foto, status: st.label, corStatus: { expired: "#B3141A", alert: "#E31E24", warning: "#E8A317" }[st.level] || "#1F9D55",
-      linhas: [
-        ["Validade", item.validade ? `${formatarData(item.validade)}${diasTxt ? " · " + diasTxt : ""}` : "Sem validade"],
-        ["Lote", textoLote(item) || ""],
-        ["Quantidade", item.porPeso ? `${item.quantidade} kg` : `${item.quantidade} un`],
-        ["Setor", item.setor],
-        ["Código", item.barcode],
-      ],
-      geradoEm,
-    };
-    const texto = `${item.nome}\nSetor: ${item.setor}\nCódigo: ${item.barcode}\nValidade: ${formatarData(item.validade)} (${st.label})${textoLote(item) ? `\nLote: ${textoLote(item)}` : ""}\nGerado em ${geradoEm}`;
+    let texto = `${item.nome}\nSetor: ${item.setor}\nCódigo: ${item.barcode}\nGerado em ${geradoEm}`;
     try {
-      const { gerarImagemProduto } = await import("./compartilharImagem.js");
+      showToast("Gerando imagem…");
+      const temVal = !!item.validade && /^\d{4}-\d{2}-\d{2}/.test(item.validade);
+      const st = temVal ? getStatus(item) : { label: "SEM VALIDADE", d: null, level: "none" };
+      const dias = st.d;
+      const diasTxt = dias === null ? "" : dias < 0 ? `venceu há ${-dias} dia${-dias === 1 ? "" : "s"}` : dias === 0 ? "vence hoje" : `falta${dias === 1 ? "" : "m"} ${dias} dia${dias === 1 ? "" : "s"}`;
+      const qtd = item.quantidade ? `${String(item.quantidade).replace(".", ",")} ${item.porPeso ? "kg" : "un"}` : "";
+      const interno = /^(int|bal):/.test(String(item.barcode || ""));
+      texto = `${item.nome}\nSetor: ${item.setor}${interno ? "" : `\nCódigo: ${item.barcode}`}${temVal ? `\nValidade: ${formatarData(item.validade)} (${st.label})` : ""}${textoLote(item) ? `\nLote: ${textoLote(item)}` : ""}\nGerado em ${geradoEm}`;
+      const dados = {
+        nome: item.nome, foto: item.foto, status: st.label,
+        corStatus: { expired: "#B3141A", alert: "#E31E24", warning: "#E8A317", none: "#6B7C93" }[st.level] || "#1F9D55",
+        corTextoStatus: st.level === "warning" ? "#2A1D00" : "#FFFFFF",
+        linhas: [
+          ["Validade", temVal ? `${formatarData(item.validade)}${diasTxt ? " · " + diasTxt : ""}` : "Sem validade"],
+          ["Lote", textoLote(item) || ""],
+          ["Quantidade", qtd],
+          ["Setor", item.setor],
+          ["Código", interno ? "" : item.barcode],
+        ],
+        geradoEm,
+      };
       const blob = await gerarImagemProduto(dados);
       if (blob) {
-        const arquivo = new File([blob], "produto-validade.png", { type: "image/png" });
+        const arquivo = new File([blob], `validade-${String(item.barcode || "produto").replace(/[^A-Za-z0-9]/g, "").slice(0, 20) || "produto"}.png`, { type: "image/png" });
         if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
           try { await navigator.share({ files: [arquivo] }); return; } catch (e) { if (e && e.name === "AbortError") return; }
         }
-        // sem compartilhamento de arquivo (computador): baixa a imagem
+        // sem compartilhamento de arquivo (computador) ou gesto expirado: baixa a imagem
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = url; a.download = "produto-validade.png"; document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 4000);
-        showToast("Imagem baixada.");
+        a.href = url; a.download = arquivo.name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        showToast("Imagem salva na pasta de downloads.");
         return;
       }
-    } catch {}
-    try { await navigator.clipboard.writeText(texto); showToast("Não deu para gerar a imagem; copiei as informações."); }
+    } catch (e) { console.warn("compartilhar: falha ao gerar imagem", e); }
+    finally { compartilhandoRef.current = false; }
+    try { await navigator.clipboard.writeText(texto); showToast("Não deu para gerar a imagem; copiei as informações em texto."); }
     catch { showToast("Não foi possível compartilhar.", "warn"); }
   }
 
