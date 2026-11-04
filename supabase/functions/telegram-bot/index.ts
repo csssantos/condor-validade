@@ -92,7 +92,7 @@ async function buscarNaInternet(bc: string) {
 }
 
 // ---------- Catálogo e sessão ----------
-type Novo = { barcode: string; nome: string; foto: string | null; fotoUsuario?: boolean; setor: string | null; etapa: "imagem" | "nome" | "foto" | "setor" | null };
+type Novo = { barcode: string; nome: string; foto: string | null; urlImg?: string; fotoUsuario?: boolean; setor: string | null; etapa: "imagem" | "nome" | "foto" | "setor" | null };
 type Dados = { pilha?: string[]; cancelando?: boolean; avisou?: boolean; fotoStash?: { barcode: string; foto: string }; barcode?: string; nome?: string; porPeso?: boolean; validade?: string; quantidade?: number; lote?: string; semLote?: boolean; opcoes?: { barcode: string; nome: string }[]; dupAsk?: boolean; novo?: Novo; criouProduto?: boolean };
 type Ctx = { vinculo_id: string; tipo: "funcionario" | "promotor"; usuario_id?: string; convite_id?: string; loja_id: number; nome: string; marca?: string; marcas?: string[]; acesso_total?: boolean };
 // marca casa só como palavra inteira, sem diferenciar acento/maiúscula (igual ao banco: _marca_casa)
@@ -145,8 +145,8 @@ async function sessaoExpirada(chat: number): Promise<Dados | null> {
   if (!data) return null;
   const d = (data.dados || {}) as Dados;
   if (d.avisou || !temProgresso(d)) return null; // conversa vazia que expirou não precisa de aviso
-  await sb.from("telegram_sessoes").update({ dados: { ...d, avisou: true } }).eq("id", data.id);
-  return d;
+  const { data: ganhou } = await sb.from("telegram_sessoes").update({ dados: { ...d, avisou: true } }).eq("id", data.id).or("dados->>avisou.is.null,dados->>avisou.neq.true").select("id"); // atômico: só um avisa
+  return ganhou?.length ? d : null;
 }
 async function avisarExpirou(chat: number, d: Dados) {
   const nome = d.nome ?? d.novo?.nome;
@@ -273,7 +273,7 @@ async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, b
   }
   const nome = formatarNomeNovo(achou.nome, cat).nomeNovo;
   delete d.fotoStash; // só uma foto pesada por conversa
-  d.novo = { barcode: bc, nome, foto: achou.dataUrl, setor: adivinharSetor(nome), etapa: "imagem" };
+  d.novo = { barcode: bc, nome, foto: achou.dataUrl, urlImg: achou.dataUrl ? achou.urlImg : undefined, setor: adivinharSetor(nome), etapa: "imagem" };
   await salvar(s.id, "aguardando_info", d);
   const legenda = `Esse produto não está no app. Achei na internet:\n\n${nome}\nCódigo: ${bc}${achou.dataUrl ? "" : "\n(sem imagem disponível: vou pedir uma foto sua)"}\n\nÉ esse o produto${achou.dataUrl ? " e posso usar essa imagem no cadastro do app" : ""}?`;
   const botoes = [[{ t: "✅ Sim, é esse", d: `im:${s.id}:1` }, { t: "❌ Não é", d: `im:${s.id}:0` }]];
@@ -409,10 +409,14 @@ function empilhar(d: Dados, atual: Dados) {
 async function reperguntar(ctx: Ctx, chat: number, s: { id: string }, d: Dados, aviso = "") {
   const pre = aviso ? aviso + "\n\n" : "";
   const n = d.novo;
-  if (n && !n.foto && !n.etapa) n.etapa = "foto"; // sem imagem recuperada: pede a foto de novo em vez de mandar para aprovação sem imagem
+  if (n && !n.foto && n.etapa !== "nome" && n.etapa !== "imagem") n.etapa = "foto"; // sem imagem recuperada: pede a foto de novo em vez de mandar para aprovação sem imagem
   if (n?.etapa === "imagem") {
     await salvar(s.id, "aguardando_info", d);
-    return falar(chat, pre + `Esse produto não está no app. Achei este na internet:\n\n${n.nome}\nCódigo: ${n.barcode}\n\nÉ esse o produto?`, [[{ t: "✅ Sim, é esse", d: `im:${s.id}:1` }, { t: "❌ Não é", d: `im:${s.id}:0` }]], "novo");
+    const comImg = !!(n.foto && n.urlImg);
+    const leg = pre + `Esse produto não está no app. Achei este na internet:\n\n${n.nome}\nCódigo: ${n.barcode}${n.foto ? "" : "\n(sem imagem disponível: vou pedir uma foto sua)"}\n\nÉ esse o produto${comImg ? " e posso usar essa imagem no cadastro do app" : ""}?`;
+    const bt = [[{ t: "✅ Sim, é esse", d: `im:${s.id}:1` }, { t: "❌ Não é", d: `im:${s.id}:0` }]];
+    if (comImg) { const r = await tg("sendPhoto", { chat_id: chat, photo: n.urlImg, caption: leg.slice(0, 1000), ...teclado(bt) }); if (r?.ok) return r; }
+    return falar(chat, leg.replace(" e posso usar essa imagem no cadastro do app", ""), bt, "novo");
   }
   if (n?.etapa === "nome") { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + "Envie o nome completo do produto, com marca e produto (ex.: Bauducco Biscoito Maria 200g).", undefined, "novo"); }
   if (n?.etapa === "foto") { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + MSG_PEDIR_FOTO, undefined, "novo"); }
@@ -673,7 +677,7 @@ async function processar(up: Record<string, any>) {
     const exp = await sessaoExpirada(chat);
     if (exp) {
       await avisarExpirou(chat, exp);
-      if (!/^\/sair/i.test(texto) && !(msg.text && /\b\d{8,14}\b/.test(texto))) { await marcar("processada"); return; } // mensagem tardia (sim, data, foto...) não abre conversa nova
+      if (!/^\/sair/i.test(texto) && !(msg.text && eanOk(texto.match(/\b\d{8,14}\b/)?.[0] ?? ""))) { await marcar("processada"); return; } // mensagem tardia (sim, data, foto...) não abre conversa nova
     }
   }
   if (/^\/voltar/i.test(texto)) { const s = await sessaoAtiva(chat); if (s) await voltar(ctx, chat, s); else await falar(chat, "Não há lançamento em andamento.", undefined, "ajuda"); await marcar("processada"); return; }
@@ -686,6 +690,7 @@ async function processar(up: Record<string, any>) {
     const s = (msg.photo?.length || msg.document) ? await sessaoAtiva(chat) : null;
     const dd: Dados = s?.dados || {};
     if (s && !msg.photo?.length && msg.document && s.estado === "aguardando_info" && dd.novo?.etapa === "foto") { await falar(chat, "Envie como FOTO (não como arquivo): toque no clipe e escolha a câmera ou a galeria.", undefined, "atencao"); await marcar("ignorada", "foto_como_arquivo"); return; }
+    if (s && dd.cancelando && msg.photo?.length) { await pedirCancelar(chat, { ...s, dados: { ...dd, cancelando: false } }); await marcar("processada"); return; }
     if (s && s.estado === "aguardando_info" && dd.novo?.etapa === "foto" && ctx.tipo === "funcionario") {
       const f = await baixarFotoTelegram(msg.photo);
       if (!f.ok) { await falar(chat, "⚠️ " + f.motivo, undefined, "atencao"); await marcar("ignorada", "foto_invalida"); return; }
