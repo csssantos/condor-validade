@@ -331,8 +331,9 @@ Deno.serve(async (req) => {
     try {
       const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
       const { data: okRl, error: eRl } = await admin.rpc("rl_servico", { p_chave: uu.user.id, p_bucket: "assistente", p_max: 8 });
-      if (!eRl && okRl === false) return json({ erro: "Muitas perguntas seguidas. Aguarde 1 minuto.", codigo: "limite" }, 429);
-    } catch (_) { /* sem o SQL de segurança, segue sem limite por minuto */ }
+      if (eRl) console.error("rl_servico assistente:", eRl.message);
+      if (eRl || okRl !== true) return json({ erro: "Muitas perguntas seguidas. Aguarde 1 minuto.", codigo: "limite" }, 429); // falha FECHADA
+    } catch (_) { return json({ erro: "Muitas perguntas seguidas. Aguarde 1 minuto.", codigo: "limite" }, 429); }
     if (["modelos", "status", "teste_ferramentas"].includes(body?.acao)) {
       const { data: nv } = await sb.rpc("nivel_do_usuario");
       if (nv == null || nv > 2) return json({ erro: "Sem permissão." }, 403);

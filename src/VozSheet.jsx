@@ -184,6 +184,7 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
               <Linha Icon={Package} rotulo={achado ? (achado.exato ? "Produto (já cadastrado)" : "Produto já cadastrado") : ehNovo ? "Produto novo (nome no cadastro)" : "Produto"} valor={achado ? achado.entrada.nome : ehNovo ? novoFmt.nomeNovo : precisaEscolher ? "" : res.nome} vazio={precisaEscolher ? "Escolha na lista acima" : "Não entendi o nome"} />
               <Linha Icon={Calendar} rotulo="Validade" valor={res.validade ? descreverData(res.validade, hoje) : ""} vazio="Não entendi a validade — você escolhe na próxima tela" />
               <Linha Icon={Hash} rotulo="Quantidade" valor={res.quantidade != null ? `${String(res.quantidade).replace(".", ",")}${res.porPeso ? " kg" : ""}` : ""} vazio="Não informada" />
+              <Linha Icon={Hash} rotulo="Lote" valor={res.lote || (res.semLote ? "Sem lote" : "")} vazio={res.falouLote ? "Não entendi o lote — digite na próxima tela" : "Não informado — você confere na próxima tela"} />
               {res.precoUnitario != null && <Linha Icon={DollarSign} rotulo="Preço" valor={`R$ ${res.precoUnitario.toFixed(2).replace(".", ",")}`} />}
               {ehNovo && res.setorSugerido && <Linha Icon={MapPin} rotulo="Setor sugerido" valor={res.setorSugerido} />}
             </div>

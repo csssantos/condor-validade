@@ -10,7 +10,7 @@ const UNIDADES_NUM = { zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro
 
 // minúsculo e sem acento, caractere a caractere (o tamanho do texto não muda, então dá pra mapear posições)
 export function semAcento(s) {
-  return Array.from(String(s || "")).map((c) => c.normalize("NFD")[0].toLowerCase()).join("");
+  return Array.from(String(s || "")).map((c) => [...c.normalize("NFD")][0].toLowerCase()).join(""); // [...] separa por caractere inteiro: emoji não encolhe o texto
 }
 function paraIso(d) {
   const p = (n) => String(n).padStart(2, "0");
@@ -25,6 +25,10 @@ function inicioDoDia(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDa
 
 // "vinte e cinco" -> "25", "dois" -> "2" (só no texto; o resto da frase fica igual)
 function numerosPorExtenso(texto) {
+  texto = texto.replace(/\bdez\b(?=\s+(?:de\s+)?20\d{2}\b)/gi, "dezembro"); // "dez 2026" é o mês, não o número 10
+  // "15 de dez", "5 set", "3 de out de 2026": sigla do mês logo depois do dia vira o nome inteiro (e "dez" não vira o número 10)
+  const ABREV = { jan: "janeiro", fev: "fevereiro", mar: "março", abr: "abril", mai: "maio", jun: "junho", jul: "julho", ago: "agosto", set: "setembro", out: "outubro", nov: "novembro", dez: "dezembro" };
+  texto = texto.replace(/\b(\d{1,2})(\s+(?:de\s+)?)(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\b\.?(?=\s|$|,)/gi, (_m, d, sep, mes) => d + sep + ABREV[mes.toLowerCase()]);
   const re = new RegExp(`\\b(${Object.keys(UNIDADES_NUM).join("|")})(?: e (um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove))?\\b`);
   let out = texto;
   for (let i = 0; i < 40; i++) {
@@ -50,7 +54,7 @@ function acharData(f, hoje) {
   let m;
 
   // 15/11, 15/11/2026, 15-11-26
-  if ((m = f.achar(/\b(?:dia\s+)?(\d{1,2})\s*(?:[\/.\-]|\s+de\s+)\s*(\d{1,2})(?:\s*(?:[\/.\-]|\s+de\s+)\s*(\d{2,4}))?\b/))) {
+  if ((m = f.achar(/\b(?:dia\s+)?(\d{1,2})\s*(?:[\/.\-]|\s+de\s+)\s*(\d{1,2})(?:\s*(?:[\/.\-]|\s+de\s+)\s*(\d{2,4}))?\b(?!\s*(?:kg|quilos?|g|gr|gramas?|ml|l|litros?)\b)/))) {
     const dia = +m[1], mes = +m[2]; let ano = m[3] ? +m[3] : null;
     if (ano != null && ano < 100) ano += 2000;
     const d = resolverDiaMes(dia, mes, ano, h);
@@ -58,9 +62,14 @@ function acharData(f, hoje) {
   }
   // 15 de novembro (de 2026) / dia 15 de novembro / 15 novembro
   const nomesMes = Object.keys(MESES).join("|");
-  if ((m = f.achar(new RegExp(`\\b(?:dia\\s+)?(\\d{1,2})\\s*(?:de\\s+)?(${nomesMes})(?:\\s+de\\s+(\\d{4}))?\\b`)))) {
-    const d = resolverDiaMes(+m[1], MESES[m[2]], m[3] ? +m[3] : null, h);
+  if ((m = f.achar(new RegExp(`\\b(?:dia\\s+)?(\\d{1,2})\\s*(?:de\\s+)?(${nomesMes})(?:\\s+de\\s+(\\d{2})\\b|\\s+(?:de\\s+)?(20\\d{2})\\b)?`)))) {
+    const anoTxt = m[3] || m[4]; const d = resolverDiaMes(+m[1], MESES[m[2]], anoTxt ? (anoTxt.length === 2 ? 2000 + +anoTxt : +anoTxt) : null, h);
     if (d) { f.tirar(m); return d; }
+  }
+  // "dezembro de 2026" / "dez 2026" (sem dia): vale o último dia do mês, igual a 12/2026
+  if ((m = f.achar(new RegExp(`(?<!\\d\\s*(?:de\\s+)?)\\b(${nomesMes})\\s+(?:de\\s+)?(20\\d{2})\\b`)))) {
+    const ano = +m[2], mes = MESES[m[1]];
+    if (ano >= anoAtual && ano <= anoAtual + 10) { const d = new Date(ano, mes, 0); f.tirar(m); return d; }
   }
   // daqui a 3 dias / em 2 semanas / daqui 1 mes
   if ((m = f.achar(/\b(?:daqui\s+(?:a\s+)?|em\s+)(\d{1,3})\s*(dias?|semanas?|mes(?:es)?)\b/))) {
@@ -138,10 +147,48 @@ function titulo(s) {
 // Principal. `hoje` só existe para os testes.
 export function interpretarVoz(texto, hoje = new Date()) {
   const bruto = String(texto || "").replace(/\s+/g, " ").trim();
-  const res = { texto: bruto, nome: "", validade: null, quantidade: null, porPeso: false, precoUnitario: null, setorSugerido: null };
+  const res = { texto: bruto, nome: "", validade: null, quantidade: null, porPeso: false, precoUnitario: null, setorSugerido: null, lote: null, semLote: false, falouLote: false };
   if (!bruto) return res;
 
   const f = new Frase(numerosPorExtenso(bruto));
+
+  // 0) lote impresso na embalagem: "lote CC 0132 6492", "lote L123", "sem lote". Sai da frase ANTES da data e da quantidade
+  // (um lote como "10/24" não pode virar data, e "lote 123 48 unidades" tem lote 123 e quantidade 48).
+  {
+    const PARA = new Set(["e", "de", "tem", "temos", "vence", "vai", "vao", "vencer", "vencem", "quantidade", "total", "com", "dia", "validade", "por", "pra", "para", "que", "sao", "no", "na", "em", "ate", "preco", "valor", "sem", "do", "da", "dos", "das", "o", "a", "os", "as", "kg", "g", "gr", "ml", "l", "x"]);
+    const UNID = /^(?:unidades?|unids?|un|u|caixas?|pacotes?|pecas?|garrafas?|latas?|potes?|bandejas?|sacos?|sache?s?|fardos?|kg|quilos?|reais|real)$/;
+    const limpa = (w) => w.replace(/[,;.!?]+$/, "");
+    const mSem = /\bsem\s+lote\b/.exec(f.norm);
+    if (mSem) { res.semLote = true; f.tirar(mSem); }
+    const mL = /\blote\b\s*/.exec(f.norm);
+    if (mL) {
+      res.falouLote = true;
+      const resto = f.norm.slice(mL.index + mL[0].length);
+      const todos = [...resto.matchAll(/\S+/g)];
+      const toks = []; const fins = [];
+      for (let i = 0; i < todos.length && toks.length < 4; i++) {
+        const w = limpa(todos[i][0]);
+        if (!/^[a-z0-9]+(?:[./-][a-z0-9]+)*$/.test(w) || PARA.has(w) || UNID.test(w) || /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(w)) break; // data completa não é lote
+        const prox = todos[i + 1] ? limpa(todos[i + 1][0]) : "";
+        if (!/\d/.test(w)) { // só letras: "CC" faz parte do lote se for curto e vier colado a um número ("CC 0132"); palavra de nome ("chocolate") nunca
+          if (w.length > 3 || !/\d/.test(prox)) break;
+        } else if (/^\d+$/.test(w)) {
+          if (toks.length && /\d/.test(toks[0])) break; // "lote 12 48" / "lote AB12 20": o segundo número não é parte do lote (só "CC 0132 6492", que começa com letras)
+          if (prox && UNID.test(prox)) break; // número seguido de unidade é a quantidade
+        }
+        toks.push(w); fins.push(todos[i].index + todos[i][0].length);
+        if (/[,;.!?]$/.test(todos[i][0])) break;
+      }
+      while (toks.length && toks.join(" ").length > 20) { toks.pop(); fins.pop(); }
+      const lote = toks.join(" ").toUpperCase();
+      const fim = fins.length ? fins[fins.length - 1] : 0;
+      if (toks.length && /\d/.test(lote) && /[1-9A-Z]/.test(lote)) {
+        res.lote = lote; res.semLote = false;
+      } // sem lote válido: só some a palavra "lote" (o que veio depois continua no nome)
+      const cortaAte = res.lote ? fim : 0;
+      f.orig = f.orig.slice(0, mL.index) + " " + f.orig.slice(mL.index + mL[0].length + cortaAte);
+    }
+  }
 
   // 1) validade
   const d = acharData(f, hoje);
@@ -156,9 +203,13 @@ export function interpretarVoz(texto, hoje = new Date()) {
 
   // 3) quantidade: "tem 40", "40 unidades/un/u", "2 kg", "quantidade 12", ou número no começo ("12 iogurtes").
   // Gramas/ml/litros NÃO são quantidade: "90 g" é o tamanho da embalagem e fica no nome.
+  // "1/2 kg", "1/4 kg": fração de quilo é peso (0,5 / 0,25), nunca data nem "2 kg"
+  if ((m = f.achar(/\b(\d{1,2})\/(\d{1,2})\s*(?:kg|quilos?|quilogramas?)\b/)) && +m[2] > 0 && +m[1] < +m[2]) {
+    res.quantidade = Number((+m[1] / +m[2]).toFixed(3)); res.porPeso = true; f.tirar(m);
+  }
   const UN_CONTA = "unidades?|unids?|un|u|caixas?|pacotes?|pecas?|garrafas?|latas?|potes?|bandejas?|sacos?|sache?s?|fardos?";
   const num = (x) => Number(String(x).replace(",", "."));
-  if ((m = f.achar(/\b(?:tem|temos|quantidade|total|sao)\s+(?:de\s+)?(\d+(?:[.,]\d+)?)(?:\s*(kg|quilos?|quilogramas?)\b|\s*(?:unidades?|unids?|un|u|caixas?|pacotes?|pecas?)\b)?/))) {
+  if (res.quantidade != null) { /* fração de quilo já resolvida acima */ } else if ((m = f.achar(/\b(?:tem|temos|quantidade|total|sao)\s+(?:de\s+)?(\d+(?:[.,]\d+)?)(?:\s*(kg|quilos?|quilogramas?)\b|\s*(?:unidades?|unids?|un|u|caixas?|pacotes?|pecas?)\b)?/))) {
     res.quantidade = num(m[1]); if (m[2]) res.porPeso = true; f.tirar(m);
   } else if ((m = f.achar(new RegExp(`\\b(\\d+(?:[.,]\\d+)?)\\s*(?:${UN_CONTA})\\b`)))) {
     res.quantidade = num(m[1]); f.tirar(m);
@@ -180,9 +231,9 @@ export function interpretarVoz(texto, hoje = new Date()) {
   const conectores = new Set(["de", "do", "da", "dos", "das", "no", "na", "nos", "nas", "em", "para", "pra", "o", "a", "os", "as", "um", "uma", "ate", "dia", "com", "que", "por", "ao"]);
   let ps = nome.split(" ").filter(Boolean);
   while (ps.length && conectores.has(semAcento(ps[0]))) ps.shift();
-  while (ps.length && conectores.has(semAcento(ps[ps.length - 1]))) ps.pop();
+  while (ps.length && (conectores.has(semAcento(ps[ps.length - 1])) || semAcento(ps[ps.length - 1]) === "e")) ps.pop();
   nome = ps.join(" ");
-  nome = nome.replace(/\bcom\s+(?=\d)/gi, "").replace(/\b(\d+(?:[.,]\d+)?)\s*(g|gr|gramas?|ml|l|litros?)\b/gi, (_, n, u) => n + (/^l/i.test(u) && u.length > 1 ? "L" : u.toUpperCase().replace(/^GR.*$/, "G")));
+  nome = nome.replace(/\b(\d+(?:[.,]\d+)?)\s+por\s+cento\b/gi, "$1%").replace(/\bcom\s+(?=\d)/gi, "").replace(/\b(\d+(?:[.,]\d+)?)\s*(g|gr|gramas?|ml|l|litros?)\b/gi, (_, n, u) => n + (/^l/i.test(u) && u.length > 1 ? "L" : u.toUpperCase().replace(/^GR.*$/, "G")));
   res.nome = nome ? titulo(nome) : "";
   res.setorSugerido = res.nome ? adivinharSetor(res.nome) : null;
   // "frango 500 gramas" (sem outra quantidade) em produto vendido a peso: os gramas são a quantidade, não o tamanho da embalagem

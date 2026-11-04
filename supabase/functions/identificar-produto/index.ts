@@ -29,9 +29,9 @@ Deno.serve(async (req: Request) => {
     if (!ud?.user) return resp({ error: "nao_autenticado" }, 401);
     const { data: perfil } = await sb.from("usuarios").select("id").eq("id", ud.user.id).eq("ativo", true).maybeSingle();
     if (!perfil) return resp({ error: "sem_permissao" }, 403);
-    // 2) limite por minuto (se o SQL de segurança ainda não foi aplicado, segue sem limite)
+    // 2) limite por minuto (falha FECHADA: se não der para conferir o limite, recusa)
     const { data: okLimite, error: eL } = await sb.rpc("rl_servico", { p_chave: ud.user.id, p_bucket: "identificar", p_max: 10 });
-    if (!eL && okLimite === false) return resp({ error: "limite_excedido" }, 429);
+    if (eL || okLimite !== true) return resp({ error: "limite_excedido" }, 429);
 
     const bruto = await req.text();
     if (bruto.length > MAX_BASE64 + 2000) return resp({ error: "imagem_grande" }, 413);

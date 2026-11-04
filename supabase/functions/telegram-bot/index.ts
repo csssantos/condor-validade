@@ -16,6 +16,7 @@ const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 
 // data de hoje em Brasília (meio-dia UTC daquele dia, para os getUTC* darem a data certa)
 const hoje = () => { const [a, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()).split("-").map(Number); return new Date(Date.UTC(a, m - 1, d, 12)); };
+const avisoInstab = new Map<number, number>(); // 1 aviso de instabilidade por chat a cada 60 s (não vira spam)
 const limpa = (e: unknown) => (TOKEN ? String(e).split(TOKEN).join("***") : String(e)); // nunca deixa o token do bot nos logs
 const iguais = (a: string, b: string) => { if (a.length !== b.length) return false; let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0; };
 const fmtData = (iso: string) => { const [a, m, d] = iso.split("-"); return `${d}/${m}/${a}`; };
@@ -183,6 +184,9 @@ const loteValido = (lt: string) => LOTE_RE.test(lt) && /\d/.test(lt); // lote re
 function prepararData(t: string, semProduto = false) { // semProduto: ainda não há produto na conversa, então 8 dígitos válidos são EAN-8, não data
   let x = t.replace(/\b(\d{2})(\d{2})(\d{4})\b/g, (m, d, mo, a) => (!(semProduto && eanOk(m)) && +d >= 1 && +d <= 31 && +mo >= 1 && +mo <= 12 && +a >= 2000 && +a <= 2100) ? `${d}/${mo}/${a}` : m);
   x = x.replace(/\b(\d{1,2})[ ](\d{1,2})[ ](20\d{2})\b/g, (m, d, mo, a) => (+d >= 1 && +d <= 31 && +mo >= 1 && +mo <= 12) ? `${d}/${mo}/${a}` : m);
+  // "dez 2026", "dezembro de 2026": vale o último dia do mês (igual a 12/2026). Sem isso "dez" virava a quantidade 10
+  const MESES: Record<string, number> = { jan: 1, janeiro: 1, fev: 2, fevereiro: 2, mar: 3, marco: 3, abr: 4, abril: 4, mai: 5, maio: 5, jun: 6, junho: 6, jul: 7, julho: 7, ago: 8, agosto: 8, set: 9, setembro: 9, out: 10, outubro: 10, nov: 11, novembro: 11, dez: 12, dezembro: 12 };
+  x = x.replace(/(?<!\d{1,2}\s*(?:de\s+)?)\b(janeiro|jan|fevereiro|fev|mar[çc]o|mar|abril|abr|maio|mai|junho|jun|julho|jul|agosto|ago|setembro|set|outubro|out|novembro|nov|dezembro|dez)\.?\s*(?:de\s+)?(20\d{2})\b/gi, (_m, mes, a) => { const mo = MESES[semAcento(mes).toLowerCase()]; const ay = new Date().getUTCFullYear(); if (+a < ay || +a > ay + 10) return _m; return `${new Date(Date.UTC(+a, mo, 0)).getUTCDate()}/${String(mo).padStart(2, "0")}/${a}`; });
   x = x.replace(/(?<![\w\/])(\d{1,2})\/(20\d{2})\b/g, (m, mo, a) => { if (+mo < 1 || +mo > 12) return m; const u = new Date(Date.UTC(+a, +mo, 0)).getUTCDate(); return `${u}/${String(mo).padStart(2, "0")}/${a}`; });
   return x;
 }
@@ -365,7 +369,7 @@ async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, b
   if (!eanOk(bc)) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código de barras não é válido: aceito EAN-8 (8 dígitos), UPC-A (12) ou EAN-13 (13), e o último dígito é o de verificação. Confira o número e envie de novo.", undefined, "atencao"); }
   // produto novo: busca nome e imagem na internet e pede a confirmação do funcionário
   const { data: lim } = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg_web", p_max: 6 });
-  if (lim === false) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Muitas buscas em pouco tempo. Aguarde 1 minuto.", undefined, "atencao"); }
+  if (lim !== true) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Muitas buscas em pouco tempo. Aguarde 1 minuto.", undefined, "atencao"); }
   await auditar(chat, "consultou produto na internet (Open Food Facts)", bc, bc);
   const achou = await buscarNaInternet(bc);
   if (!achou) {
@@ -445,7 +449,10 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   if (aguardaLote) {
     const pl = interpretarVoz(prepararData(texto), hoje());
     const temKw = /quantidade|unidade|\bun\b|\bkg\b/i.test(texto);
-    if (!pl.validade && !temKw && !/^\/(?!\w)/.test(texto)) {
+    // "10/24" sozinho, com a validade já informada, é o lote (e não uma data); data completa (com ano) ou "12/2026" continua sendo data
+    const t0 = texto.trim();
+    const pareceLote = t0.split(/\s+/).length <= 4 && /^[A-Za-z0-9./ -]+$/.test(t0) && !/[A-Za-z]{4,}/.test(t0) && !/\b\d{1,2}[\/.-]\d{1,2}[\/.-](?:\d{2}|\d{4})\b/.test(t0) && !/\b\d{1,2}[\/.-]\d{4}\b/.test(t0) && !/\b(ate|dia|vence)\b/i.test(t0) && !/^\d{8,14}$/.test(t0);
+    if ((!pl.validade || pareceLote) && !temKw && !/^\/(?!\w)/.test(texto)) {
       const lt = normLote(texto);
       if (!loteValido(lt)) return falar(chat, "Lote inválido. Use só letras, números, ponto, barra ou traço (até 20 caracteres) e pelo menos um número, como está na embalagem.", undefined, "atencao");
       d.lote = lt; return proximoPasso(ctx, chat, s, d);
@@ -453,7 +460,16 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   }
   let textoSemLote = texto;
   const ml = texto.match(/\blote\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9./-]{0,19})/i);
-  if (ml) { const lt = normLote(ml[1]); if (loteValido(lt)) { d.lote = lt; textoSemLote = texto.replace(ml[0], " "); } }
+  let falouLoteApp = false;
+  if (/\blote\b/i.test(texto)) { // lote com mais de uma parte ("lote CC 0132 6492"): quem entende a frase é o mesmo interpretador do app
+    const pv = interpretarVoz(texto, hoje()); falouLoteApp = !!pv.falouLote;
+    if (pv.lote && loteValido(pv.lote)) {
+      d.lote = pv.lote;
+      textoSemLote = texto.replace(new RegExp("\\blote\\s+" + pv.lote.split(" ").map((x) => x.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&")).join("\\s+"), "i"), " ");
+    }
+  }
+  // se o interpretador já olhou a frase e não achou lote ("lote 3 caixas"), o regex simples não decide sozinho
+  if (!d.lote && ml && !falouLoteApp) { const lt = normLote(ml[1]); if (loteValido(lt)) { d.lote = lt; textoSemLote = texto.replace(ml[0], " "); } }
   textoSemLote = prepararData(textoSemLote, !d.barcode);
   const mb = textoSemLote.match(/\b\d{8,14}\b/);
 
@@ -513,6 +529,13 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   if (p.quantidade != null) { d.quantidade = p.quantidade; if (p.porPeso && !d.barcode) d.porPeso = true; mudou = true; }
   else if (soNumero && d.barcode && d.quantidade == null) { d.quantidade = Number(resto.replace(/[^\d.,]/g, "").replace(",", ".")); mudou = true; }
 
+  // falou de data mas não deu para entender: avisa (antes ignorava em silêncio e seguia sem a data)
+  const falouData = /\b(vence|vencimento|vencer)\b|\b(?:janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(?:de\s+)?20\d{2}\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/.test(semAcento(resto).toLowerCase());
+  if (falouData && !p.validade && !mb) {
+    const aviso = "Não entendi a data. Envie no formato dia/mês/ano, por exemplo 15/12/2026 (a data precisa existir e não pode ter passado).";
+    if (!mudou && d.barcode) return falar(chat, aviso, undefined, "atencao"); // sem produto na conversa, o aviso não pode impedir a busca do produto
+    await falar(chat, aviso, undefined, "atencao");
+  }
   if (mb) return porBarcode(ctx, chat, s, d, mb[0]);
   if (!d.barcode && p.nome && !soNumero) return escolherProduto(ctx, chat, s, d, p.nome);
   if (!mudou && !d.barcode) return falar(chat, "Não entendi. Envie o código de barras ou o nome do produto.", undefined, "atencao");
@@ -736,7 +759,7 @@ async function vincular(chat: number, texto: string) {
   const { data: seg } = await sb.rpc("telegram_vinc_bloqueio", { p_chat_id: chat });
   if (typeof seg === "number" && seg > 0) return falar(chat, `Muitos códigos errados. Tente de novo em ${seg >= 3600 ? Math.ceil(seg / 3600) + " h" : Math.ceil(seg / 60) + " min"}.`, undefined, "atencao");
   const a = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg_vinc", p_max: 8 });
-  if (a.data === false) return falar(chat, "Muitas tentativas. Aguarde 1 minuto.", undefined, "atencao");
+  if (a.data !== true) return falar(chat, "Muitas tentativas. Aguarde 1 minuto.", undefined, "atencao");
   const { data, error } = func
     ? await sb.rpc("telegram_vincular_funcionario", { p_chat_id: chat, p_codigo: t })
     : await sb.rpc("telegram_vincular_promotor", { p_chat_id: chat, p_codigo: t.toUpperCase() });
@@ -764,8 +787,8 @@ async function processar(up: Record<string, any>) {
   const chat: number = chatObj.id;
   const texto: string = String(msg?.text ?? msg?.caption ?? "").slice(0, 500);
 
-  const { data: lim } = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg", p_max: 30 });
-  if (lim === false) return; // excesso: ignora sem gravar nada (não deixa encher a tabela)
+  const { data: lim, error: eLim } = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg", p_max: 30 });
+  if (lim !== true) { if (eLim) { console.error("rl_servico tg:", limpa(eLim)); const agora = Date.now(); if (agora - (avisoInstab.get(chat) || 0) > 60_000) { avisoInstab.set(chat, agora); await falar(chat, "Estou com instabilidade agora. Tente de novo em 1 minuto.", undefined, "atencao"); } } return; } // excesso (ou limite impossível de conferir): ignora sem gravar nada (não deixa encher a tabela)
   const { error: eDup } = await sb.from("telegram_mensagens").insert({ update_id: up.update_id, chat_id: chat, tipo: cb ? "botao" : msg?.photo ? "foto" : msg?.text ? "texto" : "outro", texto: cb ? String(cb.data).slice(0, 100) : texto });
   if (eDup) { if (eDup.code === "23505") return; console.error(eDup); return; }
   const marcar = (status: string, erro?: string) => sb.from("telegram_mensagens").update({ status_proc: status, erro: erro?.slice(0, 500) ?? null }).eq("update_id", up.update_id);

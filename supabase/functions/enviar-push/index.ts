@@ -1,7 +1,7 @@
 // Edge Function: enviar-push (versão 9 — endurecida; v9 aceita { aprovacaoId })
 // Aviso: recebe só { avisoId } (criado pela função enviar_aviso) e envia exatamente aquele aviso.
 // Produto (trigger do banco): recebe só { id }; o conteúdo vem do BANCO, nunca do chamador, e só vai para a loja do produto.
-// Limites: 2 pushes/min por produto e 300/min no total (rl_servico). Sem o SQL de segurança aplicado, o limite é ignorado (fail-open).
+// Limites: 2 pushes/min por produto e 300/min no total (rl_servico). Se o limite não puder ser conferido, o envio é recusado (fail-closed).
 // Segredos: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
@@ -113,9 +113,9 @@ Deno.serve(async (req) => {
 async function dentroDoLimite(sb: any, chave: string, bucket: string, max: number) {
   try {
     const { data, error } = await sb.rpc("rl_servico", { p_chave: chave, p_bucket: bucket, p_max: max });
-    if (error) { console.error("rl_servico:", error.message); return true; } // SQL de segurança ainda não aplicado
-    return data !== false;
-  } catch { return true; }
+    if (error) { console.error("rl_servico:", error.message); return false; } // falha FECHADA: sem conseguir contar, não envia
+    return data === true;
+  } catch { return false; }
 }
 function resposta(req: Request, corpo: unknown, status = 200) {
   return new Response(JSON.stringify(corpo), { status, headers: { ...corsHeaders(req), "Content-Type": "application/json" } });

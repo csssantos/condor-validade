@@ -405,7 +405,7 @@ async function supaFetchHistorico() {
 }
 async function supaUpsertProduto(item) {
   let { error } = await supabase.from("produtos").upsert({ ...produtoToRow(item), loja_id: LOJA_ID_ATIVA });
-  if (error && /lote/i.test(error.message || "")) { // banco ainda sem a coluna de lote: salva sem ela
+  if (error && (error.code === "42703" || error.code === "PGRST204") && /lote/i.test(error.message || "")) { // só quando o banco NÃO TEM a coluna de lote (erro de coluna): salva sem ela. Qualquer outro erro é real e sobe
     const { lote, sem_lote, ...semLote } = produtoToRow(item);
     ({ error } = await supabase.from("produtos").upsert({ ...semLote, loja_id: LOJA_ID_ATIVA }));
   }
@@ -803,6 +803,8 @@ function mensagemErroGravacao(e) {
   if (/editar_exige_autor/.test(m)) return "você só pode editar produtos que você mesmo lançou";
   if (/editar_exige_encarregado/.test(m)) return "só o encarregado do setor (ou superior) pode editar esse produto";
   if (/excluir_exige_encarregado/.test(m)) return "só encarregado ou superior pode excluir esse produto (use \"Dar baixa\")";
+  if (/23505|duplicate key|produtos_lote_unico/i.test(m + (e && e.code))) return "esse lote já está lançado nesse produto: use \"Somar ao lote\" ou confira o número do lote";
+  if (/lote_validade_diferente/.test(m)) return "esse lote já existe com outra validade: confira o lote e a validade da embalagem";
   if (/lote_obrigatorio/.test(m)) return "falta o lote (ou marcar que não tem lote impresso)";
   if (/lote_invalido/.test(m)) return "lote inválido (use letras, números, . / - e até 20 caracteres)";
   if (/produto_travado_pedido/.test(m)) return "esse lote tem pedido de promoção ou preço direto registrado e está travado: o encarregado do setor precisa remover o pedido antes de alterar";
@@ -1536,7 +1538,7 @@ function AppInner() {
   }, [ehDesktop, flow]);
   const [intencaoFluxo, setIntencaoFluxo] = useState("validade"); // "validade" | "cadastro"
   const [vozAberta, setVozAberta] = useState(false);
-  const [vozPre, setVozPre] = useState(null); // o que a voz já preencheu na tela de validade { validade, quantidade, porPeso }
+  const [vozPre, setVozPre] = useState(null); // o que a voz já preencheu na tela de validade { validade, quantidade, porPeso, lote, semLote }
   const [setorAtivo, setSetorAtivoBruto] = useState(null); // controla a página de detalhe do setor
   const [subAtivo, setSubAtivo] = useState(null); // subcategoria escolhida dentro do setor (null = tela de subcategorias; "__todos__" / "__sem__" = atalhos)
   const setSetorAtivo = (v) => { setSetorAtivoBruto(v); setSubAtivo(null); };
@@ -2174,6 +2176,7 @@ function AppInner() {
       // A soma é feita no SERVIDOR (teto, trava de linha e auditoria); se ele recusar, a tela volta ao valor real
       supabase.rpc("somar_ao_lote", { p_id: orig.id, p_qtd: add }).then(({ error }) => {
         if (!error) return;
+        setItems((prev) => prev.map((it) => (it.id === orig.id && it.quantidade === orig.quantidade + add ? { ...it, quantidade: orig.quantidade } : it))); // a soma não foi gravada: volta ao número de antes (só se a tela ainda mostra o otimista)
         if (erroDeRede(error)) window.dispatchEvent(new CustomEvent("condor-erro-gravacao", { detail: { mensagem: "Sem internet: a soma ao lote não foi enviada. Tente de novo quando a conexão voltar." } }));
         else avisarErroGravacao(error, "a soma ao lote");
       });
@@ -2238,7 +2241,7 @@ function AppInner() {
     if (validarVoz(res).length) { showToast("Dados da voz inválidos. Confira e tente de novo."); return; }
     setVozAberta(false);
     setEditingItemId(null);
-    setVozPre({ validade: res.validade || "", quantidade: res.quantidade, porPeso: !!res.porPeso });
+    setVozPre({ validade: res.validade || "", quantidade: res.quantidade, porPeso: !!res.porPeso, lote: res.lote || "", semLote: !!res.semLote && !res.lote });
     const extraPreco = res.precoUnitario ? { precoUnitario: res.precoUnitario } : {};
     if (achado) {
       setPendingBarcode(achado.entrada.barcode || achado.chave);
@@ -2518,7 +2521,7 @@ function AppInner() {
   const larguraMain =
     flow === null && tab.startsWith("cfg-") ? "max-w-md lg:max-w-[1600px]" :
     (flow === null && tab === "ajustes") || flow === "scan" ? "max-w-md lg:max-w-2xl" :
-    flow === "confirm" ? "max-w-md lg:max-w-3xl" :
+    flow === "confirm" ? "max-w-md lg:max-w-5xl" :
     flow === "expiry" ? "max-w-md lg:max-w-5xl" :
     ["torre", "relatorios", "historico", "auditoria", "rede", "gestao", "convites"].includes(flow) ? "max-w-md lg:max-w-[1600px]" :
     "max-w-md lg:max-w-[1600px]";
@@ -2866,6 +2869,12 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-voz-lote", data: "04/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Cadastro por voz: agora entende o lote falado (ex.: \"lote CC 0132 6492\") e já deixa preenchido na tela de validade, em vez de misturar o lote no nome do produto. \"40 por cento\" vira 40% e sobras como \"e\" no fim do nome saem." },
+    { tipo: "alterado", ate: 7, texto: "No computador, o cadastro de produto (confirmar dados) mostra tudo numa tela só, em duas colunas, sem as etapas do celular." },
+    { tipo: "alterado", ate: 7, texto: "Telegram: entende datas como \"dez 2026\" e \"dezembro de 2026\" (vale o último dia do mês), avisa quando não entende uma data e aceita lote que parece data (ex.: 10/24) quando o bot pergunta o lote." },
+    { tipo: "alterado", ate: 7, texto: "Somar ao lote sem internet: se a soma não for gravada, o número volta ao valor real na tela e o app avisa. Erro de lote repetido agora tem mensagem clara." },
+  ] },
   { id: "2026-11-04-pc-largura", data: "04/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "No computador: as páginas de Configurações agora usam a largura inteira da tela (sem faixas em branco dos lados). Lançar validade ficou em duas colunas, subcategorias e rondas aparecem em grade, e Rondas ganhou cartões de resumo." },
     { tipo: "novo", ate: 5, texto: "Notificação no aparelho quando chega pedido de aprovação de produto novo pelo Telegram, mesmo com o app fechado (se as notificações estiverem ligadas)." },
@@ -9336,6 +9345,10 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
   // com o coletor numa mão e o produto na outra. Cada etapa só libera "Avançar" com o essencial dela ok.
   const [etapa, setEtapa] = useState(1);
   const TOTAL_ETAPAS = 4;
+  // No PC cabe tudo numa tela só, em 2 colunas: não precisa de etapas (no celular continua passo a passo)
+  const pc = useTelaLarga();
+  const ver = (n) => pc || etapa === n;
+  const etapaEf = pc ? TOTAL_ETAPAS : etapa;
   const NOMES_ETAPA = ["Produto", "Preço", "Setor", "Detalhes"];
   const podeAvancarEtapa = {
     1: nome.trim().length > 0,
@@ -9346,12 +9359,12 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
 
   return (
     <div className="px-4 pt-4">
-      <div className="flex items-center gap-1.5 mb-4">
+      <div className="flex items-center gap-1.5 mb-4 lg:hidden">
         {Array.from({ length: TOTAL_ETAPAS }).map((_, i) => (
           <div key={i} style={{ background: i + 1 <= etapa ? BLUE : T.chipBg }} className="h-1.5 flex-1 rounded-full transition-colors" />
         ))}
       </div>
-      <p style={{ color: T.subtext }} className="text-[11px] font-semibold uppercase tracking-wide mb-3">
+      <p style={{ color: T.subtext }} className="text-[11px] font-semibold uppercase tracking-wide mb-3 lg:hidden">
         Etapa {etapa} de {TOTAL_ETAPAS} · {NOMES_ETAPA[etapa - 1]}
       </p>
 
@@ -9386,8 +9399,8 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
         </div>
       )}
 
-      <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-4 border shadow-lg shadow-black/5 flex flex-col gap-4">
-        {etapa === 1 && (<>
+      <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-4 border shadow-lg shadow-black/5 flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-x-6 lg:gap-y-4 lg:items-start">
+        {ver(1) && (<>
         <div>
           <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Foto do produto</label>
           <div className="flex items-center gap-3">
@@ -9446,7 +9459,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
           )}
         </div>
         </>)}
-        {etapa === 2 && (
+        {ver(2) && (
         <div>
           {ehPerecivel(setorFinal) && (
             <div className="flex items-center justify-between mb-1.5">
@@ -9469,7 +9482,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
           {porPeso && <p style={{ color: T.subtext }} className="text-[10px] mt-1">Ao lançar a validade, o valor total é calculado automaticamente pelo peso pesado.</p>}
         </div>
         )}
-        {etapa === 2 && (
+        {ver(2) && (
         <div>
           <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Tamanho / quantidade da embalagem</label>
           <div className="flex gap-2">
@@ -9486,7 +9499,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
           <p style={{ color: T.subtext }} className="text-[10px] mt-1">Fica salvo no cadastro — não precisa digitar de novo ao lançar a validade.</p>
         </div>
         )}
-        {etapa === 3 && (
+        {ver(3) && (
         <div>
           <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 block">Setor <span style={{ color: RED }}>*</span></label>
           {!criandoSetor ? (
@@ -9578,8 +9591,8 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
         </div>
         )}
 
-        {etapa === 4 && (
-        <div style={{ borderColor: T.border }} className="pt-1 border-t">
+        {ver(4) && (
+        <div style={{ borderColor: T.border }} className="pt-1 border-t lg:col-span-2">
           <div className="mt-3" />
           <label style={{ color: T.subtext }} className="text-[10px] font-medium mb-1 block">Categoria de giro</label>
           <div className="flex gap-1.5 mb-3">
@@ -9608,10 +9621,10 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
       </div>
 
       <div className="flex gap-2 mt-5">
-        <button onClick={etapa === 1 ? onCancel : () => setEtapa((e) => e - 1)} style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-3 rounded-2xl border">
-          {etapa === 1 ? "Cancelar" : "Voltar"}
+        <button onClick={(pc || etapa === 1) ? onCancel : () => setEtapa((e) => e - 1)} style={{ color: T.subtext, borderColor: T.border }} className="flex-1 text-sm font-medium py-3 rounded-2xl border">
+          {(pc || etapa === 1) ? "Cancelar" : "Voltar"}
         </button>
-        {etapa < TOTAL_ETAPAS ? (
+        {etapaEf < TOTAL_ETAPAS ? (
           <button disabled={!podeAvancarEtapa} onClick={() => setEtapa((e) => e + 1)}
             style={{ background: podeAvancarEtapa ? BLUE : "#C7CEDA" }} className="flex-[2] text-sm font-semibold py-3 rounded-2xl text-white flex items-center justify-center gap-1.5">
             Continuar <ChevronRight size={16} />
@@ -9642,7 +9655,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
           </button>
         )}
       </div>
-      {etapa === TOTAL_ETAPAS && intencaoFluxo === "validade" && onSalvarEdicaoDireto && (
+      {etapaEf === TOTAL_ETAPAS && intencaoFluxo === "validade" && onSalvarEdicaoDireto && (
         <button disabled={!podeContinuar} onClick={() => onContinue({
           nome: formatarNomeProfissional(nome.trim()), setor: setorFinal, subsetor: subsetor || null, foto, corredor: corredor || null, ladoCorredor: ladoCorredor || null,
           modulo: modulo || null, prateleira: prateleira || null, categoriaGiro: categoriaGiro || null, politicaTroca: politicaTroca || null, precoUnitario: Number(precoUnitario) || 0, porPeso, tamanho: tamanho || null, unidadeMedida, cadastrarEstoque, corredorDeposito: cadastrarEstoque ? (corredorDeposito || null) : null, moduloDeposito: cadastrarEstoque ? (moduloDeposito || null) : null, nivelDeposito: cadastrarEstoque ? (nivelDeposito || null) : null, vaoDeposito: cadastrarEstoque ? (vaoDeposito || null) : null
@@ -9716,8 +9729,8 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
     : (product.tamanho && ["G", "KG", "ML", "L"].includes(product.unidadeMedida) ? product.unidadeMedida : "G")); // padrão G (grama); se o cadastro já tem tamanho com unidade, respeita (evita gravar 1 L como 1 G)
   const [observacoes, setObservacoes] = useState(editing ? editing.observacoes || "" : "");
   const [confirmarDuplicado, setConfirmarDuplicado] = useState(false);
-  const [lote, setLote] = useState(editing ? editing.lote || "" : "");
-  const [semLote, setSemLote] = useState(editing ? !!editing.semLote : false);
+  const [lote, setLote] = useState(editing ? editing.lote || "" : (vozPre?.lote || ""));
+  const [semLote, setSemLote] = useState(editing ? !!editing.semLote : !!vozPre?.semLote);
   const [local, setLocal] = useState(editing ? editing.local || "loja" : "loja");
   const [corredorDeposito, setCorredorDeposito] = useState(editing ? editing.corredorDeposito || "" : product.corredorDeposito || "");
   const [moduloDeposito, setModuloDeposito] = useState(editing ? editing.moduloDeposito || "" : product.moduloDeposito || "");
@@ -11880,7 +11893,7 @@ function PaginaAprovacoes({ T, dark, perfil, showToast, subsetoresExtra = [] }) 
     const { error } = await supabase.rpc("recusar_produto_novo", { p_id: a.id, p_motivo: motivo });
     setOcupado(false);
     if (error) { showToast?.(msgErro(error), "warn"); carregar(); return; }
-    avisar(a.id); showToast?.("Lançamento recusado. Motivo enviado pelo Telegram", "aviso"); setAberto(null); setRecusando(null); setMotivo(""); carregar();
+    avisar(a.id); showToast?.("Lançamento recusado. Se a pessoa estiver com o Telegram vinculado, o motivo chega a ela.", "aviso"); setAberto(null); setRecusando(null); setMotivo(""); carregar();
   }
 
   const pend = (lista || []).filter((a) => a.status === "pendente");

@@ -68,7 +68,7 @@ Polling 20s (`buscarVersaoPublicada`) → `novaVersao`. Deslogado: overlay `Atua
 ## Segurança (2026-10-31) — arquivo `supabase-seguranca.sql` (usuário roda; tem AUTO-TESTE que desfaz tudo se falhar)
 - RLS por loja (`loja_ok(loja_id)`), por cargo (`nivel_do_usuario()`); `anon` só lê `lojas`/`cargos` e chama `buscar_funcionario_pendente`. Trilhas (historico, auditoria, login_auditoria, validade_alteracoes) só inserção. `usuarios` sem escrita direta (cargo/loja só via RPC) — isso fechou o furo de o usuário editar o próprio cargo.
 - Funções: revoke de PUBLIC/anon em todas; internas (`_*`, `condor_*`, triggers) trancadas. Nova função pública do app → `grant execute ... to authenticated` (o padrão agora é SEM permissão).
-- Limite por minuto: `rl_checar(bucket,max)` (triggers `trg_limite` em produtos/catalogo/historico/auditoria/validade_alteracoes/login_auditoria/convites/pendentes) e RPCs sensíveis embrulhadas (original renomeada `_rl_<nome>`; ao editar uma delas, editar a `_rl_`). DEV/DIRETOR (nível<=2) isentos. Edge Functions usam `rl_servico` (fail-open se o SQL não foi aplicado). Contadores em `limite_uso` (limpa por cron).
+- Limite por minuto: `rl_checar(bucket,max)` (triggers `trg_limite` em produtos/catalogo/historico/auditoria/validade_alteracoes/login_auditoria/convites/pendentes) e RPCs sensíveis embrulhadas (original renomeada `_rl_<nome>`; ao editar uma delas, editar a `_rl_`). DEV/DIRETOR (nível<=2) isentos. Edge Functions usam `rl_servico` (FALHA FECHADA desde 2026-11-04: se não der para conferir, recusa). Contadores em `limite_uso` (limpa por cron).
 - Push: cliente grava inscrição via RPC `salvar_push` (tabela sem escrita direta). `enviar-push` v8 só aceita `{id}`/`{avisoId}` e lê tudo do banco, envia só para a loja do produto. `identificar-produto` v8 exige login + limite; Gemini no cliente REMOVIDO (não usar VITE_GEMINI_API_KEY). `assistente-ia`: versão do repo endurecida (login antes de tudo, diagnósticos só nível<=2, CORS restrito).
 - `vercel.json`: CSP, HSTS, X-Frame DENY etc. Se algo novo externo for chamado (fetch/script/img), liberar na CSP. `supabaseClient.js` tem freio no cliente (150 chamadas/10 s, pausa em 429/503).
 - Só no painel (não dá por código): ativar "Leaked password protection" (Auth → Providers → Email), limites/captcha de Auth (Auth → Rate limits), WAF/rate limit da Vercel (Firewall). `pg_net` está no schema public (aviso leve).
@@ -154,15 +154,15 @@ Telas internas ainda no layout antigo: Confirm/Expiry, execução de ronda, Assi
 Feitos: 1 (blindagem de produtos + baixa atômica), 2 (código do promotor), 3 (código do Telegram forte), 8 (alerta de 1 dia/motivo do Salvar) e "validade a 2 dias igual ao Telegram".
 SQLs que o dono precisa rodar (conferir com execute_sql antes de assumir): `supabase-telegram-codigo-forte.sql` e `supabase-validade-proxima.sql`.
 Faltam:
-- 4: limites que falham abertos (`rl_servico` fail-open nas Edge Functions).
+- 4: [FEITO 2026-11-04] limites agora falham FECHADOS (`!== true`) em enviar-push, assistente-ia, identificar-produto e telegram-bot; exige `rl_servico` no banco (existe). Se o SQL de segurança sumir, o bot avisa instabilidade e as funções recusam.
 - 5: sw.js redirect (já melhorado).
-- 6: `telegram-desvincular` quando recebe usuario e convite juntos.
-- 7: backfill de `validade_alteracoes.loja_id` nas linhas antigas.
-- 9: bot ignora em silêncio data que não entendeu; "DEZ 2026" vira quantidade 10.
-- 10: lote do bot que parece data ("10/24") vira data; lote "8".
+- 6: [FEITO] `telegram-desvincular` recusa usuário+convite juntos (400).
+- 7: [MOOT] `validade_alteracoes` está vazia (0 linhas), nada a corrigir.
+- 9: [FEITO] bot avisa "Não entendi a data"; "dez 2026"/"dezembro de 2026" = último dia do mês (bot e app).
+- 10: [FEITO] resposta "10/24" à pergunta do lote vale como lote (`pareceLote`); data com ano ou mm/aaaa continua data.
 - 11: baixa do encarregado quando a gravação do histórico falha.
-- 12: `somar_ao_lote` sem internet.
-- 13: `supaUpsertProduto` tenta de novo sem lote e mascara erro real (usar códigos 42703/PGRST204; mapear 23505).
+- 12: [FEITO] soma ao lote que falha volta ao número anterior (só se a tela ainda mostra o otimista). Pendência: duas somas seguidas offline.
+- 13: [FEITO] retry sem lote só com 42703/PGRST204; 23505/lote_validade_diferente mapeados.
 - 14: mensagens (ean_invalido na aprovação só cita EAN-13; toast "enviado pelo Telegram" sem vínculo).
 - 15: dívida técnica (App.jsx ~11,4k linhas, callback_data do setor por índice, CSP `img-src https:`).
 - Menores da banca: soma ao lote no banco não barra lote a ≤2 dias; fila offline descarta lançamento que passou a ≤2 dias; tela da baixa otimista; reenvio após resposta perdida mostra produto_nao_encontrado.
@@ -229,3 +229,10 @@ Ideia em avaliação (sem decisão): localização ao lançar validade (modo "si
 - PC: `larguraMain` (App.jsx) agora deixa as páginas cfg-* na largura total (1600) em vez de 5xl centralizado; MaisView PC sem max-w. Expiry em 2 colunas (`lg:grid-cols-2`, blocos largos com `lg:col-span-2`), largura 5xl; Confirm (wizard) 3xl; SetorSubcategoriasView em grade; RondasView ganhou 3 cartões KPI no PC e grade xl:3 colunas. Harness de prints: scratchpad `dash/` (`node buildG.cjs`, página `pageN.html`, `shotAll.py`/`shotCfg.py`; o CSS é gerado das classes do código, classe arbitrária nova só entra rebuildando).
 - Ainda no formato celular no PC (pendente): RondaPainel/RondaExecucao/NovaRondaSheet, ScanView, ConfirmProductView (wizard em coluna), ContaSemVinculo, Assistente IA/Previsão/Prevenção (não conferidas em print), login.
 - PUSH: `enviar-push` aceita `{aprovacaoId}`: confere pedido pendente <15 min, no máx. 1 envio por pedido por minuto (`rl_servico` bucket push_aprovacao; exige chave de serviço; clique abre `/`), manda só a usuários ativos nível ≤5 da loja do pedido. O bot chama depois de `telegram_enviar_aprovacao` (acha o id do pedido pendente pelo código de barras). Clique na notificação abre `/`.
+
+
+## VOZ: LOTE, MÊS POR EXTENSO E PC CONFIRMAR (2026-11-04, pedidos do dono) — sem SQL; publicar telegram-bot/enviar-push/assistente-ia/identificar-produto/telegram-desvincular depois do push
+- `interpretarVoz` (voz.js, cópia idêntica em telegram-bot/voz.js): bloco "0) lote" ANTES de data/quantidade: `res.lote` (até 4 partes, ≤20 chars, ao menos um número; para em artigo/unidade/palavra de nome ≥4 letras/data completa), `res.semLote`, `res.falouLote`. "lote 12 48" = lote 12 (48 fica solto); "lote 3 caixas" = quantidade 3. "40 por cento"→40%, "e" no fim do nome sai, "1/2 kg" = 0,5 kg por peso, mês abreviado depois do dia ("15 de dez", "15 jan 2027"), "dez 2026"/"dezembro de 2026" = último dia do mês (ano atual..+10), ano de 2 dígitos só depois de "de". `semAcento` usa `[...]` (emoji não desloca índices). App: `vozPre.lote/semLote` preenchem o ExpiryView; VozSheet tem linha Lote.
+- Bot: `prepararData` entende mês por nome+ano (não mexe em "15 de dezembro de 2026" nem em ano passado); fallback de lote multi-parte via `interpretarVoz` (regex `ml` só se o interpretador não olhou); `pareceLote`; `falouData` (vence/mês+ano/dd/mm/aaaa) avisa sem impedir busca de produto; aviso de instabilidade (1/min/chat) quando `rl_servico` dá erro.
+- ConfirmProductView no PC: todas as etapas numa tela, 2 colunas (`pc`/`ver()`/`etapaEf`); celular segue em etapas.
+- Pendências: mês abreviado sozinho sem dia no app ("nov 2027"); palavras de campo ("qtd 8", "preço 5,90 sem reais") viram nome; quantidade solta no fim; app não entende "20 12 2026"/"12/2026" (só o bot); 23505 genérico; aviso de instabilidade sai antes do dedupe.
