@@ -2787,6 +2787,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-rolagem-inicio", data: "04/11/2026", itens: [
+    { tipo: "novo", ate: 7, texto: "Tela inicial com rolagem animada: ao descer, o círculo do topo fica para trás e encolhe enquanto os cards e a lista de produtos deslizam por cima." },
+  ] },
   { id: "2026-11-04-telegram-voltar", data: "04/11/2026", itens: [
     { tipo: "novo", ate: 7, texto: "Telegram: ao cancelar no meio do lançamento o bot pergunta se é isso mesmo; dá para voltar uma resposta (/voltar) e corrigir; cada resposta tem 5 minutos e, passado o tempo, o lançamento é cancelado com aviso." },
   ] },

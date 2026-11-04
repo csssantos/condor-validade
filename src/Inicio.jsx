@@ -79,6 +79,25 @@ export function PalcoInicio({
   logo, nome, loja, valorNum, formatarMoeda, vencidos, alerta, total, emergencia, onEmergencia, notifOk, onNotif, dark, onTema, atualizacaoPendente, onAtualizacao,
 }) {
   const reduzir = useReducedMotion();
+  const conteudoRef = useRef(null);
+  // ao rolar, o topo (anel e saudação) fica parado, encolhe e esmaece enquanto a parte de baixo (cards e produtos) desliza por cima dele
+  useEffect(() => {
+    const rolagem = document.getElementById("root"), el = conteudoRef.current;
+    if (reduzir || !rolagem || !el) return undefined;
+    let quadro = 0;
+    const aplicar = () => {
+      quadro = 0;
+      const p = Math.min(1, Math.max(0, rolagem.scrollTop) / 320);
+      el.style.transform = p > 0 ? `translate3d(0, ${(-p * 28).toFixed(1)}px, 0) scale(${(1 - p * 0.1).toFixed(3)})` : "";
+      el.style.opacity = p > 0 ? String((1 - p * 0.9).toFixed(3)) : "";
+      el.style.pointerEvents = p > 0.5 ? "none" : ""; // coberto pela folha: não recebe toque
+      el.style.visibility = p >= 1 ? "hidden" : ""; // totalmente atrás: sai do foco/leitor de tela
+    };
+    const aoRolar = () => { if (!quadro) quadro = requestAnimationFrame(aplicar); };
+    rolagem.addEventListener("scroll", aoRolar, { passive: true });
+    aplicar();
+    return () => { rolagem.removeEventListener("scroll", aoRolar); if (quadro) cancelAnimationFrame(quadro); el.style.transform = ""; el.style.opacity = ""; el.style.pointerEvents = ""; el.style.visibility = ""; };
+  }, [reduzir]);
   const ok = Math.max(0, total - vencidos - alerta);
   const valor = useContagem(valorNum, 1100);
   const primeiroNome = String(nome || "").trim().split(/\s+/)[0];
@@ -98,7 +117,7 @@ export function PalcoInicio({
   );
 
   return (
-    <section className="relative overflow-hidden text-white pb-12 transition-colors" style={{ background: emergencia ? FUNDO_EMERGENCIA : FUNDO_MARCA, isolation: "isolate" }}>
+    <section className={`${reduzir ? "relative" : "sticky top-0"} overflow-hidden text-white pb-12 transition-colors`} style={{ background: emergencia ? FUNDO_EMERGENCIA : FUNDO_MARCA, isolation: "isolate" }}>
       <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "22px 22px" }} />
       {!reduzir && [
         { c: "#2E86F0", s: 280, x: "-22%", y: "-10%", dx: 30, dy: 24, d: 12 },
@@ -108,7 +127,7 @@ export function PalcoInicio({
           animate={{ x: [0, b.dx, 0], y: [0, b.dy, 0] }} transition={{ duration: b.d, repeat: Infinity, ease: "easeInOut" }} />
       ))}
 
-      <div className="relative px-4 pt-[calc(env(safe-area-inset-top)+0.9rem)]">
+      <div ref={conteudoRef} style={{ transformOrigin: "50% 0", willChange: reduzir ? undefined : "transform, opacity" }} className="relative px-4 pt-[calc(env(safe-area-inset-top)+0.9rem)]">
         {/* topo: logo + ações */}
         <div className="flex items-center justify-between">
           <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 18 }}
