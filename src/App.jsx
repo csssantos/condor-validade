@@ -2787,6 +2787,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-pc-config", data: "04/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "No computador, as páginas de Configurações (Conta, Aparência, Notificações, Privacidade e termos, Sobre, Avisos, Código de balança e Aprovar produtos novos) foram refeitas em formato de dashboard, com várias colunas; nos Termos, o texto do documento abre ao lado da lista." },
+  ] },
   { id: "2026-11-04-rolagem-inicio", data: "04/11/2026", itens: [
     { tipo: "novo", ate: 7, texto: "Tela inicial com rolagem animada: ao descer, o círculo do topo fica para trás e encolhe enquanto os cards e a lista de produtos deslizam por cima." },
   ] },
@@ -10632,9 +10635,9 @@ function MaisBolha({ cor, dark, tamanho = 44, children }) {
   );
 }
 
-function MaisBloco({ T, titulo, children, i = 0 }) {
+function MaisBloco({ T, titulo, children, i = 0, className = "" }) {
   return (
-    <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ ...MOLA, delay: 0.04 + i * 0.07 }} className="mb-4">
+    <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ ...MOLA, delay: 0.04 + i * 0.07 }} className={`mb-4 ${className}`}>
       {titulo && <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wider mb-2 px-1">{titulo}</p>}
       <div style={{ background: T.card }} className="rounded-3xl shadow-lg shadow-black/5 overflow-hidden">{children}</div>
     </motion.section>
@@ -10845,6 +10848,7 @@ function TelegramVinculo({ T, showToast }) {
 }
 
 function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
+  const pc = useTelaLarga();
   const [emailAtual, setEmailAtual] = useState(perfil?.email || "");
   const [aberta, setAberta] = useState(null); // "senha" | "email" | null
   const [confirmaSair, setConfirmaSair] = useState(false);
@@ -10907,7 +10911,99 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
     <MaisLinha T={T} dark={dark} icon={icon} cor={cor} titulo={titulo} desc={desc} onClick={() => setAberta(aberta === id ? null : id)}
       direita={<motion.span animate={{ rotate: aberta === id ? 90 : 0 }} transition={MOLA}><ChevronRight size={18} style={{ color: T.subtext }} /></motion.span>} ultima={aberta !== id} />
   );
+  const formSenha = (
+    <>
+        {okS ? (
+          <div className="flex flex-col items-center gap-2 py-5"><MaisCheck /><p style={{ color: T.text }} className="text-sm font-bold">Senha alterada!</p></div>
+        ) : (
+          <>
+            <MaisCampo T={T} label="Senha atual" value={sAtual} onChange={setSAtual} type={ver ? "text" : "password"} autoComplete="current-password" direita={olho} />
+            <MaisCampo T={T} label="Nova senha" value={sNova} onChange={setSNova} type={ver ? "text" : "password"} autoComplete="new-password" />
+            {sNova && (
+              <div aria-live="polite">
+                <div style={{ background: T.chipBg }} className="h-1.5 rounded-full overflow-hidden">
+                  <motion.div animate={{ width: `${Math.max(forca, 1) * 25}%`, background: CORES_FORCA[forca] }} transition={MOLA} className="h-full rounded-full" />
+                </div>
+                <p style={{ color: CORES_FORCA[forca] }} className="text-[11.5px] font-semibold mt-1">Senha {ROTULOS_FORCA[forca].toLowerCase()}</p>
+              </div>
+            )}
+            <MaisCampo T={T} label="Repita a nova senha" value={sConf} onChange={setSConf} type={ver ? "text" : "password"} autoComplete="new-password" />
+            <AnimatePresence>{erroS && <MaisAviso tipo="erro">{erroS}</MaisAviso>}</AnimatePresence>
+            <MaisBotao T={T} onClick={salvarSenha} carregando={salvandoS}>Salvar nova senha</MaisBotao>
+          </>
+        )}
+    </>
+  );
+  const formEmail = (
+    <>
+        {enviadoE ? (
+          <div className="flex flex-col items-center gap-2 py-3 text-center">
+            <MaisCheck />
+            <p style={{ color: T.text }} className="text-sm font-bold">Pedido enviado</p>
+            <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">
+              Mandamos links de confirmação. Abra o e-mail <strong>atual</strong> ({emailAtual}) e confirme a troca; se o novo e-mail também receber um link, confirme nele também.
+              Até concluir, você continua entrando com o e-mail atual.
+            </p>
+          </div>
+        ) : (
+          <>
+            <MaisCampo T={T} label="Novo e-mail" value={eNovo} onChange={setENovo} type="email" autoComplete="email" placeholder="nome@exemplo.com" />
+            <MaisCampo T={T} label="Sua senha" value={eSenha} onChange={setESenha} type={ver ? "text" : "password"} autoComplete="current-password" direita={olho} />
+            <MaisAviso>Por segurança, a troca só vale depois que você confirmar pelo link enviado ao seu <strong>e-mail atual</strong>.</MaisAviso>
+            <AnimatePresence>{erroE && <MaisAviso tipo="erro">{erroE}</MaisAviso>}</AnimatePresence>
+            <MaisBotao T={T} onClick={trocarEmail} carregando={salvandoE}>Pedir troca de e-mail</MaisBotao>
+          </>
+        )}
+    </>
+  );
   const cargo = perfil?.cargo_nome_loja || perfil?.cargos?.nome || "—";
+  const dadosConta = [["Cargo", cargo], ["Loja", perfil?.lojas?.numero_loja ? `Loja ${perfil.lojas.numero_loja}` : "—"], ["Setor", perfil?.setor || "—"], ["Matrícula", perfil?.matricula || "—"]];
+  if (pc) {
+    return (
+      <div className="grid grid-cols-12 gap-5 items-start">
+        <aside className="col-span-5 xl:col-span-4 flex flex-col gap-5">
+          <section style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative overflow-hidden rounded-3xl text-white p-6 shadow-sm">
+            <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+            <div className="relative flex items-center gap-4">
+              <div className="h-20 w-20 rounded-[26px] flex items-center justify-center text-2xl font-extrabold shrink-0" style={{ background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.28)" }}>{iniciaisDe(perfil?.nome || usuario)}</div>
+              <div className="min-w-0">
+                <p className="text-xl font-extrabold leading-tight truncate">{perfil?.nome || usuario || "—"}</p>
+                <p className="text-[13px] text-white/75 mt-0.5 truncate">{emailAtual || "—"}</p>
+              </div>
+            </div>
+            <div className="relative grid grid-cols-2 gap-2.5 mt-5">
+              {dadosConta.map(([r, v]) => (
+                <div key={r} className="rounded-2xl px-3.5 py-2.5" style={{ background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.2)" }}>
+                  <p className="text-[10.5px] font-bold uppercase tracking-wide text-white/70">{r}</p>
+                  <p className="text-[14px] font-semibold mt-0.5 truncate">{v}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+          <DashCard T={T} title="Sessão" subtitle="Encerra o acesso neste computador">
+            {!confirmaSair ? (
+              <button type="button" onClick={() => setConfirmaSair(true)} style={{ background: RED_SOFT, color: RED_DARK }} className="w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2"><LogOut size={16} />Sair da conta</button>
+            ) : (
+              <div>
+                <p style={{ color: T.text }} className="text-sm font-bold">Sair deste computador?</p>
+                <div className="flex gap-2 mt-3">
+                  <button type="button" onClick={() => setConfirmaSair(false)} style={{ background: T.chipBg, color: T.text }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold">Cancelar</button>
+                  <button type="button" onClick={onSair} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 py-2.5 rounded-xl text-sm font-bold">Sair</button>
+                </div>
+              </div>
+            )}
+          </DashCard>
+        </aside>
+        <div className="col-span-7 xl:col-span-8 flex flex-col gap-5 min-w-0">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <DashCard T={T} title="Alterar senha" subtitle="Pede a senha atual para confirmar"><div className="flex flex-col gap-3">{formSenha}</div></DashCard>
+            <DashCard T={T} title="Alterar e-mail" subtitle={emailAtual ? `Atual: ${emailAtual}` : "E-mail de acesso"}><div className="flex flex-col gap-3">{formEmail}</div></DashCard>
+          </div>
+          <TelegramVinculo T={T} showToast={showToast} />
+        </div>
+      </div>
+    );
+  }
   return (
     <>
       <MaisBloco T={T} i={0}>
@@ -10937,25 +11033,7 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
           {aberta === "senha" && (
             <motion.div key="f-senha" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={MOLA_SUAVE} className="overflow-hidden">
               <div className="px-4 pb-4 pt-1 flex flex-col gap-3">
-                {okS ? (
-                  <div className="flex flex-col items-center gap-2 py-5"><MaisCheck /><p style={{ color: T.text }} className="text-sm font-bold">Senha alterada!</p></div>
-                ) : (
-                  <>
-                    <MaisCampo T={T} label="Senha atual" value={sAtual} onChange={setSAtual} type={ver ? "text" : "password"} autoComplete="current-password" direita={olho} />
-                    <MaisCampo T={T} label="Nova senha" value={sNova} onChange={setSNova} type={ver ? "text" : "password"} autoComplete="new-password" />
-                    {sNova && (
-                      <div aria-live="polite">
-                        <div style={{ background: T.chipBg }} className="h-1.5 rounded-full overflow-hidden">
-                          <motion.div animate={{ width: `${Math.max(forca, 1) * 25}%`, background: CORES_FORCA[forca] }} transition={MOLA} className="h-full rounded-full" />
-                        </div>
-                        <p style={{ color: CORES_FORCA[forca] }} className="text-[11.5px] font-semibold mt-1">Senha {ROTULOS_FORCA[forca].toLowerCase()}</p>
-                      </div>
-                    )}
-                    <MaisCampo T={T} label="Repita a nova senha" value={sConf} onChange={setSConf} type={ver ? "text" : "password"} autoComplete="new-password" />
-                    <AnimatePresence>{erroS && <MaisAviso tipo="erro">{erroS}</MaisAviso>}</AnimatePresence>
-                    <MaisBotao T={T} onClick={salvarSenha} carregando={salvandoS}>Salvar nova senha</MaisBotao>
-                  </>
-                )}
+                {formSenha}
               </div>
             </motion.div>
           )}
@@ -10965,24 +11043,7 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
           {aberta === "email" && (
             <motion.div key="f-email" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={MOLA_SUAVE} className="overflow-hidden">
               <div className="px-4 pb-4 pt-1 flex flex-col gap-3">
-                {enviadoE ? (
-                  <div className="flex flex-col items-center gap-2 py-3 text-center">
-                    <MaisCheck />
-                    <p style={{ color: T.text }} className="text-sm font-bold">Pedido enviado</p>
-                    <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">
-                      Mandamos links de confirmação. Abra o e-mail <strong>atual</strong> ({emailAtual}) e confirme a troca; se o novo e-mail também receber um link, confirme nele também.
-                      Até concluir, você continua entrando com o e-mail atual.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <MaisCampo T={T} label="Novo e-mail" value={eNovo} onChange={setENovo} type="email" autoComplete="email" placeholder="nome@exemplo.com" />
-                    <MaisCampo T={T} label="Sua senha" value={eSenha} onChange={setESenha} type={ver ? "text" : "password"} autoComplete="current-password" direita={olho} />
-                    <MaisAviso>Por segurança, a troca só vale depois que você confirmar pelo link enviado ao seu <strong>e-mail atual</strong>.</MaisAviso>
-                    <AnimatePresence>{erroE && <MaisAviso tipo="erro">{erroE}</MaisAviso>}</AnimatePresence>
-                    <MaisBotao T={T} onClick={trocarEmail} carregando={salvandoE}>Pedir troca de e-mail</MaisBotao>
-                  </>
-                )}
+                {formEmail}
               </div>
             </motion.div>
           )}
@@ -11012,6 +11073,7 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
 }
 
 function PaginaAparencia({ T, dark, tema, onTema }) {
+  const pc = useTelaLarga();
   const previa = (id) => {
     const claro = { bg: COR_TEMA.claro, card: "#fff", linha: "#D5DCE6", texto: "#12131A" };
     const escuro = { bg: COR_TEMA.escuro, card: "#151F30", linha: "#2A3753", texto: "#EEF2F9" };
@@ -11031,6 +11093,28 @@ function PaginaAparencia({ T, dark, tema, onTema }) {
     );
   };
   const OPCOES = [["claro", "Claro", "Fundo claro, ideal para ambientes iluminados", Sun], ["escuro", "Escuro", "Descansa a vista à noite e economiza bateria", Moon], ["auto", "Automático", "Acompanha o tema do seu celular", SunMoon]];
+  if (pc) {
+    return (
+      <div role="radiogroup" aria-label="Tema do aplicativo" className="grid grid-cols-3 gap-5">
+        {OPCOES.map(([id, nome, desc, Icone]) => {
+          const sel = tema === id;
+          return (
+            <button key={id} type="button" role="radio" aria-checked={sel} onClick={(e) => onTema(id, e)}
+              style={{ background: T.card, borderColor: sel ? BLUE : T.chipBg }} className="relative text-left rounded-2xl border-2 p-4 shadow-sm transition-transform hover:-translate-y-0.5">
+              <div className="h-44 w-full rounded-xl overflow-hidden ring-1 ring-black/10">{previa(id)}</div>
+              <div className="flex items-start justify-between gap-3 mt-4">
+                <div className="min-w-0">
+                  <p style={{ color: T.text }} className="text-[15px] font-bold flex items-center gap-1.5"><Icone size={16} />{nome}</p>
+                  <p style={{ color: T.subtext }} className="text-[12.5px] mt-1 leading-snug">{desc}</p>
+                </div>
+                {sel && <span style={{ background: BLUE }} className="h-7 w-7 rounded-full flex items-center justify-center text-white shrink-0"><Check size={16} /></span>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <MaisBloco T={T} i={0}>
       <div role="radiogroup" aria-label="Tema do aplicativo" className="p-4 flex flex-col gap-3">
@@ -11064,15 +11148,47 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
   const ativa = notifPermission === "granted";
   const bloqueada = notifPermission === "denied";
   const suportada = notifPermission !== "unsupported";
+  const pc = useTelaLarga();
+  const controleNotif = (
+            ativa ? <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 14 }} className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#E3F4EA", color: "#14573A" }}>Ligadas</motion.span>
+            : suportada && !bloqueada && !iosSemInstalar ? <motion.button whileTap={{ scale: 0.94 }} onClick={onToggleNotif} style={{ background: BLUE, color: "#fff" }} className="text-[12px] font-bold px-4 py-2 rounded-full">Ativar</motion.button> : null
+  );
+  if (pc) {
+    return (
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
+        <DashCard T={T} title="Alertas de validade" subtitle="Aviso do navegador quando um produto entra em alerta">
+          <div className="flex items-center gap-4">
+            <MaisBolha cor={COR_MAIS.notificacoes} dark={dark} tamanho={52}>{ativa ? <Bell size={22} /> : <BellOff size={22} />}</MaisBolha>
+            <div className="flex-1 min-w-0">
+              <p style={{ color: T.text }} className="text-[15px] font-bold">Notificações do app</p>
+              <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">{ativa ? "Ativadas neste aparelho" : bloqueada ? "Bloqueadas no navegador" : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta"}</p>
+            </div>
+            {controleNotif}
+          </div>
+          <AnimatePresence>
+          {iosSemInstalar && !ativa && <div className="px-4 pb-4"><MaisAviso>No iPhone, as notificações só funcionam depois de instalar o app: toque em <strong>Compartilhar</strong> no Safari → <strong>Adicionar à Tela de Início</strong> → abra pelo ícone criado e volte aqui para ativar.</MaisAviso></div>}
+          {bloqueada && <div className="px-4 pb-4"><MaisAviso tipo="erro">Você bloqueou as notificações. Para ativar, libere nas configurações do navegador (ícone do cadeado ao lado do endereço) e abra o app de novo.</MaisAviso></div>}
+        </AnimatePresence>
+        </DashCard>
+        <DashCard T={T} title="Som" subtitle="Feedback ao escanear com a câmera do celular">
+          <div className="flex items-center gap-4">
+            <MaisBolha cor="#C2570C" dark={dark} tamanho={52}>{som ? <Volume2 size={22} /> : <VolumeX size={22} />}</MaisBolha>
+            <div className="flex-1 min-w-0">
+              <p style={{ color: T.text }} className="text-[15px] font-bold">Som ao bipar</p>
+              <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">Toca um beep e vibra ao escanear</p>
+            </div>
+            <MaisSwitch ativo={som} onClick={() => setSom(!som)} label="Som ao bipar" />
+          </div>
+        </DashCard>
+      </div>
+    );
+  }
   return (
     <>
       <MaisBloco T={T} titulo="Alertas" i={0}>
         <MaisLinha T={T} dark={dark} icon={ativa ? Bell : BellOff} cor={COR_MAIS.notificacoes} titulo="Notificações do app"
           desc={ativa ? "Ativadas neste aparelho" : bloqueada ? "Bloqueadas no navegador" : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta"}
-          direita={
-            ativa ? <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 14 }} className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#E3F4EA", color: "#14573A" }}>Ligadas</motion.span>
-            : suportada && !bloqueada && !iosSemInstalar ? <motion.button whileTap={{ scale: 0.94 }} onClick={onToggleNotif} style={{ background: BLUE, color: "#fff" }} className="text-[12px] font-bold px-4 py-2 rounded-full">Ativar</motion.button> : null
-          } ultima />
+          direita={controleNotif} ultima />
         <AnimatePresence>
           {iosSemInstalar && !ativa && <div className="px-4 pb-4"><MaisAviso>No iPhone, as notificações só funcionam depois de instalar o app: toque em <strong>Compartilhar</strong> no Safari → <strong>Adicionar à Tela de Início</strong> → abra pelo ícone criado e volte aqui para ativar.</MaisAviso></div>}
           {bloqueada && <div className="px-4 pb-4"><MaisAviso tipo="erro">Você bloqueou as notificações. Para ativar, libere nas configurações do navegador (ícone do cadeado ao lado do endereço) e abra o app de novo.</MaisAviso></div>}
@@ -11190,8 +11306,8 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
     </div>
   );
   return (
-    <>
-      <MaisBloco T={T} titulo="Prévia" i={0}>
+    <div className="lg:grid lg:grid-cols-2 lg:gap-x-6 lg:items-start">
+      <MaisBloco T={T} titulo="Prévia" i={0} className="lg:col-start-2 lg:row-start-1">
         <div className="p-4">
           <motion.div layout style={{ background: `${tipoAtual.cor}1A`, borderColor: tipoAtual.cor }} className="rounded-2xl border-l-4 p-4">
             <p style={{ color: dark ? clarearCor(tipoAtual.cor, 0.5) : tipoAtual.cor }} className="text-[11px] font-extrabold uppercase tracking-wide">{tipoAtual.rotulo}</p>
@@ -11201,7 +11317,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
         </div>
       </MaisBloco>
 
-      <MaisBloco T={T} titulo="Mensagem" i={1}>
+      <MaisBloco T={T} titulo="Mensagem" i={1} className="lg:col-start-1 lg:row-start-1">
         <div className="p-4 flex flex-col gap-3">
           <div className="flex gap-2">
             {TIPOS_AVISO.map((t) => (
@@ -11217,7 +11333,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
         </div>
       </MaisBloco>
 
-      <MaisBloco T={T} titulo="Para quem vai" i={2}>
+      <MaisBloco T={T} titulo="Para quem vai" i={2} className="lg:col-start-1 lg:row-start-2">
         <div className="p-4 flex flex-col gap-3">
           {segmento({ id: "av-onde", valor: onde, onChange: setOnde, opcoes: [["rede", "Toda a rede"], ["loja", "Uma loja"]] })}
           <AnimatePresence initial={false}>
@@ -11273,7 +11389,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
         </div>
       </MaisBloco>
 
-      <MaisBloco T={T} titulo="Enviados recentemente" i={3}>
+      <MaisBloco T={T} titulo="Enviados recentemente" i={3} className="lg:col-start-2 lg:row-start-2">
         {recentes === null ? <p style={{ color: T.subtext }} className="text-xs p-4">Carregando…</p>
           : recentes.length === 0 ? <p style={{ color: T.subtext }} className="text-xs p-4">Nenhum aviso enviado ainda.</p>
           : recentes.map((a, k) => {
@@ -11290,7 +11406,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
             );
           })}
       </MaisBloco>
-    </>
+    </div>
   );
 }
 
@@ -11329,7 +11445,7 @@ function PaginaBalanca({ T, dark, perfil, configBalanca, onSalvou, showToast }) 
     setTimeout(() => setOk(false), 1800);
   }
   return (
-    <>
+    <div className="lg:grid lg:grid-cols-2 lg:gap-x-6 lg:items-start">
       <MaisBloco T={T} titulo="O que o código embute" i={0}>
         <div className="p-4 flex flex-col gap-3">
           <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">Em etiquetas de balança (açougue, padaria, hortifruti), os 5 dígitos do meio podem ser o <strong>peso</strong> ou o <strong>preço</strong>. Escolha o que a balança da rede imprime.</p>
@@ -11385,15 +11501,53 @@ function PaginaBalanca({ T, dark, perfil, configBalanca, onSalvou, showToast }) 
           </AnimatePresence>
         </div>
       </MaisBloco>
-    </>
+    </div>
   );
 }
 
 function PaginaSobre({ T, dark, perfil }) {
   const [aberto, setAberto] = useState(null);
+  const pc = useTelaLarga();
   const nivel = perfil?.cargos?.nivel ?? 7;
   const versoes = NOVIDADES.map((v) => ({ ...v, itens: v.itens.filter((it) => nivel <= it.ate) })).filter((v) => v.itens.length > 0).slice(0, 4);
   const loja = perfil?.lojas?.numero_loja;
+  if (pc) {
+    const todas = NOVIDADES.map((v) => ({ ...v, itens: v.itens.filter((it) => nivel <= it.ate) })).filter((v) => v.itens.length > 0).slice(0, 10);
+    return (
+      <div className="grid grid-cols-12 gap-5 items-start">
+        <aside className="col-span-5 xl:col-span-4 flex flex-col gap-5">
+          <section style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative overflow-hidden rounded-3xl text-white p-7 shadow-sm text-center">
+            <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+            <div className="relative flex flex-col items-center">
+              <div className="bg-white rounded-2xl h-14 px-5 flex items-center shadow-lg shadow-black/20"><img src={LOGO_SRC} alt="Condor Supermercados" className="h-8 w-auto" /></div>
+              <p className="text-2xl font-extrabold mt-5">Alerta de Validade</p>
+              <span className="text-[12px] font-bold px-3 py-1 rounded-full mt-2" style={{ background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.28)" }}>Versão {APP_VERSAO}{loja ? ` · Loja ${loja}` : ""}</span>
+              <p className="text-[13px] text-white/80 mt-4 leading-relaxed">Controle de validade, rondas e prevenção de perdas para as lojas Condor — com câmera, alertas, histórico de baixas e análise por setor.</p>
+            </div>
+          </section>
+          <DashCard T={T} title="Créditos">
+            <div className="flex flex-col gap-3.5">
+              <div><p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Idealizadora</p><p style={{ color: T.text }} className="text-[14px] font-semibold">Francisca Gisleuda</p><p style={{ color: T.subtext }} className="text-[12px]">Encarregada de Reposição · Loja 79</p></div>
+              <div><p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Desenvolvimento e idealização</p><p style={{ color: T.text }} className="text-[14px] font-semibold">Cauã Silva</p><p style={{ color: T.subtext }} className="text-[12px]">CPD · Loja 79</p></div>
+            </div>
+          </DashCard>
+        </aside>
+        <DashCard T={T} className="col-span-7 xl:col-span-8" title="Novidades" subtitle="O que mudou nas últimas atualizações">
+          <ol className="flex flex-col">
+            {todas.map((v, k) => (
+              <li key={v.id} className="flex gap-4">
+                <div className="flex flex-col items-center shrink-0"><span style={{ background: BLUE }} className="h-3 w-3 rounded-full mt-1.5" />{k < todas.length - 1 && <span style={{ background: T.chipBg }} className="w-0.5 flex-1 mt-1" />}</div>
+                <div className="pb-5 min-w-0">
+                  <p style={{ color: T.text }} className="text-[13.5px] font-bold">{v.data}</p>
+                  <ul className="mt-1.5 flex flex-col gap-1.5">{v.itens.map((it, j) => <li key={j} style={{ color: T.subtext }} className="text-[13px] leading-relaxed">{it.texto}</li>)}</ul>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </DashCard>
+      </div>
+    );
+  }
   return (
     <>
       <MaisBloco T={T} i={0}>
@@ -11504,8 +11658,8 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
   const campo = { background: T.chipBg, color: T.text, border: `1px solid ${T.inputBorder}` };
 
   return (
-    <>
-      <MaisBloco T={T} i={0}>
+    <div className="lg:grid lg:grid-cols-2 lg:gap-x-6 lg:items-start">
+      <MaisBloco T={T} i={0} className="lg:col-span-2">
         <div className="p-4">
           <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">Produto novo lançado pelo Telegram só entra no catálogo depois da sua aprovação. Você pode corrigir nome, setor e imagem. A validade e a quantidade lançadas não mudam. Se recusar, o motivo volta para quem lançou.</p>
           <div className="flex gap-2 mt-3">
@@ -11515,9 +11669,9 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
           </div>
         </div>
       </MaisBloco>
-      {lista === null && <div className="flex justify-center py-8"><Loader2 size={22} className="animate-spin" style={{ color: T.subtext }} /></div>}
+      {lista === null && <div className="flex justify-center py-8 lg:col-span-2"><Loader2 size={22} className="animate-spin" style={{ color: T.subtext }} /></div>}
       {lista !== null && itens.length === 0 && (
-        <MaisBloco T={T} i={1}><p style={{ color: T.subtext }} className="text-[13px] text-center py-8 px-4">{aba === "pendente" ? "Nenhum produto novo aguardando aprovação." : "Nada decidido ainda."}</p></MaisBloco>
+        <MaisBloco T={T} i={1} className="lg:col-span-2"><p style={{ color: T.subtext }} className="text-[13px] text-center py-8 px-4">{aba === "pendente" ? "Nenhum produto novo aguardando aprovação." : "Nada decidido ainda."}</p></MaisBloco>
       )}
       {itens.map((a, k) => (
         <MaisBloco T={T} key={a.id} i={k + 1}>
@@ -11574,7 +11728,7 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
           </AnimatePresence>
         </MaisBloco>
       ))}
-    </>
+    </div>
   );
 }
 
@@ -11645,7 +11799,7 @@ function MaisView(props) {
 
   if (telaLarga) {
     return (
-      <div className="max-w-3xl">
+      <div className="max-w-6xl">
         {meta && <DashPageHeader T={T} title={meta.titulo} subtitle={meta.desc} />}
         {conteudo(ativa)}
         {ondaEl}

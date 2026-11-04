@@ -244,6 +244,35 @@ export const DOCUMENTOS = [
   },
 ];
 
+function useLarga() {
+  const q = "(min-width: 1024px)";
+  const [v, setV] = useState(() => (typeof window !== "undefined" && window.matchMedia ? window.matchMedia(q).matches : false));
+  useEffect(() => {
+    if (!window.matchMedia) return undefined;
+    const m = window.matchMedia(q), f = () => setV(m.matches);
+    f(); m.addEventListener?.("change", f);
+    return () => m.removeEventListener?.("change", f);
+  }, []);
+  return v;
+}
+
+// texto do documento, sem moldura (usado ao lado da lista no computador)
+function LegalTexto({ T, docId }) {
+  const doc = DOCUMENTOS.find((d) => d.id === docId) || DOCUMENTOS[0];
+  const secoes = doc.secoes();
+  return (
+    <div>
+      {secoes.map((sc) => (
+        <section key={sc.t} className="mb-5 last:mb-0">
+          <h3 style={{ color: T.text }} className="text-[14.5px] font-extrabold mb-1.5">{sc.t}</h3>
+          <div className="flex flex-col gap-2">{sc.p.map((par, k) => <p key={k} style={{ color: T.subtext }} className="text-[13.5px] leading-relaxed">{par}</p>)}</div>
+        </section>
+      ))}
+      <p style={{ color: T.subtext, borderTop: `1px solid ${T.chipBg}` }} className="text-[11.5px] mt-6 pt-4">Texto de referência para o uso do app. Em caso de dúvida, fale com o responsável pelo próprio app.</p>
+    </div>
+  );
+}
+
 // ───────────────────────── Leitor em tela cheia ─────────────────────────
 export function LegalLeitor({ T, docId, onFechar }) {
   const doc = DOCUMENTOS.find((d) => d.id === docId) || DOCUMENTOS[0];
@@ -395,6 +424,8 @@ const STATUS_PEDIDO = { aberta: ["Aberta", "#C2760C", "#FCF0DD"], em_analise: ["
 
 export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
   const [leitor, setLeitor] = useState(null);
+  const larga = useLarga();
+  const [docPc, setDocPc] = useState(DOCUMENTOS[0].id);
   const [aceites, setAceites] = useState(null);
   const [pedidos, setPedidos] = useState(null);
   const [tipo, setTipo] = useState("acesso");
@@ -451,8 +482,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
   }
 
   const fmt = (iso) => { try { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); } catch { return iso; } };
-  return (
-    <div className="flex flex-col gap-3.5">
+  const blocoDocs = (
       <section style={cartao} className="rounded-[24px] shadow-lg shadow-black/5 p-2">
         {DOCUMENTOS.map((d) => (
           <motion.button key={d.id} whileTap={{ scale: 0.98 }} onClick={() => setLeitor(d.id)} className="w-full flex items-center gap-3 text-left p-2.5 rounded-2xl">
@@ -462,7 +492,8 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
           </motion.button>
         ))}
       </section>
-
+  );
+  const blocoAceites = (
       <section style={cartao} className="rounded-[24px] shadow-lg shadow-black/5 p-4">
         <p style={{ color: T.text }} className="text-[14px] font-extrabold">Seus aceites</p>
         {aceites === null ? <Loader2 size={16} className="animate-spin mt-2" color={T.subtext} /> : aceites.length === 0 ? (
@@ -475,7 +506,8 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
           </div>
         )}
       </section>
-
+  );
+  const blocoDados = (
       <section style={cartao} className="rounded-[24px] shadow-lg shadow-black/5 p-4">
         <p style={{ color: T.text }} className="text-[14px] font-extrabold">Meus dados</p>
         <p style={{ color: T.subtext }} className="text-[12.5px] mt-1 leading-snug">Baixe uma cópia dos dados que temos sobre você (cadastro, aceites, logins, registros e pedidos), em JSON.</p>
@@ -483,7 +515,8 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
           {baixando ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Baixar meus dados
         </motion.button>
       </section>
-
+  );
+  const blocoDireito = (
       <section style={cartao} className="rounded-[24px] shadow-lg shadow-black/5 p-4">
         <p style={{ color: T.text }} className="text-[14px] font-extrabold">Solicitar um direito</p>
         <p style={{ color: T.subtext }} className="text-[12.5px] mt-1 leading-snug">Corrigir, eliminar, revogar consentimento ou falar com o responsável. Respondemos em até 15 dias.</p>
@@ -499,8 +532,9 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
           {enviando ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Enviar pedido
         </motion.button>
       </section>
-
-      {pedidos && pedidos.length > 0 && (
+  );
+  const blocoPedidos = (
+      pedidos && pedidos.length > 0 && (
         <section style={cartao} className="rounded-[24px] shadow-lg shadow-black/5 p-4">
           <p style={{ color: T.text }} className="text-[14px] font-extrabold mb-2">Meus pedidos</p>
           <div className="flex flex-col gap-2">
@@ -517,7 +551,51 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
             })}
           </div>
         </section>
-      )}
+      )
+  );
+  if (larga) {
+    const docSel = DOCUMENTOS.find((d) => d.id === docPc) || DOCUMENTOS[0];
+    return (
+      <div className="grid grid-cols-12 gap-5 items-start">
+        <div className="col-span-5 xl:col-span-4 flex flex-col gap-4">
+          <section style={cartao} className="rounded-2xl shadow-sm p-2" aria-label="Documentos">
+            {DOCUMENTOS.map((d) => {
+              const sel = d.id === docPc;
+              return (
+                <button key={d.id} type="button" onClick={() => setDocPc(d.id)} aria-pressed={sel} className="w-full flex items-center gap-3 text-left p-2.5 rounded-xl transition-colors"
+                  style={{ background: sel ? `${d.cor}14` : "transparent", boxShadow: sel ? `inset 3px 0 0 ${d.cor}` : "none" }}>
+                  <span className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${d.cor}1F` }}><d.Icone size={19} color={d.cor} /></span>
+                  <span className="min-w-0 flex-1"><span className="block text-[14px] font-extrabold" style={{ color: T.text }}>{d.titulo}</span><span className="block text-[12px]" style={{ color: T.subtext }}>{d.resumo}</span></span>
+                </button>
+              );
+            })}
+          </section>
+          {blocoAceites}
+          {blocoDados}
+        </div>
+        <div className="col-span-7 xl:col-span-8 flex flex-col gap-5 min-w-0">
+          <section style={cartao} className="rounded-2xl shadow-sm overflow-hidden" aria-label={docSel.titulo}>
+            <header style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative text-white px-6 py-4">
+              <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+              <div className="relative"><h2 className="text-lg font-extrabold leading-tight">{docSel.titulo}</h2><p className="text-[12px] text-white/75">Versão {TERMOS_VERSAO}</p></div>
+            </header>
+            <div key={docPc} className="px-6 py-5 max-h-[62vh] overflow-y-auto"><LegalTexto T={T} docId={docPc} /></div>
+          </section>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
+            {blocoDireito}
+            {blocoPedidos}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-3.5">
+      {blocoDocs}
+      {blocoAceites}
+      {blocoDados}
+      {blocoDireito}
+      {blocoPedidos}
       <AnimatePresence>{leitor && <LegalLeitor T={T} docId={leitor} onFechar={() => setLeitor(null)} />}</AnimatePresence>
     </div>
   );
