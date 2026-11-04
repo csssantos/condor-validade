@@ -25,7 +25,7 @@ import {
   Lock, Unlock, Flashlight, FlashlightOff, Percent, Upload, RotateCcw,
   TrendingDown, FileSpreadsheet, RefreshCw, SwitchCamera, ShieldAlert,
   Flame, Repeat, Sparkles, WifiOff, Cloud, Target, Radar, TrendingUp, ListChecks,
-  Carrot, Beef, Croissant, Milk, Wine, Snowflake, SprayCan, ShoppingBasket, Warehouse, Boxes, LogOut, Megaphone, Building2, Wrench, Ticket, Copy, Link2, LayoutDashboard, Pencil, Mail, Eye, EyeOff, KeyRound, SunMoon, Send, Palette, Mic
+  Carrot, Beef, Croissant, Milk, Wine, Snowflake, SprayCan, ShoppingBasket, Warehouse, Boxes, LogOut, Megaphone, Building2, Wrench, Ticket, Copy, Link2, LayoutDashboard, Pencil, Mail, Eye, EyeOff, KeyRound, SunMoon, Send, Palette, Mic, Tag
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import VozSheet from "./VozSheet";
@@ -317,7 +317,8 @@ function produtoFromRow(r) {
     emPromocao: !!r.em_promocao, precoPromocional: r.preco_promocional != null ? Number(r.preco_promocional) : null,
     criadoEm: r.criado_em, cadastradoPor: r.cadastrado_por || null, atualizadoPor: r.atualizado_por || null,
     notificado10d: !!r.notificado_10d, familia: r.familia || null,
-    lote: r.lote || null, semLote: !!r.sem_lote
+    lote: r.lote || null, semLote: !!r.sem_lote,
+    pedidoTipo: r.pedido_tipo || null, pedidoCampanha: r.pedido_campanha || null, pedidoEm: r.pedido_em || null, pedidoPor: r.pedido_por || null
   };
 }
 function produtoToRow(item) {
@@ -413,6 +414,10 @@ async function supaUpsertProduto(item) {
 async function supaBaixarProduto({ id, motivo, quantidade }) {
   const { error } = await supabase.rpc("dar_baixa", { p_id: id, p_motivo: motivo, p_qtd: quantidade != null ? quantidade : null });
   if (error) { console.error("Erro ao dar baixa no Supabase:", error); throw error; }
+}
+async function supaRegistrarPedido(id, tipo, campanha) {
+  const { error } = await supabase.rpc("registrar_pedido_promocao", { p_id: id, p_tipo: tipo || null, p_campanha: campanha || null });
+  if (error) { console.error("Erro ao registrar pedido:", error); throw error; }
 }
 async function supaDeleteProduto(id) {
   const { error } = await supabase.from("produtos").delete().eq("id", id);
@@ -807,6 +812,10 @@ function mensagemErroGravacao(e) {
   if (/excluir_exige_encarregado/.test(m)) return "só encarregado ou superior pode excluir esse produto (use \"Dar baixa\")";
   if (/lote_obrigatorio/.test(m)) return "falta o lote (ou marcar que não tem lote impresso)";
   if (/lote_invalido/.test(m)) return "lote inválido (use letras, números, . / - e até 20 caracteres)";
+  if (/campanha_invalida/.test(m)) return "número da campanha inválido (use letras, números, . / - e até 20 caracteres)";
+  if (/pedido_promocao_invalido/.test(m)) return "tipo de pedido inválido";
+  if (/pedido_so_pela_funcao/.test(m)) return "esse campo só muda pelo botão de pedido";
+  if (/sem_permissao/.test(m)) return "você não tem permissão para isso";
   if (/validade_vencida/.test(m)) return "a validade já passou";
   if (/produto_fora_da_marca/.test(m)) return "esse produto não é de uma das marcas do seu acesso de promotor";
   if (/validade_muito_proxima/.test(m)) return "o produto vence em até 2 dias: leve ao gerente ou encarregado para pedir o preço direto";
@@ -2154,7 +2163,7 @@ function AppInner() {
     }
     if (editingItemId) {
       const original = items.find((it) => it.id === editingItemId);
-      const novoItem = { ...original, ...draftProduct, ...dados, atualizadoPor: usuario || null };
+      const novoItem = { ...original, ...draftProduct, ...dados, ...(((dados.validade ?? draftProduct.validade ?? original.validade) === original.validade) ? { pedidoTipo: original.pedidoTipo || null, pedidoCampanha: original.pedidoCampanha || null, pedidoEm: original.pedidoEm || null, pedidoPor: original.pedidoPor || null } : { pedidoTipo: null, pedidoCampanha: null, pedidoEm: null, pedidoPor: null }), atualizadoPor: usuario || null };
       setItems((prev) => prev.map((it) => (it.id === editingItemId ? novoItem : it)));
       gravarProduto(novoItem);
       logAuditoria(usuario, "editou produto", novoItem.nome, novoItem.barcode);
@@ -2271,7 +2280,7 @@ function AppInner() {
     setDetalheItem(null);
     setEditingItemId(null);
     setPendingBarcode(item.barcode);
-    const { id: _idAntigo, lancadoPorId: _lp, cadastradoPor: _cp, atualizadoPor: _ap, criadoEm: _ce, ...copia } = item;
+    const { id: _idAntigo, lancadoPorId: _lp, cadastradoPor: _cp, atualizadoPor: _ap, criadoEm: _ce, pedidoTipo: _pt, pedidoCampanha: _pc, pedidoEm: _pe, pedidoPor: _pp, ...copia } = item;
     setDraftProduct({ ...copia });
     setFlow("expiry");
   }
@@ -2332,6 +2341,25 @@ function AppInner() {
     logAuditoria(usuario, "aplicou promoção", `${item.nome} → ${formatarMoeda(precoPromocional)}`, item.barcode);
     setDetalheItem(novoItem);
     showToast(`Promoção aplicada: ${formatarMoeda(precoPromocional)}. O produto continua sendo monitorado.`);
+  }
+
+  // Pedido de promoção / preço direto: só pela função do banco (permissão, auditoria e quem pediu ficam no servidor)
+  async function registrarPedido(item, tipo, campanha) {
+    try {
+      await supaRegistrarPedido(item.id, tipo, campanha);
+    } catch (e) {
+      const motivo = erroDeRede(e) ? "sem internet agora, tente de novo" : /PGRST202|registrar_pedido_promocao/.test(String((e && e.message) || "") + (e && e.code)) ? "o banco ainda não foi atualizado para esse recurso" : mensagemErroGravacao(e);
+      showToast(`Não foi possível registrar o pedido: ${motivo}.`, "erro");
+      return false;
+    }
+    const camp = tipo ? (String(campanha || "").trim().toUpperCase() || null) : null;
+    // mexe SÓ nos campos do pedido (o item aberto pode estar velho: quantidade/validade mudaram por outra pessoa)
+    const campos = { pedidoTipo: tipo || null, pedidoCampanha: camp, pedidoEm: tipo ? new Date().toISOString() : null, pedidoPor: tipo ? (usuario || null) : null };
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, ...campos } : i)));
+    setDetalheItem((d) => (d && d.id === item.id ? { ...d, ...campos } : d));
+    const rotulo = (tipo || item.pedidoTipo) === "preco_direto" ? "preço direto" : "promoção";
+    showToast(tipo ? `Pedido de ${rotulo} registrado${camp ? ` (campanha ${camp})` : ""}.` : `Pedido de ${rotulo} removido.`, "ok");
+    return true;
   }
 
   // Excluir sem gerar histórico (ex: erro de cadastro grosseiro, duplicidade) — diferente de "dar baixa"
@@ -2587,13 +2615,13 @@ function AppInner() {
       </main>
 
       {detalheItem && (
-        <ProductDetailModal T={T} item={detalheItem}
+        <ProductDetailModal T={T} item={items.find((i) => i.id === detalheItem.id) || detalheItem}
           outrosLotes={items.filter((i) => i.barcode === detalheItem.barcode && i.setor === detalheItem.setor && i.id !== detalheItem.id)}
           onTrocarLote={setDetalheItem}
           onClose={() => setDetalheItem(null)}
           onEdit={ehDesktop || !podeEditarProduto(detalheItem) ? null : startEdit} onDuplicate={ehDesktop || !podeEditarProduto(detalheItem) ? null : duplicarItem}
           onBaixa={podeGerirProduto(detalheItem) ? darBaixa : null} onShare={compartilharItem}
-          onAplicarPromocao={podeGerirProduto(detalheItem) ? aplicarPromocao : null} onExcluir={podeGerirProduto(detalheItem) ? excluirProduto : null} />
+          onAplicarPromocao={podeGerirProduto(detalheItem) ? aplicarPromocao : null} onPedido={nivelUsuario <= 6 && podeEditarProduto(detalheItem) ? registrarPedido : null} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) ? excluirProduto : null} />
       )}
 
       {perfil?.id && <RondaAvisosHost T={T} usuarioId={perfil.id} showToast={showToast} onIrParaRondas={() => { setFlow(null); setSetorAtivo(null); setTab("rondas"); }} />}
@@ -2816,6 +2844,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-pedido-promocao", data: "04/11/2026", itens: [
+    { tipo: "novo", ate: 6, texto: "Pedido de promoção ou preço direto: no detalhe do produto dá para registrar que a promoção ou o preço direto foi pedido, com o número da campanha. O pedido aparece na lista e fica na auditoria (quem pediu e quando). Se a validade do lote mudar, o pedido é limpo e precisa ser feito de novo." },
+  ] },
   { id: "2026-11-04-atualizar-tudo", data: "04/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "Atualizações acumuladas: se saírem várias versões seguidas, o botão Atualizar baixa a mais nova de uma vez só (e confere se saiu outra durante o download), sem precisar atualizar uma por uma." },
   ] },
@@ -3531,6 +3562,11 @@ function LinhaProduto({ T, item, idx = 0, lotes, totalQuantidade, piorStatus, se
             <span style={{ color: T.subtext }} className="block text-[11.5px] mt-1">
               {mostrarSetor && !semValidade ? `${item.setor} · ` : ""}{semValidade ? "Sem validade lançada" : agrupado ? `${lotes.length} datas · ${totalQuantidade} un` : `${formatarData(item.validade)} · ${item.quantidade || 1} un`}
             </span>
+            {!semValidade && (agrupado ? lotes.some((l) => l.pedidoTipo) : item.pedidoTipo) && (
+              <span style={{ background: "#E6F5EC", color: "#1F7A45" }} className="inline-block mt-1 text-[10px] font-bold rounded-full px-2 py-0.5">
+                {agrupado ? `${lotes.filter((l) => l.pedidoTipo).length}/${lotes.length} com pedido` : `${item.pedidoTipo === "preco_direto" ? "Preço direto pedido" : "Promoção pedida"}${item.pedidoCampanha ? ` · ${item.pedidoCampanha}` : ""}`}
+              </span>
+            )}
             {!semValidade && podeVerValores && !agrupado && Number(item.precoUnitario) > 0 && (
               <span style={{ color: T.subtext }} className="block text-[11px]">{formatarMoeda((Number(item.quantidade) || 1) * Number(item.precoUnitario))}</span>
             )}
@@ -3550,7 +3586,7 @@ function LinhaProduto({ T, item, idx = 0, lotes, totalQuantidade, piorStatus, se
         <div className="px-3 pb-3 flex flex-col gap-1.5">
           {lotes.map((l) => { const cl = corDoNivel(l.status.level); return (
             <button key={l.id} onClick={() => onOpenDetail(l)} style={{ background: T.chipBg }} className="w-full text-left rounded-2xl px-3 py-2.5 flex items-center justify-between gap-2">
-              <span style={{ color: T.text }} className="text-[12.5px] font-bold">{formatarData(l.validade)} <span style={{ color: T.subtext }} className="font-medium">· {l.lote ? `Lote ${l.lote} · ` : ""}{l.quantidade || 1} un</span></span>
+              <span style={{ color: T.text }} className="text-[12.5px] font-bold">{formatarData(l.validade)} <span style={{ color: T.subtext }} className="font-medium">· {l.lote ? `Lote ${l.lote} · ` : ""}{l.quantidade || 1} un</span>{l.pedidoTipo ? <span style={{ color: "#1F7A45" }} className="text-[10px] font-bold"> · pedido{l.pedidoCampanha ? ` ${l.pedidoCampanha}` : ""} ✓</span> : <span style={{ color: T.subtext }} className="text-[10px] font-medium"> · sem pedido</span>}</span>
               <span style={{ background: cl.soft, color: cl.cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1">{l.status.label}</span>
             </button>
           ); })}
@@ -8235,7 +8271,7 @@ function ItemCardGrid({ T, item, onOpenDetail }) {
 }
 
 // ============ Modal de detalhe do produto ============
-function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdit, onDuplicate, onBaixa, onShare, onAplicarPromocao, onExcluir }) {
+function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdit, onDuplicate, onBaixa, onShare, onAplicarPromocao, onPedido, podeGerirPedido, onExcluir }) {
   const podeVerValores = useValoresVisiveis();
   const [confirmandoBaixa, setConfirmandoBaixa] = useState(false);
   const [subEtapa, setSubEtapa] = useState(null); // null | 'promocao' | 'quantidadeFinal'
@@ -8245,6 +8281,20 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [motivoExclusao, setMotivoExclusao] = useState(null);
   const [motivoExclusaoOutro, setMotivoExclusaoOutro] = useState("");
+  const [editandoPedido, setEditandoPedido] = useState(false);
+  const [pedidoTipo, setPedidoTipo] = useState(item.pedidoTipo || null);
+  const [confirmandoRemoverPedido, setConfirmandoRemoverPedido] = useState(false);
+  const salvandoPedidoRef = useRef(false);
+  const [pedidoCampanha, setPedidoCampanha] = useState(item.pedidoCampanha || "");
+  const [salvandoPedido, setSalvandoPedido] = useState(false);
+  useEffect(() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); }, [item.id, item.pedidoTipo, item.pedidoCampanha]);
+  async function salvarPedido(tipo, campanha) {
+    if (salvandoPedidoRef.current) return;
+    salvandoPedidoRef.current = true; setSalvandoPedido(true);
+    const ok = await onPedido(item, tipo, campanha);
+    salvandoPedidoRef.current = false; setSalvandoPedido(false);
+    if (ok) { setEditandoPedido(false); setConfirmandoRemoverPedido(false); }
+  }
   const [historicoValidade, setHistoricoValidade] = useState(null);
   const [mostrarHistoricoValidade, setMostrarHistoricoValidade] = useState(false);
   useEffect(() => { supaFetchAlteracoesValidade(item.barcode).then(setHistoricoValidade); }, [item.barcode]);
@@ -8308,6 +8358,49 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             </div>
           )}
 
+          {(item.pedidoTipo || onPedido) && (
+            <div style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-3 mt-3">
+              <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-1.5 flex items-center gap-1"><Tag size={11} /> Pedido de promoção ou preço direto</p>
+              {item.pedidoTipo && !editandoPedido && (
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p style={{ color: "#1F7A45" }} className="text-[13px] font-bold">{item.pedidoTipo === "preco_direto" ? "Preço direto pedido" : "Promoção pedida"}{item.pedidoCampanha ? ` · campanha ${item.pedidoCampanha}` : ""}</p>
+                    <p style={{ color: T.subtext }} className="text-[10.5px] mt-0.5">{item.pedidoPor || "—"}{item.pedidoEm ? ` · ${formatarDataHoraExtenso(item.pedidoEm)}` : ""}</p>
+                  </div>
+                  {onPedido && podeGerirPedido && <button onClick={() => setEditandoPedido(true)} style={{ color: BLUE }} className="text-[11px] font-bold shrink-0 px-1">Alterar</button>}
+                </div>
+              )}
+              {!item.pedidoTipo && !editandoPedido && (
+                <>
+                  <p style={{ color: T.subtext }} className="text-[11.5px] mb-2">Ainda sem pedido registrado. Mesmo perto da validade, registre aqui que a promoção ou o preço direto foi pedido.</p>
+                  <button onClick={() => setEditandoPedido(true)} style={{ background: BLUE_DARK, color: "#fff" }} className="text-[12px] font-bold rounded-full px-4 py-2">Registrar pedido</button>
+                </>
+              )}
+              {editandoPedido && onPedido && (
+                <div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[["promocao", "Promoção"], ["preco_direto", "Preço direto"]].map(([v, r]) => (
+                      <button key={v} onClick={() => setPedidoTipo(v)} aria-pressed={pedidoTipo === v}
+                        style={pedidoTipo === v ? { background: BLUE_DARK, color: "#fff" } : { background: T.card, color: T.text }}
+                        className="text-[12px] font-semibold py-2 rounded-xl">{r}</button>
+                    ))}
+                  </div>
+                  <input value={pedidoCampanha} onChange={(e) => setPedidoCampanha(e.target.value.toUpperCase().replace(/[^A-Z0-9./ -]/g, "").slice(0, 20))}
+                    placeholder="Número da campanha (opcional)" inputMode="text" maxLength={20} aria-label="Número da campanha"
+                    style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full min-w-0 mt-2 border rounded-xl px-3 py-2 text-xs outline-none" />
+                  <p style={{ color: T.subtext }} className="text-[10px] mt-1">Aceita letras sem acento, números, . / - e até 20 caracteres.{item.pedidoTipo && " Se a validade deste lote mudar, o pedido precisa ser feito de novo."}</p>
+                  <div className="flex gap-2 mt-2.5">
+                    <button onClick={() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
+                    {item.pedidoTipo && podeGerirPedido && (confirmandoRemoverPedido
+                      ? <button onClick={() => salvarPedido(null, null)} disabled={salvandoPedido} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">Confirmar remoção</button>
+                      : <button onClick={() => setConfirmandoRemoverPedido(true)} style={{ color: RED_DARK }} className="flex-1 text-[11px] font-semibold py-1.5">Remover</button>)}
+                    <button onClick={() => salvarPedido(pedidoTipo, pedidoCampanha)} disabled={salvandoPedido || !pedidoTipo} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : "Salvar"}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {desconto && !item.emPromocao && (
             <div style={{ background: RED_SOFT }} className="rounded-2xl px-3.5 py-3 mt-3">
               <div className="flex items-center gap-2.5">
@@ -8366,7 +8459,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                         <div className="flex items-center gap-1.5">
                           <span style={{ background: sl.bg, color: sl.fg }} className="text-[9px] font-bold px-1.5 py-0.5 rounded">{sl.label}</span>
                           <span className="text-xs font-semibold">{formatarData(l.validade)}</span>
-                          <span style={{ color: T.subtext }} className="text-[10px]">· {l.lote ? `Lote ${l.lote} · ` : ""}{l.quantidade || 1}{l.porPeso ? "kg" : "un"}</span>
+                          <span style={{ color: T.subtext }} className="text-[10px]">· {l.lote ? `Lote ${l.lote} · ` : ""}{l.quantidade || 1}{l.porPeso ? "kg" : "un"}{l.pedidoTipo ? " · pedido ✓" : " · sem pedido"}</span>
                         </div>
                         {gerarCodigoLocalizacao(l) && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5 font-mono">{gerarCodigoLocalizacao(l)}</p>}
                       </div>

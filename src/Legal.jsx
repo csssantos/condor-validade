@@ -100,7 +100,7 @@ export const DOCUMENTOS = [
         "É proibido: tentar burlar permissões; acessar dados de outras lojas ou cargos sem autorização; usar robôs ou automações não autorizadas; tentar derrubar, copiar ou fazer engenharia reversa do sistema; enviar conteúdo ilegal, ofensivo ou que viole direitos de terceiros (inclusive em fotos e observações).",
       ] },
       { t: "5. Registros e auditoria", p: [
-        "As ações feitas no app (cadastros, baixas, rondas, alterações de validade, exclusões, logins) ficam registradas com seu nome, data e hora, para controle operacional, prevenção de perdas e segurança. Esses registros não podem ser apagados por quem os fez.",
+        "As ações feitas no app (cadastros, baixas, rondas, alterações de validade, pedidos de promoção ou preço direto, exclusões, logins) ficam registradas com seu nome, data e hora, para controle operacional, prevenção de perdas e segurança. Esses registros não podem ser apagados por quem os fez.",
         "O mesmo vale para o que é feito pelo Telegram: vincular e desvincular, gerar código, lançamentos, cancelamentos, tentativas barradas pelo sistema, consultas de produto na internet e cadastro de produto novo aparecem na auditoria da loja, com seu nome, data e hora.",
       ] },
       { t: "6. Conteúdo que você envia", p: [
