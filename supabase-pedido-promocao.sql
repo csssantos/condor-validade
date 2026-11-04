@@ -19,15 +19,16 @@ alter table public.produtos drop constraint if exists produtos_pedido_campanha_c
 alter table public.produtos add constraint produtos_pedido_campanha_ck
   check (pedido_campanha is null or (pedido_tipo is not null and pedido_campanha ~ '^[A-Z0-9./ -]{1,20}$'));
 
+-- (a função abaixo já inclui a TRAVA do lote com pedido; supabase-pedido-trava.sql acrescenta só a trava de exclusão)
 -- Os campos do pedido só mudam pela função abaixo (ninguém grava direto pela API, nem falsifica quem pediu).
 create or replace function public._produtos_pedido_ck() returns trigger language plpgsql security definer set search_path = public as $f$
+declare livres text[] := array['pedido_tipo','pedido_campanha','pedido_em','pedido_por','notificado_10d','notificado_alerta','notificado_vencido','alertas_extras_notificados','atualizado_por'];
 begin
-  if auth.uid() is null or coalesce(current_setting('app.via_rpc', true), '') = '1' then return new; end if;
-  if tg_op = 'UPDATE' and new.validade is distinct from old.validade then
-    -- o pedido valia para a validade antiga: trocou a data, o pedido precisa ser feito de novo
-    new.pedido_tipo := null; new.pedido_campanha := null; new.pedido_em := null; new.pedido_por := null;
-    return new;
+  -- lote com pedido: só mudam os campos do próprio pedido e os de controle de notificação (vale para TODOS, inclusive Telegram/serviço)
+  if tg_op = 'UPDATE' and old.pedido_tipo is not null then
+    if (to_jsonb(new) - livres) is distinct from (to_jsonb(old) - livres) then raise exception 'produto_travado_pedido'; end if;
   end if;
+  if auth.uid() is null or coalesce(current_setting('app.via_rpc', true), '') = '1' then return new; end if;
   if tg_op = 'INSERT' then
     if new.pedido_tipo is not null or new.pedido_campanha is not null or new.pedido_em is not null or new.pedido_por is not null then
       raise exception 'pedido_so_pela_funcao';
@@ -104,4 +105,5 @@ begin
     raise exception 'pedido: permissao da funcao';
   end if;
   if has_function_privilege('authenticated', 'public._produtos_pedido_ck()', 'execute') then raise exception 'pedido: funcao interna aberta'; end if;
+  if position('produto_travado_pedido' in pg_get_functiondef('public._produtos_pedido_ck()'::regprocedure)) = 0 then raise exception 'pedido: funcao sem a trava do lote'; end if;
 end $$;

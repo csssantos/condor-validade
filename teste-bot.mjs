@@ -24,6 +24,19 @@ const g = new Function(cod2 + "; return { snap, temProgresso, empilhar };")();
   let rep = { ...nx2 }; g.empilhar(rep, nx2); t("mesmo estado empilhado de novo não duplica", rep.pilha.length === 3 && (() => { const r2 = { ...rep }; g.empilhar(r2, { ...nx2, pilha: rep.pilha }); return r2.pilha.length === 3; })());
   let gr = { ...est, pilha: [], novo: { barcode: "1", nome: "N", foto: "data:image/jpeg;base64,AAAA".repeat(1000), setor: null, etapa: "setor" } }; let nn = { ...gr }; g.empilhar(nn, gr);
   t("foto pesada fica fora da pilha", nn.pilha[0].length < 400 && nn.pilha[0].includes("__keep__"));
-  let c = { ...est }; for (let i = 0; i < 10; i++) { const n = { ...c }; g.empilhar(n, c); n.quantidade = i + 1; c = n; } t("pilha limitada a 6", c.pilha.length === 6);
+  let c = { ...est }; for (let i = 0; i < 10; i++) { const n = { ...c }; g.empilhar(n, c); n.quantidade = i + 1; c = n; } t("pilha limitada a 10", c.pilha.length === 10);
+}
+// gramagem e preço do Telegram
+{
+  let c3 = pega("const UNID", "const brl").replace(/: Record<string, string>/g, "").replace(/: string\)/g, ")").replace(/: \{ tam: string; uni: string \} \| null/, "").replace(/: number \| null/, "");
+  const h = new Function("semAcento", c3 + "; return { lerGramagem, lerPreco };")((x) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+  t("gramagem 500 = 500 G", JSON.stringify(h.lerGramagem("500")) === '{"tam":"500","uni":"G"}');
+  t("gramagem 1,5 kg", JSON.stringify(h.lerGramagem("1,5 kg")) === '{"tam":"1,5","uni":"KG"}');
+  t("gramagem 900ml", h.lerGramagem("900ml")?.uni === "ML"); t("gramagem 2 litros", h.lerGramagem("2 Litros")?.uni === "L");
+  t("gramagem inválida", !h.lerGramagem("abc") && !h.lerGramagem("0") && !h.lerGramagem("99999") && !h.lerGramagem("500 xx"));
+  t("preço 8,99", h.lerPreco("8,99") === 8.99); t("preço R$ 12", h.lerPreco("R$ 12") === 12); t("preço 8,99 reais", h.lerPreco("8,99 reais") === 8.99); t("preço 5 reais.", h.lerPreco("5 reais.") === 5); t("preço 8.5", h.lerPreco("8.5") === 8.5);
+  t("gramagem milhar ambígua recusada", h.lerGramagem("1.500 g") === null && h.lerGramagem("1.500") === null); t("gramagem com ponto final", h.lerGramagem("500g.")?.tam === "500" && h.lerGramagem("2 lts")?.uni === "L");
+  t("preço com milhar e centavos", h.lerPreco("1.234,56") === 1234.56); t("preço 1.234,56 sem decimais extras", h.lerPreco("1.234") === 1234);
+  t("preço inválido", h.lerPreco("0") === null && h.lerPreco("5001") === null && h.lerPreco("abc") === null && h.lerPreco("1,234") === null);
 }
 console.log(`bot: ${ok} ok, ${bad} falhas`); process.exit(bad ? 1 : 0);

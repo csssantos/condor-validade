@@ -643,15 +643,8 @@ function detectarFamilia(nomeFormatado) {
 // Unidade padrão por setor: cosmético/higiene costuma vir em gramas, líquido (bebida) em ML,
 // e Mercearia (mistura os dois tipos) tem G como padrão, com ML logo em seguida na lista —
 // evita o funcionário ter que trocar manualmente toda vez. Ajustável na hora se não for o caso.
-function unidadeSugeridaPeloSetor(setor) {
-  if (setor === "Higiene e Perfumaria") return "G";
-  if (setor === "Bebidas") return "ML";
-  if (setor === "Mercearia") return "G";
-  return "KG";
-}
 function ordemUnidadesPeloSetor(setor) {
-  if (setor === "Mercearia") return ["G", "ML", "KG", "L"];
-  return ["KG", "G", "L", "ML"];
+  return ["G", "KG", "ML", "L"]; // G (grama) sempre primeiro e padrão, em qualquer setor (pedido do dono)
 }
 
 // ---------- Item 8: código de balança (etiqueta do açougue/padaria/hortifruti) ----------
@@ -812,6 +805,7 @@ function mensagemErroGravacao(e) {
   if (/excluir_exige_encarregado/.test(m)) return "só encarregado ou superior pode excluir esse produto (use \"Dar baixa\")";
   if (/lote_obrigatorio/.test(m)) return "falta o lote (ou marcar que não tem lote impresso)";
   if (/lote_invalido/.test(m)) return "lote inválido (use letras, números, . / - e até 20 caracteres)";
+  if (/produto_travado_pedido/.test(m)) return "esse lote tem pedido de promoção ou preço direto registrado e está travado: o encarregado do setor precisa remover o pedido antes de alterar";
   if (/campanha_invalida/.test(m)) return "número da campanha inválido (use letras, números, . / - e até 20 caracteres)";
   if (/pedido_promocao_invalido/.test(m)) return "tipo de pedido inválido";
   if (/pedido_so_pela_funcao/.test(m)) return "esse campo só muda pelo botão de pedido";
@@ -1921,6 +1915,31 @@ function AppInner() {
   }, []);
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
+  // Aprovação de produto novo (Telegram): encarregado+ é avisado NA HORA quando chega pedido (tempo real) e vê quantos faltam em Mais
+  const [aprovPendentes, setAprovPendentes] = useState(0);
+  const idLojaAprov = perfil?.loja_id;
+  useEffect(() => {
+    if (!ehEncarregado || !idDoUsuario) { setAprovPendentes(0); return; }
+    let vivo = true;
+    const contar = async () => {
+      const { count, error } = await supabase.from("aprovacoes_produto").select("id", { count: "exact", head: true }).eq("status", "pendente");
+      if (vivo && !error) setAprovPendentes(count || 0);
+    };
+    contar();
+    const ch = supabase.channel("aprov_aviso_" + (idLojaAprov ?? "x")).on("postgres_changes", { event: "*", schema: "public", table: "aprovacoes_produto" }, (p) => {
+      contar();
+      if (p.eventType === "INSERT" && p.new?.status === "pendente") {
+        const nome = String(p.new.nome || "Produto novo").slice(0, 60);
+        showToast(`Novo produto aguardando sua aprovação: ${nome}`, "info");
+        dispararNotificacao("Produto novo para aprovar", { corpo: `${nome} · lançado por ${String(p.new.solicitante || "alguém").slice(0, 40)} pelo Telegram`, tag: "aprovacao-" + p.new.id });
+      }
+    }).subscribe();
+    const t = setInterval(contar, 60000);
+    const volta = () => { if (document.visibilityState === "visible") contar(); };
+    document.addEventListener("visibilitychange", volta); window.addEventListener("focus", contar); window.addEventListener("online", contar);
+    return () => { vivo = false; clearInterval(t); supabase.removeChannel(ch); document.removeEventListener("visibilitychange", volta); window.removeEventListener("focus", contar); window.removeEventListener("online", contar); };
+  }, [ehEncarregado, idDoUsuario, idLojaAprov, showToast]);
+
   // Ação com "desfazer" de 5s: a mudança já aparece na tela na hora, mas só grava de verdade
   // no Supabase depois desse tempo (a não ser que a pessoa cancele antes).
   const desfazerTimeoutRef = useRef(null);
@@ -2146,6 +2165,7 @@ function AppInner() {
     if (dados.somarAoLoteId) {
       const orig = items.find((it) => it.id === dados.somarAoLoteId);
       if (!orig) { showToast("Lote não encontrado.", "erro"); return; }
+      if (orig.pedidoTipo) { showToast("Não foi possível somar: esse lote tem pedido de promoção ou preço direto e está travado. O encarregado do setor precisa remover o pedido antes.", "erro"); return; }
       if (!podeEditarProduto(orig)) { showToast("Esse lote foi lançado por outra pessoa: peça ao encarregado do setor para somar.", "warn"); return; }
       const add = Math.round(Number(dados.quantidade) || 0);
       if (add < 1 || add > limiteSomaLote(orig.quantidade)) { showToast(`Só dá para somar até ${limiteSomaLote(orig.quantidade)} un de uma vez.`, "warn"); return; }
@@ -2591,7 +2611,7 @@ function AppInner() {
           <SetorDetalheView T={T} setor={setorAtivo} items={items} catalog={catalog} rondas={rondas} subInicial={subAtivo}
             onVoltar={() => setSubAtivo(null)} onIniciarRonda={iniciarRonda} onOpenDetail={setDetalheItem}
             onLancarValidade={ehDesktop ? null : lancarValidadeDoCadastro} onCadastrarNoSetor={ehDesktop ? null : (s) => abrirCadastroDireto(s)}
-            onExcluir={nivelUsuario <= 5 ? excluirProduto : null} podeGerirProduto={podeGerirProduto} usuario={usuario} ehEncarregado={ehEncarregado} perfil={perfil} />
+            onExcluir={nivelUsuario <= 5 ? excluirProduto : null} podeGerirProduto={(it) => podeGerirProduto(it) && !it?.pedidoTipo} usuario={usuario} ehEncarregado={ehEncarregado} perfil={perfil} />
         )}
         {flow === "prioridade" && (
           <PrioridadeInteligenteView T={T} items={items} historico={historico} onOpenDetail={setDetalheItem} />
@@ -2610,7 +2630,7 @@ function AppInner() {
             onAbrirPrioridade={() => setFlow("prioridade")} onAbrirTorre={() => setFlow("torre")} onAbrirRelatorios={() => setFlow("relatorios")}
             ehCorporativo={ehCorporativo} onAbrirRede={() => setFlow("rede")} ehEncarregado={ehEncarregado}
             configBalanca={configBalanca} onBalancaSalva={(cfg) => setConfigBalanca(cfg)}
-            ehDev={ehDev} paginaInicial={maisPagina} onPaginaMais={setMaisPagina} onAbrirGestao={() => setFlow("gestao")} perfil={perfil} onAbrirConvites={() => setFlow("convites")} onAbrirModulo={(f) => setFlow(f)} />
+            ehDev={ehDev} aprovPendentes={aprovPendentes} subsetoresExtra={subsetoresExtra} paginaInicial={maisPagina} onPaginaMais={setMaisPagina} onAbrirGestao={() => setFlow("gestao")} perfil={perfil} onAbrirConvites={() => setFlow("convites")} onAbrirModulo={(f) => setFlow(f)} />
         )}
       </main>
 
@@ -2619,9 +2639,9 @@ function AppInner() {
           outrosLotes={items.filter((i) => i.barcode === detalheItem.barcode && i.setor === detalheItem.setor && i.id !== detalheItem.id)}
           onTrocarLote={setDetalheItem}
           onClose={() => setDetalheItem(null)}
-          onEdit={ehDesktop || !podeEditarProduto(detalheItem) ? null : startEdit} onDuplicate={ehDesktop || !podeEditarProduto(detalheItem) ? null : duplicarItem}
+          onEdit={ehDesktop || detalheItem.pedidoTipo || !podeEditarProduto(detalheItem) ? null : startEdit} onDuplicate={ehDesktop || !podeEditarProduto(detalheItem) ? null : duplicarItem}
           onBaixa={podeGerirProduto(detalheItem) ? darBaixa : null} onShare={compartilharItem}
-          onAplicarPromocao={podeGerirProduto(detalheItem) ? aplicarPromocao : null} onPedido={nivelUsuario <= 6 && podeEditarProduto(detalheItem) ? registrarPedido : null} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) ? excluirProduto : null} />
+          onAplicarPromocao={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? aplicarPromocao : null} onPedido={nivelUsuario <= 6 && podeEditarProduto(detalheItem) ? registrarPedido : null} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? excluirProduto : null} />
       )}
 
       {perfil?.id && <RondaAvisosHost T={T} usuarioId={perfil.id} showToast={showToast} onIrParaRondas={() => { setFlow(null); setSetorAtivo(null); setTab("rondas"); }} />}
@@ -2844,6 +2864,18 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-aprovacao-campos", data: "04/11/2026", itens: [
+    { tipo: "novo", ate: 5, texto: "Aprovar produtos novos: ao aprovar, você precisa informar subcategoria, gramagem e preço (obrigatórios). Eles já entram no cadastro do produto." },
+    { tipo: "novo", ate: 5, texto: "Aviso na hora quando chega um pedido de aprovação do Telegram (aviso na tela e notificação, se estiver ligada), e o menu Mais mostra quantos estão aguardando." },
+  ] },
+  { id: "2026-11-04-telegram-extras", data: "04/11/2026", itens: [
+    { tipo: "novo", ate: 7, texto: "Telegram: ao lançar a validade de um produto já cadastrado, o bot agora pergunta a gramagem da embalagem (só o número vale como grama), o preço, se tem troca e, para funcionário, a subcategoria. Gramagem, preço e troca valem para funcionário e promotor; a subcategoria é só do funcionário. O que já está no cadastro entra sozinho e dá para corrigir antes de confirmar." },
+    { tipo: "alterado", ate: 7, texto: "Campo de validade: dá para digitar a data (dd/mm/aaaa) ou escolher no calendário. O app não preenche mais a data de hoje sozinho ao tocar no campo vazio." },
+    { tipo: "alterado", ate: 7, texto: "Tamanho da embalagem: a unidade padrão agora é sempre G (grama), em qualquer setor." },
+  ] },
+  { id: "2026-11-04-lote-travado", data: "04/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Lote com pedido de promoção ou preço direto fica travado: não dá mais para editar, somar quantidade, aplicar promoção nem excluir. Só dar baixa. O encarregado do setor (ou superior) pode remover o pedido para destravar. Isso substitui a regra antiga de limpar o pedido ao mudar a validade." },
+  ] },
   { id: "2026-11-04-pedido-promocao", data: "04/11/2026", itens: [
     { tipo: "novo", ate: 6, texto: "Pedido de promoção ou preço direto: no detalhe do produto dá para registrar que a promoção ou o preço direto foi pedido, com o número da campanha. O pedido aparece na lista e fica na auditoria (quem pediu e quando). Se a validade do lote mudar, o pedido é limpo e precisa ser feito de novo." },
   ] },
@@ -4196,10 +4228,12 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
   const [enviando, setEnviando] = useState(false);
   const validades = lotes.map((l) => l.validade).filter(Boolean);
   const menor = validades.length ? [...validades].sort()[0] : "";
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeISOLocal();
   const vencida = !!menor && menor < hoje;
-  const podeOk = !!menor && !vencida && lotesValidos;
-  const obsOuFoto = obs.trim().length > 0 || !!foto;
+  const linhaIncompleta = lotes.some((l) => !l.validade && l.lote.trim()); // lote digitado sem data completa e válida: seria descartado em silêncio
+  const anoRuim = validades.some((v) => Number(v.slice(0, 4)) > new Date().getFullYear() + 10 || Number(v.slice(0, 4)) < new Date().getFullYear() - 1);
+  const podeOk = !!menor && !vencida && lotesValidos && !linhaIncompleta && !anoRuim;
+  const obsOuFoto = (obs.trim().length > 0 || !!foto) && !linhaIncompleta && !anoRuim;
   const pronto = resultado === "irregular" ? obsOuFoto : (resultado === "ok" || resultado === "atencao") ? podeOk : false;
   async function pegarFoto(e) {
     const f = e.target.files?.[0]; if (!f) return;
@@ -4226,7 +4260,7 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
           <div className="flex flex-col gap-2">
             {lotes.map((l, i) => (
               <div key={i} className="flex items-center gap-2">
-                <input type="date" value={l.validade} onChange={(e) => setLotes((p) => p.map((x, j) => (j === i ? { ...x, validade: e.target.value } : x)))} style={campo} className="flex-1 min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none" />
+                <div className="flex-1 min-w-0"><CampoData T={T} value={l.validade} onChange={(v) => setLotes((p) => p.map((x, j) => (j === i ? { ...x, validade: v } : x)))} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none" /></div>
                 <input type="text" value={l.lote} maxLength={20} list="lotes-cadastrados-ronda" placeholder="Lote" autoCapitalize="characters"
                   onChange={(e) => setLotes((p) => p.map((x, j) => (j === i ? { ...x, lote: e.target.value.toUpperCase() } : x)))}
                   style={{ ...campo, borderColor: loteOkRonda(l) ? campo.borderColor : RED }} className="w-[7.5rem] border rounded-xl px-3 py-2.5 text-sm outline-none uppercase" />
@@ -4268,6 +4302,7 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
           </label>
           {foto && <img src={foto} alt="" className="h-12 w-12 rounded-lg object-cover" />}
         </div>
+        {(linhaIncompleta || anoRuim) && <p style={{ color: RED_DARK }} className="text-[11.5px] font-semibold">{linhaIncompleta ? "Tem um lote sem data completa (dd/mm/aaaa). Complete a data ou apague o lote." : "Confira o ano da validade (precisa ser de 4 dígitos, perto do ano atual)."}</p>}
         <button onClick={confirmar} disabled={!pronto || enviando} style={{ background: pronto ? BLUE : "#C7CEDA", color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
           {enviando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Confirmar conferência
         </button>
@@ -8370,6 +8405,9 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                   {onPedido && podeGerirPedido && <button onClick={() => setEditandoPedido(true)} style={{ color: BLUE }} className="text-[11px] font-bold shrink-0 px-1">Alterar</button>}
                 </div>
               )}
+              {item.pedidoTipo && !editandoPedido && (
+                <p style={{ color: T.subtext }} className="text-[10.5px] mt-2 leading-snug">Lote travado: com o pedido registrado não dá para editar, somar quantidade, aplicar promoção nem excluir. {podeGerirPedido ? "Dá para dar baixa, ou remover o pedido (em Alterar) para destravar." : "Peça ao encarregado do setor para dar baixa ou remover o pedido."}</p>
+              )}
               {!item.pedidoTipo && !editandoPedido && (
                 <>
                   <p style={{ color: T.subtext }} className="text-[11.5px] mb-2">Ainda sem pedido registrado. Mesmo perto da validade, registre aqui que a promoção ou o preço direto foi pedido.</p>
@@ -8388,7 +8426,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                   <input value={pedidoCampanha} onChange={(e) => setPedidoCampanha(e.target.value.toUpperCase().replace(/[^A-Z0-9./ -]/g, "").slice(0, 20))}
                     placeholder="Número da campanha (opcional)" inputMode="text" maxLength={20} aria-label="Número da campanha"
                     style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full min-w-0 mt-2 border rounded-xl px-3 py-2 text-xs outline-none" />
-                  <p style={{ color: T.subtext }} className="text-[10px] mt-1">Aceita letras sem acento, números, . / - e até 20 caracteres.{item.pedidoTipo && " Se a validade deste lote mudar, o pedido precisa ser feito de novo."}</p>
+                  <p style={{ color: T.subtext }} className="text-[10px] mt-1">Aceita letras sem acento, números, . / - e até 20 caracteres.{!item.pedidoTipo && " Atenção: depois de salvar, este lote fica travado (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
                   <div className="flex gap-2 mt-2.5">
                     <button onClick={() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
                     {item.pedidoTipo && podeGerirPedido && (confirmandoRemoverPedido
@@ -8582,7 +8620,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             <>
               <p style={{ color: T.subtext }} className="text-[11px] font-medium mb-2">O que foi feito com o produto?</p>
               <div className="grid grid-cols-2 gap-2">
-                {MOTIVOS_BAIXA.map((m) => (
+                {MOTIVOS_BAIXA.filter((m) => m !== "Promoção aplicada" || onAplicarPromocao).map((m) => (
                   <button key={m} onClick={() => escolherMotivo(m)} style={{ background: T.chipBg, color: T.text }} className="text-xs font-medium py-3 rounded-xl">{m}</button>
                 ))}
               </div>
@@ -9193,7 +9231,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
   const [precoUnitario, setPrecoUnitario] = useState(initial.precoUnitario != null ? String(initial.precoUnitario) : "");
   const [porPeso, setPorPeso] = useState(!!initial.porPeso);
   const [tamanho, setTamanho] = useState(initial.tamanho || "");
-  const [unidadeMedida, setUnidadeMedida] = useState(initial.unidadeMedida || unidadeSugeridaPeloSetor(initial.setor));
+  const [unidadeMedida, setUnidadeMedida] = useState(initial.unidadeMedida || "G");
   const [cadastrarEstoque, setCadastrarEstoque] = useState(!!initial.cadastrarEstoque);
   const [corredorDeposito, setCorredorDeposito] = useState(initial.corredorDeposito || "");
   const [moduloDeposito, setModuloDeposito] = useState(initial.moduloDeposito || "");
@@ -9601,6 +9639,51 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
   );
 }
 
+// ---------- Campo de data: digitar dd/mm/aaaa OU escolher no calendário ----------
+// O seletor nativo do iPhone, ao abrir com o campo vazio, já devolve a data de HOJE sozinho (antes de a pessoa escolher nada).
+// Isso preenchia "hoje", abria o registro de perda e tirava o foco do calendário. Aqui esse preenchimento automático é ignorado,
+// e dá para digitar a data direto (teclado numérico).
+function isoParaBR(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || "")); return m ? `${m[3]}/${m[2]}/${m[1]}` : ""; }
+function brParaISO(txt) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(txt || "")); if (!m) return "";
+  const d = Number(m[1]), mo = Number(m[2]), a = Number(m[3]);
+  const t = new Date(Date.UTC(a, mo - 1, d));
+  return t.getUTCFullYear() === a && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d ? `${m[3]}-${m[2]}-${m[1]}` : "";
+}
+function mascaraData(txt) { const n = String(txt || "").replace(/\D/g, "").slice(0, 8); return n.length > 4 ? `${n.slice(0, 2)}/${n.slice(2, 4)}/${n.slice(4)}` : n.length > 2 ? `${n.slice(0, 2)}/${n.slice(2)}` : n; }
+function hojeISOLocal() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function CampoData({ value, onChange, style, className = "", T }) {
+  const [txt, setTxt] = useState(isoParaBR(value));
+  const [saiu, setSaiu] = useState(false);
+  const abertoEm = useRef(0);
+  useEffect(() => { setTxt((t) => (brParaISO(t) === (value || "") ? t : isoParaBR(value))); }, [value]);
+  const digitar = (e) => {
+    const bruto = e.target.value;
+    const f = /^\d{4}-\d{2}-\d{2}$/.test(bruto.trim()) ? isoParaBR(bruto.trim()) : mascaraData(bruto); // colar 2026-12-15 também funciona
+    setTxt(f); onChange(brParaISO(f));
+  };
+  const escolher = (e) => {
+    const v = e.target.value;
+    if (v && v === hojeISOLocal() && !value && Date.now() - abertoEm.current < 900) { e.target.value = ""; return; } // preenchimento automático do iPhone, não foi escolha
+    setTxt(isoParaBR(v)); onChange(v || "");
+  };
+  const abrir = (e) => { abertoEm.current = Date.now(); try { e.currentTarget.showPicker?.(); } catch { /* o toque já abre no celular */ } };
+  const incompleta = txt.length > 0 && !brParaISO(txt) && (txt.length === 10 || saiu);
+  return (
+    <div>
+      <div className="relative">
+        <input type="text" inputMode="numeric" autoComplete="off" value={txt} onChange={digitar} onBlur={() => setSaiu(true)} onFocus={() => setSaiu(false)}
+          placeholder="dd/mm/aaaa" maxLength={10} aria-label="Data de validade (dia, mês e ano)" aria-invalid={incompleta}
+          style={{ ...style, paddingRight: 44 }} className={className} />
+        <span className="absolute right-0 top-0 h-full w-11 flex items-center justify-center pointer-events-none" style={{ color: T?.subtext }}><Calendar size={17} /></span>
+        <input type="date" aria-label="Escolher a data no calendário" value={value || ""} onChange={escolher} onClick={abrir} onFocus={() => { abertoEm.current = Date.now(); }}
+          className="absolute right-0 top-0 h-full w-11 opacity-0 cursor-pointer" style={{ fontSize: 16 }} />
+      </div>
+      {incompleta && <p role="alert" style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">{txt.length === 10 ? "Essa data não existe. Confira o dia e o mês." : "Digite a data completa: dd/mm/aaaa."}</p>}
+    </div>
+  );
+}
+
 // ============ Validade ============
 function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onVoltar, onSave, onBaixaDireta }) {
   const [validade, setValidade] = useState(editing ? editing.validade : (vozPre?.validade || ""));
@@ -9614,7 +9697,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
   const [tamanho, setTamanho] = useState(editing ? editing.tamanho || "" : (product.tamanho || ""));
   const [unidadeMedida, setUnidadeMedida] = useState(editing
     ? (editing.unidadeMedida === "UN" ? "KG" : editing.unidadeMedida) || "KG"
-    : (product.unidadeMedida || unidadeSugeridaPeloSetor(product.setor)));
+    : (product.tamanho && ["G", "KG", "ML", "L"].includes(product.unidadeMedida) ? product.unidadeMedida : "G")); // padrão G (grama); se o cadastro já tem tamanho com unidade, respeita (evita gravar 1 L como 1 G)
   const [observacoes, setObservacoes] = useState(editing ? editing.observacoes || "" : "");
   const [confirmarDuplicado, setConfirmarDuplicado] = useState(false);
   const [lote, setLote] = useState(editing ? editing.lote || "" : "");
@@ -9733,8 +9816,8 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
       <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl p-4 border shadow-lg shadow-black/5 flex flex-col gap-4">
         <div>
           <label style={{ color: T.subtext }} className="text-xs font-semibold mb-1.5 flex items-center gap-1.5"><Calendar size={13} /> Data de validade</label>
-          <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)}
-            style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder, boxSizing: "border-box", maxWidth: "100%", WebkitAppearance: "none", appearance: "none" }}
+          <CampoData T={T} value={validade} onChange={setValidade}
+            style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder, boxSizing: "border-box", maxWidth: "100%" }}
             className="w-full min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
           {dataRuim && <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">Data fora do normal ({String(validade).slice(0, 4)}). Confira o ano: use 4 dígitos, entre {anoAtual - 1} e {anoAtual + 10}.</p>}
         </div>
@@ -9792,7 +9875,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
               {onBaixaDireta && jaVencido && (
                 <div className="px-3 pb-3">
                   <p className="text-[10.5px] font-semibold mb-1.5">Quantas {porPeso ? "kg" : "unidade(s)"} estão sendo descartadas?</p>
-                  <input type="number" inputMode="decimal" min={porPeso ? 0.001 : 1} step={porPeso ? "0.001" : "1"} autoFocus
+                  <input type="number" inputMode="decimal" min={porPeso ? 0.001 : 1} step={porPeso ? "0.001" : "1"}
                     value={quantidade} onChange={(e) => setQuantidade(e.target.value.replace(",", "."))}
                                         placeholder={porPeso ? "Ex: 1,235" : "Ex: 3"}
                     style={{ background: "rgba(255,255,255,0.7)", borderColor: "transparent" }}
@@ -11718,9 +11801,10 @@ const ERROS_APROVACAO = {
   nome_invalido: "Nome inválido (5 a 80 caracteres, com letras).", setor_invalido: "Escolha um setor.", foto_invalida: "Imagem inválida ou grande demais.",
   motivo_invalido: "Escreva o motivo (5 a 300 caracteres).", validade_vencida: "A validade lançada já venceu. Recuse o pedido e explique o motivo.",
   produto_nao_encontrado: "Produto não encontrado.", usuario_fora_da_loja: "Quem lançou não está mais ativo nesta loja. Recuse o pedido.",
-  validade_muito_proxima: "A validade lançada agora está a 2 dias ou menos. Recuse o pedido e explique o motivo.", lote_obrigatorio_telegram: "O pedido não tem lote. Recuse o pedido e explique o motivo.", ean_invalido: "O código de barras não é um EAN-13 válido. Recuse o pedido e explique o motivo.",
+  validade_muito_proxima: "A validade lançada agora está a 2 dias ou menos. Recuse o pedido e explique o motivo.", lote_obrigatorio_telegram: "O pedido não tem lote. Recuse o pedido e explique o motivo.", ean_invalido: "O código de barras não é um código válido (EAN-8, UPC-A ou EAN-13). Recuse o pedido e explique o motivo.",
+  gramagem_invalida: "Informe a gramagem (número maior que zero).", unidade_invalida: "Escolha a unidade da gramagem.", preco_invalido: "Informe o preço (de R$ 0,01 a R$ 5.000).", subsetor_invalido: "Escolha a subcategoria.",
 };
-function PaginaAprovacoes({ T, dark, perfil, showToast }) {
+function PaginaAprovacoes({ T, dark, perfil, showToast, subsetoresExtra = [] }) {
   const [lista, setLista] = useState(null);
   const [aberto, setAberto] = useState(null);
   const [ed, setEd] = useState({});            // edição do produto aberto: nome, setor, foto, trocouFoto
@@ -11753,7 +11837,7 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
   const msgErro = (e) => { const m = e?.message || ""; const k = Object.keys(ERROS_APROVACAO).find((x) => m.includes(x)); return k ? ERROS_APROVACAO[k] : "Não consegui agora. Tente de novo."; };
   const abrir = async (a) => {
     if (aberto === a.id) { setAberto(null); return; }
-    setAberto(a.id); setRecusando(null); setMotivo(""); setEd({ nome: a.nome, setor: a.setor, foto: null, trocouFoto: false, carregandoFoto: true });
+    setAberto(a.id); setRecusando(null); setMotivo(""); setEd({ nome: a.nome, setor: a.setor, tam: "", uni: "G", preco: "", sub: "", foto: null, trocouFoto: false, carregandoFoto: true });
     const { data } = await supabase.from("aprovacoes_produto").select("foto").eq("id", a.id).maybeSingle();
     setEd((e) => (e.nome === a.nome && !e.trocouFoto ? { ...e, foto: data?.foto || null, carregandoFoto: false } : e));
   };
@@ -11761,9 +11845,16 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
     if (!file) return;
     try { const d = await compressImage(file, 480, 0.62); setEd((e) => ({ ...e, foto: d, trocouFoto: true })); } catch { showToast?.("Não consegui ler a imagem", "warn"); }
   }
+  // preço: 8,99 / 8.99 / 1.234,56 (ponto só é milhar quando vêm 3 dígitos depois e a vírgula decide); outro formato é inválido
+  const precoNum = (v) => { const t = String(v || "").trim(); let m; if ((m = t.match(/^(\d{1,4})(?:[.,](\d{1,2}))?$/))) return Number(m[1] + "." + (m[2] ?? "0")); if ((m = t.match(/^(\d{1,2})\.(\d{3}),(\d{1,2})$/))) return Number(m[1] + m[2] + "." + m[3]); return null; };
+  const tamNum = (v) => { const t = String(v || "").trim(); if (/^\d{1,3}\.\d{3}$/.test(t)) return null; return /^\d{1,6}(?:[.,]\d{1,3})?$/.test(t) ? Number(t.replace(",", ".")) : null; };
+  const opcoesSub = (setor) => [...(SUBSETORES_PADRAO[setor] || []), ...subsetoresExtra.filter((x) => x.setor === setor && !(SUBSETORES_PADRAO[setor] || []).includes(x.nome)).map((x) => x.nome)];
+  const faltas = () => { const f = []; const t = tamNum(ed.tam); const pr = precoNum(ed.preco); if ((ed.nome || "").trim().length < 5) f.push("nome (mín. 5 letras)"); if (!ed.sub || !opcoesSub(ed.setor).includes(ed.sub)) f.push("subcategoria"); if (!(t > 0)) f.push(/^\d{1,3}\.\d{3}$/.test(String(ed.tam || "").trim()) ? "gramagem (use 1500 ou 1,5, sem ponto de milhar)" : "gramagem"); if (!(pr != null && pr >= 0.01 && pr <= 5000)) f.push("preço (ex.: 8,99)"); return f; };
+  const camposOk = () => { const t = tamNum(ed.tam); const pr = precoNum(ed.preco); return (ed.nome || "").trim().length >= 5 && t > 0 && !!ed.uni && pr != null && pr >= 0.01 && pr <= 5000 && !!ed.sub && opcoesSub(ed.setor).includes(ed.sub); };
   async function aprovar(a) {
+    if (!camposOk()) { showToast?.("Falta: " + faltas().join(", "), "aviso"); return; }
     setOcupado(true);
-    const { error } = await supabase.rpc("aprovar_produto_novo", { p_id: a.id, p_nome: ed.nome, p_setor: ed.setor, p_foto: ed.trocouFoto ? ed.foto : null, p_trocar_foto: !!ed.trocouFoto });
+    const { error } = await supabase.rpc("aprovar_produto_novo", { p_id: a.id, p_nome: ed.nome, p_setor: ed.setor, p_foto: ed.trocouFoto ? ed.foto : null, p_trocar_foto: !!ed.trocouFoto, p_tamanho: String(tamNum(ed.tam)), p_unidade: ed.uni || "G", p_preco: precoNum(ed.preco), p_subsetor: ed.sub || "" });
     setOcupado(false);
     if (error) { showToast?.(msgErro(error), "warn"); carregar(); return; }
     avisar(a.id); showToast?.("Produto aprovado e validade lançada", "ok"); setAberto(null); carregar();
@@ -11786,7 +11877,7 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
     <div className="lg:grid lg:grid-cols-2 lg:gap-x-6 lg:items-start">
       <MaisBloco T={T} i={0} className="lg:col-span-2">
         <div className="p-4">
-          <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">Produto novo lançado pelo Telegram só entra no catálogo depois da sua aprovação. Você pode corrigir nome, setor e imagem. A validade e a quantidade lançadas não mudam. Se recusar, o motivo volta para quem lançou.</p>
+          <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">Produto novo lançado pelo Telegram só entra no catálogo depois da sua aprovação. Você corrige nome, setor e imagem e informa subcategoria, gramagem e preço (obrigatórios). A validade e a quantidade lançadas não mudam. Se recusar, o motivo volta para quem lançou.</p>
           <div className="flex gap-2 mt-3">
             {[["pendente", `Pendentes (${pend.length})`], ["historico", "Decididos"]].map(([k, t]) => (
               <button key={k} onClick={() => setAba(k)} style={{ background: aba === k ? BLUE : T.chipBg, color: aba === k ? "#fff" : T.subtext }} className="px-3.5 py-1.5 rounded-full text-[12.5px] font-bold">{t}</button>
@@ -11822,9 +11913,28 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
                     <input value={ed.nome || ""} maxLength={80} onChange={(e) => setEd({ ...ed, nome: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal uppercase" />
                   </label>
                   <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Setor
-                    <select value={ed.setor || ""} onChange={(e) => setEd({ ...ed, setor: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
+                    <select value={ed.setor || ""} onChange={(e) => { const ns = e.target.value; const manter = opcoesSub(ns).includes(ed.sub); if (ed.sub && !manter) showToast?.("Setor mudou: escolha a subcategoria de novo", "aviso"); setEd({ ...ed, setor: ns, sub: manter ? ed.sub : "" }); }} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
                       {SETORES_APROVACAO.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
+                  </label>
+                  <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Subcategoria (obrigatória)
+                    <select value={ed.sub || ""} onChange={(e) => setEd({ ...ed, sub: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
+                      <option value="">Escolha…</option>
+                      {opcoesSub(ed.setor).map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </label>
+                  <div className="flex gap-2">
+                    <label className="flex-1 text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Gramagem (obrigatória)
+                      <input inputMode="decimal" value={ed.tam || ""} maxLength={10} placeholder="500" onChange={(e) => setEd({ ...ed, tam: e.target.value.replace(/[^0-9.,]/g, "") })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal" />
+                    </label>
+                    <label className="w-24 text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Unidade
+                      <select value={ed.uni || "G"} onChange={(e) => setEd({ ...ed, uni: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
+                        {["G", "KG", "ML", "L"].map((u) => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Preço (obrigatório)
+                    <input inputMode="decimal" value={ed.preco || ""} maxLength={9} placeholder="8,99" onChange={(e) => setEd({ ...ed, preco: e.target.value.replace(/[^0-9.,]/g, "") })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal" />
                   </label>
                   <div className="flex items-center gap-2">
                     <label style={{ background: T.chipBg, color: BLUE }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-bold cursor-pointer"><ImagePlus size={15} />Trocar imagem
@@ -11842,8 +11952,9 @@ function PaginaAprovacoes({ T, dark, perfil, showToast }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex gap-2">
-                      <button disabled={ocupado || (ed.nome || "").trim().length < 5} onClick={() => aprovar(a)} style={{ background: "#1F7A4D" }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-[13.5px] font-bold disabled:opacity-40"><Check size={16} />{ocupado ? "Aprovando…" : "Aprovar e lançar"}</button>
+                    <div className="flex flex-wrap gap-2">
+                      {faltas().length > 0 && <p className="w-full text-[12px] font-semibold" style={{ color: RED }}>Falta: {faltas().join(", ")}</p>}
+                      <button disabled={ocupado || !camposOk()} onClick={() => aprovar(a)} style={{ background: "#1F7A4D" }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-[13.5px] font-bold disabled:opacity-40"><Check size={16} />{ocupado ? "Aprovando…" : "Aprovar e lançar"}</button>
                       <button disabled={ocupado} onClick={() => setRecusando(a.id)} style={{ background: RED_SOFT, color: RED }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13.5px] font-bold"><X size={16} />Recusar</button>
                     </div>
                   )}
@@ -11871,7 +11982,7 @@ function MaisView(props) {
     { id: "aparencia", titulo: "Aparência", desc: "Claro, escuro ou automático", Icon: Palette, cor: COR_MAIS.aparencia },
     { id: "notificacoes", titulo: "Notificações e som", desc: "Alertas e beep ao bipar", Icon: Bell, cor: COR_MAIS.notificacoes },
     { id: "atalhos", titulo: "Atalhos", desc: "Análises, rondas e gestão", Icon: LayoutGrid, cor: COR_MAIS.atalhos, soMobile: true },
-    ...(ehEncarregado ? [{ id: "aprovacoes", titulo: "Aprovar produtos novos", desc: "Produtos lançados pelo Telegram aguardando você", Icon: Package, cor: COR_MAIS.aprovacoes }] : []),
+    ...(ehEncarregado ? [{ id: "aprovacoes", titulo: "Aprovar produtos novos", desc: props.aprovPendentes > 0 ? `${props.aprovPendentes} aguardando você` : "Produtos lançados pelo Telegram aguardando você", Icon: Package, cor: COR_MAIS.aprovacoes }] : []),
     ...(ehDev ? [
       { id: "avisos", titulo: "Avisos", desc: "Enviar para a rede, uma loja, setor ou pessoas", Icon: Megaphone, cor: COR_MAIS.avisos },
       { id: "balanca", titulo: "Código de balança", desc: "Prefixos e o que o código embute", Icon: Barcode, cor: COR_MAIS.balanca },
@@ -11903,7 +12014,7 @@ function MaisView(props) {
       case "aparencia": return <PaginaAparencia T={T} dark={dark} tema={tema} onTema={trocarTema} />;
       case "notificacoes": return <PaginaNotificacoes T={T} dark={dark} som={props.som} setSom={props.setSom} notifPermission={props.notifPermission} onToggleNotif={props.onToggleNotif} />;
       case "atalhos": return <PaginaAtalhos T={T} dark={dark} historico={historico} ehEncarregado={ehEncarregado} ehCorporativo={ehCorporativo} ehDev={ehDev} acoes={acoes} />;
-      case "aprovacoes": return ehEncarregado ? <PaginaAprovacoes T={T} dark={dark} perfil={perfil} showToast={props.showToast} /> : null;
+      case "aprovacoes": return ehEncarregado ? <PaginaAprovacoes T={T} dark={dark} perfil={perfil} showToast={props.showToast} subsetoresExtra={props.subsetoresExtra || []} /> : null;
       case "avisos": return ehDev ? <PaginaAvisos T={T} dark={dark} perfil={perfil} showToast={props.showToast} /> : null;
       case "balanca": return ehDev ? <PaginaBalanca T={T} dark={dark} perfil={perfil} configBalanca={props.configBalanca} onSalvou={props.onBalancaSalva} showToast={props.showToast} /> : null;
       case "privacidade": return <PaginaPrivacidade T={T} dark={dark} perfil={perfil} showToast={props.showToast} />;

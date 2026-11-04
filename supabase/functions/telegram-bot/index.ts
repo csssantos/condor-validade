@@ -93,7 +93,10 @@ async function buscarNaInternet(bc: string) {
 
 // ---------- Catálogo e sessão ----------
 type Novo = { barcode: string; nome: string; foto: string | null; urlImg?: string; fotoUsuario?: boolean; setor: string | null; etapa: "imagem" | "nome" | "foto" | "setor" | null };
-type Dados = { pilha?: string[]; cancelando?: boolean; avisou?: boolean; fotoStash?: { barcode: string; foto: string }; barcode?: string; nome?: string; porPeso?: boolean; validade?: string; quantidade?: number; lote?: string; semLote?: boolean; opcoes?: { barcode: string; nome: string }[]; dupAsk?: boolean; novo?: Novo; criouProduto?: boolean };
+type Dados = { pilha?: string[]; cancelando?: boolean; avisou?: boolean; fotoStash?: { barcode: string; foto: string }; barcode?: string; nome?: string; porPeso?: boolean; validade?: string; quantidade?: number; lote?: string; semLote?: boolean; opcoes?: { barcode: string; nome: string }[]; dupAsk?: boolean; novo?: Novo; criouProduto?: boolean;
+  // dados extras do lançamento de produto já cadastrado (gramagem, preço, troca, subcategoria)
+  cad?: Cad; cadLote?: string; semExtras?: boolean; pergunta?: "gram" | "preco" | "troca" | "sub"; subOps?: string[]; tamPulado?: boolean; tam?: string; uni?: string; preco?: number | null; precoOk?: boolean; troca?: "com_troca" | "sem_troca" | "nao_sei"; trocaOk?: boolean; sub?: string; subOk?: boolean };
+type Cad = { barcode: string; setor: string; sub: string | null; tam: string | null; uni: string | null; preco: number; troca: string | null };
 type Ctx = { vinculo_id: string; tipo: "funcionario" | "promotor"; usuario_id?: string; convite_id?: string; loja_id: number; nome: string; marca?: string; marcas?: string[]; acesso_total?: boolean };
 // marca casa só como palavra inteira, sem diferenciar acento/maiúscula (igual ao banco: _marca_casa)
 const escRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -200,6 +203,102 @@ function perguntarSetor(chat: number, sid: string, pre = "") {
   SETORES.forEach((s, i) => { if (i % 2 === 0) linhas.push([]); linhas[linhas.length - 1].push({ t: s, d: `st:${sid}:${i}` }); });
   return falar(chat, pre + "Em qual setor esse produto novo fica?", linhas, "novo");
 }
+
+// ---------- Dados extras do lançamento: gramagem, preço, troca, subcategoria ----------
+const SUBS_PADRAO: Record<string, string[]> = {
+  "Mercearia": ["Seca leve", "Seca pesada", "Seca doce", "Seca salgada", "Saudáveis", "Bolachas", "Perfumaria"],
+  "Hortifruti": ["Frutas", "Verduras", "Legumes", "Ovos"],
+  "Açougue": ["Bovinos", "Suínos", "Aves", "Linguiças e embutidos"],
+  "Padaria": ["Pães", "Bolos e doces", "Salgados"],
+  "Frios e Laticínios": ["Queijos", "Frios fatiados", "Iogurtes e leites", "Manteiga e margarina"],
+  "Bebidas": ["Refrigerantes", "Sucos", "Águas", "Cervejas e vinhos"],
+  "Congelados": ["Pratos prontos", "Sorvetes", "Carnes congeladas"],
+  "Limpeza": ["Roupas", "Casa", "Cozinha"],
+  "Higiene e Perfumaria": ["Cabelo", "Corpo", "Higiene bucal"],
+  "Bazar": ["Utilidades", "Papelaria"],
+};
+const UNID: Record<string, string> = { g: "G", gr: "G", grama: "G", gramas: "G", kg: "KG", quilo: "KG", quilos: "KG", ml: "ML", l: "L", lt: "L", lts: "L", litro: "L", litros: "L" };
+// "500", "500g", "1,5 kg", "900 ml", "2 l": sem unidade vale grama (G)
+function lerGramagem(t: string): { tam: string; uni: string } | null {
+  const m = semAcento(t).toLowerCase().replace(/[.!\s]+$/, "").trim().match(/^(\d{1,4}(?:[.,]\d{1,3})?)\s*(g|gr|gramas?|kg|quilos?|ml|l|lts?|litros?)?$/);
+  if (!m) return null;
+  if (/^\d{1,3}\.\d{3}$/.test(m[1])) return null; // "1.500" é ambíguo (milhar ou decimal): pede de novo sem ponto
+  const n = Number(m[1].replace(",", "."));
+  if (!(n > 0) || n > 9999) return null;
+  return { tam: m[1], uni: m[2] ? UNID[m[2]] : "G" };
+}
+// "8,99", "R$ 8,99", "8.99"
+function lerPreco(t: string): number | null {
+  const m = semAcento(t).toLowerCase().replace(/^r\$\s*/, "").replace(/\s*(reais|real|rs)?\s*[.!]*\s*$/, "").trim().replace(/^(\d{1,2})\.(\d{3})(,\d{1,2})?$/, "$1$2$3").match(/^(\d{1,4})(?:[.,](\d{1,2}))?$/);
+  if (!m) return null;
+  const n = Number(m[1] + "." + (m[2] ?? "0"));
+  return n >= 0.01 && n <= 5000 ? n : null;
+}
+const brl = (n: number) => "R$ " + n.toFixed(2).replace(".", ",");
+const TXT_TROCA: Record<string, string> = { com_troca: "Com troca", sem_troca: "Sem troca", nao_sei: "Não sei" };
+function limparExtras(d: Dados) { for (const k of ["cad", "cadLote", "semExtras", "pergunta", "subOps", "tamPulado", "tam", "uni", "preco", "precoOk", "troca", "trocaOk", "sub", "subOk"]) delete (d as any)[k]; }
+// pergunta de extras só para produto já cadastrado, sem ser por peso e que NÃO é soma em lote que já existe
+const extrasCorrecao = (ctx: Ctx, d: Dados): "nenhum" | "prom" | "todos" => (d.novo || d.porPeso || d.semExtras) ? "nenhum" : ctx.tipo === "funcionario" ? "todos" : "prom";
+async function carregarCad(ctx: Ctx, d: Dados) {
+  if (d.cad && d.cad.barcode !== d.barcode) limparExtras(d);
+  if (!d.cad) {
+    const { data } = await sb.from("catalogo").select("setor, subsetor, tamanho, unidade_medida, preco_unitario, politica_troca").eq("loja_id", ctx.loja_id).eq("barcode", d.barcode).maybeSingle();
+    d.cad = { barcode: d.barcode!, setor: data?.setor ?? "", sub: data?.subsetor ? String(data.subsetor) : null, tam: data?.tamanho ? String(data.tamanho) : null, uni: data?.unidade_medida ? String(data.unidade_medida) : null, preco: Number(data?.preco_unitario) || 0, troca: data?.politica_troca ?? null };
+    if (ctx.tipo === "funcionario" && (d.cad.troca === "com_troca" || d.cad.troca === "sem_troca")) { d.troca = d.cad.troca; d.trocaOk = true; } // o que já está no cadastro entra sozinho (dá para corrigir)
+    if (ctx.tipo === "funcionario" && d.cad.sub && subValido(d.cad.sub)) { d.sub = d.cad.sub; d.subOk = true; }
+  }
+  if (d.cadLote !== (d.lote ?? "")) { // lote que já existe: a quantidade é SOMADA ao lote, então não pergunta nada de novo
+    d.cadLote = d.lote ?? "";
+    if (d.lote) { const { data: l } = await sb.from("produtos").select("id").eq("loja_id", ctx.loja_id).eq("barcode", d.barcode).eq("lote", d.lote).limit(1); d.semExtras = !!l?.length; } else d.semExtras = false;
+    if (d.semExtras) for (const k of ["pergunta", "subOps", "tamPulado", "tam", "uni", "preco", "precoOk", "troca", "trocaOk", "sub", "subOk"]) delete (d as any)[k]; // soma em lote que já existe: nada disso é gravado
+  }
+}
+const extrasValidos = (d: Dados) => !d.novo && !d.porPeso && !d.semExtras && !!d.cad && d.cad.barcode === d.barcode;
+const subValido = (t: string) => t.length <= 40 && /^[A-Za-zÀ-ÿ0-9 ,.&\/()-]+$/.test(t);
+const setorPrincipalBot = (d: Dados) => Object.keys(SUBS_PADRAO).find((k) => d.cad && (d.cad.setor === k || d.cad.setor.startsWith(k + " "))) ?? "";
+async function opcoesSub(ctx: Ctx, d: Dados): Promise<string[]> {
+  const principal = setorPrincipalBot(d);
+  if (!principal) return [];
+  const { data } = await sb.from("subsetores_customizados").select("nome").eq("loja_id", ctx.loja_id).eq("setor", principal).order("nome").limit(30);
+  const todos = [...SUBS_PADRAO[principal], ...((data || []).map((x: any) => String(x.nome)).filter((n: string) => n && subValido(n)))];
+  return [...new Set(todos)].slice(0, 20);
+}
+// faz a próxima pergunta de extras que falta; true = fez uma pergunta (a conversa espera a resposta)
+async function extrasPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados, pre: string): Promise<boolean> {
+  if (d.novo || d.porPeso) { limparExtras(d); return false; }
+  await carregarCad(ctx, d);
+  if (d.semExtras) { delete d.pergunta; return false; }
+  const cab = `${pre}Produto: ${d.nome}\nValidade: ${fmtData(d.validade!)}${d.lote ? `\nLote: ${d.lote}` : ""}\n\n`;
+  const func = ctx.tipo === "funcionario";
+  const cad = d.cad!;
+  if (!d.tam && !d.tamPulado) {
+    d.pergunta = "gram"; await salvar(s.id, "aguardando_info", d);
+    const bt = [[...(cad.tam ? [{ t: `Usar ${cad.tam} ${cad.uni || "G"} do cadastro`, d: `gm:${s.id}:1` }] : []), { t: "Não sei a gramagem", d: `gm:${s.id}:p` }]];
+    await falar(chat, cab + "Qual a gramagem (ou volume) da embalagem? Ex.: 500 g, 1 kg, 900 ml, 2 l.\nSó o número vale como grama (g).", bt, "quantidade"); return true;
+  }
+  if (!d.precoOk) {
+    d.pergunta = "preco"; await salvar(s.id, "aguardando_info", d);
+    const bt = [[...(cad.preco > 0 && cad.preco <= 5000 ? [{ t: `Usar ${brl(cad.preco)} do cadastro`, d: `pc:${s.id}:u` }] : []), { t: "Pular preço", d: `pc:${s.id}:p` }]];
+    await falar(chat, cab + "Qual o preço de venda? Ex.: 8,99", bt, "quantidade"); return true;
+  }
+  if (!d.trocaOk) {
+    d.pergunta = "troca"; await salvar(s.id, "aguardando_info", d);
+    await falar(chat, cab + "Esse produto tem troca com o fornecedor?", [[{ t: "✅ Com troca", d: `tc:${s.id}:c` }, { t: "🚫 Sem troca", d: `tc:${s.id}:s` }], [{ t: "Não sei", d: `tc:${s.id}:n` }]], "produto"); return true;
+  }
+  if (func && !d.subOk) {
+    const ops = await opcoesSub(ctx, d);
+    if (!ops.length) { d.subOk = true; delete d.subOps; }
+    else {
+      d.pergunta = "sub"; d.subOps = ops; await salvar(s.id, "aguardando_info", d);
+      const linhas: { t: string; d: string }[][] = [];
+      ops.forEach((o, i) => { if (i % 2 === 0) linhas.push([]); linhas[linhas.length - 1].push({ t: o, d: `sc:${s.id}:${i}` }); });
+      linhas.push([{ t: "Pular subcategoria", d: `sc:${s.id}:x` }]);
+      await falar(chat, cab + `Em qual subcategoria de ${setorPrincipalBot(d)} esse produto fica?`, linhas, "produto"); return true;
+    }
+  }
+  delete d.pergunta;
+  return false;
+}
 async function proximoPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados, aviso = "") {
   // travas (mesmas da voz): data passada, quantidade absurda...
   const probs = validarVoz({ validade: d.validade ?? null, quantidade: d.quantidade ?? null, porPeso: !!d.porPeso }, hoje());
@@ -220,6 +319,8 @@ async function proximoPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados,
     }
   }
   const pre = aviso ? aviso + "\n\n" : "";
+  if (d.cad && d.cad.barcode !== d.barcode) limparExtras(d); // trocou de produto: nada do anterior vai junto
+  if (d.pergunta && (!d.barcode || !d.validade || (d.lote === undefined && !d.semLote && !d.porPeso) || d.quantidade == null)) { delete d.pergunta; delete d.subOps; } // pergunta de extras só existe depois de produto, validade, lote e quantidade
   if (!d.barcode) { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + "Qual é o produto? Envie o código de barras ou o nome.", undefined, "produto"); }
   if (!d.validade) { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + `Produto: ${d.nome}\nQual a data de validade? (ex.: 15/12/2026)`, undefined, "validade"); }
   if (!d.porPeso && d.lote === undefined && !d.semLote) {
@@ -228,10 +329,11 @@ async function proximoPasso(ctx: Ctx, chat: number, s: { id: string }, d: Dados,
     return falar(chat, pre + `Produto: ${d.nome}\nValidade: ${fmtData(d.validade)}\n\nQual o lote? Está impresso na embalagem, perto da validade (ex.: L2410A).\nSem lote não dá para lançar pelo Telegram.${ex}`, undefined, "lote");
   }
   if (d.quantidade == null) { await salvar(s.id, "aguardando_info", d); return falar(chat, pre + `Produto: ${d.nome}\nValidade: ${fmtData(d.validade)}\n${d.porPeso ? "Quantos kg? (ex.: 2,5)" : "Quantas unidades?"}`, undefined, "quantidade"); }
+  if (await extrasPasso(ctx, chat, s, d, pre)) return;
   await salvar(s.id, "aguardando_confirmacao", d);
   const { data: loja } = await sb.from("lojas").select("numero_loja").eq("id", ctx.loja_id).maybeSingle();
   const novoTxt = d.novo ? `\n🆕 Produto novo: vai para aprovação de um encarregado\nSetor: ${d.novo.setor}\nImagem: ${d.novo.fotoUsuario ? "foto enviada por você" : d.novo.foto ? "da internet (confirmada por você)" : "sem imagem"}` : "";
-  const resumo = `${pre}Confira os dados:\n\nProduto: ${d.nome}\nCódigo: ${d.barcode}\nValidade: ${fmtData(d.validade)}\n${d.porPeso ? "" : `Lote: ${d.lote ?? "sem lote"}\n`}Quantidade: ${num(d.quantidade)} ${d.porPeso ? "kg" : "unidades"}\nLoja: ${loja?.numero_loja ?? "—"}${novoTxt}\n\n${d.novo ? "Confirma o envio para aprovação?" : "Confirma o lançamento?"}`;
+  const resumo = `${pre}Confira os dados:\n\nProduto: ${d.nome}\nCódigo: ${d.barcode}\nValidade: ${fmtData(d.validade)}\n${d.porPeso ? "" : `Lote: ${d.lote ?? "sem lote"}\n`}Quantidade: ${num(d.quantidade)} ${d.porPeso ? "kg" : "unidades"}\n${d.novo || d.porPeso || d.semExtras ? "" : (d.tam ? `Embalagem: ${d.tam} ${d.uni ?? "G"}\n` : "")}${d.novo || d.porPeso || d.semExtras ? "" : d.precoOk ? `Preço: ${d.preco != null ? brl(d.preco) : "não informado"}\n` : ""}${d.trocaOk ? `Troca: ${TXT_TROCA[d.troca ?? "nao_sei"]}\n` : ""}${d.sub ? `Subcategoria: ${d.sub}\n` : ""}Loja: ${loja?.numero_loja ?? "—"}${novoTxt}\n\n${d.novo ? "Confirma o envio para aprovação?" : "Confirma o lançamento?"}`;
   return falar(chat, resumo, [[{ t: "✅ Confirmar", d: `ok:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }], [{ t: "✏️ Corrigir", d: `fx:${s.id}` }]], "conferir");
 }
 
@@ -336,10 +438,10 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   if (/^(cancelar|cancela)$/.test(low)) return pedirCancelar(chat, s);
   if (/^(voltar|volta|corrigir anterior|errei)$/.test(low)) return voltar(ctx, chat, s);
   empilhar(d, (s.dados || {}) as Dados);
-  // "sem lote" em qualquer lugar da frase: Telegram não lança sem lote
-  if (/\b(sem|nao tem|nao possui)\s+lote\b/.test(low) || /^(sem numero|nao tem|sem)$/.test(low)) return falar(chat, MSG_SEM_LOTE, undefined, "atencao");
+  const aguardaLote = s.estado === "aguardando_info" && !!d.barcode && !!d.validade && d.lote === undefined && !d.semLote && !d.porPeso && !d.novo?.etapa && !d.pergunta;
+  // "sem lote" em qualquer lugar da frase: Telegram não lança sem lote ("não tem" solto só vale quando a pergunta aberta é a do lote)
+  if (/\b(sem|nao tem|nao possui)\s+lote\b/.test(low) || (aguardaLote && /^(sem numero|nao tem|sem)$/.test(low))) return falar(chat, MSG_SEM_LOTE, undefined, "atencao");
   // pergunta do lote em aberto: a resposta (mesmo só números) é o lote, a não ser que traga data ou quantidade
-  const aguardaLote = s.estado === "aguardando_info" && !!d.barcode && !!d.validade && d.lote === undefined && !d.semLote && !d.porPeso && !d.novo?.etapa;
   if (aguardaLote) {
     const pl = interpretarVoz(prepararData(texto), hoje());
     const temKw = /quantidade|unidade|\bun\b|\bkg\b/i.test(texto);
@@ -358,7 +460,30 @@ async function tratarTexto(ctx: Ctx, chat: number, texto: string) {
   if (s.estado === "aguardando_confirmacao") {
     if (/^(sim|s|confirmar|confirmo|confirma|pode lancar|pode lancar sim|isso|ok)$/.test(low)) return confirmar(ctx, chat, s.id, false);
     if (/^(nao|n)$/.test(low)) return pedirCancelar(chat, s);
-    if (/^(corrigir|corrige)$/.test(low)) return perguntarCorrecao(chat, s.id, !!d.novo);
+    if (/^(corrigir|corrige)$/.test(low)) return perguntarCorrecao(chat, s.id, !!d.novo, extrasCorrecao(ctx, d));
+  }
+  // pergunta de gramagem / preço / troca / subcategoria em aberto
+  if (!d.novo && d.pergunta && s.estado === "aguardando_info" && !(mb && eanOk(mb[0]))) { // código de barras válido = trocar de produto
+    if (d.pergunta === "gram") {
+      const g = lerGramagem(texto);
+      if (!g) return falar(chat, "Não entendi a gramagem. Envie o número com a unidade, como 500 g, 1 kg, 900 ml ou 2 l (só o número vale como grama). Para milhar, escreva 1500, sem ponto. Para voltar uma resposta, envie /voltar.", undefined, "atencao");
+      d.tam = g.tam; d.uni = g.uni; delete d.pergunta; return proximoPasso(ctx, chat, s, d);
+    }
+    if (d.pergunta === "preco") {
+      const pr = lerPreco(texto);
+      if (pr == null) return falar(chat, "Não entendi o preço. Envie só o valor, entre R$ 0,01 e R$ 5.000,00. Ex.: 8,99. Para voltar uma resposta, envie /voltar.", undefined, "atencao");
+      d.preco = pr; d.precoOk = true; delete d.pergunta; return proximoPasso(ctx, chat, s, d);
+    }
+    if (d.pergunta === "troca") {
+      const t = low;
+      const v = /^(com troca|tem troca|tem|sim|s)$/.test(t) ? "com_troca" : /^(sem troca|nao tem troca|nao tem|nao|n)$/.test(t) ? "sem_troca" : /^(nao sei|ns)$/.test(t) ? "nao_sei" : null;
+      if (v) { d.troca = v; d.trocaOk = true; delete d.pergunta; return proximoPasso(ctx, chat, s, d); }
+    }
+    if (d.pergunta === "sub" && ctx.tipo === "funcionario") {
+      const o = (d.subOps || []).find((x) => semAcento(x).toLowerCase() === low);
+      if (o) { d.sub = o; d.subOk = true; delete d.subOps; delete d.pergunta; return proximoPasso(ctx, chat, s, d); }
+    }
+    return falar(chat, "Responda com os botões da mensagem acima (ou escreva a resposta), ou envie /voltar ou /cancelar.", undefined, "atencao");
   }
   // produto novo: etapa do nome (sem imagem) ou respostas que precisam de botão
   if (d.novo?.etapa && !mb) {
@@ -403,7 +528,7 @@ function empilhar(d: Dados, atual: Dados) {
   const p = [...(atual.pilha || [])];
   const sn = snap(atual);
   if (p[p.length - 1] !== sn) p.push(sn);
-  d.pilha = p.slice(-6);
+  d.pilha = p.slice(-10);
 }
 // refaz a pergunta da etapa em que a conversa está (usado ao voltar ou ao desistir de cancelar)
 async function reperguntar(ctx: Ctx, chat: number, s: { id: string }, d: Dados, aviso = "") {
@@ -452,10 +577,11 @@ async function pedirCancelar(chat: number, s: { id: string; dados: Dados; estado
     [[{ t: "🗑️ Sim, cancelar", d: `cc:${s.id}:s` }], linha2], "atencao");
 }
 
-async function perguntarCorrecao(chat: number, sid: string, novo = false) {
-  const linha = [{ t: "Produto", d: `cx:${sid}:p` }, { t: "Validade", d: `cx:${sid}:v` }, { t: "Quantidade", d: `cx:${sid}:q` }, { t: "Lote", d: `cx:${sid}:l` }];
-  if (novo) linha.push({ t: "Setor", d: `cx:${sid}:s` });
-  return falar(chat, "O que você quer corrigir?", [linha], "conferir");
+async function perguntarCorrecao(chat: number, sid: string, novo = false, extras: "nenhum" | "prom" | "todos" = "nenhum") {
+  const linhas = [[{ t: "Produto", d: `cx:${sid}:p` }, { t: "Validade", d: `cx:${sid}:v` }], [{ t: "Quantidade", d: `cx:${sid}:q` }, { t: "Lote", d: `cx:${sid}:l` }]];
+  if (novo) linhas.push([{ t: "Setor", d: `cx:${sid}:s` }]);
+  if (extras !== "nenhum") { linhas.push([{ t: "Gramagem", d: `cx:${sid}:g` }, { t: "Preço", d: `cx:${sid}:r` }]); linhas.push([{ t: "Troca", d: `cx:${sid}:t` }, ...(extras === "todos" ? [{ t: "Subcategoria", d: `cx:${sid}:b` }] : [])]); }
+  return falar(chat, "O que você quer corrigir?", linhas, "conferir");
 }
 async function cancelar(chat: number, sid: string) {
   const { data: cx } = await sb.from("telegram_sessoes").update({ estado: "cancelado", atualizado_em: new Date().toISOString() }).eq("id", sid).in("estado", ["aguardando_info", "aguardando_confirmacao"]).select("dados").maybeSingle();
@@ -465,6 +591,7 @@ async function cancelar(chat: number, sid: string) {
 }
 
 const ERROS: Record<string, string> = {
+  produto_travado_pedido: "Esse lote já tem pedido de promoção ou preço direto e está travado: não dá para somar nem alterar. Fale com o encarregado do setor.",
   produto_nao_encontrado: "Esse produto não está no cadastro desta loja.",
   produto_fora_da_marca: "Esse produto não é de uma das suas marcas.",
   validade_vencida: "A validade informada já passou. Só lanço de hoje em diante.",
@@ -535,9 +662,9 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
     }
   }
 
-  const { error } = await rpcLote("lancar_validade", {
+  const { data: idLancado, error } = await rpcLote("lancar_validade", {
     p_loja: ctx.loja_id, p_usuario: ctx.usuario_id ?? null, p_barcode: d.barcode, p_validade: d.validade, p_quantidade: d.quantidade,
-    p_origem: "telegram", p_foto: null, p_obs: "Via Telegram",
+    p_origem: "telegram", p_foto: null, p_obs: "Via Telegram", p_tamanho: extrasValidos(d) ? (d.tam ?? null) : null, p_unidade: extrasValidos(d) ? (d.uni ?? null) : null,
     p_op: s.id, p_confirmar_duplicado: forcarDup, p_convite: ctx.convite_id ?? null, p_lote: d.lote ?? null, p_sem_lote: false,
   });
   if (error) {
@@ -547,6 +674,11 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
       return falar(chat, m.includes("lote_duplicado") ? `O lote ${d.lote} já está lançado nesse produto. Quer lançar mesmo assim (por exemplo, mais unidades do mesmo lote)?` : "Já existe esse produto com essa validade e sem lote na loja. Quer lançar mesmo assim?", [[{ t: "Lançar mesmo assim", d: `dp:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }]], "atencao");
     }
     const chave = Object.keys(ERROS).find((k) => m.includes(k));
+    if (chave === "produto_travado_pedido") { // lote travado: não adianta pedir outra data
+      await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? ""}: ${ERROS[chave]}`, d.barcode);
+      await salvar(s.id, "cancelado", d, m.slice(0, 300));
+      return falar(chat, "⚠️ " + ERROS[chave] + "\n\nNada foi lançado.", undefined, "atencao");
+    }
     if (chave === "validade_muito_proxima") {
       const vd = d.validade!; delete d.validade; await salvar(s.id, "aguardando_info", d);
       await auditar(chat, "lançamento barrado no Telegram", `${d.nome ?? ""}: ${ERROS[chave]}`, d.barcode);
@@ -558,9 +690,25 @@ async function confirmar(ctx: Ctx, chat: number, sid: string, forcarDup: boolean
     await salvar(s.id, "aguardando_confirmacao", d, m.slice(0, 300)); // volta para a confirmação: a pessoa pode tentar de novo sem recomeçar
     return falar(chat, chave ? "⚠️ " + ERROS[chave] : "Não consegui gravar agora. Nada foi lançado — tente de novo em instantes.", [[{ t: "✅ Tentar de novo", d: `ok:${s.id}` }, { t: "❌ Cancelar", d: `no:${s.id}` }]], "atencao");
   }
+  // preço, troca e subcategoria: segunda gravação (só do lote recém-criado); se falhar, o lançamento fica e avisa
+  let avisoExtra = "";
+  const trocaGrava = d.troca === "com_troca" || d.troca === "sem_troca" ? d.troca : null;
+  const trocaMudou = !!trocaGrava && trocaGrava !== d.cad?.troca;
+  const precoMudou = d.preco != null && d.preco !== d.cad?.preco;
+  const subMudou = ctx.tipo === "funcionario" && !!d.sub && subValido(d.sub) && d.sub !== d.cad?.sub;
+  if (extrasValidos(d) && idLancado && (precoMudou || trocaMudou || subMudou)) {
+    let { error: ex } = await sb.rpc("telegram_complementar_lote", { p_chat_id: chat, p_id: String(idLancado), p_preco: precoMudou ? d.preco! : null, p_troca: trocaMudou ? trocaGrava : null, p_subsetor: subMudou ? d.sub! : null });
+    if (ex && String(ex.message || "").includes("preco_fora_da_faixa")) {
+      // preço do promotor muito diferente do cadastro: guarda só troca/subcategoria e avisa
+      d.preco = null;
+      avisoExtra = "\n\n⚠️ O preço informado é muito diferente do cadastrado, então não foi salvo. O encarregado confere pelo app.";
+      ex = (trocaMudou || subMudou) ? (await sb.rpc("telegram_complementar_lote", { p_chat_id: chat, p_id: String(idLancado), p_preco: null, p_troca: trocaMudou ? trocaGrava : null, p_subsetor: subMudou ? d.sub! : null })).error : null;
+    }
+    if (ex) { console.error("complemento", limpa(ex)); avisoExtra = "\n\n⚠️ A validade foi lançada, mas não consegui salvar preço, troca ou subcategoria. Peça ao encarregado para completar pelo app."; }
+  }
   await salvar(s.id, "registrado", d);
   if (forcarDup) await auditar(chat, "confirmou lançamento duplicado no Telegram", `${d.nome} · validade ${fmtData(d.validade)}`, d.barcode);
-  return falar(chat, `✅ Validade lançada!\n${d.nome}\nValidade ${fmtData(d.validade)} · ${d.porPeso ? "" : (d.lote ? `Lote ${d.lote} · ` : "Sem lote · ")}${num(d.quantidade)} ${d.porPeso ? "kg" : "un"}`, undefined, "lancada");
+  return falar(chat, `✅ Validade lançada!\n${d.nome}\nValidade ${fmtData(d.validade)} · ${d.porPeso ? "" : (d.lote ? `Lote ${d.lote} · ` : "Sem lote · ")}${num(d.quantidade)} ${d.porPeso ? "kg" : "un"}${extrasValidos(d) ? `${d.tam ? `\nEmbalagem ${d.tam} ${d.uni ?? "G"}` : ""}${d.preco != null ? ` · ${brl(d.preco)}` : ""}${d.trocaOk && d.troca && d.troca !== "nao_sei" ? ` · ${TXT_TROCA[d.troca]}` : ""}${d.sub ? ` · ${d.sub}` : ""}` : ""}${avisoExtra}`, undefined, "lancada");
 }
 
 // ---------- Vínculo ----------
@@ -639,7 +787,7 @@ async function processar(up: Record<string, any>) {
     await sb.from("telegram_sessoes").update({ expira_em: new Date(Date.now() + TEMPO_RESPOSTA_MS).toISOString() }).eq("id", s.id);
     if (acao === "cc" && !d.cancelando) { await falar(chat, "Esse pedido de cancelamento já foi tratado.", undefined, "atencao"); await marcar("processada"); return; }
     if (d.cancelando && acao !== "cc") { await pedirCancelar(chat, { ...s, dados: { ...d, cancelando: false } }); await marcar("processada"); return; }
-    if (["cx", "pr", "im", "st"].includes(acao)) empilhar(d, s.dados || {}); // dá para voltar depois desta escolha
+    if (["cx", "pr", "im", "st", "gm", "pc", "tc", "sc"].includes(acao)) empilhar(d, s.dados || {}); // dá para voltar depois desta escolha
     if (acao === "ok") await confirmar(ctx, chat, s.id, false);
     else if (acao === "dp") await confirmar(ctx, chat, s.id, true);
     else if (acao === "no") await pedirCancelar(chat, s);
@@ -648,13 +796,34 @@ async function processar(up: Record<string, any>) {
       else if (extra === "v") await voltar(ctx, chat, s);
       else { delete d.cancelando; await reperguntar(ctx, chat, s, d, "Ok, vamos continuar."); }
     }
-    else if (acao === "fx") await perguntarCorrecao(chat, s.id, !!d.novo);
+    else if (acao === "fx") await perguntarCorrecao(chat, s.id, !!d.novo, extrasCorrecao(ctx, d));
     else if (acao === "cx") {
-      if (extra === "p") { delete d.barcode; delete d.nome; delete d.porPeso; descartarNovo(d); delete d.criouProduto; delete d.lote; delete d.semLote; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual é o produto? Código de barras ou nome.", undefined, "produto"); }
+      if (extra === "p") { delete d.barcode; delete d.nome; delete d.porPeso; limparExtras(d); descartarNovo(d); delete d.criouProduto; delete d.lote; delete d.semLote; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual é o produto? Código de barras ou nome.", undefined, "produto"); }
       else if (extra === "v") { delete d.validade; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual a data de validade? (ex.: 15/12/2026)", undefined, "validade"); }
       else if (extra === "l") { delete d.lote; delete d.semLote; await salvar(s.id, "aguardando_info", d); await falar(chat, "Certo. Qual o lote? (impresso na embalagem, perto da validade)", undefined, "lote"); }
       else if (extra === "q") { delete d.quantidade; await salvar(s.id, "aguardando_info", d); await falar(chat, d.porPeso ? "Certo. Quantos kg?" : "Certo. Quantas unidades?", undefined, "quantidade"); }
+      else if (extra === "g" && !d.novo) { delete d.tam; delete d.uni; delete d.tamPulado; await proximoPasso(ctx, chat, s, d); }
+      else if (extra === "r" && !d.novo) { delete d.preco; delete d.precoOk; await proximoPasso(ctx, chat, s, d); }
+      else if (extra === "t" && !d.novo) { delete d.troca; delete d.trocaOk; await proximoPasso(ctx, chat, s, d); }
+      else if (extra === "b" && !d.novo && ctx.tipo === "funcionario") {
+        if (!(await opcoesSub(ctx, d)).length) { await falar(chat, "Esse setor não tem subcategorias para escolher.", undefined, "atencao"); await perguntarCorrecao(chat, s.id, false, extrasCorrecao(ctx, d)); }
+        else { delete d.sub; delete d.subOk; await proximoPasso(ctx, chat, s, d); }
+      }
       else if (extra === "s" && d.novo) { d.novo.setor = null; d.novo.etapa = "setor"; await salvar(s.id, "aguardando_info", d); await perguntarSetor(chat, s.id); }
+      else await reperguntar(ctx, chat, s, d, "Essa opção não está disponível agora.");
+    } else if (acao === "gm" && d.pergunta === "gram" && (extra === "p" || d.cad?.tam)) {
+      if (extra === "p") { d.tamPulado = true; delete d.tam; delete d.uni; } else { d.tam = d.cad!.tam!; d.uni = d.cad!.uni || "G"; delete d.tamPulado; }
+      delete d.pergunta; await proximoPasso(ctx, chat, s, d);
+    } else if (acao === "pc" && d.pergunta === "preco") {
+      d.preco = extra === "u" && d.cad && d.cad.preco > 0 ? d.cad.preco : null; d.precoOk = true; delete d.pergunta; await proximoPasso(ctx, chat, s, d);
+    } else if (acao === "tc" && d.pergunta === "troca") {
+      d.troca = extra === "c" ? "com_troca" : extra === "s" ? "sem_troca" : "nao_sei"; d.trocaOk = true; delete d.pergunta; await proximoPasso(ctx, chat, s, d);
+    } else if (acao === "sc" && d.pergunta === "sub" && ctx.tipo === "funcionario") {
+      const ops = d.subOps || [];
+      if (extra === "x") { delete d.sub; d.subOk = true; delete d.subOps; delete d.pergunta; await proximoPasso(ctx, chat, s, d); }
+      else { const o = /^\d{1,2}$/.test(extra || "") ? ops[Number(extra)] : undefined; if (o) { d.sub = o; d.subOk = true; delete d.subOps; delete d.pergunta; await proximoPasso(ctx, chat, s, d); } else await reperguntar(ctx, chat, s, d, "Essa opção não está mais disponível."); }
+    } else if (["gm", "pc", "tc", "sc"].includes(acao)) {
+      await reperguntar(ctx, chat, s, d, "Essa pergunta já foi respondida.");
     } else if (acao === "sl") {
       await falar(chat, MSG_SEM_LOTE, undefined, "atencao");
     } else if (acao === "pr") {
