@@ -1,10 +1,32 @@
-// Condor · Alerta de Validade — service worker v7.1
+// Condor · Alerta de Validade — service worker v10.1
 // Modelo de atualização: o app instalado SEMPRE abre a versão que está em cache (rápido e funciona offline).
 // Quem descobre que existe versão nova é o próprio app (compara com o que está publicado) e mostra o aviso
 // "Atualizar". Só quando a pessoa toca no botão o app baixa a versão nova para o cache e reinicia.
 // Este arquivo NUNCA troca a versão sozinho.
 const CACHE_SHELL = "condor-shell-v10";
 const CACHE_ASSETS = "condor-assets-v10";
+// Versões antigas do APP gravavam a atualização em caches "v7" (nome diferente do deste arquivo), então o botão
+// "Atualizar" baixava e recarregava na versão velha, em loop. Aqui o SW passa a adotar o que o app antigo gravou.
+const LEGADO_SHELL = "condor-shell-v7";
+const LEGADO_ASSETS = "condor-assets-v7";
+async function adotarAtualizacaoLegada() {
+  try {
+    if (!(await caches.has(LEGADO_SHELL))) return null;
+    const velhoShell = await caches.open(LEGADO_SHELL);
+    const html = await velhoShell.match("/index.html");
+    if (!html) { await caches.delete(LEGADO_SHELL); await caches.delete(LEGADO_ASSETS); return null; }
+    const cacheShell = await caches.open(CACHE_SHELL);
+    const cacheAssets = await caches.open(CACHE_ASSETS);
+    if (await caches.has(LEGADO_ASSETS)) {
+      const velhoAssets = await caches.open(LEGADO_ASSETS);
+      for (const req of await velhoAssets.keys()) { const r = await velhoAssets.match(req); if (r) await cacheAssets.put(req, r); }
+    }
+    await cacheShell.put("/index.html", html.clone());
+    await cacheShell.put("/", html.clone());
+    await caches.delete(LEGADO_SHELL); await caches.delete(LEGADO_ASSETS);
+    return html;
+  } catch { return null; }
+}
 
 function assetsDoHtml(html) {
   const achados = new Set();
@@ -38,7 +60,7 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((nomes) =>
+    adotarAtualizacaoLegada().then(() => caches.keys()).then((nomes) =>
       Promise.all(nomes.filter((n) => n !== CACHE_SHELL && n !== CACHE_ASSETS).map((n) => caches.delete(n)))
     ).then(() => self.clients.claim())
   );
@@ -55,6 +77,8 @@ self.addEventListener("fetch", (event) => {
   // versão nova) precisam ir direto à rede, senão sempre enxergariam a versão antiga.
   if (request.mode === "navigate") {
     event.respondWith((async () => {
+      const adotado = await adotarAtualizacaoLegada(); // atualização feita por versão antiga do app (caches v7)
+      if (adotado) return adotado;
       const cacheShell = await caches.open(CACHE_SHELL);
       const guardado = await cacheShell.match("/index.html");
       if (guardado) return guardado;
