@@ -2314,11 +2314,40 @@ function AppInner() {
 
   async function compartilharItem(item) {
     const st = getStatus(item);
-    const texto = `${item.nome}\nSetor: ${item.setor}\nCódigo: ${item.barcode}\nValidade: ${formatarData(item.validade)} (${st.label})${textoLote(item) ? `\nLote: ${textoLote(item)}` : ""}`;
-    if (navigator.share) {
-      try { await navigator.share({ title: "Condor · Alerta de Validade", text: texto }); return; } catch {}
-    }
-    try { await navigator.clipboard.writeText(texto); showToast("Informações copiadas."); }
+    const agora = new Date();
+    const geradoEm = agora.toLocaleDateString("pt-BR") + " às " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const dias = item.validade ? st.d : null;
+    const diasTxt = dias === null ? "" : dias < 0 ? `venceu há ${-dias} dia(s)` : dias === 0 ? "vence hoje" : `faltam ${dias} dia(s)`;
+    const dados = {
+      nome: item.nome, foto: item.foto, status: st.label, corStatus: { expired: "#B3141A", alert: "#E31E24", warning: "#E8A317" }[st.level] || "#1F9D55",
+      linhas: [
+        ["Validade", item.validade ? `${formatarData(item.validade)}${diasTxt ? " · " + diasTxt : ""}` : "Sem validade"],
+        ["Lote", textoLote(item) || ""],
+        ["Quantidade", item.porPeso ? `${item.quantidade} kg` : `${item.quantidade} un`],
+        ["Setor", item.setor],
+        ["Código", item.barcode],
+      ],
+      geradoEm,
+    };
+    const texto = `${item.nome}\nSetor: ${item.setor}\nCódigo: ${item.barcode}\nValidade: ${formatarData(item.validade)} (${st.label})${textoLote(item) ? `\nLote: ${textoLote(item)}` : ""}\nGerado em ${geradoEm}`;
+    try {
+      const { gerarImagemProduto } = await import("./compartilharImagem.js");
+      const blob = await gerarImagemProduto(dados);
+      if (blob) {
+        const arquivo = new File([blob], "produto-validade.png", { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+          try { await navigator.share({ files: [arquivo] }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+        }
+        // sem compartilhamento de arquivo (computador): baixa a imagem
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = "produto-validade.png"; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        showToast("Imagem baixada.");
+        return;
+      }
+    } catch {}
+    try { await navigator.clipboard.writeText(texto); showToast("Não deu para gerar a imagem; copiei as informações."); }
     catch { showToast("Não foi possível compartilhar.", "warn"); }
   }
 
@@ -2735,6 +2764,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-compartilhar-imagem", data: "04/11/2026", itens: [
+    { tipo: "novo", ate: 7, texto: "Compartilhar produto agora envia uma imagem no estilo do app, com a foto, a validade, o lote, a quantidade, o setor e o código, mais a data e a hora em que foi gerada." },
+  ] },
   { id: "2026-11-03-permissoes", data: "03/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "Permissões novas: baixa, exclusão e edição de produto são do encarregado do setor (ou gerência). Funcionário e promotor só lançam e editam o que eles mesmos lançaram, sem baixa e sem excluir." },
   ] },
