@@ -54,7 +54,7 @@ export function AvisoToast({ msg, tom, id, elevar }) {
   const t = TONS[tom] || TONS.ok;
   const carregando = tom === "carregando";
   return createPortal(
-    <div className={`fixed left-0 right-0 ${elevar ? "bottom-44" : "bottom-28"} lg:bottom-6 z-[100] px-4 flex justify-center pointer-events-none lg:pl-64`}>
+    <div className={`fixed left-0 right-0 ${elevar ? "bottom-44 lg:bottom-24" : "bottom-28 lg:bottom-6"} z-[100] px-4 flex justify-center pointer-events-none lg:pl-64`}>
       <motion.div key={id ?? msg + tom} aria-hidden="true"
         initial={reduzir ? false : { y: 24, opacity: 0, scale: 0.96 }} animate={{ y: 0, opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 380, damping: 28 }}
         style={CARTAO} className="relative overflow-hidden rounded-2xl text-white w-full max-w-sm">
@@ -67,7 +67,7 @@ export function AvisoToast({ msg, tom, id, elevar }) {
         </div>
         <motion.span aria-hidden className="absolute left-0 bottom-0 h-[3px]" style={{ background: t.cor }}
           initial={{ width: carregando ? "10%" : "100%" }} animate={{ width: carregando ? ["10%", "90%"] : "0%" }}
-          transition={{ duration: t.ms / 1000, ease: "linear" }} />
+          transition={{ duration: duracaoAviso(msg, tom) / 1000, ease: "linear" }} />
       </motion.div>
     </div>,
     document.body

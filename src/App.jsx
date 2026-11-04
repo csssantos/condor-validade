@@ -2121,7 +2121,7 @@ function AppInner() {
         if (erroDeRede(error)) window.dispatchEvent(new CustomEvent("condor-erro-gravacao", { detail: { mensagem: "Sem internet: a soma ao lote não foi enviada. Tente de novo quando a conexão voltar." } }));
         else avisarErroGravacao(error, "a soma ao lote");
       });
-      showToast(`Somado ao lote ${orig.lote}: agora ${novoItem.quantidade} un.`);
+      showToast(`Somado ao lote ${orig.lote}: agora ${novoItem.quantidade} un.`, "ok");
       resetFlow();
       return;
     }
@@ -2369,7 +2369,7 @@ function AppInner() {
       }
     } catch (e) { console.warn("compartilhar: falha ao gerar imagem", e); }
     finally { compartilhandoRef.current = false; }
-    try { await navigator.clipboard.writeText(texto); showToast("Não deu para gerar a imagem; copiei as informações em texto."); }
+    try { await navigator.clipboard.writeText(texto); showToast("Não deu para gerar a imagem; copiei as informações em texto.", "aviso"); }
     catch { showToast("Não foi possível compartilhar.", "warn"); }
   }
 
@@ -5849,7 +5849,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
         "Não foi possível pré-cadastrar agora. Confira os dados e tente de novo.", "warn");
       return;
     }
-    showToast(`${f.nome} pré-cadastrado(a) na loja ${lojaObj?.numero_loja}. Já pode bipar o crachá pra criar a conta.`);
+    showToast(`${f.nome} pré-cadastrado(a) na loja ${lojaObj?.numero_loja}. Já pode bipar o crachá pra criar a conta.`, "ok");
     setF({ nome: "", matricula: "", cargoLoja: "", cargoId: "", setor: "" }); setNovoAberto(false); setSubaba("pendentes");
     carregar();
   }
@@ -5861,7 +5861,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
   async function resolverPedido(pd, aprovar) {
     const { error } = await supabase.rpc("resolver_exclusao", { p_id: pd.id, p_aprovar: aprovar });
     if (error) { console.error(error); showToast(erroAcao(error), "warn"); return; }
-    showToast(aprovar ? `${pd.nome} foi excluído(a).` : "Pedido recusado.");
+    showToast(aprovar ? `${pd.nome} foi excluído(a).` : "Pedido recusado.", aprovar ? "ok" : "aviso");
     carregar();
   }
 
