@@ -265,3 +265,6 @@ Ideia em avaliação (sem decisão): localização ao lançar validade (modo "si
 
 ## CONVITE DO PROMOTOR NÃO ABRE (2026-11-04) — causa no painel, não no código
 - Sintoma: tela "Não foi possível abrir o convite agora. Tente de novo em instantes." (App.jsx ~1529 = falha do `signInAnonymously`). Log de auth: `422 anonymous_provider_disabled` em /signup. O convite e o RPC `resgatar_convite_codigo` estavam corretos. O link do promotor DEPENDE de "Anonymous sign-ins" LIGADO (Supabase → Authentication → Sign In / Providers → Anonymous). Se desligar (ex.: ao endurecer Auth), todo convite de promotor para de abrir.
+
+## BIPI NA IMAGEM DE COMPARTILHAR (2026-11-04, pedido do dono) — sem SQL
+- `src/compartilharImagem.js`: o Bipi sorridente (PNG `public/bipi-compartilhar.png`, 600x600 transparente, gerado de `public/mascote.svg`) é desenhado AO LADO do cartão da foto (cartão fx=70/fw=640; Bipi 320 px à direita, alinhado à base do cartão), nunca em cima da embalagem. Carrega em paralelo com a foto (`Promise.all`), memoizado (`bipiCache`), timeout 4 s; se falhar a imagem sai sem ele. Mesma origem (não suja o canvas). Pendência aceita: 1º compartilhar offline sai sem Bipi (PNG fora do precache do sw.js; ao incluir, trocar CACHE_SHELL nos dois arquivos).

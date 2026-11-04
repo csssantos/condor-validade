@@ -2926,6 +2926,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-bipi-compartilhar", data: "04/11/2026", itens: [
+    { tipo: "novo", ate: 7, texto: "A imagem de compartilhar produto agora traz o Bipi sorridente no canto da foto." },
+  ] },
   { id: "2026-11-04-pc-telas", data: "04/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "No computador, novos layouts: Detalhe do produto em 2 colunas (foto e ações de um lado, dados do outro), Ronda ao vivo e Conferência em tela de trabalho com lista e progresso lado a lado, Nova ronda em 2 colunas, Conta sem vínculo refeita com passo a passo, Avisos em 3 colunas (mensagem, destinatários e prévia) e Assistente IA, Previsão e Prevenção de perdas aproveitando a largura. No computador o botão Bipar não aparece mais na conferência da ronda." },
   ] },

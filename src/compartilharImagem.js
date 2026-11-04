@@ -20,6 +20,19 @@ function carregarImagem(src) {
   });
 }
 
+// Bipi (mascote) sorridente: PNG do próprio app (mesma origem, não suja o canvas). Se não carregar, a imagem sai sem ele.
+let bipiCache = null;
+function carregarBipi() {
+  if (bipiCache) return Promise.resolve(bipiCache);
+  return new Promise((resolve) => {
+    const img = new Image();
+    const t = setTimeout(() => resolve(null), 4000);
+    img.onload = () => { clearTimeout(t); if (img.width > 0) bipiCache = img; resolve(img.width > 0 ? img : null); };
+    img.onerror = () => { clearTimeout(t); resolve(null); };
+    img.src = "/bipi-compartilhar.png";
+  });
+}
+
 function retArredondado(c, x, y, w, h, r) {
   c.beginPath();
   c.moveTo(x + r, y);
@@ -100,12 +113,12 @@ export async function gerarImagemProduto(entrada) {
   }
 
   // cartão da foto
-  const fx = 190, fy = 150, fw = L - 380, fh = 520;
+  const fx = 70, fy = 150, fw = 640, fh = 520;
   c.save();
   c.shadowColor = "rgba(0,0,0,0.30)"; c.shadowBlur = 40; c.shadowOffsetY = 18;
   c.fillStyle = "#FFFFFF"; retArredondado(c, fx, fy, fw, fh, 56); c.fill();
   c.restore();
-  const img = await carregarImagem(dados.foto);
+  const [img, bipi] = await Promise.all([carregarImagem(dados.foto), carregarBipi()]);
   if (img && img.width && img.height) {
     c.save();
     retArredondado(c, fx, fy, fw, fh, 56); c.clip();
@@ -116,6 +129,15 @@ export async function gerarImagemProduto(entrada) {
   } else {
     c.fillStyle = "#C9D9EF"; c.font = `800 54px ${fonte}`; c.textAlign = "center";
     c.fillText("SEM FOTO", fx + fw / 2, fy + fh / 2 + 18); c.textAlign = "left";
+  }
+
+  // Bipi sorridente ao lado do cartão da foto (nunca em cima da embalagem)
+  if (bipi) {
+    const bs = 320;
+    c.save();
+    c.shadowColor = "rgba(0,0,0,0.28)"; c.shadowBlur = 24; c.shadowOffsetY = 10;
+    c.drawImage(bipi, L - 40 - bs, fy + fh - bs + 30, bs, bs);
+    c.restore();
   }
 
   // selo de status
