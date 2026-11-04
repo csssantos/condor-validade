@@ -1265,6 +1265,46 @@ function ContaSemVinculo({ T, onVinculado, onSair }) {
   }
 
   const inputStyle = { background: T.inputBg, color: T.text, borderColor: T.border, boxSizing: "border-box" };
+  if (ehDesktop) {
+    // PC: tela dividida (painel da marca com o passo a passo + formulário grande), nada parecido com o celular
+    const passos = [["1", "Peça o pré-cadastro", "Seu encarregado ou o CPD cadastra você em Gestão de Funcionários, com a matrícula do crachá."], ["2", "Digite a matrícula", "São só os números impressos no crachá, sem pontos ou espaços."], ["3", "Pronto", "A conta é vinculada na hora e você entra com seu cargo e seu setor."]];
+    return (
+      <div style={{ background: T.bg }} className="min-h-screen grid grid-cols-[minmax(420px,5fr)_6fr]">
+        <div style={{ background: FUNDO_MARCA, color: "#fff" }} className="relative overflow-hidden flex flex-col justify-between p-12">
+          <div aria-hidden style={{ background: "rgba(255,255,255,0.07)" }} className="absolute -right-32 -bottom-32 w-[520px] h-[520px] rounded-full" />
+          <div aria-hidden style={{ background: "rgba(255,255,255,0.05)" }} className="absolute -left-24 top-1/3 w-72 h-72 rounded-full" />
+          <img src={LOGO_SRC} alt="Condor" className="h-11 w-auto self-start relative" />
+          <div className="relative">
+            <p className="text-[11px] font-bold tracking-[0.28em] opacity-70 mb-3">QUASE LÁ</p>
+            <h1 className="text-4xl font-extrabold leading-tight mb-8">Vincule sua conta<br />ao seu cadastro de funcionário</h1>
+            <ol className="flex flex-col gap-5 max-w-md">
+              {passos.map(([n, t, d]) => (
+                <li key={n} className="flex gap-4">
+                  <span style={{ background: "rgba(255,255,255,0.16)" }} className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-sm font-bold">{n}</span>
+                  <span><span className="block text-[15px] font-bold">{t}</span><span className="block text-[13px] opacity-75 leading-relaxed">{d}</span></span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <p className="relative text-xs opacity-60">Condor · Alerta de Validade</p>
+        </div>
+        <div className="flex items-center justify-center p-12">
+          <div style={{ background: T.card, color: T.text }} className="w-full max-w-md rounded-3xl p-9 shadow-sm">
+            <h2 className="text-2xl font-extrabold mb-1">Matrícula do crachá</h2>
+            <p style={{ color: T.subtext }} className="text-sm mb-6">No computador não dá para bipar: digite os números do crachá.</p>
+            <input value={matricula} onChange={(e) => setMatricula(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => { if (e.key === "Enter" && !carregando) vincular(); }} inputMode="numeric" placeholder="Ex.: 123456" autoFocus
+              style={inputStyle} className="w-full border rounded-2xl px-4 py-4 text-2xl font-bold tracking-widest outline-none text-center" />
+            {erro && <p style={{ color: RED_DARK, background: RED_SOFT }} className="text-sm font-medium rounded-xl px-3 py-2.5 mt-4">{erro}</p>}
+            <button onClick={() => vincular()} disabled={carregando || !matricula} style={{ background: BLUE, color: "#fff" }}
+              className="w-full mt-5 py-3.5 rounded-2xl text-[15px] font-bold disabled:opacity-50 flex items-center justify-center gap-2">
+              {carregando && <Loader2 size={18} className="animate-spin" />} Vincular conta
+            </button>
+            <button onClick={onSair} style={{ color: T.subtext }} className="w-full text-sm font-semibold mt-4">Sair e entrar com outra conta</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ background: T.bg }} className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center">
       <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
@@ -2886,6 +2926,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-04-pc-telas", data: "04/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "No computador, novos layouts: Detalhe do produto em 2 colunas (foto e ações de um lado, dados do outro), Ronda ao vivo e Conferência em tela de trabalho com lista e progresso lado a lado, Nova ronda em 2 colunas, Conta sem vínculo refeita com passo a passo, Avisos em 3 colunas (mensagem, destinatários e prévia) e Assistente IA, Previsão e Prevenção de perdas aproveitando a largura. No computador o botão Bipar não aparece mais na conferência da ronda." },
+  ] },
   { id: "2026-11-04-fila-baixa", data: "04/11/2026", itens: [
     { tipo: "corrigido", ate: 7, texto: "Avisos de gravação recusada agora dizem o nome do produto; baixa reenviada depois de uma queda de internet não mostra mais erro falso." },
     { tipo: "corrigido", ate: 5, texto: "Somar quantidade a um lote que vence em até 2 dias (ou já venceu) passa a ser barrado também no banco, igual ao lançamento novo." },
@@ -4255,6 +4298,7 @@ function ContagemRonda({ T, itens }) {
     </div>
   );
 }
+const cascaPC = "fixed inset-0 z-50 flex flex-col lg:inset-5 lg:rounded-3xl lg:overflow-hidden lg:shadow-[0_0_0_100vmax_rgba(0,0,0,0.55)]"; // PC: área de trabalho quase em tela cheia (ronda ao vivo / conferência)
 const casca = "fixed inset-0 z-50 flex flex-col lg:inset-y-8 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:w-[60rem] lg:max-w-[calc(100vw-4rem)] lg:rounded-2xl lg:overflow-hidden lg:shadow-[0_0_0_100vmax_rgba(0,0,0,0.5)]";
 
 // ---------- sheet de conferência de UM produto (a leitura do código nunca aprova sozinha) ----------
@@ -4359,6 +4403,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
   const { ronda, itens, setItens, conectado, recarregar } = useRondaAoVivo(rondaId);
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState("pendentes");
+  const semCamera = useDesktop(); // no PC não há leitura por câmera nem bipe
   const [scan, setScan] = useState(false);
   const [aberto, setAberto] = useState(null); // { item, corrigir }
   const [aviso, setAviso] = useState(null); // resposta de leitura (não pertence / já conferido)
@@ -4422,7 +4467,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
     setAviso(null); setAberto({ item, corrigir: false });
   }
 
-  if (!ronda || !itens) return <div className={casca} style={{ background: T.bg }}><div className="m-auto"><Loader2 className="animate-spin" color={T.subtext} /></div></div>;
+  if (!ronda || !itens) return <div className={cascaPC} style={{ background: T.bg }}><div className="m-auto"><Loader2 className="animate-spin" color={T.subtext} /></div></div>;
   const total = itens.length, conf = itens.filter((x) => x.resultado !== "pendente").length;
   const termo = busca.trim().toLowerCase();
   const lista = itens.filter((x) => (aba === "pendentes" ? x.resultado === "pendente" : aba === "conferidos" ? x.resultado !== "pendente" : true)
@@ -4430,24 +4475,24 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
   const podeComecar = ["agendada", "aguardando_inicio"].includes(ronda.status) && !(ronda.inicio_previsto && new Date(ronda.inicio_previsto) > new Date());
 
   return (
-    <div className={casca} style={{ background: T.bg, color: T.text }}>
-      <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 pt-[calc(env(safe-area-inset-top)+16px)]">
-        <div className="flex items-start justify-between gap-3">
+    <div className={cascaPC} style={{ background: T.bg, color: T.text }}>
+      <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 pt-[calc(env(safe-area-inset-top)+16px)] lg:px-8 lg:pb-6 lg:pt-7 lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-x-8 lg:items-center">
+        <div className="flex items-start justify-between gap-3 lg:col-start-1 lg:row-start-1 lg:row-span-2">
           <div className="min-w-0">
             <p className="text-white/70 text-[11px] font-medium">CONFERÊNCIA · {ronda.setor}</p>
-            <h2 className="text-white font-bold text-lg leading-tight">{ronda.titulo}</h2>
-            <p className="text-white/70 text-[11px] mt-0.5">Encarregado: {ronda.criado_por_nome || "—"}{ronda.prazo ? ` · prazo ${formatarDataHoraExtenso(ronda.prazo)}` : ""}</p>
+            <h2 className="text-white font-bold text-lg lg:text-3xl leading-tight">{ronda.titulo}</h2>
+            <p className="text-white/70 text-[11px] lg:text-sm mt-0.5">Encarregado: {ronda.criado_por_nome || "—"}{ronda.prazo ? ` · prazo ${formatarDataHoraExtenso(ronda.prazo)}` : ""}</p>
           </div>
           <button onClick={onFechar} className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center shrink-0"><X size={18} color="#fff" /></button>
         </div>
-        <div className="mt-3 rounded-2xl bg-white/12 p-3">
+        <div className="mt-3 lg:mt-0 rounded-2xl bg-white/12 p-3 lg:col-start-2 lg:row-start-1">
           <div className="flex items-end justify-between text-white">
             <p className="text-3xl font-extrabold leading-none tabular-nums">{pctDe(conf, total)}%</p>
             <p className="text-[11px] text-white/80 text-right tabular-nums">{total} produtos · {conf} conferidos · {total - conf} pendentes</p>
           </div>
           <div className="h-2.5 rounded-full bg-white/20 overflow-hidden mt-2"><div style={{ background: "#fff", width: `${pctDe(conf, total)}%`, transition: "width .5s" }} className="h-full rounded-full" /></div>
         </div>
-        <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+        <div className="flex items-center gap-2 mt-2.5 lg:mt-3 flex-wrap lg:col-start-2 lg:row-start-2">
           <span style={{ background: conectado ? "rgba(31,157,85,.25)" : "rgba(224,146,28,.35)" }} className="text-white text-[10.5px] font-bold px-2.5 py-1 rounded-full">{conectado ? "● Ao vivo" : "● Sem conexão — reconectando"}</span>
           {naFila > 0 && <span className="text-white text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-white/20">{naFila} aguardando envio</span>}
         </div>
@@ -4457,7 +4502,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
         <div style={{ background: RED_SOFT, color: RED_DARK }} className="px-4 py-3 text-sm font-bold flex items-center gap-2"><AlertTriangle size={16} /> Ronda {RONDA_STATUS[ronda.status]?.label.toLowerCase()} — não é mais possível conferir.</div>
       )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 lg:px-8 lg:py-6">
         {podeComecar && (
           <button onClick={iniciar} disabled={iniciando} style={{ background: "#1F9D55", color: "#fff" }} className="w-full py-3 rounded-2xl text-sm font-bold mb-4 flex items-center justify-center gap-2">
             {iniciando ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Iniciar conferência
@@ -4473,9 +4518,9 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
             <div style={{ background: T.inputBg, borderColor: T.inputBorder }} className="flex items-center gap-2 border rounded-xl px-3 flex-1">
               <Barcode size={16} style={{ color: T.subtext }} />
               <input value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && busca.trim()) { aoLerCodigo(busca); setBusca(""); } }}
-                placeholder="Bipe, digite o código ou busque pelo nome" inputMode="search" style={{ color: T.text }} className="bg-transparent outline-none text-sm flex-1 min-w-0 py-2.5" />
+                placeholder={semCamera ? "Digite o código ou busque pelo nome" : "Bipe, digite o código ou busque pelo nome"} inputMode="search" style={{ color: T.text }} className="bg-transparent outline-none text-sm flex-1 min-w-0 py-2.5" />
             </div>
-            <button onClick={() => setScan(true)} style={{ background: BLUE, color: "#fff" }} className="px-4 rounded-xl text-sm font-semibold flex items-center gap-1.5"><Camera size={16} /> Bipar</button>
+            {!semCamera && <button onClick={() => setScan(true)} style={{ background: BLUE, color: "#fff" }} className="px-4 rounded-xl text-sm font-semibold flex items-center gap-1.5"><Camera size={16} /> Bipar</button>}
           </div>
         )}
         {aviso && (
@@ -4491,8 +4536,8 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
           </div>
         )}
         <div className="mb-3"><DashTabs T={T} value={aba} onChange={setAba} options={[{ id: "pendentes", label: `Pendentes (${total - conf})` }, { id: "conferidos", label: `Conferidos (${conf})` }, { id: "todos", label: "Todos" }]} /></div>
-        <div className="flex flex-col gap-2">
-          {lista.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-8">{aba === "pendentes" ? "Nada pendente. Bom trabalho!" : "Nenhum produto aqui."}</p>}
+        <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3">
+          {lista.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-8 lg:col-span-full">{aba === "pendentes" ? "Nada pendente. Bom trabalho!" : "Nenhum produto aqui."}</p>}
           {lista.map((x) => {
             const r = RONDA_RESULTADO[x.resultado];
             return (
@@ -4563,7 +4608,7 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
     if (!ronda || ["agendada", "aguardando_inicio", "em_andamento"].includes(ronda.status)) return;
     supabase.from("ronda_eventos").select("*").eq("ronda_id", rondaId).order("criado_em").then(({ data }) => setEventos(data || []));
   }, [ronda?.status, rondaId]);
-  if (!ronda || !itens) return <div className={casca} style={{ background: T.bg }}><div className="m-auto"><Loader2 className="animate-spin" color={T.subtext} /></div></div>;
+  if (!ronda || !itens) return <div className={cascaPC} style={{ background: T.bg }}><div className="m-auto"><Loader2 className="animate-spin" color={T.subtext} /></div></div>;
 
   const total = itens.length, conf = itens.filter((x) => x.resultado !== "pendente").length;
   const ativa = ronda.status === "em_andamento", naoComecou = ["agendada", "aguardando_inicio"].includes(ronda.status);
@@ -4580,12 +4625,12 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
     showToast("Ronda cancelada."); setCancelar(false); recarregar();
   }
   return (
-    <div className={casca} style={{ background: T.bg, color: T.text }}>
-      <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 pt-[calc(env(safe-area-inset-top)+16px)]">
+    <div className={cascaPC} style={{ background: T.bg, color: T.text }}>
+      <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 pt-[calc(env(safe-area-inset-top)+16px)] lg:px-8 lg:pb-6 lg:pt-7">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-white/70 text-[11px] font-medium">{ativa ? "RONDA ATIVA" : "RONDA"} · {ronda.setor}</p>
-            <h2 className="text-white font-bold text-lg leading-tight">{ronda.titulo}</h2>
+            <h2 className="text-white font-bold text-lg lg:text-3xl leading-tight">{ronda.titulo}</h2>
             <p className="text-white/75 text-[11.5px] mt-0.5">Responsável: {ronda.usuario || "—"}</p>
           </div>
           <button onClick={onFechar} className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center shrink-0"><X size={18} color="#fff" /></button>
@@ -4595,10 +4640,11 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
           {ativa && <span style={{ background: conectado ? "rgba(31,157,85,.3)" : "rgba(224,146,28,.4)" }} className="text-white text-[10.5px] font-bold px-2.5 py-1 rounded-full">{conectado ? "● Tempo real" : "● Reconectando…"}</span>}
         </div>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 flex flex-col gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8 lg:px-8 lg:py-7 lg:items-start lg:content-start">
+        <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1 lg:sticky lg:top-0">
         <div style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-4">
           <div className="flex items-end justify-between mb-2.5">
-            <p className="text-4xl font-extrabold tabular-nums leading-none">{pctDe(conf, total)}%</p>
+            <p className="text-4xl lg:text-6xl font-extrabold tabular-nums leading-none">{pctDe(conf, total)}%</p>
             <p style={{ color: T.subtext }} className="text-xs text-right tabular-nums">{total} produtos no total<br />{conf} conferidos · {total - conf} pendentes</p>
           </div>
           <BarraProgressoRonda T={T} conf={conf} total={total} cor={ativa ? BLUE : st.color} />
@@ -4648,9 +4694,10 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
           </div>
         )}
 
-        <div>
+        </div>
+        <div className="lg:col-start-1 lg:row-start-1 lg:min-w-0">
           <div className="mb-2.5"><DashTabs T={T} value={filtro} onChange={setFiltro} options={[{ id: "todos", label: "Todos" }, { id: "ok", label: "OK" }, { id: "atencao", label: "Atenção" }, { id: "irregular", label: "Irregulares" }, { id: "pendente", label: "Pendentes" }]} /></div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:gap-3">
             {lista.map((x) => { const r = RONDA_RESULTADO[x.resultado]; return (
               <button key={x.id} onClick={() => setItem(x)} style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-3 flex items-center gap-3 text-left">
                 <Thumb foto={x.foto} size={40} />
@@ -4763,8 +4810,9 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
   const modoOk = setores.length !== 1 || modo === "completa" || modo === "priorizada" || (modo === "amostragem" && parseInt(quantidade, 10) > 0) || (modo === "manual" && escolhidos.length > 0);
   const pronto = setores.length > 0 && sel.length > 0 && !!inicio && modoOk;
   return (
-    <GestaoSheet T={T} title="Iniciar nova ronda" subtitle={`Loja ${lojaAtiva?.numero_loja ?? "—"} · a lista de produtos é congelada agora`} onClose={onClose}>
-      <div className="flex flex-col gap-3.5">
+    <GestaoSheet T={T} larga title="Iniciar nova ronda" subtitle={`Loja ${lojaAtiva?.numero_loja ?? "—"} · a lista de produtos é congelada agora`} onClose={onClose}>
+      <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-2 lg:gap-x-10 lg:gap-y-4 lg:items-start">
+        <div className="flex flex-col gap-3.5">
         {setoresDoBanco.length === 0 ? (
           <div style={{ background: "#FCF0DD", color: "#C2760C" }} className="rounded-xl p-3 text-xs font-semibold">{nivel === 5 ? "Seu setor não tem produtos cadastrados (ou você não tem setor definido no cadastro)." : "Nenhum setor com produtos cadastrados nessa loja."}</div>
         ) : (
@@ -4818,6 +4866,8 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
             )}
           </GestaoCampo>
         )}
+        </div>
+        <div className="flex flex-col gap-3.5">
         <GestaoCampo T={T} label="Nome da ronda (opcional)"><input value={nome} onChange={(e) => setNome(e.target.value)} placeholder={setores[0] ? `Conferência de ${setores[0]}` : "Ex.: Conferência de validade"} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none" /></GestaoCampo>
         <GestaoCampo T={T} label="Quem vai executar" hint={setores.length ? `Só aparecem funcionários vinculados ao setor${setores.length > 1 ? "s escolhidos" : ""}.` : "Escolha o setor primeiro."}>
           <div className="flex flex-col gap-1.5">
@@ -4835,8 +4885,9 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
           <GestaoCampo T={T} label="Prazo (opcional)"><input type="datetime-local" value={prazo} onChange={(e) => setPrazo(e.target.value)} style={campo} className="w-full border rounded-xl px-2.5 py-2.5 text-sm outline-none" /></GestaoCampo>
         </div>
         <GestaoCampo T={T} label="Instruções (opcional)"><textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} maxLength={300} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" /></GestaoCampo>
-        {setores.length > 0 && <p style={{ color: T.subtext }} className="text-[11.5px]">{setores.length === 1 && modo === "amostragem" ? `${Math.min(parseInt(quantidade, 10) || 0, totalProdutos)} de ${totalProdutos} produto(s) entram na amostra` : setores.length === 1 && modo === "manual" ? `${escolhidos.length} produto(s) escolhido(s)` : `${totalProdutos} produto(s) cadastrado(s) serão carregados${setores.length > 1 ? " (somando os setores)" : ""}`}{setores.length === 1 && modo !== "completa" ? " — os de maior risco aparecem primeiro para o funcionário" : ""}. Produtos cadastrados depois não entram nesta ronda.</p>}
-        <button onClick={criar} disabled={!pronto || ocupado} style={{ background: pronto ? "#1F9D55" : "#C7CEDA", color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
+        </div>
+        {setores.length > 0 && <p style={{ color: T.subtext }} className="text-[11.5px] lg:col-span-2">{setores.length === 1 && modo === "amostragem" ? `${Math.min(parseInt(quantidade, 10) || 0, totalProdutos)} de ${totalProdutos} produto(s) entram na amostra` : setores.length === 1 && modo === "manual" ? `${escolhidos.length} produto(s) escolhido(s)` : `${totalProdutos} produto(s) cadastrado(s) serão carregados${setores.length > 1 ? " (somando os setores)" : ""}`}{setores.length === 1 && modo !== "completa" ? " — os de maior risco aparecem primeiro para o funcionário" : ""}. Produtos cadastrados depois não entram nesta ronda.</p>}
+        <button onClick={criar} disabled={!pronto || ocupado} style={{ background: pronto ? "#1F9D55" : "#C7CEDA", color: "#fff" }} className="lg:col-span-2 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
           {ocupado ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Criar ronda
         </button>
       </div>
@@ -5740,12 +5791,12 @@ async function gerarRelatorioAtividadePDF({ usuario, showToast, lojaNumero, porU
 // ============ Gestão do Aplicativo (item: painel de dev) ============
 // Só quem tem cargo DESENVOLVEDOR (nivel 1) enxerga essa tela. Ponto único pra gerenciar funcionários,
 // e (próximos passos) produtos e notificações de todas as lojas.
-function GestaoSheet({ T, title, subtitle, onClose, children }) {
+function GestaoSheet({ T, title, subtitle, onClose, children, larga = false }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center">
       <div onClick={onClose} className="absolute inset-0 bg-black/55" />
       <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} style={{ background: T.card }}
-        className="relative w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] overflow-y-auto shadow-2xl lg:ring-1 lg:ring-black/10">
+        className={`relative w-full ${larga ? "max-w-lg lg:max-w-5xl lg:w-[92vw]" : "max-w-lg"} rounded-t-3xl sm:rounded-3xl max-h-[92vh] overflow-y-auto shadow-2xl lg:ring-1 lg:ring-black/10`}>
         <div className="sticky top-0 z-10 px-5 pt-3 pb-3" style={{ background: T.card }}>
           <div style={{ background: T.border }} className="h-1 w-10 rounded-full mx-auto mb-3 sm:hidden" />
           <div className="flex items-start justify-between gap-3">
@@ -8409,18 +8460,23 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
     <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
       <div onClick={onClose} className="absolute inset-0 bg-black/50" />
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 380, damping: 38 }}
-        style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-xl lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[30px] overflow-hidden flex flex-col max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:max-h-[90vh] sm:rounded-[30px]">
-        <div className="relative shrink-0">
-          {item.foto ? <img src={item.foto} alt="" className="w-full h-36 object-cover" /> : (
-            <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={44} color="#fff" className="relative opacity-90" /></div>
+        style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-[1120px] lg:w-[92vw] lg:h-[86vh] lg:grid lg:grid-cols-[400px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)_auto] lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[30px] overflow-hidden flex flex-col max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:max-h-[90vh] sm:rounded-[30px]">
+        <div className="relative shrink-0 lg:col-start-1 lg:row-start-1 lg:min-h-0">
+          {item.foto ? <img src={item.foto} alt="" className="w-full h-36 object-cover lg:h-full" /> : (
+            <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 lg:h-full flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={44} color="#fff" className="relative opacity-90" /></div>
           )}
           <button onClick={onClose} aria-label="Fechar" className="absolute top-3 left-3 h-10 w-10 rounded-full flex items-center justify-center text-white" style={{ background: "rgba(255,255,255,.2)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.3)" }}><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
-          <span style={{ background: s.bg, color: s.fg }} className="absolute bottom-3 left-4 text-[11px] font-bold px-3 py-1 rounded-full shadow-md">{status.label}</span>
+          <span style={{ background: s.bg, color: s.fg }} className="absolute bottom-3 left-4 lg:bottom-auto lg:top-4 lg:left-auto lg:right-4 text-[11px] font-bold px-3 py-1 rounded-full shadow-md">{status.label}</span>
+          <div className="hidden lg:block absolute inset-x-0 bottom-0 p-7 pt-24 text-white" style={{ background: "linear-gradient(to top, rgba(6,28,58,0.92), rgba(6,28,58,0))" }}>
+            <h2 className="font-extrabold text-2xl leading-tight">{item.nome}</h2>
+            <p className="text-sm font-semibold mt-1 opacity-85">{diasTexto}{item.tamanho ? ` · ${item.tamanho}${item.unidadeMedida || ""}` : ""}</p>
+            <p className="text-xs font-mono mt-3 opacity-70 flex items-center gap-1.5"><Barcode size={13} /> {item.barcode}</p>
+          </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4">
-          <h2 className="font-bold text-lg leading-tight">{item.nome}</h2>
-          <p style={{ color: T.subtext }} className="text-sm font-medium mt-0.5">{diasTexto}{item.tamanho ? ` · ${item.tamanho}${item.unidadeMedida || ""}` : ""}</p>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:p-8 lg:grid lg:grid-cols-2 lg:gap-5 lg:content-start lg:[&>*]:!mt-0">
+          <h2 className="font-bold text-lg leading-tight lg:hidden">{item.nome}</h2>
+          <p style={{ color: T.subtext }} className="text-sm font-medium mt-0.5 lg:hidden">{diasTexto}{item.tamanho ? ` · ${item.tamanho}${item.unidadeMedida || ""}` : ""}</p>
 
           {/* Dados essenciais em grade simples — sem elementos decorativos */}
           <div style={{ background: T.chipBg }} className="rounded-2xl mt-3.5 p-3.5 grid grid-cols-2 gap-3">
@@ -8450,7 +8506,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           )}
 
           {(item.pedidoTipo || onPedido) && (
-            <div style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-3 mt-3">
+            <div style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-3 mt-3 lg:col-span-2">
               <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-1.5 flex items-center gap-1"><Tag size={11} /> Pedido de promoção ou preço direto</p>
               {item.pedidoTipo && !editandoPedido && (
                 <div className="flex items-start justify-between gap-2">
@@ -8515,7 +8571,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2.5 mt-3.5">
+          <div className="grid grid-cols-2 gap-2.5 mt-3.5 lg:col-span-2 lg:grid-cols-3">
             <InfoTile T={T} icon={Clock} label="Alerta" value={[item.diasAlerta, ...(item.diasAlertaExtras || [])].sort((a, b) => b - a).join(", ") + " dias antes"} />
             {!!item.quantidade && <InfoTile T={T} icon={Layers} label="Quantidade" value={item.porPeso ? `${item.quantidade} kg` : item.quantidade} />}
             {!!item.precoUnitario && podeVerValores && <InfoTile T={T} icon={DollarSign} label={item.porPeso ? "Valor total (kg)" : "Valor total"} value={formatarMoeda((item.quantidade || 1) * item.precoUnitario)} />}
@@ -8546,7 +8602,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 
           {/* Outros lotes/validades do mesmo produto neste setor — antes só dava pra ver isso na listagem do setor */}
           {outrosLotes && outrosLotes.length > 0 && (
-            <div style={{ background: T.chipBg }} className="rounded-2xl mt-3.5 p-3">
+            <div style={{ background: T.chipBg }} className="rounded-2xl mt-3.5 p-3 lg:col-span-2">
               <p style={{ color: T.subtext }} className="text-[10px] font-bold uppercase tracking-wide mb-2 flex items-center gap-1.5"><Layers size={12} /> Outros lotes deste produto ({outrosLotes.length})</p>
               <div className="flex flex-col gap-1.5">
                 {outrosLotes.map((l) => {
@@ -8571,7 +8627,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 
           {/* Trilha imutável: histórico de alterações de validade deste código — não pode ser apagado, nem por aqui */}
           {historicoValidade && historicoValidade.length > 0 && (
-            <div style={{ background: "#FFF8E8", borderColor: "#F0DDA6" }} className="rounded-2xl mt-3.5 p-3 border">
+            <div style={{ background: "#FFF8E8", borderColor: "#F0DDA6" }} className="rounded-2xl mt-3.5 p-3 border lg:col-span-2">
               <button onClick={() => setMostrarHistoricoValidade((v) => !v)} className="w-full flex items-center justify-between">
                 <p style={{ color: "#8A6414" }} className="text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5">
                   <ShieldCheck size={12} /> Validade já foi alterada {historicoValidade.length}x
@@ -8596,7 +8652,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           )}
 
         </div>
-        <div style={{ borderColor: T.border, background: T.card }} className="shrink-0 max-h-[55%] overflow-y-auto px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t">
+        <div style={{ borderColor: T.border, background: T.card }} className="shrink-0 max-h-[55%] lg:max-h-none lg:col-start-1 lg:row-start-2 overflow-y-auto px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t">
           {onBaixa && (
           <motion.button whileTap={{ scale: 0.98 }} onClick={() => setConfirmandoBaixa(true)}
             style={{ background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)` }}
@@ -11581,18 +11637,8 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
     </div>
   );
   return (
-    <div className="lg:grid lg:grid-cols-2 lg:gap-x-6 lg:items-start">
-      <MaisBloco T={T} titulo="Prévia" i={0} className="lg:col-start-2 lg:row-start-1">
-        <div className="p-4">
-          <motion.div layout style={{ background: `${tipoAtual.cor}1A`, borderColor: tipoAtual.cor }} className="rounded-2xl border-l-4 p-4">
-            <p style={{ color: dark ? clarearCor(tipoAtual.cor, 0.5) : tipoAtual.cor }} className="text-[11px] font-extrabold uppercase tracking-wide">{tipoAtual.rotulo}</p>
-            <p style={{ color: T.text }} className="text-[15px] font-bold mt-1 break-words">{titulo || "Título do aviso"}</p>
-            <p style={{ color: T.subtext }} className="text-[13px] mt-1 leading-snug break-words whitespace-pre-line">{mensagem || "A mensagem aparece aqui para quem receber."}</p>
-          </motion.div>
-        </div>
-      </MaisBloco>
-
-      <MaisBloco T={T} titulo="Mensagem" i={1} className="lg:col-start-1 lg:row-start-1">
+    <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-x-6 lg:items-start">
+      <MaisBloco T={T} titulo="Mensagem" i={1} className="lg:col-span-5 lg:col-start-1">
         <div className="p-4 flex flex-col gap-3">
           <div className="flex gap-2">
             {TIPOS_AVISO.map((t) => (
@@ -11608,7 +11654,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
         </div>
       </MaisBloco>
 
-      <MaisBloco T={T} titulo="Para quem vai" i={2} className="lg:col-start-1 lg:row-start-2">
+      <MaisBloco T={T} titulo="Para quem vai" i={2} className="lg:col-span-4 lg:col-start-6 lg:row-start-1">
         <div className="p-4 flex flex-col gap-3">
           {segmento({ id: "av-onde", valor: onde, onChange: setOnde, opcoes: [["rede", "Toda a rede"], ["loja", "Uma loja"]] })}
           <AnimatePresence initial={false}>
@@ -11664,7 +11710,18 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
         </div>
       </MaisBloco>
 
-      <MaisBloco T={T} titulo="Enviados recentemente" i={3} className="lg:col-start-2 lg:row-start-2">
+      <div className="max-lg:contents lg:col-span-3 lg:col-start-10 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto flex flex-col">
+      <MaisBloco T={T} titulo="Prévia" i={0} className="max-lg:order-first">
+        <div className="p-4">
+          <motion.div layout style={{ background: `${tipoAtual.cor}1A`, borderColor: tipoAtual.cor }} className="rounded-2xl border-l-4 p-4">
+            <p style={{ color: dark ? clarearCor(tipoAtual.cor, 0.5) : tipoAtual.cor }} className="text-[11px] font-extrabold uppercase tracking-wide">{tipoAtual.rotulo}</p>
+            <p style={{ color: T.text }} className="text-[15px] font-bold mt-1 break-words">{titulo || "Título do aviso"}</p>
+            <p style={{ color: T.subtext }} className="text-[13px] mt-1 leading-snug break-words whitespace-pre-line">{mensagem || "A mensagem aparece aqui para quem receber."}</p>
+          </motion.div>
+        </div>
+      </MaisBloco>
+
+      <MaisBloco T={T} titulo="Enviados recentemente" i={3}>
         {recentes === null ? <p style={{ color: T.subtext }} className="text-xs p-4">Carregando…</p>
           : recentes.length === 0 ? <p style={{ color: T.subtext }} className="text-xs p-4">Nenhum aviso enviado ainda.</p>
           : recentes.map((a, k) => {
@@ -11681,6 +11738,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
             );
           })}
       </MaisBloco>
+      </div>
     </div>
   );
 }

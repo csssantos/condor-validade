@@ -393,8 +393,8 @@ export function PrevisaoOperacionalView({ T, perfil, lojaAtiva, showToast, onCri
   const base = dados.base || {};
   const setores = [...new Set((dados.cards || []).map((c) => c.setor).filter(Boolean))];
   return (
-    <div className="px-4 pt-4 lg:px-0 flex flex-col gap-4">
-      <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="rounded-3xl p-5 text-white">
+    <div className="px-4 pt-4 lg:px-0 flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-x-6 lg:items-start lg:[&>*]:col-start-1">
+      <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="rounded-3xl p-5 lg:p-8 text-white lg:!col-span-2">
         <p className="text-[11px] font-bold tracking-[0.16em] text-white/70 flex items-center gap-1.5"><Radar size={14} /> PREVISÃO OPERACIONAL</p>
         <p className="text-lg font-bold mt-1">O que pode dar problema — antes de acontecer</p>
         <p className="text-[12px] text-white/75 mt-1">Baseado em {base.eventos_120_dias ?? 0} ocorrência(s) dos últimos 120 dias ({base.dias_de_historico ?? 0} dia(s) de histórico). Última análise: {dataHoraBR(dados.gerado_em)}.</p>
@@ -440,7 +440,7 @@ export function PrevisaoOperacionalView({ T, perfil, lojaAtiva, showToast, onCri
           <div className="flex flex-wrap gap-1.5">{dados.sem_dados_suficientes.map((s, i) => <Selo key={i} bg={T.chipBg} color={T.subtext}>{s.alvo} · {s.eventos} ocorr.</Selo>)}</div>
         </Cartao>
       )}
-      <Cartao T={T} titulo="Produtos com maior risco" sub="Indicador 0–100 calculado do histórico real. Risco não é o mesmo que vencido.">
+      <div className="lg:!col-start-2 lg:row-start-2 lg:row-span-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto"><Cartao T={T} titulo="Produtos com maior risco" sub="Indicador 0–100 calculado do histórico real. Risco não é o mesmo que vencido.">
         {!risco?.length ? <Vazio T={T} texto="Sem produtos para analisar." /> : (
           <div className="flex flex-col divide-y" style={{ borderColor: T.chipBg }}>
             {risco.map((p) => (
@@ -451,7 +451,7 @@ export function PrevisaoOperacionalView({ T, perfil, lojaAtiva, showToast, onCri
             ))}
           </div>
         )}
-      </Cartao>
+      </Cartao></div>
       {acao && <NovaAcaoPreventivaSheet T={T} lojaAtiva={lojaAtiva} inicial={acao} setores={setores.length ? setores : null} showToast={showToast} onClose={() => setAcao(null)} onCriada={() => setAcao(null)} />}
       {produto && <ProdutoAnaliseSheet T={T} barcode={produto} lojaAtiva={lojaAtiva} onClose={() => setProduto(null)} onCriarAcao={(a) => { setProduto(null); setAcao(a); }} />}
     </div>
@@ -504,10 +504,10 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
 
   return (
     <div className="px-4 pt-4 lg:px-0 flex flex-col gap-4">
-      <div style={{ background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)` }} className="rounded-3xl p-5 text-white flex items-start justify-between gap-3">
+      <div style={{ background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)` }} className="rounded-3xl p-5 lg:p-8 text-white flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-bold tracking-[0.16em] text-white/75 flex items-center gap-1.5"><Flame size={14} /> PREVENÇÃO DE PERDAS</p>
-          <p className="text-lg font-bold mt-1">Onde a loja está perdendo — e o que fazer</p>
+          <p className="text-lg lg:text-3xl font-bold mt-1">Onde a loja está perdendo — e o que fazer</p>
         </div>
       </div>
       <Abas T={T} valor={aba} onChange={setAba} opcoes={[{ id: "painel", label: "Painel" }, { id: "produtos", label: "Produtos" }, { id: "acoes", label: `Ações preventivas${acoes ? ` (${acoes.filter((a) => ["aberta", "em_andamento"].includes(a.status)).length})` : ""}` }, { id: "resultados", label: "Resultados" }]} />
@@ -522,7 +522,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
           </div>
           {erro ? <Cartao T={T}><Vazio T={T} texto={erro} /></Cartao> : !d ? <Carregando T={T} /> : (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 lg:grid-cols-6 gap-2 lg:gap-4">
                 <Kpi T={T} label={`Ocorrências (${d.periodo_dias}d)`} valor={d.total_registros} />
                 <Kpi T={T} label="Valor perdido" valor={moeda(d.valor_total)} cor={RED_DARK} />
                 <Kpi T={T} label="Irregularidades em rondas" valor={d.irregularidades_rondas} />
@@ -544,6 +544,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
                   )}
                 </Cartao>
               </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4 lg:items-start">
               <Cartao T={T} titulo="Produtos com mais perdas" sub="Toque para ver o histórico completo">
                 {!d.top_produtos?.length ? <Vazio T={T} texto="Sem perdas no período." /> : (
                   <div className="flex flex-col">{d.top_produtos.map((p, i) => (
@@ -569,6 +570,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
                   ))}</div>
                 </Cartao>
               )}
+              </div>
             </>
           )}
         </>
@@ -756,9 +758,9 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
   }
 
   return (
-    <div className="px-4 pt-4 lg:px-0 flex flex-col gap-3 lg:max-w-5xl lg:mx-auto lg:w-full">
-      <div className="flex flex-col gap-3 min-w-0">
-        <div style={{ background: `linear-gradient(135deg, ${BLUE_DARK} 0%, #1d1240 100%)` }} className="rounded-3xl p-4 lg:p-5 text-white">
+    <div className="px-4 pt-4 lg:px-0 flex flex-col gap-3 lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-x-6 lg:gap-y-3 lg:items-start lg:content-start lg:grid-rows-[auto_auto_1fr] lg:w-full">
+      <div className="flex flex-col gap-3 min-w-0 lg:contents">
+        <div style={{ background: `linear-gradient(135deg, ${BLUE_DARK} 0%, #1d1240 100%)` }} className="rounded-3xl p-4 lg:p-6 text-white lg:col-start-1 lg:row-start-1">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-bold tracking-[0.16em] text-white/70 flex items-center gap-1.5"><Sparkles size={14} /> ASSISTENTE IA — INTELIGÊNCIA OPERACIONAL</p>
@@ -769,10 +771,19 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
           </div>
         </div>
         {aviso === "sem_chave" && (
-          <div style={{ background: LARANJA_SOFT, color: LARANJA }} className="rounded-2xl p-3 text-[12px] font-semibold">O assistente ainda não foi ativado no servidor: falta o secret GEMINI_API_KEY nas Edge Functions do Supabase.</div>
+          <div style={{ background: LARANJA_SOFT, color: LARANJA }} className="rounded-2xl p-3 text-[12px] font-semibold lg:col-start-1 lg:row-start-2">O assistente ainda não foi ativado no servidor: falta o secret GEMINI_API_KEY nas Edge Functions do Supabase.</div>
         )}
 
-        <div style={{ background: T.card }} className="rounded-3xl shadow-lg shadow-black/5 flex flex-col overflow-hidden h-[calc(100dvh-300px)] min-h-[400px] lg:h-[calc(100vh-250px)]">
+        <div style={{ background: T.card }} className="hidden lg:flex lg:col-start-1 lg:row-start-3 rounded-3xl shadow-lg shadow-black/5 p-5 flex-col gap-3">
+          <p className="text-sm font-bold">Como aproveitar</p>
+          <ul style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed flex flex-col gap-2">
+            <li>Peça números, tabelas e gráficos: “os 10 últimos lançamentos de hoje”.</li>
+            <li>Use <b style={{ color: T.text }}>Enter</b> para enviar e <b style={{ color: T.text }}>Shift + Enter</b> para pular linha.</li>
+            <li>Rondas, tarefas e ações só são criadas depois que você revisa e confirma.</li>
+            <li>Você só vê o que o seu cargo permite.</li>
+          </ul>
+        </div>
+        <div style={{ background: T.card }} className="rounded-3xl shadow-lg shadow-black/5 flex flex-col overflow-hidden h-[calc(100dvh-300px)] min-h-[400px] lg:h-[calc(100vh-170px)] lg:col-start-2 lg:row-start-1 lg:row-span-3">
         <div className="flex-1 min-h-0 overflow-y-auto p-3 lg:p-5 flex flex-col gap-3">
           {msgs.length === 0 && !pensando && (
             <div className="flex flex-col gap-2">
@@ -788,7 +799,7 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
           {msgs.map((m) => (
             <div key={m.id} className={`flex ${m.papel === "usuario" ? "justify-end" : "justify-start"}`}>
               {m.papel === "usuario" ? (
-                <div style={{ background: BLUE, color: "#fff" }} className="rounded-2xl rounded-br-md px-3.5 py-2.5 text-[13px] max-w-[85%] whitespace-pre-wrap">{m.conteudo}</div>
+                <div style={{ background: BLUE, color: "#fff" }} className="rounded-2xl rounded-br-md px-3.5 py-2.5 text-[13px] max-w-[85%] lg:max-w-[65%] whitespace-pre-wrap">{m.conteudo}</div>
               ) : m.papel === "erro" ? (
                 <div style={{ background: RED_SOFT, color: RED_DARK }} className="rounded-2xl px-3.5 py-2.5 text-[12.5px] font-semibold max-w-[90%] flex items-start gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" />{m.conteudo}</div>
               ) : (
