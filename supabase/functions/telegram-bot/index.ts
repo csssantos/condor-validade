@@ -273,7 +273,7 @@ async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, b
   }
   const nome = formatarNomeNovo(achou.nome, cat).nomeNovo;
   delete d.fotoStash; // só uma foto pesada por conversa
-  d.novo = { barcode: bc, nome, foto: achou.dataUrl, urlImg: achou.dataUrl ? achou.urlImg : undefined, setor: adivinharSetor(nome), etapa: "imagem" };
+  d.novo = { barcode: bc, nome, foto: achou.dataUrl, urlImg: achou.dataUrl ? (achou.urlImg ?? undefined) : undefined, setor: adivinharSetor(nome), etapa: "imagem" };
   await salvar(s.id, "aguardando_info", d);
   const legenda = `Esse produto não está no app. Achei na internet:\n\n${nome}\nCódigo: ${bc}${achou.dataUrl ? "" : "\n(sem imagem disponível: vou pedir uma foto sua)"}\n\nÉ esse o produto${achou.dataUrl ? " e posso usar essa imagem no cadastro do app" : ""}?`;
   const botoes = [[{ t: "✅ Sim, é esse", d: `im:${s.id}:1` }, { t: "❌ Não é", d: `im:${s.id}:0` }]];
