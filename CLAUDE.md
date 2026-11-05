@@ -284,3 +284,7 @@ Ideia em avaliação (sem decisão): localização ao lançar validade (modo "si
 - `downloadCSV`/`downloadPlanilha` neutralizam fórmula (`celulaCSV`/`celulaPlanilha`) e escapam `;` `"`.
 - Modal do produto no PC: painel azul (foto em cartão branco, nome, ações em grade 2x2) + cartões à direita; celular intacto.
 - Pendências: jsPDF não instala no sandbox, então o layout dos PDFs não foi visto renderizado (só teste com mock); jsPDF no bundle principal (lazy import); encarregado nível 5 exporta todos os setores; PDFs sem teste automatizado.
+
+## BIPI 3D + VÍDEO DE APRESENTAÇÃO (2026-11-05, pedido do dono) — sem SQL
+- `3d/` no repo: `bipi.glb` (gerado por `fonte/make_bipi_glb.py`, numpy puro), `bipi-3d.html` (visualizador), `bipi-3d-previa.png`, `fonte/bipi3d.js` (renderer WebGL próprio). Bipi só em 3D a partir do 2D oficial; nunca redesenhar.
+- Vídeo 45 s (1080x1920, 30 fps, trilha sintetizada): feito no scratchpad (`bipi3d/video.html` + `capture.py` + `make_audio.py`), com TELAS REAIS do app no celular (harness `dashH/`, `shotm.py`; ícones reais via react-icons no `buildH.cjs`) e banners reais do bot. Regra do dono: nunca inventar layout que não existe. O mp4 não está no git (pesado).
