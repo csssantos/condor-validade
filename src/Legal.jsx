@@ -3,14 +3,28 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Send, Loader2, ChevronRight, ScrollText } from "lucide-react";
+import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Send, Loader2, ChevronRight, ScrollText, Clock, X, Inbox } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-11-04";
+export const TERMOS_VERSAO = "2026-11-05";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-05", docs: {
+    privacidade: [
+      "Quem é o responsável pelos seus dados: o app é mantido por uma pessoa física, como agente de tratamento de pequeno porte; por isso não há encarregado (DPO) formal, e o canal oficial é “Falar com o responsável”, dentro do app.",
+      "De onde vêm seus dados: parte deles é informada por quem administra a sua loja no pré-cadastro (nome, matrícula, cargo, setor e loja).",
+      "Lista de fornecedores com o que cada um recebe e onde fica (alguns fora do Brasil).",
+      "O registro de login (data, hora, IP e aparelho) agora é feito pelo servidor; o app deixou de consultar um serviço externo para descobrir o IP.",
+      "Pedidos de direitos (LGPD) ficam guardados por 5 anos depois de respondidos, para comprovar o atendimento. Quem responde é o desenvolvedor ou a diretoria do app; a gerência da sua loja não vê esses pedidos.",
+      "Ao sair da conta, o app apaga deste aparelho a cópia offline dos produtos e do histórico. Ações feitas sem internet só são enviadas com a conta de quem as fez.",
+    ],
+    armazenamento: [
+      "Lista completa do que o app guarda no aparelho, para que serve e por quanto tempo.",
+      "Novo: o app lembra neste aparelho se você já viu o tutorial do Bipi e o aviso de armazenamento.",
+    ],
+  } },
   { versao: "2026-11-04", docs: {
     termos: [
       "Pedido de promoção ou preço direto passa a levar o valor pedido (uma sugestão, que depende da liberação da central). Se o lote foi lançado pelo Telegram, quem lançou recebe um aviso no Telegram com a campanha e o valor pedido; no caso de promotor, o aviso inclui o nome de quem fez o pedido.",
@@ -146,7 +160,7 @@ export const DOCUMENTOS = [
       return [
         { t: "1. Quem é o controlador dos dados", p: [
           `Somos ${partes}, o controlador dos dados tratados neste app, nos termos da Lei Geral de Proteção de Dados (Lei 13.709/2018 — LGPD).`,
-          "Este é um aplicativo avulso, sem CNPJ e sem encarregado (DPO) formal. Para falar sobre seus dados use Mais → Privacidade e termos → Solicitar um direito (Falar com o responsável).",
+          "Este é um aplicativo avulso, mantido por uma pessoa física, sem CNPJ. Como agente de tratamento de pequeno porte (Resolução CD/ANPD nº 2/2022), não indicamos encarregado (DPO) formal e mantemos um canal de comunicação: Mais → Privacidade e termos → Solicitar um direito (Falar com o responsável). Os pedidos são respondidos pelo desenvolvedor ou pela diretoria do app, não pela gerência da sua loja.",
         ] },
         { t: "2. Quais dados coletamos", p: [
           "Dados de cadastro: nome, matrícula, e-mail, cargo, setor, loja e, quando informado, telefone. Para promotores: nome e marcas (de 1 a 5) ou acesso total.",
@@ -155,6 +169,7 @@ export const DOCUMENTOS = [
           "Dados do aparelho para notificações: identificador de inscrição de notificações push (sem acesso ao conteúdo do seu aparelho).",
           "Voz: o texto reconhecido do que você fala no cadastro por voz. O áudio é processado pelo reconhecimento de voz do seu navegador ou aparelho e não é guardado por nós.",
           "Não coletamos sua localização, contatos, mensagens pessoais, dados bancários nem dados sensíveis (saúde, religião, política etc.).",
+          "De onde vêm os dados: você informa ao usar o app; parte do cadastro (nome, matrícula, cargo, setor e loja) é informada por quem administra a sua loja no pré-cadastro; o IP e o aparelho do login são registrados pelo nosso servidor quando você abre o app.",
         ] },
         { t: "3. Para que usamos (finalidades)", p: [
           "Criar e proteger sua conta e controlar o que cada cargo pode ver e fazer.",
@@ -170,12 +185,13 @@ export const DOCUMENTOS = [
         ] },
         { t: "5. Com quem compartilhamos", p: [
           "Dentro da sua loja/empresa: gestores e pessoas autorizadas no app, de acordo com o cargo e a loja. Os valores financeiros podem ser ocultados de alguns cargos.",
-          "Fornecedores de tecnologia (operadores) que armazenam e entregam o app: Supabase (banco de dados, autenticação e arquivos) e Vercel (hospedagem do site), além dos serviços de notificação push do seu aparelho (Apple, Google ou Microsoft), o Telegram (apenas se você vincular, para o bot de lançamento) o Open Food Facts (busca de nome e imagem de produto novo, só com o código de barras) e o Google Gemini (assistente de IA). Eles tratam os dados só para prestar o serviço, sob contrato.",
+          "Fornecedores de tecnologia (operadores), que tratam os dados só para prestar o serviço, sob os termos de uso e de proteção de dados de cada um:",
+          "• Supabase: banco de dados, login e funções do servidor (todos os dados do app). • Vercel: hospedagem do site (endereço IP e dados técnicos de acesso). • Serviço de notificações do seu aparelho (Apple, Google ou Microsoft): só o identificador de inscrição e o texto do aviso, se você ativar. • Telegram: só se você vincular (identificador da conversa e mensagens ao bot). • Open Food Facts: só o código de barras de produto novo. • Google Gemini: as perguntas feitas ao assistente de IA e os dados da loja necessários para responder. • Reconhecimento de voz do seu navegador ou aparelho: o que você fala, só quando usa a voz.",
           "Autoridades públicas e judiciais, quando houver obrigação legal ou ordem válida.",
           "Não vendemos nem alugamos dados pessoais.",
         ] },
         { t: "6. Transferência internacional", p: [
-          "Alguns fornecedores podem armazenar ou processar dados fora do Brasil. Nesses casos, adotamos as garantias previstas na LGPD (art. 33), como cláusulas contratuais e fornecedores com padrões de segurança reconhecidos.",
+          "Alguns desses fornecedores armazenam ou processam dados fora do Brasil (por exemplo, nos Estados Unidos e na União Europeia). Nesses casos, a transferência se apoia nas hipóteses do art. 33 da LGPD, como cláusulas contratuais dos fornecedores e o cumprimento do serviço que você usa.",
         ] },
         { t: "7. Por quanto tempo guardamos", p: [
           "Conta e dados de cadastro: enquanto você tiver conta e acesso ao app. Depois do desligamento ou da exclusão da conta, o acesso é encerrado e os dados de cadastro são eliminados ou anonimizados quando deixarem de ser necessários.",
@@ -183,6 +199,8 @@ export const DOCUMENTOS = [
           "Registros de login e aceite dos termos: mantidos por pelo menos 6 meses (Marco Civil da Internet) e enquanto necessários para comprovar o aceite.",
           "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos; o registro de erros de código (identificador da conversa e contagem) é apagado em até 2 dias; pedidos de produto novo (com decisão e motivo) são apagados 90 dias após a decisão. O valor pedido, o número da campanha e quem fez o pedido de promoção ou preço direto ficam no lote até a baixa dele e na auditoria da loja (até 5 anos); o controle do aviso enviado pelo Telegram some junto com o lote.",
           "Conversas com o assistente de IA: mantidas pelo tempo necessário à operação e ao suporte e eliminadas quando não forem mais úteis.",
+          "Pedidos de direitos (LGPD) e a resposta dada: 5 anos depois de respondidos, para comprovar o atendimento.",
+          "Neste aparelho: ao sair da conta, apagamos a cópia offline dos produtos e do histórico. Ações feitas sem internet ficam guardadas até a conexão voltar e só são enviadas com a conta de quem as fez.",
         ] },
         { t: "8. Como protegemos", p: [
           "Conexão criptografada (HTTPS), senhas protegidas pelo serviço de autenticação, controle de acesso por cargo e loja no banco de dados (RLS), trilha de auditoria e registro de login.",
@@ -234,6 +252,17 @@ export const DOCUMENTOS = [
       { t: "Armazenamento no aparelho (cookies e similares)", p: [
         "Usamos apenas armazenamento essencial: manter você conectado, guardar o tema, lembrar versões já vistas, guardar ações feitas sem internet para enviar depois e deixar o app abrir mais rápido (cache do aplicativo instalável).",
         "Não usamos cookies de publicidade, nem rastreadores de terceiros para marketing. Por serem essenciais, esses itens não dependem de consentimento; você pode limpá-los nas configurações do navegador, mas o app pode deixar de funcionar direito.",
+      ] },
+      { t: "O que fica guardado neste aparelho", p: [
+        "Sessão de login (sb-…-auth-token): mantém você conectado. Fica até você sair ou a sessão expirar.",
+        "Cópia offline (condor-validade:instantaneo-offline): produtos, catálogo e histórico da loja para o app abrir sem internet. Atualizada a cada sincronização e apagada ao sair da conta.",
+        "Ações sem internet (condor-validade:fila-offline e avdc_ronda_fila): lançamentos, baixas e conferências feitas sem conexão. Apagadas assim que enviadas; só são enviadas com a conta de quem as fez.",
+        "Preferências (condor-validade:preferencias): tema, som e opções de tela. Ficam até você limpar os dados do site.",
+        "Alertas já avisados (condor-validade:notificados): evita repetir a mesma notificação.",
+        "Aceite dos termos (avdc_aceite_termos e avdc_aceite_pendente): versão dos termos que você aceitou neste aparelho (o aceite oficial fica no servidor).",
+        "Novidades e avisos já vistos (avdc_novidade_vista e avdc_avisos_vistos), tutorial do Bipi visto (avdc_tutorial_visto) e aviso de armazenamento visto (avdc_aviso_armazenamento): para não mostrar de novo.",
+        "Microfone liberado (condor_mic_liberado): só um sinal de que você já autorizou, para não pedir toda hora.",
+        "Atualização recém-instalada (avdc_acabou_de_atualizar, só até fechar a aba) e cache do aplicativo instalável (arquivos do próprio app, sem dados pessoais).",
       ] },
       { t: "Câmera", p: [
         "Usada só para bipar códigos de barras, ler o crachá no cadastro e tirar fotos de produtos ou ocorrências. A imagem da câmera de leitura não é gravada; só o código lido é usado.",
@@ -448,11 +477,21 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
       setAceites(a || []);
     } catch { setAceites([]); }
     try {
-      const { data: p } = await supabase.from("solicitacoes_lgpd").select("id, tipo, detalhe, status, resposta, criado_em").order("criado_em", { ascending: false }).limit(20);
+      const { data: ses } = await supabase.auth.getSession(); const uid = ses?.session?.user?.id;
+      if (!uid) { setPedidos([]); return; }
+      // filtra pelo próprio id: quem é responsável (DEV/diretoria) enxerga todos os pedidos pela regra do banco
+      const { data: p } = await supabase.from("solicitacoes_lgpd").select("id, tipo, detalhe, status, resposta, criado_em, respondido_em").eq("usuario_id", uid).order("criado_em", { ascending: false }).limit(20);
       setPedidos(p || []);
     } catch { setPedidos([]); }
   }
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => {
+    carregar();
+    // tempo real: a resposta do responsável aparece sem recarregar (o banco só entrega as linhas que a pessoa pode ver)
+    const ch = supabase.channel("lgpd_meus_" + Math.random().toString(36).slice(2, 8)).on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes_lgpd" }, () => carregar()).subscribe();
+    const foco = () => { if (document.visibilityState === "visible") carregar(); };
+    document.addEventListener("visibilitychange", foco);
+    return () => { supabase.removeChannel(ch); document.removeEventListener("visibilitychange", foco); };
+  }, []);
 
   async function baixarDados() {
     setBaixando(true);
@@ -552,8 +591,8 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
                 <div key={p.id} style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-3">
                   <div className="flex items-center justify-between gap-2"><span style={{ color: T.text }} className="text-[13px] font-bold">{(TIPOS_PEDIDO.find((t) => t[0] === p.tipo) || [0, p.tipo])[1]}</span><span style={{ background: bg, color: cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1">{rot}</span></div>
                   <p style={{ color: T.subtext }} className="text-[12px] mt-1 leading-snug">{p.detalhe}</p>
-                  {p.resposta && <p style={{ color: T.text }} className="text-[12px] mt-1.5 leading-snug"><b>Resposta:</b> {p.resposta}</p>}
-                  <p style={{ color: T.subtext }} className="text-[10.5px] mt-1 font-mono">{fmt(p.criado_em)}</p>
+                  {p.resposta && <p style={{ color: T.text }} className="text-[12px] mt-1.5 leading-snug whitespace-pre-line"><b>Resposta:</b> {p.resposta}</p>}
+                  <p style={{ color: T.subtext }} className="text-[10.5px] mt-1 font-mono">Enviado {fmt(p.criado_em)}{p.respondido_em ? ` · respondido ${fmt(p.respondido_em)}` : ""}</p>
                 </div>
               );
             })}
@@ -606,5 +645,168 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
       {blocoPedidos}
       <AnimatePresence>{leitor && <LegalLeitor T={T} docId={leitor} onFechar={() => setLeitor(null)} />}</AnimatePresence>
     </div>
+  );
+}
+
+
+// ───────────────────────── Responder pedidos LGPD (só DEV/diretoria) ─────────────────────────
+const DICA_PEDIDO = {
+  acesso: "A pessoa pode baixar uma cópia na hora em Mais → Privacidade e termos → Baixar meus dados. Confirme na resposta e explique o que o arquivo contém.",
+  portabilidade: "O arquivo de “Baixar meus dados” já sai em JSON (formato estruturado). Indique esse caminho na resposta.",
+  correcao: "Corrija o cadastro em Gestão de funcionários (nome, matrícula, setor) e confirme o que foi alterado.",
+  exclusao: "Conta: exclua ou desative em Gestão de funcionários. Registros de auditoria, baixas e login ficam pelo prazo legal (até 5 anos) e isso precisa estar explicado na resposta.",
+  informacao: "Liste os fornecedores da Política de Privacidade (item 5) e quem da loja vê os dados.",
+  oposicao: "Avalie se o tratamento é necessário para o trabalho; se for, explique a base legal (legítimo interesse ou execução do serviço).",
+  revogacao: "Notificações: a própria pessoa desliga no sino. Explique o que deixa de funcionar sem o consentimento.",
+  encarregado: "Responda a dúvida diretamente. Se precisar de mais dados para confirmar quem é, peça na resposta.",
+};
+const diasAte = (iso) => { const hoje = new Date(); hoje.setHours(0, 0, 0, 0); const [a, m, d] = String(iso || "").split("-").map(Number); if (!a) return null; return Math.round((new Date(a, m - 1, d) - hoje) / 86400000); };
+
+export function PaginaPedidosLGPD({ T, showToast }) {
+  const larga = useLarga();
+  const [lista, setLista] = useState(null);
+  const [erro, setErro] = useState("");
+  const [filtro, setFiltro] = useState("abertos");
+  const [aberto, setAberto] = useState(null);
+  const [texto, setTexto] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const cartao = { background: T.card };
+
+  async function carregar() {
+    const { data, error } = await supabase.rpc("listar_solicitacoes_lgpd");
+    if (error) { setErro(/listar_solicitacoes_lgpd|function|schema cache/i.test(error.message || "") ? "Falta rodar o SQL supabase-lgpd-respostas.sql no Supabase." : "Não foi possível carregar os pedidos agora."); setLista([]); return; }
+    setErro(""); setLista(data || []);
+  }
+  useEffect(() => {
+    carregar();
+    const ch = supabase.channel("lgpd_resp_" + Math.random().toString(36).slice(2, 8)).on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes_lgpd" }, () => carregar()).subscribe();
+    const foco = () => { if (document.visibilityState === "visible") carregar(); };
+    document.addEventListener("visibilitychange", foco);
+    const t = setInterval(carregar, 60000);
+    return () => { supabase.removeChannel(ch); document.removeEventListener("visibilitychange", foco); clearInterval(t); };
+  }, []);
+
+  async function responder(p, status) {
+    const r = texto.trim();
+    if (status !== "em_analise" && r.length < 10) { showToast?.("Escreva a resposta para a pessoa (mínimo de 10 letras).", "warn"); return; }
+    if (r.length > 2000) { showToast?.("Resposta longa demais (máximo de 2000 letras).", "warn"); return; }
+    if (salvando) return;
+    setSalvando(true);
+    const { error } = await supabase.rpc("responder_solicitacao_lgpd", { p_id: p.id, p_status: status, p_resposta: r || null });
+    setSalvando(false);
+    if (error) {
+      const m = error.message || "";
+      showToast?.(m.includes("pedido_ja_respondido") ? "Esse pedido já foi respondido por outra pessoa." : m.includes("resposta_obrigatoria") ? "Escreva a resposta (mínimo de 10 letras)." : m.includes("sem_permissao") ? "Só o desenvolvedor ou a diretoria respondem pedidos LGPD." : "Não foi possível salvar a resposta. Tente de novo.", "erro");
+      carregar(); return;
+    }
+    showToast?.(status === "em_analise" ? "Pedido marcado como em análise." : "Resposta enviada. A pessoa vê na hora, em Privacidade e termos.", "ok");
+    setAberto(null); setTexto(""); carregar();
+  }
+
+  const fmt = (iso) => { try { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); } catch { return iso; } };
+  const abertos = (lista || []).filter((p) => p.status === "aberta" || p.status === "em_analise");
+  const mostrar = filtro === "abertos" ? abertos : (lista || []).filter((p) => !(p.status === "aberta" || p.status === "em_analise"));
+  const atrasados = abertos.filter((p) => (diasAte(p.prazo) ?? 99) < 0).length;
+
+  const cartaoPedido = (p) => {
+    const [rot, cor, bg] = STATUS_PEDIDO[p.status] || STATUS_PEDIDO.aberta;
+    const fim = !(p.status === "aberta" || p.status === "em_analise");
+    const dias = diasAte(p.prazo);
+    const corPrazo = dias == null ? T.subtext : dias < 0 ? "#A81419" : dias <= 3 ? "#C2760C" : "#1F7A4D";
+    const ab = aberto === p.id;
+    return (
+      <div key={p.id} style={cartao} className="rounded-[22px] shadow-lg shadow-black/5 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p style={{ color: T.text }} className="text-[14px] font-extrabold leading-tight">{(TIPOS_PEDIDO.find((t) => t[0] === p.tipo) || [0, p.tipo])[1]}</p>
+            <p style={{ color: T.subtext }} className="text-[12px] mt-0.5 truncate">{p.nome || "Conta removida"}{p.matricula ? ` · matr. ${p.matricula}` : ""}{p.loja ? ` · loja ${p.loja}` : ""}</p>
+          </div>
+          <span style={{ background: bg, color: cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1 shrink-0">{rot}</span>
+        </div>
+        <p style={{ color: T.text }} className="text-[13px] mt-2.5 leading-snug whitespace-pre-line break-words">{p.detalhe}</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[11.5px]" style={{ color: T.subtext }}>
+          <span>Enviado {fmt(p.criado_em)}</span>
+          {!fim && dias != null && <span style={{ color: corPrazo }} className="font-bold flex items-center gap-1"><Clock size={12} />{dias < 0 ? `prazo vencido há ${-dias} dia(s)` : dias === 0 ? "prazo vence hoje" : `prazo em ${dias} dia(s)`}</span>}
+          {fim && p.respondido_em && <span>Respondido {fmt(p.respondido_em)}{p.respondido_por_nome ? ` por ${p.respondido_por_nome}` : ""}</span>}
+        </div>
+        {p.resposta && <p style={{ background: T.chipBg, color: T.text }} className="text-[12.5px] mt-2.5 leading-snug rounded-2xl px-3 py-2.5 whitespace-pre-line break-words"><b>Resposta:</b> {p.resposta}</p>}
+        {!fim && !ab && (
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => { setAberto(p.id); setTexto(p.resposta || ""); }} className="mt-3 w-full rounded-2xl py-2.5 text-[13px] font-extrabold text-white" style={{ background: `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` }}>Responder</motion.button>
+        )}
+        {!fim && ab && (
+          <div className="mt-3">
+            {DICA_PEDIDO[p.tipo] && <p style={{ background: "#E6F0FF", color: "#1F4F9E" }} className="text-[12px] rounded-2xl px-3 py-2 leading-snug"><b>Como atender:</b> {DICA_PEDIDO[p.tipo]}</p>}
+            <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={4} maxLength={2000} autoFocus placeholder="Resposta para a pessoa (ela vê no app)…"
+              style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full mt-2 border rounded-2xl px-3.5 py-3 text-sm outline-none focus:ring-2 resize-none" />
+            <p style={{ color: T.subtext }} className="text-[10.5px] text-right">{texto.trim().length}/2000</p>
+            <div className="grid grid-cols-3 gap-2 mt-1.5">
+              <button type="button" disabled={salvando || p.status === "em_analise"} onClick={() => responder(p, "em_analise")} style={{ background: T.chipBg, color: T.text }} className="rounded-2xl py-2.5 text-[12px] font-bold disabled:opacity-50">Em análise</button>
+              <button type="button" disabled={salvando} onClick={() => responder(p, "negada")} style={{ background: "#FDECEE", color: "#A81419" }} className="rounded-2xl py-2.5 text-[12px] font-bold disabled:opacity-50">Negar</button>
+              <button type="button" disabled={salvando} onClick={() => responder(p, "respondida")} style={{ background: "#1F9D55", color: "#fff" }} className="rounded-2xl py-2.5 text-[12px] font-extrabold disabled:opacity-50 flex items-center justify-center gap-1">{salvando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}Responder</button>
+            </div>
+            <button type="button" onClick={() => { setAberto(null); setTexto(""); }} style={{ color: T.subtext }} className="w-full mt-2 text-[12px] font-semibold flex items-center justify-center gap-1"><X size={13} />Fechar sem salvar</button>
+            <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 leading-snug">“Negar” também exige o motivo. Depois de respondido ou negado, o pedido não pode ser alterado.</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const topo = (
+    <div className="flex flex-col gap-3">
+      <section style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative rounded-[24px] text-white p-5 overflow-hidden">
+        <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
+        <div className="relative">
+          <p className="text-[11px] font-bold tracking-[.18em] text-white/70">PEDIDOS LGPD</p>
+          <p className="text-[30px] font-extrabold leading-none mt-1">{lista === null ? "…" : abertos.length}<span className="text-[14px] font-bold text-white/75"> em aberto</span></p>
+          <p className="text-[12.5px] text-white/80 mt-1.5 leading-snug">Prazo de resposta: 15 dias. {atrasados > 0 ? `${atrasados} pedido(s) com prazo vencido.` : "Nenhum pedido atrasado."} A gerência das lojas não vê esta tela.</p>
+        </div>
+      </section>
+      <div className="flex gap-1.5">
+        {[["abertos", `Em aberto (${abertos.length})`], ["fechados", "Respondidos"]].map(([id, r]) => (
+          <button key={id} type="button" onClick={() => setFiltro(id)} aria-pressed={filtro === id} className="text-[12.5px] font-bold rounded-full px-3.5 py-2" style={filtro === id ? { background: AZUL_ESC, color: "#fff" } : { background: T.chipBg, color: T.text }}>{r}</button>
+        ))}
+      </div>
+      {erro && <p style={{ background: "#FDECEE", color: "#A81419" }} className="text-[12.5px] rounded-2xl px-3.5 py-2.5 font-semibold">{erro}</p>}
+    </div>
+  );
+  const corpo = lista === null ? <Loader2 size={18} className="animate-spin mx-auto mt-6" color={T.subtext} /> : mostrar.length === 0 ? (
+    <div style={cartao} className="rounded-[22px] p-6 text-center"><Inbox size={26} color={T.subtext} className="mx-auto" /><p style={{ color: T.subtext }} className="text-[13px] mt-2">{filtro === "abertos" ? "Nenhum pedido aguardando resposta." : "Nenhum pedido respondido ainda."}</p></div>
+  ) : (
+    <div className={larga ? "grid grid-cols-2 xl:grid-cols-3 gap-4 items-start" : "flex flex-col gap-3"}>{mostrar.map(cartaoPedido)}</div>
+  );
+  return <div className="flex flex-col gap-4">{topo}{corpo}</div>;
+}
+
+// ───────────────────────── Aviso de armazenamento (cookies), mostrado uma vez antes do login ─────────────────────────
+const CHAVE_AVISO_ARMAZ = "avdc_aviso_armazenamento";
+export function AvisoArmazenamento() {
+  const [ver, setVer] = useState(() => { try { return !localStorage.getItem(CHAVE_AVISO_ARMAZ); } catch { return false; } });
+  const [leitor, setLeitor] = useState(false);
+  const fechar = () => { try { localStorage.setItem(CHAVE_AVISO_ARMAZ, "1"); } catch { /* sem armazenamento */ } setVer(false); };
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <>
+      <AnimatePresence>
+        {ver && (
+          <motion.div role="region" aria-label="Aviso de armazenamento" initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: "spring", stiffness: 320, damping: 30 }}
+            className="fixed left-3 right-3 z-[90] mx-auto max-w-md rounded-[22px] p-4 text-white shadow-2xl" style={{ bottom: "calc(env(safe-area-inset-bottom) + 12px)", background: FUNDO_MARCA, isolation: "isolate" }}>
+            <div className="flex gap-3">
+              <span className="h-10 w-10 rounded-2xl bg-white/15 flex items-center justify-center shrink-0"><Smartphone size={19} /></span>
+              <div className="min-w-0">
+                <p className="text-[14px] font-extrabold leading-tight">Sem cookies de propaganda</p>
+                <p className="text-[12.5px] text-white/85 mt-1 leading-snug">O app guarda neste aparelho só o necessário para funcionar: login, preferências e o que você fizer sem internet. Nada de rastreadores.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button type="button" onClick={() => setLeitor(true)} className="flex-1 rounded-2xl py-2.5 text-[12.5px] font-bold bg-white/15">Ver detalhes</button>
+              <button type="button" onClick={fechar} className="flex-1 rounded-2xl py-2.5 text-[12.5px] font-extrabold bg-white text-[#0B2A55]">Entendi</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>{leitor && <LegalLeitor T={{ card: "#fff", text: "#0B2A55", subtext: "#5B6B85", bg: "#EEF2F9", chipBg: "#EEF2F9" }} docId="armazenamento" onFechar={() => setLeitor(false)} />}</AnimatePresence>
+    </>,
+    document.body,
   );
 }

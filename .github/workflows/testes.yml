@@ -1,0 +1,14 @@
+name: testes
+# Roda em todo push/PR: confere nomes/imports, testes do app e do bot, e o build real do Vite.
+on: [push, pull_request]
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run build

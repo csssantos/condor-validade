@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Bipi, o mascote do Condor · Alerta de Validade (descrição oficial no CLAUDE.md) -->
+  <ellipse cx="200" cy="378" rx="92" ry="11" fill="#000" opacity=".22"/>
+  <!-- antena -->
+  <path d="M200 74 V46" stroke="#7DB4F0" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="200" cy="38" r="12" fill="#E31E24"/><circle cx="196" cy="34" r="3.5" fill="#fff" opacity=".8"/>
+  <!-- pernas e pés -->
+  <rect x="160" y="326" width="22" height="26" rx="8" fill="#082F5E"/><rect x="218" y="326" width="22" height="26" rx="8" fill="#082F5E"/>
+  <rect x="146" y="344" width="50" height="26" rx="13" fill="#E31E24"/><rect x="204" y="344" width="50" height="26" rx="13" fill="#E31E24"/>
+  <!-- braço esquerdo (caído) -->
+  <path d="M138 252 C112 262 104 288 110 312" fill="none" stroke="#082F5E" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="110" cy="318" r="15" fill="#fff" stroke="#7DB4F0" stroke-width="3"/>
+  <!-- corpo -->
+  <rect x="132" y="218" width="136" height="116" rx="38" fill="#0B4F9E"/>
+  <!-- painel do peito com código de barras e LED verde -->
+  <rect x="158" y="238" width="84" height="66" rx="16" fill="#fff"/>
+  <g fill="#082F5E"><rect x="170" y="262" width="4" height="28"/><rect x="178" y="262" width="7" height="28"/><rect x="189" y="262" width="3" height="28"/><rect x="196" y="262" width="6" height="28"/><rect x="206" y="262" width="3" height="28"/><rect x="213" y="262" width="7" height="28"/><rect x="224" y="262" width="4" height="28"/></g>
+  <circle cx="176" cy="250" r="6" fill="#2ECC71"/><circle cx="176" cy="250" r="10" fill="#2ECC71" opacity=".25"/>
+  <rect x="190" y="247" width="38" height="6" rx="3" fill="#E31E24"/>
+  <!-- braço direito (erguido, acenando; Bipi padrão sem placa) -->
+  <path d="M262 252 C292 252 306 226 310 192" fill="none" stroke="#082F5E" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="311" cy="188" r="15" fill="#fff" stroke="#7DB4F0" stroke-width="3"/>
+  <!-- cabeça -->
+  <rect x="86" y="118" width="22" height="62" rx="11" fill="#0B4F9E"/><rect x="292" y="118" width="22" height="62" rx="11" fill="#0B4F9E"/>
+  <rect x="104" y="72" width="192" height="152" rx="48" fill="#EAF1FB" stroke="#7DB4F0" stroke-width="4"/>
+  <!-- rosto = leitor -->
+  <rect x="124" y="94" width="152" height="108" rx="32" fill="#082F5E"/>
+  <!-- olhos verdes -->
+  <rect x="152" y="112" width="28" height="36" rx="14" fill="#2ECC71"/><rect x="220" y="112" width="28" height="36" rx="14" fill="#2ECC71"/>
+  <circle cx="163" cy="124" r="5" fill="#fff" opacity=".85"/><circle cx="231" cy="124" r="5" fill="#fff" opacity=".85"/>
+  <!-- feixe de leitura vermelho -->
+  <path d="M116 166 H284" stroke="#E31E24" stroke-width="16" stroke-linecap="round" opacity=".22"/>
+  <path d="M120 166 H280" stroke="#FF4A50" stroke-width="5" stroke-linecap="round"/>
+  <!-- sorriso -->
+  <path d="M186 184 Q200 194 214 184" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- LED verde de status na testa -->
+  <circle cx="262" cy="84" r="5" fill="#2ECC71"/><circle cx="262" cy="84" r="9" fill="#2ECC71" opacity=".3"/>
+</svg>

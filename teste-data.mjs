@@ -1,6 +1,6 @@
-// Testa as funções puras do CampoData (src/App.jsx): isoParaBR, brParaISO, mascaraData
+// Testa as funções puras do CampoData (src/componentes/CampoData.jsx): isoParaBR, brParaISO, mascaraData
 import fs from "node:fs";
-const src = fs.readFileSync("src/App.jsx", "utf8");
+const src = fs.readFileSync("src/componentes/CampoData.jsx", "utf8");
 const a = src.indexOf("function isoParaBR"), b = src.indexOf("function hojeISOLocal");
 const f = new Function(src.slice(a, b) + "; return { isoParaBR, brParaISO, mascaraData };")();
 let ok = 0, bad = 0; const t = (n, c) => { c ? ok++ : (bad++, console.log("FALHOU:", n)); };
