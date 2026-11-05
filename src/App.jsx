@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useContext, createContext } from "react";
 import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
+import { criarPDF, COR } from "./pdfMarca.js";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { supabase } from "./supabaseClient";
@@ -162,7 +162,8 @@ function diasRestantes(validadeISO) {
   return Math.round((v - hoje) / 86400000);
 }
 function formatarData(iso) {
-  const [y, m, d] = iso.split("-");
+  if (!iso) return "—";
+  const [y, m, d] = String(iso).split("-");
   return `${d}/${m}/${y}`;
 }
 function formatarDataHora(iso) {
@@ -710,8 +711,15 @@ function playBeep(enabled) {
   } catch {}
   if (navigator.vibrate) navigator.vibrate(60);
 }
+// Neutraliza fórmula do Excel (= + @ e "-" que não é número) e protege ; " e quebra de linha.
+function celulaCSV(v) {
+  let t = v == null ? "" : String(v);
+  if (/^[=+@\t\r]/.test(t) || /^-(?!\d)/.test(t)) t = "'" + t;
+  return /[;"\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+function celulaPlanilha(v) { return typeof v === "string" && (/^[=+@\t\r]/.test(v) || /^-(?!\d)/.test(v)) ? "'" + v : v; }
 function downloadCSV(rows, header, filename) {
-  const csv = [header.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
+  const csv = [header.map(celulaCSV).join(";"), ...rows.map((r) => r.map(celulaCSV).join(";"))].join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -721,7 +729,7 @@ function downloadCSV(rows, header, filename) {
 }
 function downloadPlanilha(linhas, filename, sheetName = "Dados") {
   try {
-    const ws = XLSX.utils.json_to_sheet(linhas);
+    const ws = XLSX.utils.json_to_sheet(linhas.map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) => [k, celulaPlanilha(v)]))));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
     XLSX.writeFile(wb, filename);
@@ -2926,6 +2934,12 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-05-pdf-novo", data: "05/11/2026", itens: [
+    { tipo: "novo", ate: 5, texto: "Todos os PDFs foram refeitos no visual da tela de carregamento (azul da marca, Bipi). Nomes compridos não passam mais por cima das outras colunas." },
+    { tipo: "novo", ate: 5, texto: "Novos relatórios: Pedidos de campanha (promoção e preço direto, com nº da campanha, valor, quem pediu e críticos sem pedido), Perdas e baixas e Posição por setor. Pedidos também saem em CSV e Excel." },
+    { tipo: "novo", ate: 5, texto: "Relatórios de próximos a vencer, gerencial e financeiro agora mostram a coluna Pedido." },
+    { tipo: "alterado", ate: 7, texto: "No computador, a tela de ver produto foi refeita: painel azul com foto, nome e ações à esquerda e os dados em cartões à direita." },
+  ] },
   { id: "2026-11-05-promotor-ve-marca", data: "05/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "Promotor agora vê, em Início, Setores e Produtos, só os produtos das marcas do convite dele (acesso total continua vendo tudo)." },
   ] },
@@ -5408,391 +5422,252 @@ function usarDadosGerenciais(items, historico) {
   };
 }
 
-// Gera o relatório gerencial em PDF — usado pela Torre de Controle e pela aba Relatórios (mesmo layout)
-// Relatório dedicado de itens próximos a vencer (ainda não vencidos, dentro da janela de alerta) —
-// pra imprimir/mandar pro setor conferir e agir antes de virar perda de verdade.
-function gerarPDFProximosAVencer(itensProximos, { usuario, lojaNumero }) {
-  const BLUE_DARK_RGB = [8, 47, 94], RED_RGB = [227, 30, 36], GRAY_RGB = [107, 114, 128], LIGHT_RGB = [244, 245, 249];
-  const doc = new jsPDF();
-  const pageW = 210;
-  let y = 0;
-
-  doc.setFillColor(...BLUE_DARK_RGB);
-  doc.rect(0, 0, pageW, 38, "F");
-  doc.setFillColor(...[201, 138, 12]);
-  doc.rect(0, 38, pageW, 2, "F");
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(12, 7, 56, 15, 2, 2, "F");
-  const LOGO_W = 50, LOGO_H = LOGO_W * (199 / 900);
-  doc.addImage(CONDOR_LOGO_BASE64, "PNG", 15, 7 + (15 - LOGO_H) / 2, LOGO_W, LOGO_H);
-  doc.setTextColor(255, 255, 255); doc.setFont(undefined, "bold"); doc.setFontSize(11.5);
-  doc.text("Itens Próximos ao Vencimento", 74, 14);
-  doc.setFont(undefined, "normal"); doc.setFontSize(9.5);
-  doc.text(`Loja ${lojaNumero || "79"}`, 74, 20.5);
-  doc.setFontSize(8);
-  doc.text(`Gerado em ${formatarDataHoraExtenso(new Date().toISOString())} por ${usuario || "—"}`, 74, 26.5);
-
-  y = 48;
-  const valorTotal = itensProximos.reduce((acc, i) => acc + (Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0), 0);
-  doc.setFillColor(...LIGHT_RGB);
-  doc.roundedRect(14, y, pageW - 28, 16, 2, 2, "F");
-  doc.setTextColor(...BLUE_DARK_RGB); doc.setFont(undefined, "bold"); doc.setFontSize(9);
-  doc.text(`${itensProximos.length} item(ns) próximo(s) do vencimento`, 18, y + 10);
-  doc.setTextColor(...RED_RGB); doc.setFont(undefined, "normal"); doc.setFontSize(8.5);
-  doc.text(`Valor exposto: ${formatarMoeda(valorTotal)}`, pageW - 18, y + 10, { align: "right" });
-  y += 24;
-
-  const truncarParaCaber = (texto, larguraDisponivel) => {
-    texto = String(texto);
-    if (doc.getTextWidth(texto) <= larguraDisponivel) return texto;
-    let cortado = texto;
-    while (cortado.length > 1 && doc.getTextWidth(cortado + "…") > larguraDisponivel) cortado = cortado.slice(0, -1);
-    return cortado + "…";
+// ============ PDFs (identidade da tela de carregamento: ver src/pdfMarca.js) ============
+let gerandoPDF = false;
+// Evita toque duplo e transforma qualquer falha em aviso (antes a falha sumia em silêncio).
+function protegerPDF(fn) {
+  return async (...args) => {
+    if (gerandoPDF) return;
+    gerandoPDF = true;
+    const opc = args.find((x) => x && typeof x === "object" && typeof x.showToast === "function");
+    opc?.showToast?.("Gerando o PDF…", "carregando");
+    try { await fn(...args); }
+    catch (e) { console.error("Erro ao gerar PDF", e); opc?.showToast?.("Não foi possível gerar o PDF. Tente de novo.", "erro"); }
+    finally { gerandoPDF = false; }
   };
-  const larguras = [42, 28, 22, 22, 16, 20, 32];
-  const xs = []; let acc = 14; larguras.forEach((w) => { xs.push(acc); acc += w; });
-  const colunas = ["PRODUTO", "SETOR", "VALIDADE", "LOTE", "FALTAM", "QTD.", "VALOR"];
-  doc.setFillColor(235, 237, 242);
-  doc.rect(14, y - 5, pageW - 28, 6, "F");
-  doc.setFont(undefined, "bold"); doc.setFontSize(7.5); doc.setTextColor(...GRAY_RGB);
-  colunas.forEach((c, i) => doc.text(truncarParaCaber(c, larguras[i] - 3), xs[i] + 2, y - 1));
-  y += 3;
-  doc.setFont(undefined, "normal"); doc.setFontSize(8); doc.setTextColor(...BLUE_DARK_RGB);
-  itensProximos.forEach((item, li) => {
-    if (y > 278) { doc.addPage(); y = 16; }
-    if (li % 2 === 0) { doc.setFillColor(249, 249, 251); doc.rect(14, y - 4, pageW - 28, 6, "F"); }
-    const valorItem = (Number(item.quantidade) || 1) * (Number(item.precoUnitario) || 0);
-    const linha = [item.nome, item.setor, formatarData(item.validade), textoLote(item) || "—", `${item.status.d}d`, item.porPeso ? `${item.quantidade}kg` : String(item.quantidade || 1), formatarMoeda(valorItem)];
-    linha.forEach((val, i) => doc.text(truncarParaCaber(val, larguras[i] - 3), xs[i] + 2, y));
-    y += 6.2;
-  });
+}
+const PDF_BASE = (titulo, subtitulo, usuario, lojaNumero) => criarPDF({
+  titulo, subtitulo, usuario, lojaNumero, logo: CONDOR_LOGO_BASE64, formatarDataHora: formatarDataHoraExtenso,
+});
+const hojeISO = () => new Date().toISOString().slice(0, 10);
+const rotuloPedido = (t) => (t === "preco_direto" ? "Preço direto" : t === "promocao" ? "Promoção" : "—");
+const valorLinha = (i) => (Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0);
+const textoQtd = (i) => (i.porPeso ? `${i.quantidade} kg` : String(i.quantidade || 1));
+const textoPedidoCurto = (i) => (i.pedidoTipo ? `${rotuloPedido(i.pedidoTipo)}${i.pedidoCampanha ? " · " + i.pedidoCampanha : ""}` : "sem pedido");
+const dataCurta = (iso) => { try { return iso ? new Date(iso).toLocaleDateString("pt-BR") : "—"; } catch { return "—"; } };
 
-  doc.save(`itens-proximos-vencer-loja${lojaNumero || "79"}-${new Date().toISOString().slice(0, 10)}.pdf`);
+// Relatório dedicado de itens próximos a vencer
+async function gerarPDFProximosAVencer_raw(itensProximos, { usuario, lojaNumero, showToast }) {
+  const r = await PDF_BASE("Itens próximos ao vencimento", "Conferir e agir antes de virar perda", usuario, lojaNumero);
+  const valorTotal = itensProximos.reduce((a, i) => a + valorLinha(i), 0);
+  const semPedido = itensProximos.filter((i) => !i.pedidoTipo).length;
+  r.kpis([
+    { label: "Itens próximos do vencimento", valor: String(itensProximos.length), cor: COR.ambar },
+    { label: "Valor exposto", valor: formatarMoeda(valorTotal), cor: COR.vermelho },
+    { label: "Sem pedido de promoção/preço", valor: String(semPedido), cor: semPedido ? COR.vermelho : COR.verde },
+  ]);
+  r.secao("PRODUTOS, DO MAIS PERTO DE VENCER PARA O MAIS LONGE");
+  const ord = [...itensProximos].sort((a, b) => (a.status?.d ?? 0) - (b.status?.d ?? 0));
+  r.tabela(
+    [{ t: "PRODUTO", w: 40 }, { t: "SETOR", w: 20 }, { t: "VALIDADE", w: 20 }, { t: "LOTE", w: 17 }, { t: "FALTAM", w: 12, a: "r" }, { t: "QTD.", w: 11, a: "r" }, { t: "VALOR", w: 22, a: "r" }, { t: "PEDIDO", w: 24 }],
+    ord.map((i) => [i.nome, i.setor, formatarData(i.validade), textoLote(i) || "—", `${i.status?.d ?? "—"}d`, textoQtd(i), formatarMoeda(valorLinha(i)), textoPedidoCurto(i)])
+  );
+  r.finalizar(`condor-proximos-vencer-loja${lojaNumero || "79"}-${hojeISO()}.pdf`, showToast, "Relatório gerado.");
 }
 
-async function gerarRelatorioGerencialPDF({ items, historico, usuario, showToast, criticos, atencao, valorEmRisco, tendenciaPerdas, riscoPorSetor, riscoPorCorredor, reincidentes, rankingResponsaveis, rondas, lojaNumero, secoes }) {
-  const inclui = (chave) => !secoes || secoes.has(chave);
-  const hoje = new Date();
-  // Paleta da marca Condor: azul-marinho (identidade) + vermelho (alerta), não preto puro
-  const BLUE_RGB = [11, 79, 158], BLUE_DARK_RGB = [8, 47, 94], RED_RGB = [227, 30, 36], RED_DARK_RGB = [168, 20, 25], GRAY_RGB = [107, 114, 128], LIGHT_RGB = [244, 245, 249];
-  const doc = new jsPDF();
-  const pageW = 210;
-  let y = 0;
+// Pedidos de promoção / preço direto (campanhas) — o que foi pedido, por quem e o que ainda está sem pedido
+async function gerarPDFPedidos_raw({ items, usuario, lojaNumero, showToast }) {
+  const r = await PDF_BASE("Pedidos de promoção e preço direto", "Campanhas pedidas e itens ainda sem pedido", usuario, lojaNumero);
+  const comPedido = items.filter((i) => i.pedidoTipo);
+  const promo = comPedido.filter((i) => i.pedidoTipo === "promocao");
+  const preco = comPedido.filter((i) => i.pedidoTipo === "preco_direto");
+  const criticosSem = items.filter((i) => !i.pedidoTipo && (i.status?.level === "alert" || i.status?.level === "expired") && !i.semValidade);
+  r.kpis([
+    { label: "Pedidos ativos", valor: String(comPedido.length), cor: COR.azul },
+    { label: "Promoção", valor: String(promo.length) },
+    { label: "Preço direto", valor: String(preco.length) },
+    { label: "Críticos sem pedido", valor: String(criticosSem.length), cor: criticosSem.length ? COR.vermelho : COR.verde },
+  ]);
+  r.nota("O valor do pedido é uma sugestão: depende da central liberar a promoção ou o preço direto.");
+  r.secao("PEDIDOS ATIVOS");
+  r.tabela(
+    [{ t: "PRODUTO", w: 38 }, { t: "SETOR", w: 20 }, { t: "LOTE", w: 18 }, { t: "VALIDADE", w: 20 }, { t: "PEDIDO / CAMPANHA", w: 26 }, { t: "VALOR", w: 20, a: "r" }, { t: "POR / EM", w: 30 }],
+    [...comPedido].sort((a, b) => String(b.pedidoEm || "").localeCompare(String(a.pedidoEm || ""))).map((i) => [
+      i.nome, i.setor, textoLote(i) || "—", formatarData(i.validade), `${rotuloPedido(i.pedidoTipo)}\n${i.pedidoCampanha || "sem nº de campanha"}`,
+      i.pedidoValor != null ? formatarMoeda(i.pedidoValor) : "—", `${i.pedidoPor || "—"}\n${dataCurta(i.pedidoEm)}`,
+    ]),
+    { vazio: "Nenhum pedido de promoção ou preço direto registrado." }
+  );
+  const porCamp = {};
+  comPedido.forEach((i) => { const c = i.pedidoCampanha || "Sem nº de campanha"; (porCamp[c] = porCamp[c] || { qtd: 0, valor: 0 }); porCamp[c].qtd++; porCamp[c].valor += valorLinha(i); });
+  const listaCamp = Object.entries(porCamp).sort((a, b) => b[1].qtd - a[1].qtd);
+  if (listaCamp.length) {
+    r.secao("POR CAMPANHA");
+    r.tabela([{ t: "CAMPANHA", w: 80 }, { t: "LOTES", w: 40, a: "r" }, { t: "VALOR DO ESTOQUE (PREÇO × QTD.)", w: 62, a: "r" }], listaCamp.map(([c, d]) => [c, String(d.qtd), formatarMoeda(d.valor)]));
+  }
+  r.secao("CRÍTICOS SEM PEDIDO — PEDIR PROMOÇÃO OU PREÇO DIRETO", COR.vermelho);
+  r.tabela(
+    [{ t: "PRODUTO", w: 44 }, { t: "SETOR", w: 22 }, { t: "LOTE", w: 17 }, { t: "VALIDADE", w: 20 }, { t: "SITUAÇÃO", w: 18 }, { t: "QTD.", w: 12, a: "r" }, { t: "VALOR", w: 22, a: "r" }],
+    [...criticosSem].sort((a, b) => (a.status?.d ?? 0) - (b.status?.d ?? 0)).slice(0, 150).map((i) => [
+      i.nome, i.setor, textoLote(i) || "—", formatarData(i.validade), i.status.level === "expired" ? "VENCIDO" : `${i.status.d}d`, textoQtd(i), formatarMoeda(valorLinha(i)),
+    ]),
+    { vazio: "Nenhum item crítico sem pedido. Tudo coberto." }
+  );
+  if (criticosSem.length > 150) r.nota(`Mostrando os 150 críticos mais urgentes de ${criticosSem.length}.`);
+  r.finalizar(`condor-pedidos-campanha-${hojeISO()}.pdf`, showToast, "Relatório de pedidos gerado.");
+}
 
-  // --- Cabeçalho com a logo oficial da Condor ---
-  doc.setFillColor(...BLUE_DARK_RGB);
-  doc.rect(0, 0, pageW, 38, "F");
-  doc.setFillColor(...RED_RGB);
-  doc.rect(0, 38, pageW, 2, "F");
-  // Logo em cartão branco (a arte é azul/vermelho, precisa de fundo claro pra aparecer sobre o header escuro)
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(12, 7, 56, 15, 2, 2, "F");
-  const LOGO_W = 50, LOGO_H = LOGO_W * (199 / 900);
-  doc.addImage(CONDOR_LOGO_BASE64, "PNG", 15, 7 + (15 - LOGO_H) / 2, LOGO_W, LOGO_H);
-  doc.setTextColor(255, 255, 255); doc.setFont(undefined, "bold"); doc.setFontSize(11.5);
-  doc.text("Relatório de Controle de Validade", 74, 14);
-  doc.setFont(undefined, "normal"); doc.setFontSize(9.5);
-  doc.text(`Loja ${lojaNumero || "79"}`, 74, 20.5);
-  doc.setFontSize(8);
-  doc.text(`Gerado em ${formatarDataHoraExtenso(hoje.toISOString())} por ${usuario || "—"}`, 74, 26.5);
+// Perdas e baixas dos últimos N dias (a partir do histórico)
+async function gerarPDFPerdas_raw({ historico, usuario, lojaNumero, showToast, dias = 30 }) {
+  const r = await PDF_BASE("Perdas e baixas", `Últimos ${dias} dias`, usuario, lojaNumero);
+  const corte = Date.now() - dias * 86400000;
+  const lista = (historico || []).filter((h) => new Date(h.dataBaixa).getTime() >= corte);
+  const valorH = (h) => (Number(h.quantidade) || 1) * (Number(h.precoUnitario) || 0);
+  const vencidos = lista.filter((h) => h.vencidoAntes);
+  r.kpis([
+    { label: "Baixas no período", valor: String(lista.length) },
+    { label: "Vencidos na baixa", valor: String(vencidos.length), cor: COR.vermelho },
+    { label: "Valor perdido", valor: formatarMoeda(vencidos.reduce((a, h) => a + valorH(h), 0)), cor: COR.vermelho },
+  ]);
+  const por = (fn) => { const m = {}; lista.forEach((h) => { const k = fn(h) || "—"; (m[k] = m[k] || { qtd: 0, valor: 0 }); m[k].qtd++; m[k].valor += valorH(h); }); return Object.entries(m).sort((a, b) => b[1].valor - a[1].valor); };
+  r.secao("POR SETOR");
+  r.tabela([{ t: "SETOR", w: 90 }, { t: "BAIXAS", w: 40, a: "r" }, { t: "VALOR", w: 52, a: "r" }], por((h) => h.setor).map(([k, d]) => [k, String(d.qtd), formatarMoeda(d.valor)]));
+  r.secao("POR MOTIVO");
+  r.tabela([{ t: "MOTIVO", w: 90 }, { t: "BAIXAS", w: 40, a: "r" }, { t: "VALOR", w: 52, a: "r" }], por((h) => h.motivo).map(([k, d]) => [k, String(d.qtd), formatarMoeda(d.valor)]));
+  r.secao("BAIXAS REGISTRADAS");
+  r.tabela(
+    [{ t: "PRODUTO", w: 40 }, { t: "SETOR", w: 20 }, { t: "LOTE", w: 16 }, { t: "VALIDADE", w: 20 }, { t: "BAIXA EM", w: 20 }, { t: "MOTIVO", w: 24 }, { t: "QTD.", w: 10, a: "r" }, { t: "VALOR", w: 22, a: "r" }],
+    [...lista].sort((a, b) => String(b.dataBaixa).localeCompare(String(a.dataBaixa))).slice(0, 300).map((h) => [
+      h.nome, h.setor, textoLote(h) || "—", formatarData(h.validade), dataCurta(h.dataBaixa), h.motivo, String(h.quantidade || 1), formatarMoeda(valorH(h)),
+    ]),
+    { vazio: "Nenhuma baixa no período." }
+  );
+  if (lista.length > 300) r.nota("Mostrando as 300 baixas mais recentes. Use a planilha para a lista completa.");
+  r.finalizar(`condor-perdas-baixas-${hojeISO()}.pdf`, showToast, "Relatório de perdas gerado.");
+}
 
-  y = 48;
-  doc.setTextColor(...BLUE_DARK_RGB);
-
-  // --- KPIs em caixas ---
-  const kpis = [
-    { label: "Monitorados", valor: String(items.length) },
-    { label: "Vencidos", valor: String(criticos.length), cor: RED_RGB },
-    { label: "Em atenção", valor: String(atencao.length), cor: [201, 138, 12] },
-    { label: "Valor em risco", valor: formatarMoeda(valorEmRisco), cor: RED_RGB },
-  ];
-  const kpiW = (pageW - 28 - 3 * 4) / 4;
-  kpis.forEach((k, i) => {
-    const x = 14 + i * (kpiW + 4);
-    doc.setFillColor(...LIGHT_RGB);
-    doc.roundedRect(x, y, kpiW, 22, 2, 2, "F");
-    doc.setTextColor(...(k.cor || BLUE_DARK_RGB));
-    doc.setFont(undefined, "bold"); doc.setFontSize(k.valor.length > 8 ? 10.5 : 14);
-    doc.text(k.valor, x + kpiW / 2, y + 11, { align: "center" });
-    doc.setTextColor(...GRAY_RGB); doc.setFont(undefined, "normal"); doc.setFontSize(7.5);
-    doc.text(k.label, x + kpiW / 2, y + 18, { align: "center" });
+// Vencimentos por setor (posição atual do estoque monitorado)
+async function gerarPDFPosicaoSetores_raw({ items, usuario, lojaNumero, showToast }) {
+  const r = await PDF_BASE("Posição por setor", "Estoque monitorado e vencimentos", usuario, lojaNumero);
+  const m = {};
+  items.forEach((i) => {
+    const s = i.setor || "—"; (m[s] = m[s] || { total: 0, vencidos: 0, atencao: 0, sem: 0, valor: 0 });
+    m[s].total++;
+    if (i.status?.level === "expired") m[s].vencidos++; else if (i.status?.level === "alert") m[s].atencao++;
+    if (!i.pedidoTipo && (i.status?.level === "expired" || i.status?.level === "alert")) m[s].sem++;
+    if (i.status?.level === "expired" || i.status?.level === "alert") m[s].valor += valorLinha(i);
   });
-  y += 32;
+  const lista = Object.entries(m).sort((a, b) => b[1].valor - a[1].valor);
+  r.kpis([
+    { label: "Lotes monitorados", valor: String(items.length) },
+    { label: "Vencidos", valor: String(lista.reduce((a, [, d]) => a + d.vencidos, 0)), cor: COR.vermelho },
+    { label: "Em atenção", valor: String(lista.reduce((a, [, d]) => a + d.atencao, 0)), cor: COR.ambar },
+  ]);
+  r.secao("SETORES, DO MAIOR PARA O MENOR VALOR EM RISCO");
+  r.tabela(
+    [{ t: "SETOR", w: 50 }, { t: "LOTES", w: 18, a: "r" }, { t: "VENCIDOS", w: 22, a: "r" }, { t: "ATENÇÃO", w: 20, a: "r" }, { t: "S/ PEDIDO", w: 24, a: "r" }, { t: "VALOR EM RISCO", w: 36, a: "r" }],
+    lista.map(([s, d]) => [s, String(d.total), String(d.vencidos), String(d.atencao), String(d.sem), formatarMoeda(d.valor)])
+  );
+  r.finalizar(`condor-posicao-setores-${hojeISO()}.pdf`, showToast, "Relatório gerado.");
+}
 
-  // --- Tendência de perdas ---
-  doc.setFillColor(...LIGHT_RGB);
-  doc.roundedRect(14, y, pageW - 28, 16, 2, 2, "F");
-  doc.setTextColor(...BLUE_DARK_RGB); doc.setFont(undefined, "bold"); doc.setFontSize(9);
-  doc.text(`Perdas confirmadas este mês: ${formatarMoeda(tendenciaPerdas.atual)}`, 18, y + 10);
-  if (tendenciaPerdas.variacao !== null) {
-    doc.setTextColor(...(tendenciaPerdas.variacao <= 0 ? [31, 157, 85] : RED_RGB));
-    doc.setFont(undefined, "normal"); doc.setFontSize(8.5);
-    doc.text(`${tendenciaPerdas.variacao > 0 ? "+" : ""}${tendenciaPerdas.variacao}% vs mês anterior (${formatarMoeda(tendenciaPerdas.anterior)})`, pageW - 18, y + 10, { align: "right" });
-  }
-  y += 24;
+async function gerarRelatorioGerencialPDF_raw({ items, historico, usuario, showToast, criticos, atencao, valorEmRisco, tendenciaPerdas, riscoPorSetor, reincidentes, rankingResponsaveis, rondas, lojaNumero, secoes }) {
+  const inclui = (chave) => !secoes || secoes.has(chave);
+  const r = await PDF_BASE("Relatório de controle de validade", "Visão gerencial da loja", usuario, lojaNumero);
+  r.kpis([
+    { label: "Monitorados", valor: String(items.length) },
+    { label: "Vencidos", valor: String(criticos.length), cor: COR.vermelho },
+    { label: "Em atenção", valor: String(atencao.length), cor: COR.ambar },
+    { label: "Valor em risco", valor: formatarMoeda(valorEmRisco), cor: COR.vermelho },
+  ]);
+  const semPed = items.filter((i) => !i.pedidoTipo && (i.status?.level === "expired" || i.status?.level === "alert")).length;
+  const comPed = items.filter((i) => i.pedidoTipo).length;
+  r.nota(`Perdas confirmadas este mês: ${formatarMoeda(tendenciaPerdas.atual)}${tendenciaPerdas.variacao !== null ? ` (${tendenciaPerdas.variacao > 0 ? "+" : ""}${tendenciaPerdas.variacao}% vs mês anterior, ${formatarMoeda(tendenciaPerdas.anterior)})` : ""}.  Pedidos de promoção/preço direto ativos: ${comPed}. Críticos ainda sem pedido: ${semPed}.`);
 
-  const secao = (titulo) => {
-    doc.setFillColor(...BLUE_DARK_RGB);
-    doc.rect(14, y, pageW - 28, 7, "F");
-    doc.setTextColor(255, 255, 255); doc.setFont(undefined, "bold"); doc.setFontSize(9);
-    doc.text(titulo, pageW / 2, y + 5, { align: "center" });
-    y += 11;
-    doc.setTextColor(...BLUE_DARK_RGB);
-  };
-  // Corta o texto com "…" se ele não couber na largura da coluna — sem isso, nome de produto
-  // comprido invadia a coluna vizinha (ex: nome grande em cima do nome do setor).
-  const truncarParaCaber = (texto, larguraDisponivel) => {
-    texto = String(texto);
-    if (doc.getTextWidth(texto) <= larguraDisponivel) return texto;
-    let cortado = texto;
-    while (cortado.length > 1 && doc.getTextWidth(cortado + "…") > larguraDisponivel) cortado = cortado.slice(0, -1);
-    return cortado + "…";
-  };
-  const tabela = (colunas, linhas, larguras) => {
-    const xs = []; let acc = 14; larguras.forEach((w) => { xs.push(acc); acc += w; });
-    doc.setFillColor(235, 237, 242);
-    doc.rect(14, y - 5, pageW - 28, 6, "F");
-    doc.setFont(undefined, "bold"); doc.setFontSize(7.5); doc.setTextColor(...GRAY_RGB);
-    colunas.forEach((c, i) => doc.text(truncarParaCaber(c, larguras[i] - 3), xs[i] + 2, y - 1));
-    y += 3;
-    doc.setFont(undefined, "normal"); doc.setFontSize(8); doc.setTextColor(...BLUE_DARK_RGB);
-    linhas.forEach((linha, li) => {
-      if (y > 278) { doc.addPage(); y = 16; }
-      if (li % 2 === 0) { doc.setFillColor(249, 249, 251); doc.rect(14, y - 4, pageW - 28, 6, "F"); }
-      linha.forEach((val, i) => doc.text(truncarParaCaber(val, larguras[i] - 3), xs[i] + 2, y));
-      y += 6.2;
-    });
-    y += 6;
-  };
-
-  // --- Top setores em risco ---
   if (inclui("setores") && riscoPorSetor.length > 0) {
-    secao("TOP SETORES EM RISCO AGORA");
-    tabela(["SETOR", "VALOR EXPOSTO"], riscoPorSetor.slice(0, 6).map(([s, v]) => [s, formatarMoeda(v)]), [126, 56]);
+    r.secao("TOP SETORES EM RISCO AGORA");
+    r.tabela([{ t: "SETOR", w: 126 }, { t: "VALOR EXPOSTO", w: 56, a: "r" }], riscoPorSetor.slice(0, 6).map(([s, v]) => [s, formatarMoeda(v)]));
   }
-
-  // --- Top corredores ---
-  if (false) { // risco por corredor desativado
-    secao("RISCO POR CORREDOR / LOCALIZAÇÃO");
-    tabela(["LOCAL", "VENCIDOS", "VALOR"], riscoPorCorredor.map(([l, d]) => [l, String(d.vencidos), formatarMoeda(d.valor)]), [96, 40, 46]);
-  }
-
-  // --- Reincidência ---
   if (inclui("reincidentes") && reincidentes.length > 0) {
-    secao("PRODUTOS REINCIDENTES (60 DIAS) — REVISAR PROCESSO DE COMPRA/REPOSIÇÃO");
-    tabela(["PRODUTO", "SETOR", "Nº DE BAIXAS"], reincidentes.map((p) => [p.nome, p.setor, String(p.datas.length)]), [96, 56, 30]);
+    r.secao("PRODUTOS REINCIDENTES (60 DIAS) — REVISAR COMPRA/REPOSIÇÃO");
+    r.tabela([{ t: "PRODUTO", w: 96 }, { t: "SETOR", w: 56 }, { t: "Nº DE BAIXAS", w: 30, a: "r" }], reincidentes.map((p) => [p.nome, p.setor, String(p.datas.length)]));
   }
-
-  // --- Ranking de responsáveis ---
   if (inclui("responsaveis") && rankingResponsaveis.length > 0) {
-    secao("REGISTROS POR RESPONSÁVEL (BAIXAS)");
-    tabela(["RESPONSÁVEL", "BAIXAS REGISTRADAS"], rankingResponsaveis.map(([n, q]) => [n, String(q)]), [126, 56]);
+    r.secao("REGISTROS POR RESPONSÁVEL (BAIXAS)");
+    r.tabela([{ t: "RESPONSÁVEL", w: 126 }, { t: "BAIXAS REGISTRADAS", w: 56, a: "r" }], rankingResponsaveis.map(([n, q]) => [n, String(q)]));
   }
-
-  // --- Execução de rondas (últimos 30 dias) ---
   if (inclui("rondas") && rondas && rondas.length > 0) {
     const janela30 = Date.now() - 30 * 86400000;
-    const rondasRecentes = rondas.filter((r) => new Date(r.iniciadoEm).getTime() >= janela30);
-    const concluidas = rondasRecentes.filter((r) => r.status === "concluida").length;
-    const parciais = rondasRecentes.filter((r) => r.status === "parcial").length;
-    const taxa = rondasRecentes.length ? Math.round((concluidas / rondasRecentes.length) * 100) : 0;
-    secao("EXECUÇÃO DE RONDAS (ÚLTIMOS 30 DIAS)");
-    tabela(
-      ["MÉTRICA", "VALOR"],
-      [["Rondas realizadas", String(rondasRecentes.length)], ["Concluídas", String(concluidas)], ["Parciais", String(parciais)], ["Taxa de conclusão", `${taxa}%`]],
-      [126, 56]
-    );
+    const rec = rondas.filter((x) => new Date(x.iniciadoEm).getTime() >= janela30);
+    const conc = rec.filter((x) => x.status === "concluida").length;
+    const parc = rec.filter((x) => x.status === "parcial").length;
+    const taxa = rec.length ? Math.round((conc / rec.length) * 100) : 0;
+    r.secao("EXECUÇÃO DE RONDAS (ÚLTIMOS 30 DIAS)");
+    r.tabela([{ t: "MÉTRICA", w: 126 }, { t: "VALOR", w: 56, a: "r" }], [["Rondas realizadas", String(rec.length)], ["Concluídas", String(conc)], ["Parciais", String(parc)], ["Taxa de conclusão", `${taxa}%`]]);
     const porSetor = {};
-    rondasRecentes.forEach((r) => { porSetor[r.setor] = (porSetor[r.setor] || 0) + 1; });
-    const topSetores = Object.entries(porSetor).sort((a, b) => b[1] - a[1]).slice(0, 6);
-    if (topSetores.length > 0) tabela(["SETOR", "RONDAS NO PERÍODO"], topSetores.map(([s, q]) => [s, String(q)]), [126, 56]);
+    rec.forEach((x) => { porSetor[x.setor] = (porSetor[x.setor] || 0) + 1; });
+    const top = Object.entries(porSetor).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    if (top.length > 0) r.tabela([{ t: "SETOR", w: 126 }, { t: "RONDAS NO PERÍODO", w: 56, a: "r" }], top.map(([s, q]) => [s, String(q)]));
   }
-
-  // --- Ações registradas nas rondas (redução de preço, remanejamento etc) ---
   if (inclui("acoesRondas")) {
     try {
       const { data: acaoRows } = await supabase.from("ronda_itens").select("acao").not("acao", "is", null).limit(1000);
       if (acaoRows && acaoRows.length > 0) {
-        const mapaAcoes = {};
-        acaoRows.forEach((r) => { if (r.acao) mapaAcoes[r.acao] = (mapaAcoes[r.acao] || 0) + 1; });
-        const listaAcoes = Object.entries(mapaAcoes).sort((a, b) => b[1] - a[1]);
-        if (listaAcoes.length > 0) {
-          secao("AÇÕES REGISTRADAS NAS RONDAS");
-          tabela(["AÇÃO", "QUANTIDADE"], listaAcoes.map(([a, q]) => [a, String(q)]), [126, 56]);
-        }
+        const mapa = {};
+        acaoRows.forEach((x) => { if (x.acao) mapa[x.acao] = (mapa[x.acao] || 0) + 1; });
+        const lista = Object.entries(mapa).sort((a, b) => b[1] - a[1]);
+        if (lista.length > 0) { r.secao("AÇÕES REGISTRADAS NAS RONDAS"); r.tabela([{ t: "AÇÃO", w: 126 }, { t: "QUANTIDADE", w: 56, a: "r" }], lista.map(([a, q]) => [a, String(q)])); }
       }
     } catch (e) { console.error("Erro ao buscar ações das rondas:", e); }
   }
-
-  // --- Itens prioritários agora ---
   if (inclui("prioritarios")) {
-    const prioritarios = items
-      .map((i) => ({ item: i, p: calcularPrioridade(i, historico) }))
-      .filter((x) => x.p)
-      .sort((a, b) => b.p.score - a.p.score)
-      .slice(0, 15);
-    if (prioritarios.length > 0) {
-      secao("ITENS PRIORITÁRIOS — AÇÃO RECOMENDADA");
-      tabela(
-        ["PRODUTO", "SETOR", "VALIDADE", "LOTE", "VALOR", "AÇÃO"],
-        prioritarios.map(({ item, p }) => [
-          (p.nivel === "urgente" ? "[URGENTE] " : "") + item.nome, item.setor, formatarData(item.validade), textoLote(item) || "—", formatarMoeda(p.valor), p.acao,
-        ]),
-        [50, 28, 22, 22, 24, 36]
+    const prior = items.map((i) => ({ item: i, p: calcularPrioridade(i, historico) })).filter((x) => x.p).sort((a, b) => b.p.score - a.p.score).slice(0, 15);
+    if (prior.length > 0) {
+      r.secao("ITENS PRIORITÁRIOS — AÇÃO RECOMENDADA");
+      r.tabela(
+        [{ t: "PRODUTO", w: 42 }, { t: "SETOR", w: 20 }, { t: "VALIDADE", w: 20 }, { t: "LOTE", w: 16 }, { t: "VALOR", w: 20, a: "r" }, { t: "PEDIDO", w: 22 }, { t: "AÇÃO", w: 32 }],
+        prior.map(({ item, p }) => [(p.nivel === "urgente" ? "[URGENTE] " : "") + item.nome, item.setor, formatarData(item.validade), textoLote(item) || "—", formatarMoeda(p.valor), textoPedidoCurto(item), p.acao])
       );
     }
   }
-
-  // --- Rodapé com paginação ---
-  const totalPaginas = doc.internal.getNumberOfPages();
-  for (let p = 1; p <= totalPaginas; p++) {
-    doc.setPage(p);
-    doc.setDrawColor(230, 230, 230);
-    doc.line(14, 289, pageW - 14, 289);
-    doc.setFontSize(7.5); doc.setTextColor(...GRAY_RGB); doc.setFont(undefined, "normal");
-    doc.text(`Condor Validade · Loja ${lojaNumero || "79"}`, 14, 293);
-    doc.text(`Página ${p} de ${totalPaginas}`, pageW - 14, 293, { align: "right" });
-  }
-
-  doc.save(`condor-relatorio-gerencial-${hoje.toISOString().slice(0, 10)}.pdf`);
-  showToast && showToast("Relatório gerado.", "ok");
+  r.finalizar(`condor-relatorio-gerencial-${hojeISO()}.pdf`, showToast, "Relatório gerado.");
 }
 
-// ---------- Base compartilhada pros 2 novos relatórios (Financeiro e Atividade) ----------
-function criarRelatorioPDFBase(titulo, subtitulo, usuario, lojaNumero) {
-  const BLUE_DARK_RGB = [8, 47, 94], RED_RGB = [227, 30, 36], GRAY_RGB = [107, 114, 128], LIGHT_RGB = [244, 245, 249];
-  const doc = new jsPDF();
-  const pageW = 210;
-  let y = 48;
-  const hoje = new Date();
-
-  doc.setFillColor(...BLUE_DARK_RGB);
-  doc.rect(0, 0, pageW, 38, "F");
-  doc.setFillColor(...RED_RGB);
-  doc.rect(0, 38, pageW, 2, "F");
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(12, 7, 56, 15, 2, 2, "F");
-  const LOGO_W = 50, LOGO_H = LOGO_W * (199 / 900);
-  doc.addImage(CONDOR_LOGO_BASE64, "PNG", 15, 7 + (15 - LOGO_H) / 2, LOGO_W, LOGO_H);
-  doc.setTextColor(255, 255, 255); doc.setFont(undefined, "bold"); doc.setFontSize(11.5);
-  doc.text(titulo, 74, 14);
-  doc.setFont(undefined, "normal"); doc.setFontSize(9.5);
-  doc.text(`Loja ${lojaNumero || "79"}${subtitulo ? " · " + subtitulo : ""}`, 74, 20.5);
-  doc.setFontSize(8);
-  doc.text(`Gerado em ${formatarDataHoraExtenso(hoje.toISOString())} por ${usuario || "—"}`, 74, 26.5);
-  doc.setTextColor(...BLUE_DARK_RGB);
-
-  const kpisRow = (kpis) => {
-    const kpiW = (pageW - 28 - (kpis.length - 1) * 4) / kpis.length;
-    kpis.forEach((k, i) => {
-      const x = 14 + i * (kpiW + 4);
-      doc.setFillColor(...LIGHT_RGB);
-      doc.roundedRect(x, y, kpiW, 22, 2, 2, "F");
-      doc.setTextColor(...(k.cor || BLUE_DARK_RGB));
-      doc.setFont(undefined, "bold"); doc.setFontSize(k.valor.length > 8 ? 10 : 14);
-      doc.text(k.valor, x + kpiW / 2, y + 11, { align: "center" });
-      doc.setTextColor(...GRAY_RGB); doc.setFont(undefined, "normal"); doc.setFontSize(7.5);
-      doc.text(k.label, x + kpiW / 2, y + 18, { align: "center" });
-    });
-    y += 32;
-  };
-
-  const secao = (texto) => {
-    if (y > 270) { doc.addPage(); y = 16; }
-    doc.setFillColor(...BLUE_DARK_RGB);
-    doc.rect(14, y, pageW - 28, 7, "F");
-    doc.setTextColor(255, 255, 255); doc.setFont(undefined, "bold"); doc.setFontSize(9);
-    doc.text(texto, 17, y + 5);
-    y += 11;
-    doc.setTextColor(...BLUE_DARK_RGB);
-  };
-
-  const tabela = (colunas, linhas, larguras) => {
-    if (y > 265) { doc.addPage(); y = 16; }
-    const xs = []; let acc = 14; larguras.forEach((w) => { xs.push(acc); acc += w; });
-    doc.setFillColor(235, 237, 242);
-    doc.rect(14, y - 5, pageW - 28, 6, "F");
-    doc.setFont(undefined, "bold"); doc.setFontSize(7.5); doc.setTextColor(...GRAY_RGB);
-    colunas.forEach((c, i) => doc.text(c, xs[i] + 2, y - 1));
-    y += 3;
-    doc.setFont(undefined, "normal"); doc.setFontSize(8); doc.setTextColor(...BLUE_DARK_RGB);
-    if (!linhas.length) { doc.setTextColor(...GRAY_RGB); doc.text("Sem dados no período.", 16, y); y += 8; return; }
-    linhas.forEach((linha, li) => {
-      if (y > 278) { doc.addPage(); y = 16; }
-      if (li % 2 === 0) { doc.setFillColor(249, 249, 251); doc.rect(14, y - 4, pageW - 28, 6, "F"); }
-      linha.forEach((val, i) => doc.text(String(val), xs[i] + 2, y));
-      y += 6.2;
-    });
-    y += 6;
-  };
-
-  const finalizar = (filename, showToast, msg) => {
-    const totalPaginas = doc.internal.getNumberOfPages();
-    for (let p = 1; p <= totalPaginas; p++) {
-      doc.setPage(p);
-      doc.setDrawColor(230, 230, 230);
-      doc.line(14, 289, pageW - 14, 289);
-      doc.setFontSize(7.5); doc.setTextColor(...GRAY_RGB); doc.setFont(undefined, "normal");
-      doc.text(`Condor Validade · Loja ${lojaNumero || "79"}`, 14, 293);
-      doc.text(`Página ${p} de ${totalPaginas}`, pageW - 14, 293, { align: "right" });
-    }
-    doc.save(filename);
-    showToast && showToast(msg, "ok");
-  };
-
-  return { doc, secao, tabela, kpisRow, finalizar };
-}
-
-// ---------- Relatório 4: Financeiro (valor exposto por faixa, política de troca, top itens em risco) ----------
-async function gerarRelatorioFinanceiroPDF({ usuario, showToast, lojaNumero, valorTotalMonitorado, valorEmRisco, faixasRisco, porPoliticaTroca, topRisco }) {
-  const { secao, tabela, kpisRow, finalizar } = criarRelatorioPDFBase(
-    "Relatório Financeiro de Validade", "Valor exposto, faixas de risco e perdas", usuario, lojaNumero
-  );
-
-  kpisRow([
+async function gerarRelatorioFinanceiroPDF_raw({ usuario, showToast, lojaNumero, valorTotalMonitorado, valorEmRisco, faixasRisco, porPoliticaTroca, topRisco }) {
+  const r = await PDF_BASE("Relatório financeiro de validade", "Valor exposto, faixas de risco e perdas", usuario, lojaNumero);
+  r.kpis([
     { label: "Valor monitorado", valor: formatarMoeda(valorTotalMonitorado) },
-    { label: "Valor em risco", valor: formatarMoeda(valorEmRisco), cor: [227, 30, 36] },
-    { label: "Itens vencidos", valor: String(faixasRisco.find((f) => f.label === "Vencidos")?.qtd || 0), cor: [227, 30, 36] },
+    { label: "Valor em risco", valor: formatarMoeda(valorEmRisco), cor: COR.vermelho },
+    { label: "Itens vencidos", valor: String(faixasRisco.find((f) => f.label === "Vencidos")?.qtd || 0), cor: COR.vermelho },
   ]);
-
-  secao("VALOR EXPOSTO POR FAIXA DE VENCIMENTO");
-  tabela(["FAIXA", "ITENS", "VALOR"], faixasRisco.map((f) => [f.label, String(f.qtd), formatarMoeda(f.valor)]), [80, 40, 62]);
-
-  secao("VALOR POR POLÍTICA DE TROCA");
-  tabela(["POLÍTICA", "ITENS", "VALOR"], [
+  r.secao("VALOR EXPOSTO POR FAIXA DE VENCIMENTO");
+  r.tabela([{ t: "FAIXA", w: 80 }, { t: "ITENS", w: 40, a: "r" }, { t: "VALOR", w: 62, a: "r" }], faixasRisco.map((f) => [f.label, String(f.qtd), formatarMoeda(f.valor)]));
+  r.secao("VALOR POR POLÍTICA DE TROCA");
+  r.tabela([{ t: "POLÍTICA", w: 80 }, { t: "ITENS", w: 40, a: "r" }, { t: "VALOR", w: 62, a: "r" }], [
     ["Com troca", String(porPoliticaTroca.com_troca.qtd), formatarMoeda(porPoliticaTroca.com_troca.valor)],
     ["Sem troca", String(porPoliticaTroca.sem_troca.qtd), formatarMoeda(porPoliticaTroca.sem_troca.valor)],
-  ], [80, 40, 62]);
-
-  secao("TOP 10 ITENS COM MAIOR VALOR EM RISCO");
-  tabela(["PRODUTO", "SETOR", "VALIDADE", "LOTE", "VALOR"], topRisco.map((i) => [i.nome, i.setor, formatarData(i.validade), textoLote(i) || "—", formatarMoeda(i.valorRisco)]), [58, 34, 28, 26, 36]);
-
-  finalizar(`condor-relatorio-financeiro-${new Date().toISOString().slice(0, 10)}.pdf`, showToast, "Relatório financeiro gerado.");
-}
-
-// ---------- Relatório 5: Atividade da equipe (auditoria detalhada + rondas) ----------
-async function gerarRelatorioAtividadePDF({ usuario, showToast, lojaNumero, porUsuarioAuditoria, porTipoAcao, rondasResumo }) {
-  const { secao, tabela, kpisRow, finalizar } = criarRelatorioPDFBase(
-    "Relatório de Atividade da Equipe", "Ações registradas e rondas de validade", usuario, lojaNumero
-  );
-
-  kpisRow([
-    { label: "Ações registradas", valor: String(porUsuarioAuditoria.reduce((a, [, q]) => a + q, 0)) },
-    { label: "Rondas concluídas", valor: String(rondasResumo.concluidas) },
-    { label: "Rondas parciais", valor: String(rondasResumo.parciais) },
   ]);
-
-  secao("AÇÕES POR RESPONSÁVEL");
-  tabela(["RESPONSÁVEL", "AÇÕES"], porUsuarioAuditoria.map(([n, q]) => [n, String(q)]), [126, 56]);
-
-  secao("AÇÕES POR TIPO");
-  tabela(["TIPO DE AÇÃO", "QTD"], porTipoAcao.map(([t, q]) => [t, String(q)]), [126, 56]);
-
-  secao("RONDAS POR SETOR");
-  tabela(["SETOR", "CONCLUÍDAS", "PARCIAIS"], rondasResumo.porSetor.map(([s, d]) => [s, String(d.concluidas), String(d.parciais)]), [86, 48, 48]);
-
-  finalizar(`condor-relatorio-atividade-${new Date().toISOString().slice(0, 10)}.pdf`, showToast, "Relatório de atividade gerado.");
+  r.secao("TOP 10 ITENS COM MAIOR VALOR EM RISCO");
+  r.tabela(
+    [{ t: "PRODUTO", w: 52 }, { t: "SETOR", w: 26 }, { t: "VALIDADE", w: 22 }, { t: "LOTE", w: 20 }, { t: "PEDIDO", w: 28 }, { t: "VALOR", w: 28, a: "r" }],
+    topRisco.map((i) => [i.nome, i.setor, formatarData(i.validade), textoLote(i) || "—", textoPedidoCurto(i), formatarMoeda(i.valorRisco)])
+  );
+  r.finalizar(`condor-relatorio-financeiro-${hojeISO()}.pdf`, showToast, "Relatório financeiro gerado.");
 }
+
+async function gerarRelatorioAtividadePDF_raw({ usuario, showToast, lojaNumero, porUsuarioAuditoria, porTipoAcao, rondasResumo }) {
+  const r = await PDF_BASE("Atividade da equipe", "Ações registradas e rondas de validade", usuario, lojaNumero);
+  r.kpis([
+    { label: "Ações registradas", valor: String(porUsuarioAuditoria.reduce((a, [, q]) => a + q, 0)) },
+    { label: "Rondas concluídas", valor: String(rondasResumo.concluidas), cor: COR.verde },
+    { label: "Rondas parciais", valor: String(rondasResumo.parciais), cor: COR.ambar },
+  ]);
+  r.secao("AÇÕES POR RESPONSÁVEL");
+  r.tabela([{ t: "RESPONSÁVEL", w: 126 }, { t: "AÇÕES", w: 56, a: "r" }], porUsuarioAuditoria.map(([n, q]) => [n, String(q)]));
+  r.secao("AÇÕES POR TIPO");
+  r.tabela([{ t: "TIPO DE AÇÃO", w: 126 }, { t: "QTD", w: 56, a: "r" }], porTipoAcao.map(([t, q]) => [t, String(q)]));
+  r.secao("RONDAS POR SETOR");
+  r.tabela([{ t: "SETOR", w: 86 }, { t: "CONCLUÍDAS", w: 48, a: "r" }, { t: "PARCIAIS", w: 48, a: "r" }], rondasResumo.porSetor.map(([s, d]) => [s, String(d.concluidas), String(d.parciais)]));
+  r.finalizar(`condor-relatorio-atividade-${hojeISO()}.pdf`, showToast, "Relatório de atividade gerado.");
+}
+
+const gerarPDFProximosAVencer = protegerPDF(gerarPDFProximosAVencer_raw);
+const gerarPDFPedidos_ = protegerPDF(gerarPDFPedidos_raw);
+const gerarPDFPerdas_ = protegerPDF(gerarPDFPerdas_raw);
+const gerarPDFPosicaoSetores = protegerPDF(gerarPDFPosicaoSetores_raw);
+const gerarRelatorioGerencialPDF = protegerPDF(gerarRelatorioGerencialPDF_raw);
+const gerarRelatorioFinanceiroPDF = protegerPDF(gerarRelatorioFinanceiroPDF_raw);
+const gerarRelatorioAtividadePDF = protegerPDF(gerarRelatorioAtividadePDF_raw);
 
 // ============ Painel da Rede (item 1) — visão corporativa somando todas as lojas ============
 // Pressupõe uma tabela compartilhada "resumo_lojas_rede" (ver supaEnviarResumoRede/supaFetchResumoRede)
@@ -8469,17 +8344,19 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
     <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center">
       <div onClick={onClose} className="absolute inset-0 bg-black/50" />
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 380, damping: 38 }}
-        style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-[1120px] lg:w-[92vw] lg:h-[86vh] lg:grid lg:grid-cols-[400px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)_auto] lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[30px] overflow-hidden flex flex-col max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:max-h-[90vh] sm:rounded-[30px]">
-        <div className="relative shrink-0 lg:col-start-1 lg:row-start-1 lg:min-h-0">
-          {item.foto ? <img src={item.foto} alt="" className="w-full h-36 object-cover lg:h-full" /> : (
-            <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 lg:h-full flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={44} color="#fff" className="relative opacity-90" /></div>
+        style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-[1120px] lg:w-[92vw] lg:h-[86vh] lg:grid lg:grid-cols-[360px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)_auto] lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[30px] overflow-hidden flex flex-col max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:max-h-[90vh] sm:rounded-[30px]">
+        <div style={{ background: FUNDO_MARCA }} className="relative shrink-0 lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:flex lg:flex-col lg:items-center lg:px-7 lg:pt-16 lg:pb-5 lg:overflow-hidden">
+          <span aria-hidden className="hidden lg:block absolute -right-20 -top-16 h-72 w-72 rounded-full bg-white/10" />
+          <span aria-hidden className="hidden lg:block absolute -left-10 bottom-8 h-24 w-24 rounded-full bg-white/10" />
+          {item.foto ? <img src={item.foto} alt="" className="w-full h-36 object-cover lg:relative lg:h-60 lg:w-60 lg:object-contain lg:bg-white lg:rounded-[28px] lg:p-4 lg:shadow-2xl lg:shadow-black/30" /> : (
+            <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 lg:h-60 lg:w-60 lg:rounded-[28px] lg:overflow-hidden lg:ring-1 lg:ring-white/30 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={44} color="#fff" className="relative opacity-90" /></div>
           )}
           <button onClick={onClose} aria-label="Fechar" className="absolute top-3 left-3 h-10 w-10 rounded-full flex items-center justify-center text-white" style={{ background: "rgba(255,255,255,.2)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.3)" }}><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
           <span style={{ background: s.bg, color: s.fg }} className="absolute bottom-3 left-4 lg:bottom-auto lg:top-4 lg:left-auto lg:right-4 text-[11px] font-bold px-3 py-1 rounded-full shadow-md">{status.label}</span>
-          <div className="hidden lg:block absolute inset-x-0 bottom-0 p-7 pt-24 text-white" style={{ background: "linear-gradient(to top, rgba(6,28,58,0.92), rgba(6,28,58,0))" }}>
+          <div className="hidden lg:block relative w-full text-center mt-6 text-white">
             <h2 className="font-extrabold text-2xl leading-tight">{item.nome}</h2>
             <p className="text-sm font-semibold mt-1 opacity-85">{diasTexto}{item.tamanho ? ` · ${item.tamanho}${item.unidadeMedida || ""}` : ""}</p>
-            <p className="text-xs font-mono mt-3 opacity-70 flex items-center gap-1.5"><Barcode size={13} /> {item.barcode}</p>
+            <p className="text-xs font-mono mt-3 opacity-70 flex items-center justify-center gap-1.5"><Barcode size={13} /> {item.barcode}</p>
           </div>
         </div>
 
@@ -8487,8 +8364,22 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           <h2 className="font-bold text-lg leading-tight lg:hidden">{item.nome}</h2>
           <p style={{ color: T.subtext }} className="text-sm font-medium mt-0.5 lg:hidden">{diasTexto}{item.tamanho ? ` · ${item.tamanho}${item.unidadeMedida || ""}` : ""}</p>
 
+          <div className="hidden lg:grid lg:col-span-2 grid-cols-4 gap-3">
+            {[
+              ["Validade", formatarData(item.validade), s.bg],
+              ["Situação", diasTexto, s.bg],
+              ["Setor", `${item.setor}${item.subsetor ? " · " + item.subsetor : ""}`, null],
+              ["Lote", item.lote || (item.semLote ? "Sem lote" : "—"), null],
+            ].map(([rot, val, cor]) => (
+              <div key={rot} style={{ background: T.chipBg }} className="rounded-2xl px-4 py-3.5 min-w-0">
+                <p style={{ color: T.subtext }} className="text-[10px] font-bold uppercase tracking-wide">{rot}</p>
+                <p style={cor ? { color: cor } : undefined} className="text-[17px] font-extrabold mt-1 leading-tight break-words">{val}</p>
+              </div>
+            ))}
+          </div>
+
           {/* Dados essenciais em grade simples — sem elementos decorativos */}
-          <div style={{ background: T.chipBg }} className="rounded-2xl mt-3.5 p-3.5 grid grid-cols-2 gap-3">
+          <div style={{ background: T.chipBg }} className="rounded-2xl mt-3.5 p-3.5 grid grid-cols-2 gap-3 lg:hidden">
             <div>
               <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-0.5">Setor</p>
               <p className="text-[13px] font-bold truncate">{item.setor}{item.subsetor ? ` · ${item.subsetor}` : ""}</p>
@@ -8671,25 +8562,25 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           </motion.button>
           )}
 
-          <div className="flex items-center justify-around mt-3.5">
+          <div className="flex items-center justify-around mt-3.5 lg:grid lg:grid-cols-2 lg:gap-2 lg:mt-3">
             {onEdit && (
-              <button onClick={() => onEdit(item)} className="flex flex-col items-center gap-1.5">
+              <button onClick={() => onEdit(item)} className="flex flex-col items-center gap-1.5 lg:flex-row lg:gap-2.5 lg:rounded-2xl lg:px-2.5 lg:py-2 lg:border lg:border-black/10 lg:hover:bg-black/[.03]">
                 <div style={{ background: T.chipBg }} className="h-11 w-11 rounded-2xl flex items-center justify-center"><Edit2 size={16} style={{ color: T.text }} /></div>
                 <span style={{ color: T.subtext }} className="text-[10px] font-medium">Editar</span>
               </button>
             )}
             {onDuplicate && (
-              <button onClick={() => onDuplicate(item)} className="flex flex-col items-center gap-1.5">
+              <button onClick={() => onDuplicate(item)} className="flex flex-col items-center gap-1.5 lg:flex-row lg:gap-2.5 lg:rounded-2xl lg:px-2.5 lg:py-2 lg:border lg:border-black/10 lg:hover:bg-black/[.03]">
                 <div style={{ background: T.chipBg }} className="h-11 w-11 rounded-2xl flex items-center justify-center"><Layers size={16} style={{ color: T.text }} /></div>
                 <span style={{ color: T.subtext }} className="text-[10px] font-medium">Novo lote</span>
               </button>
             )}
-            <button onClick={() => onShare(item)} className="flex flex-col items-center gap-1.5">
+            <button onClick={() => onShare(item)} className="flex flex-col items-center gap-1.5 lg:flex-row lg:gap-2.5 lg:rounded-2xl lg:px-2.5 lg:py-2 lg:border lg:border-black/10 lg:hover:bg-black/[.03]">
               <div style={{ background: T.chipBg }} className="h-11 w-11 rounded-2xl flex items-center justify-center"><Share2 size={16} style={{ color: T.text }} /></div>
               <span style={{ color: T.subtext }} className="text-[10px] font-medium">Compartilhar</span>
             </button>
             {onExcluir && (
-            <button onClick={() => setConfirmandoExclusao(true)} className="flex flex-col items-center gap-1.5">
+            <button onClick={() => setConfirmandoExclusao(true)} className="flex flex-col items-center gap-1.5 lg:flex-row lg:gap-2.5 lg:rounded-2xl lg:px-2.5 lg:py-2 lg:border lg:border-black/10 lg:hover:bg-black/[.03]">
               <div style={{ background: RED_SOFT }} className="h-11 w-11 rounded-2xl flex items-center justify-center"><Trash2 size={16} color={RED_DARK} /></div>
               <span style={{ color: RED_DARK }} className="text-[10px] font-medium">Excluir</span>
             </button>
@@ -10410,7 +10301,7 @@ function SelecionarSecoesRelatorioSheet({ T, secoesDisponiveis, selecionadas, on
 // ============ Relatórios — versão dashboard (PC) ============
 function RelatoriosDashboard({ T, lojaNumero, items, criticos, atencao, valorEmRisco, valorTotalMonitorado, tendenciaPerdas, perdaUltimos6Meses, faixasRisco, porPoliticaTroca, topRisco,
   resumoPorSetor, porUsuarioAuditoria, porTipoAcao, rondasResumo, taxaExecucaoRonda, indicePerda, faturamentoMensal, faturamentoInput, setFaturamentoInput, salvarFaturamento,
-  onGerarPDF, gerarPDFFinanceiro, gerarPDFAtividade, exportarFinanceiro, exportarAtividade, onOpenDetail }) {
+  onGerarPDF, gerarPDFFinanceiro, gerarPDFAtividade, exportarFinanceiro, exportarAtividade, onOpenDetail, gerarPDFPedidos, gerarPDFPerdas, gerarPDFSetores, exportarPedidos, qtdPedidos, proximosAVencer, gerarPDFProximos }) {
   const fmt = useFormatarMoedaComCamada();
   const [aba, setAba] = useState("geral");
   const btn = { background: T.card, borderColor: T.border, color: T.text };
@@ -10423,6 +10314,14 @@ function RelatoriosDashboard({ T, lojaNumero, items, criticos, atencao, valorEmR
       <div className="mb-5"><DashTabs T={T} value={aba} onChange={setAba} options={[{ id: "geral", label: "Visão geral" }, { id: "setores", label: "Setores e itens" }, { id: "financeiro", label: "Financeiro e ROI" }, { id: "atividade", label: "Atividade" }]} /></div>
 
       {aba === "geral" && (<>
+        <DashCard T={T} title="Relatórios prontos" subtitle="PDFs no visual do Condor, prontos para imprimir ou enviar" className="mb-5">
+          <div className="flex gap-2 flex-wrap">
+            {[[`Pedidos de campanha (${qtdPedidos}) PDF`, gerarPDFPedidos], ["Pedidos CSV", () => exportarPedidos("csv")], ["Pedidos Excel", () => exportarPedidos("xlsx")], ["Perdas e baixas 30 dias PDF", gerarPDFPerdas], ["Posição por setor PDF", gerarPDFSetores],
+              ...(proximosAVencer.length > 0 ? [[`Próximos do vencimento (${proximosAVencer.length}) PDF`, gerarPDFProximos]] : [])].map(([rot, fn]) => (
+              <button key={rot} onClick={fn} style={btn} className="text-xs font-semibold px-3.5 py-2 rounded-xl border flex items-center gap-1.5"><FileText size={13} /> {rot}</button>
+            ))}
+          </div>
+        </DashCard>
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
           <DashKpi T={T} label="Valor em risco" value={fmt(valorEmRisco)} sub="vencidos + em alerta" Icon={TrendingDown} accent={RED_DARK} />
           <DashKpi T={T} label="Vencidos" value={criticos.length} sub={`${atencao.length} em atenção`} Icon={AlertTriangle} accent={RED} />
@@ -10558,7 +10457,7 @@ function ExportarCapitulo({ T, titulo, itens }) {
 function RelatoriosMobile(p) {
   const { T, lojaNumero, items, criticos, atencao, valorEmRisco, valorTotalMonitorado, tendenciaPerdas, perdaUltimos6Meses, faixasRisco, porPoliticaTroca, topRisco,
     resumoPorSetor, porUsuarioAuditoria, porTipoAcao, rondasResumo, taxaExecucaoRonda, indicePerda, faturamentoMensal, faturamentoInput, setFaturamentoInput, salvarFaturamento,
-    onGerarPDF, gerarPDFFinanceiro, gerarPDFAtividade, exportarFinanceiro, exportarAtividade, onOpenDetail, proximosAVencer, usuario } = p;
+    onGerarPDF, gerarPDFFinanceiro, gerarPDFAtividade, exportarFinanceiro, exportarAtividade, onOpenDetail, proximosAVencer, usuario, showToast, gerarPDFPedidos, gerarPDFPerdas, gerarPDFSetores, exportarPedidos, qtdPedidos } = p;
   const [editFat, setEditFat] = useState(false);
   const ok = Math.max(0, items.length - criticos.length - atencao.length);
   const pctOk = items.length ? Math.round((ok / items.length) * 100) : 100;
@@ -10613,7 +10512,11 @@ function RelatoriosMobile(p) {
         </div>
         <ExportarCapitulo T={T} titulo="Exportar este relatório" itens={[
           ["Relatório gerencial (PDF)", Download, onGerarPDF, true],
-          ...(proximosAVencer.length > 0 ? [[`Próximos do vencimento (${proximosAVencer.length}) PDF`, AlertTriangle, () => gerarPDFProximosAVencer(proximosAVencer, { usuario, lojaNumero })]] : []),
+          ...(proximosAVencer.length > 0 ? [[`Próximos do vencimento (${proximosAVencer.length}) PDF`, AlertTriangle, () => gerarPDFProximosAVencer(proximosAVencer, { usuario, lojaNumero, showToast })]] : []),
+          [`Pedidos de campanha (${qtdPedidos}) PDF`, Tag, gerarPDFPedidos],
+          ["Pedidos (CSV)", Download, () => exportarPedidos("csv")], ["Pedidos (Excel)", FileSpreadsheet, () => exportarPedidos("xlsx")],
+          ["Perdas e baixas 30 dias (PDF)", FileText, gerarPDFPerdas],
+          ["Posição por setor (PDF)", FileText, gerarPDFSetores],
         ]} />
       </CapituloRel>
 
@@ -10853,11 +10756,24 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
   const gerarPDF = () => gerarRelatorioGerencialPDF({
     items, historico, usuario, showToast,
     criticos: dados.criticos, atencao: dados.atencao, valorEmRisco: dados.valorEmRisco,
-    tendenciaPerdas: dados.tendenciaPerdas, riscoPorSetor: dados.riscoPorSetor, riscoPorCorredor: dados.riscoPorCorredor,
+    tendenciaPerdas: dados.tendenciaPerdas, riscoPorSetor: dados.riscoPorSetor,
     reincidentes: dados.reincidentes, rankingResponsaveis: dados.rankingResponsaveis, rondas, lojaNumero,
     secoes: secoesSelecionadas,
   });
 
+  const gerarPDFPedidos = () => gerarPDFPedidos_({ items: enriched, usuario, lojaNumero, showToast });
+  const gerarPDFPerdas = () => gerarPDFPerdas_({ historico, usuario, lojaNumero, showToast, dias: 30 });
+  const gerarPDFSetores = () => gerarPDFPosicaoSetores({ items: enriched, usuario, lojaNumero, showToast });
+  const pedidosAtivos = enriched.filter((i) => i.pedidoTipo);
+  function exportarPedidos(formato) {
+    if (!pedidosAtivos.length) { showToast("Nenhum pedido de promoção ou preço direto ativo para exportar.", "aviso"); return; }
+    const linhas = pedidosAtivos.map((i) => ({
+      Produto: i.nome, Setor: i.setor, Lote: textoLote(i) || "", Validade: formatarData(i.validade), Tipo: rotuloPedido(i.pedidoTipo), Campanha: i.pedidoCampanha || "",
+      ValorSugerido: i.pedidoValor != null ? Number(i.pedidoValor).toFixed(2) : "", PedidoPor: i.pedidoPor || "", PedidoEm: dataCurta(i.pedidoEm), Quantidade: i.quantidade,
+    }));
+    if (formato === "csv") downloadCSV(linhas.map((l) => Object.values(l)), Object.keys(linhas[0] || { Produto: 1, Setor: 1, Lote: 1, Validade: 1, Tipo: 1, Campanha: 1, ValorSugerido: 1, PedidoPor: 1, PedidoEm: 1, Quantidade: 1 }), "condor-pedidos-campanha.csv");
+    else downloadPlanilha(linhas, `condor-pedidos-campanha.${formato}`, "Pedidos");
+  }
   const gerarPDFFinanceiro = () => gerarRelatorioFinanceiroPDF({
     usuario, showToast, lojaNumero, valorTotalMonitorado, valorEmRisco, faixasRisco, porPoliticaTroca, topRisco,
   });
@@ -10908,13 +10824,13 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
       tendenciaPerdas={tendenciaPerdas} perdaUltimos6Meses={perdaUltimos6Meses} faixasRisco={faixasRisco} porPoliticaTroca={porPoliticaTroca} topRisco={topRisco}
       resumoPorSetor={resumoPorSetor} porUsuarioAuditoria={porUsuarioAuditoria} porTipoAcao={porTipoAcao} rondasResumo={rondasResumo} taxaExecucaoRonda={taxaExecucaoRonda}
       indicePerda={indicePerda} faturamentoMensal={faturamentoMensal} faturamentoInput={faturamentoInput} setFaturamentoInput={setFaturamentoInput} salvarFaturamento={salvarFaturamento}
-      onGerarPDF={() => setExportarAberto(true)} gerarPDFFinanceiro={gerarPDFFinanceiro} gerarPDFAtividade={gerarPDFAtividade} exportarFinanceiro={exportarFinanceiro} exportarAtividade={exportarAtividade} onOpenDetail={onOpenDetail} />
+      onGerarPDF={() => setExportarAberto(true)} gerarPDFFinanceiro={gerarPDFFinanceiro} gerarPDFAtividade={gerarPDFAtividade} exportarFinanceiro={exportarFinanceiro} exportarAtividade={exportarAtividade} onOpenDetail={onOpenDetail} gerarPDFPedidos={gerarPDFPedidos} gerarPDFPerdas={gerarPDFPerdas} gerarPDFSetores={gerarPDFSetores} exportarPedidos={exportarPedidos} qtdPedidos={pedidosAtivos.length} proximosAVencer={enriched.filter((i) => i.status.level === "alert")} gerarPDFProximos={() => gerarPDFProximosAVencer(enriched.filter((i) => i.status.level === "alert"), { usuario, lojaNumero, showToast })} />
     <RelatoriosMobile T={T} lojaNumero={lojaNumero} items={items} criticos={criticos} atencao={atencao} valorEmRisco={valorEmRisco} valorTotalMonitorado={valorTotalMonitorado}
       tendenciaPerdas={tendenciaPerdas} perdaUltimos6Meses={perdaUltimos6Meses} faixasRisco={faixasRisco} porPoliticaTroca={porPoliticaTroca} topRisco={topRisco}
       resumoPorSetor={resumoPorSetor} porUsuarioAuditoria={porUsuarioAuditoria} porTipoAcao={porTipoAcao} rondasResumo={rondasResumo} taxaExecucaoRonda={taxaExecucaoRonda}
       indicePerda={indicePerda} faturamentoMensal={faturamentoMensal} faturamentoInput={faturamentoInput} setFaturamentoInput={setFaturamentoInput} salvarFaturamento={salvarFaturamento}
       onGerarPDF={() => setExportarAberto(true)} gerarPDFFinanceiro={gerarPDFFinanceiro} gerarPDFAtividade={gerarPDFAtividade} exportarFinanceiro={exportarFinanceiro} exportarAtividade={exportarAtividade}
-      onOpenDetail={onOpenDetail} usuario={usuario} proximosAVencer={enriched.filter((i) => i.status.level === "alert")} />
+      onOpenDetail={onOpenDetail} usuario={usuario} showToast={showToast} gerarPDFPedidos={gerarPDFPedidos} gerarPDFPerdas={gerarPDFPerdas} gerarPDFSetores={gerarPDFSetores} exportarPedidos={exportarPedidos} qtdPedidos={pedidosAtivos.length} proximosAVencer={enriched.filter((i) => i.status.level === "alert")} />
       {exportarAberto && (
         <SelecionarSecoesRelatorioSheet T={T} secoesDisponiveis={SECOES_RELATORIO} selecionadas={secoesSelecionadas}
           onAlternar={(id) => setSecoesSelecionadas((prev) => {
