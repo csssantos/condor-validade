@@ -1,0 +1,25 @@
+window.TL={
+"seq":[[0,"home_s00"],[10.3,"exp0"],[11.05,"exp1"],[13.15,"exp2"],[15.1,"exp5"],[17.0,"home_s00"],[18.05,"setores"],[20.15,"setor_s00"],[22.0,{"scroll":"setor","n":40,"d":1.8}],[24.85,"rondas"],[25.75,"rpainel"],[27.15,"chat"],[31.7,"home_s00"],[32.55,"detalhe"],[34.75,"mais"],[35.45,"rel_s00"],[35.8,{"scroll":"rel","n":24,"d":1.1}]],
+"taps":[[9.7,195,788],[10.9,195,238],[13.0,195,318],[16.7,292,735],[17.9,125,805],[20.0,195,370],[24.7,265,805],[25.6,160,386],[32.4,195,700],[34.6,336,805],[35.3,274,496],[37.0,135,624]],
+"drags":[[22.0,23.8,195,640,300],[35.8,36.9,195,640,300]],
+"callouts":[
+ [11.3,12.9,"exp1",16,190,358,72,"Data de validade"],
+ [13.4,15.0,"exp2",16,268,358,187,"Lote real da embalagem"],
+ [15.35,16.55,"exp5",16,436,358,126,"Quantidade e valor em risco"],
+ [18.3,19.8,"setores",16,88,358,188,"Tudo separado por setor"],
+ [20.4,21.85,"setor_s00",16,140,358,128,"Vencidos, em alerta e em dia"],
+ [25.95,27.0,"rpainel",16,145,358,155,"Ronda em tempo real"],
+ [32.7,34.4,"detalhe",16,352,358,118,"Pedido de campanha no lote"],
+ [37.1,38.15,"rel_s23",16,576,358,66,"PDF, CSV ou Excel"]],
+"chapters":[[8.6,17.5,"PASSO 1 DE 4","Bipe o produto e|lance a *validade*"],[17.5,24.4,"PASSO 2 DE 4","Veja o que está|*perto de vencer*"],[24.4,31.6,"PASSO 3 DE 4","Confira em equipe,|até pelo *Telegram*"],[31.6,38.25,"PASSO 4 DE 4","Peça preço direto|e baixe *relatórios*"]],
+"bubbles":[[4.35,5.9,"Oi! Eu sou o *Bipi*."],[6.0,8.05,"Vou te mostrar como o app *funciona*."],[9.2,11.2,"Bipou, abriu! É só *preencher*."],[17.8,19.9,"Separo tudo por *setor e urgência*."],[24.6,26.6,"A equipe confere junto, *em tempo real*."],[27.4,30.2,"E dá para lançar pelo *Telegram*, comigo!"],[31.8,33.6,"Pediu promoção? Fica *registrado*."],[35.0,36.9,"Relatório pronto *num toque*."],[40.2,42.6,"Bora acabar com o *produto vencido*?"]],
+"banners":[],
+"telegram":[27.15,31.55],
+"chat":[["me",27.75,"iogurte natural"],["bot",28.2,"validade","Produto: IOGURTE NATURAL 170 G\nQual a data de validade? (ex.: 15/12/2026)"],["me",28.75,"12/12/2026"],["bot",29.2,"lote","Validade: 12/12/2026\n\nQual o lote? Está impresso na embalagem, perto da validade (ex.: L2410A)."],["me",29.7,"L2410A"],["bot",30.1,"quantidade","Quantas unidades?"],["me",30.45,"24"],["bot",30.9,"lancada","✅ Validade lançada!\nIOGURTE NATURAL 170 G\nValidade 12/12/2026 · Lote L2410A · 24 un"]],
+"saved":[16.85,17.9],
+"scan":[9.85,10.35],
+"phoneIn":[8.3,9.25],"phoneOut":[38.2,38.85],
+"bipiIn":3.75,"toCorner":[7.95,8.85],"toOutro":[38.25,39.2],
+"cheer":[[16.9,17.7]],
+"logo":38.9
+};

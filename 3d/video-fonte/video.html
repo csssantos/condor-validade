@@ -1,187 +1,351 @@
 <!doctype html><html lang="pt-BR"><meta charset="utf-8">
-<title>Condor · Alerta de Validade — vídeo 45 s</title>
+<title>Condor · Alerta de Validade — anúncio 45 s (v3)</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:1080px;height:1920px;overflow:hidden;background:#061C3A;font-family:Inter,system-ui,sans-serif;color:#fff}
-#bg{position:absolute;inset:0;background:radial-gradient(ellipse at 30% 18%,#1B6FD1 0%,#0B4F9E 45%,#061C3A 100%)}
-#circ{position:absolute;width:1100px;height:1100px;border-radius:50%;background:rgba(255,255,255,.08);left:-10px;top:880px}
-.bub{position:absolute;border-radius:50%;background:rgba(255,255,255,.14)}
-#brand{position:absolute;left:0;right:0;top:78px;text-align:center;font-size:30px;font-weight:800;letter-spacing:.34em;color:#BFD6F5}
-#cap{position:absolute;left:60px;right:60px;top:130px;height:230px;font-size:72px;line-height:1.06;font-weight:900;letter-spacing:-.02em}
-#cap span{display:inline-block;margin-right:.26em;will-change:transform}
-#cap em{font-style:normal;color:#FFD84D}
-canvas{position:absolute;left:0;top:0;width:1080px;height:1920px}
-.sc{position:absolute;left:0;top:0;width:1080px;height:1920px;opacity:0}
-.card{position:absolute;background:#fff;color:#0B2A55;border-radius:36px;box-shadow:0 30px 70px rgba(0,10,40,.45)}
-.pill{display:inline-block;border-radius:99px;padding:8px 22px;font-weight:800;font-size:28px}
-.t1{font-size:44px;font-weight:800}.t2{font-size:30px;font-weight:600;color:#5B6B85}
-.row{display:flex;align-items:center}
-.logo{position:absolute;left:0;right:0;text-align:center}
-svg{display:block}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#061C3A;font-family:"Inter Display",Inter,system-ui,sans-serif;color:#fff}
+#bg{position:absolute;inset:0;background:radial-gradient(ellipse 120% 80% at 30% 15%,#1B6FD1 0%,#0B4F9E 42%,#061C3A 100%)}
+.blob{position:absolute;border-radius:50%;filter:blur(2px)}
+#b1{width:1150px;height:1150px;left:-420px;top:1050px;background:radial-gradient(circle,rgba(255,255,255,.10),rgba(255,255,255,0) 70%)}
+#b2{width:900px;height:900px;left:520px;top:-260px;background:radial-gradient(circle,rgba(120,180,255,.20),rgba(120,180,255,0) 70%)}
+.bub{position:absolute;border-radius:50%;background:rgba(255,255,255,.10)}
+#brand{position:absolute;left:60px;top:66px;font-size:24px;font-weight:800;letter-spacing:.32em;color:#BFD6F5;opacity:0}
+#hook{position:absolute;left:70px;right:70px;top:660px;font-weight:900;letter-spacing:-.025em}
+#hook .l{font-size:104px;line-height:1.04}
+#hook span{display:inline-block;margin-right:.24em}
+#hook .red{background:#E31E24;border-radius:22px;padding:0 22px 6px;margin-left:-4px}
+#tag{position:absolute;left:60px;top:116px;display:flex;align-items:center;gap:18px;opacity:0}
+#tag .pill{font-size:24px;font-weight:800;letter-spacing:.14em;background:rgba(255,255,255,.14);border-radius:99px;padding:9px 20px}
+#tag .bars{display:flex;gap:8px}#tag .bars i{display:block;width:46px;height:8px;border-radius:9px;background:rgba(255,255,255,.22)}
+#tag .bars i.on{background:#fff}
+#title{position:absolute;left:60px;right:60px;top:172px;font-size:68px;line-height:1.06;font-weight:850;font-weight:800;letter-spacing:-.025em}
+#title span{display:inline-block;margin-right:.22em}
+#title b{font-weight:800;color:#fff;background:linear-gradient(transparent 70%,rgba(227,30,36,.85) 70%,rgba(227,30,36,.85) 92%,transparent 92%)}
+#dev{position:absolute;left:430px;top:384px;width:560px;height:1225px;border-radius:84px;padding:16px;
+ background:linear-gradient(150deg,#3a4a66 0%,#101a2e 22%,#0a1222 60%,#2a3852 100%);
+ box-shadow:0 70px 120px rgba(0,8,30,.55),0 20px 40px rgba(0,8,30,.35),inset 0 0 0 2px rgba(255,255,255,.18),inset 0 0 0 7px #05080f;transform-origin:280px 612px;will-change:transform}
+#dev .btn{position:absolute;width:6px;border-radius:4px;background:#26324a}
+#scrw{position:relative;width:528px;height:1193px;border-radius:68px;overflow:hidden;background:#fff}
+#scr{position:absolute;left:0;top:0;width:528px;height:1193px}
+#island{position:absolute;left:194px;top:12px;width:140px;height:38px;border-radius:20px;background:#000}
+#glare{position:absolute;inset:0;border-radius:68px;background:linear-gradient(115deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 32%);pointer-events:none}
+.co{position:absolute;left:0;top:0;transform-origin:0 0;opacity:0;will-change:transform}
+.co .card{position:absolute;left:0;top:0;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 30px 70px rgba(0,10,40,.5),0 0 0 3px rgba(255,255,255,.9)}
+.co canvas{display:block}
+.co .lab{position:absolute;left:0;top:-62px;white-space:nowrap;font-size:30px;font-weight:800;background:#E31E24;border-radius:99px;padding:8px 22px 9px;box-shadow:0 10px 24px rgba(120,0,0,.35)}
+#gl{position:absolute;left:0;top:0;width:900px;height:900px;transform-origin:0 0}
+#bubble{position:absolute;opacity:0;background:#fff;color:#0B2A55;border-radius:34px;padding:24px 30px 26px;font-size:36px;line-height:1.2;font-weight:600;box-shadow:0 24px 50px rgba(0,10,40,.4);transform-origin:var(--ox) 100%}
+#bubble b{font-weight:800;color:#0B4F9E}
+#bubble:after{content:"";position:absolute;bottom:-20px;left:var(--tail);width:40px;height:40px;background:#fff;border-radius:6px;transform:rotate(45deg);z-index:-1}
+#bubble .caret{display:inline-block;width:3px;height:34px;background:#0B4F9E;vertical-align:-5px;margin-left:2px}
+.ban{position:absolute;left:40px;width:600px;border-radius:26px;box-shadow:0 30px 70px rgba(0,10,40,.5);opacity:0;transform-origin:50% 50%}
+#tgl{position:absolute;left:40px;top:640px;font-size:34px;font-weight:800;background:#2AA3E0;border-radius:99px;padding:8px 22px 9px;opacity:0}
+#saved{position:absolute;left:486px;top:460px;display:flex;align-items:center;gap:14px;background:#fff;color:#0B2A55;font-size:32px;font-weight:800;border-radius:99px;padding:14px 30px 14px 16px;box-shadow:0 24px 50px rgba(0,10,40,.45);opacity:0}
+#saved i{display:flex;width:46px;height:46px;border-radius:50%;background:#1F9D55;align-items:center;justify-content:center}
+#outro{position:absolute;inset:0;opacity:0}
+#lg{position:absolute;left:260px;top:210px;width:560px;padding:40px 46px;background:#fff;border-radius:46px;box-shadow:0 30px 70px rgba(0,10,40,.45)}
+#lg img{width:100%;display:block}
+.oc{position:absolute;left:0;right:0;text-align:center}
+#o1{top:440px;font-size:30px;font-weight:800;letter-spacing:.3em;color:#BFD6F5}
+#o2{top:520px;font-size:96px;line-height:1.02;font-weight:900;letter-spacing:-.03em}
+#o3{top:745px;font-size:36px;font-weight:600;color:#DCE9FB}
+#cta{position:absolute;left:50%;top:1720px;transform:translateX(-50%);white-space:nowrap;font-size:34px;font-weight:800;color:#0B2A55;background:#fff;border-radius:99px;padding:18px 40px;box-shadow:0 20px 40px rgba(0,10,40,.4)}
 </style>
-<div id="bg"></div><div id="circ"></div><div id="bubs"></div>
+<div id="bg"></div><div class="blob" id="b1"></div><div class="blob" id="b2"></div><div id="bubs"></div>
 <div id="brand">CONDOR · ALERTA DE VALIDADE</div>
-<div id="cap"></div>
-
-
-<canvas id="gl" width="1080" height="1920"></canvas>
-<img id="b1" src="a/lancada.jpg" style="position:absolute;left:170px;top:600px;width:740px;border-radius:30px;box-shadow:0 30px 70px rgba(0,10,40,.5);opacity:0">
-<img id="b2" src="a/campanha.jpg" style="position:absolute;left:170px;top:1010px;width:740px;border-radius:30px;box-shadow:0 30px 70px rgba(0,10,40,.5);opacity:0">
-<div id="pdf" style="position:absolute;left:640px;top:760px;background:#E31E24;border-radius:26px;padding:16px 34px;font-size:56px;font-weight:900;box-shadow:0 14px 30px rgba(0,0,0,.35);opacity:0">PDF ✓</div>
-<div id="s6" style="position:absolute;inset:0;opacity:0">
-  <div id="lg0" style="position:absolute;left:240px;top:380px;width:600px;padding:44px 50px;background:#fff;border-radius:48px;box-shadow:0 30px 70px rgba(0,10,40,.45)"><img src="a/logo-email.png" style="width:100%;display:block"></div>
-  <div class="logo" id="lg2" style="top:610px;font-size:46px;font-weight:800;letter-spacing:.2em;color:#BFD6F5">ALERTA DE VALIDADE</div>
-  <div class="logo" id="lg3" style="top:690px;font-size:40px;font-weight:600;color:#DCE9FB">Lance, acompanhe e aja a tempo.</div>
+<div id="hook">
+ <div class="l" id="h1"><span>Todo</span><span>dia,</span><span>produto</span><span>vence</span><span>na</span><span>gôndola.</span></div>
+ <div class="l" id="h2" style="margin-top:40px"><span>E</span><span>vira</span><span class="red">prejuízo.</span></div>
 </div>
-<script src="talk_data.js"></script><script src="glb_c.js"></script><script src="bipi3d.js"></script><script src="bipi_rig.js"></script>
+<div id="tag"><span class="pill" id="tagt">PASSO 1 DE 4</span><span class="bars"><i></i><i></i><i></i><i></i></span></div>
+<div id="title"></div>
+<div id="dev"><i class="btn" style="left:-5px;top:230px;height:70px"></i><i class="btn" style="left:-5px;top:320px;height:110px"></i><i class="btn" style="left:-5px;top:450px;height:110px"></i><i class="btn" style="right:-5px;top:300px;height:160px"></i>
+ <div id="scrw"><canvas id="scr" width="780" height="1762"></canvas><div id="island"></div><div id="glare"></div></div></div>
+<div id="tgl">Pelo Telegram</div>
+<img class="ban" id="ban0" src="a/lancada.jpg"><img class="ban" id="ban1" src="a/campanha.jpg">
+<div id="cos"></div>
+<div id="saved"><i><svg width="28" height="28" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i>Validade lançada</div>
+<div id="outro">
+ <div id="lg"><img src="a/logo-email.png"></div>
+ <div class="oc" id="o1">ALERTA DE VALIDADE</div>
+ <div class="oc" id="o2">Menos perda.<br>Mais controle.</div>
+ <div class="oc" id="o3">Lance, acompanhe e aja antes de vencer.</div>
+ <div id="cta">Use direto no seu celular</div>
+</div>
+<canvas id="gl" width="900" height="900"></canvas>
+<div id="bubble"></div>
+<script src="tl3.js"></script><script src="glb_b64.js"></script><script src="bipi3d.js"></script><script src="bipi_rig.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 const seg=(t,a,b)=>clamp((t-a)/(b-a));
-const eo=x=>1-Math.pow(1-x,3), eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, ss=x=>x*x*(3-2*x);
-const ob=x=>{const c=1.70158,d=c+1;return 1+d*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+const eo=x=>1-Math.pow(1-x,3), ei=x=>x*x*x, eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, ss=x=>x*x*(3-2*x);
+const eq=x=>1-Math.pow(1-x,5);
+const ob=(x,c=1.2)=>{const d=c+1;return 1+d*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
 const lerp=(a,b,k)=>a+(b-a)*k, lerp3=(a,b,k)=>[lerp(a[0],b[0],k),lerp(a[1],b[1],k),lerp(a[2],b[2],k)];
-const bubs=[];for(let i=0;i<16;i++){const d=document.createElement('div');d.className='bub';const s=24+((i*37)%60);d.style.width=d.style.height=s+'px';$('bubs').appendChild(d);bubs.push({d,x:(i*173)%1000+30,s:s,sp:60+((i*53)%90),ph:i*1.7})}
-// ---------- legendas ----------
-const CAPS=[[.4,2.7,"Oi! Eu sou o *Bipi*."],[2.8,5.6,"Eu cuido da *validade* da sua loja."],[5.8,14.6,"1 · *Bipe* e lance a validade"],[15.0,23.0,"2 · Veja o que está *perto de vencer*"],[23.2,31.5,"3 · Faça *rondas* e lance pelo *Telegram*"],[31.7,39.2,"4 · Peça *preço direto* e baixe *relatórios*"],[39.5,45.1,"Menos perda. *Mais controle.*"]];
-const capWords=CAPS.map(c=>c[2].split(' ').map(w=>({w:w.replace(/\*/g,''),em:w.includes('*')})));
-let capIdx=-2;
-function setCap(i){if(i===capIdx)return;capIdx=i;$('cap').innerHTML=i<0?'':capWords[i].map(o=>`<span ${o.em?'style="color:#FFD84D"':''}>${o.w}</span>`).join('')}
-// ---------- telas reais ----------
-const NAMES=['home_s00','exp0','exp1','exp2','exp3','exp4','exp5','exp6','setores','rondas','rpainel','detalhe','mais','prio'];
+const TL=window.TL;
+// ---------- fundo ----------
+const bubs=[];for(let i=0;i<10;i++){const d=document.createElement('div');d.className='bub';const s=18+((i*37)%46);d.style.width=d.style.height=s+'px';$('bubs').appendChild(d);bubs.push({d,x:(i*197)%1000+30,sp:26+((i*53)%40),ph:i*1.7})}
+// ---------- imagens ----------
+const NAMES=['home_s00','exp0','exp1','exp2','exp5','setores','setor_s00','rondas','rpainel','detalhe','mais','rel_s00','rel_s23'];
 for(let i=0;i<40;i++)NAMES.push('setor_s'+String(i).padStart(2,'0'));for(let i=0;i<24;i++)NAMES.push('rel_s'+String(i).padStart(2,'0'));
-const IM={};const loads=NAMES.map(n=>new Promise(r=>{const im=new Image();im.onload=r;im.src='a/'+n+'.jpg';IM[n]=im}));
-const sc=document.createElement('canvas');sc.width=1024;sc.height=2048;const sx=sc.getContext('2d');
-const SEQ=[[0,'home_s00'],[6.55,'exp0'],[8.2,'exp1'],[9.5,'exp2'],[10.7,'exp3'],[11.3,'exp4'],[12.3,'exp5'],[14.1,'home_s00'],[15.9,'setores'],[17.2,'setor_s00'],[19.9,{scroll:'setor',n:40,d:2.0}],[23.7,'rondas'],[25.0,'rpainel'],[32.0,'home_s00'],[33.2,'detalhe'],[36.4,'mais'],[37.6,{scroll:'rel',n:24,d:1.4}]];
-// toques: [tempo,x,y] (coordenadas da tela 390x844) ; arrastos: [t0,t1,x,y0,y1]
-const TAPS=[[6.2,195,788],[8.0,195,238],[9.3,195,318],[10.4,149,525],[12.0,111,483],[13.7,292,693],[15.6,125,818],[16.9,158,372],[18.2,84,240],[18.7,195,240],[19.2,306,240],[23.4,265,818],[24.7,160,386],[31.7,54,818],[32.5,204,489],[34.2,150,388],[36.0,336,818],[37.2,274,496],[38.6,135,624]];
-const DRAGS=[[11.0,11.35,195,650,420],[12.7,13.1,195,640,420],[19.9,21.9,195,640,300],[37.7,39.0,195,640,300]];
-const ACT=[[5.9,14.4],[15.3,22.9],[23.2,25.8],[31.2,39.3]];
-// waypoints do dedo
-const WP=[];TAPS.forEach(a=>WP.push({a:a[0],d:a[0]+.12,x0:a[1],y0:a[2],x1:a[1],y1:a[2],tap:1}));DRAGS.forEach(a=>WP.push({a:a[0],d:a[1],x0:a[2],y0:a[3],x1:a[2],y1:a[4],tap:0}));WP.sort((p,q)=>p.a-q.a);
+['tg_vinculado','tg_validade','tg_lote','tg_quantidade','tg_lancada'].forEach(n=>NAMES.push(n));
+const IM={};const AV=new Image();AV.src='a/tg_avatar.png';const loads=[new Promise(r=>{AV.onload=r;AV.onerror=r}),...[...new Set(NAMES)].map(n=>new Promise(r=>{const im=new Image();im.onload=r;im.onerror=r;im.src='a/'+n+'.jpg';IM[n]=im}))];
+// ---------- tela do celular ----------
+const SB=74; // barra de status (px internos)
+const sc=$('scr'),sx=sc.getContext('2d');
+function imgAt(i,t){const st=TL.seq[i][1];if(typeof st==='string')return st;const p=eio(seg(t,TL.seq[i][0],TL.seq[i][0]+st.d));return st.scroll+'_s'+String(Math.round(p*(st.n-1))).padStart(2,'0')}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
 function drawScreen(t){
-  sx.fillStyle='#fff';sx.fillRect(0,0,1024,2048);
-  let i=0;for(let k=0;k<SEQ.length;k++)if(t>=SEQ[k][0])i=k;
-  const img=(st,tt)=>{ if(typeof st==='string')return [[st,1]]; const p=eio(seg(tt,SEQ[i][0],SEQ[i][0]+st.d)),a=Math.round(p*(st.n-1)); return [[st.scroll+'_s'+String(a).padStart(2,'0'),1]]};
-  const draw=(list,alpha,zoom)=>list.forEach(([n,w])=>{sx.globalAlpha=alpha*w;sx.save();sx.translate(512,1024);sx.scale(zoom,zoom);sx.drawImage(IM[n],-512,-1024,1024,2048);sx.restore()});
-  if(i>0){draw(img(SEQ[i-1][1],1e9),1,1)}
-  const f=seg(t,SEQ[i][0],SEQ[i][0]+.28);
-  draw(img(SEQ[i][1],t),i===0?1:f,1+(1-eo(f))*.03); sx.globalAlpha=1;
-  // ondulações dos toques
-  TAPS.forEach(a=>{const d=t-a[0]; if(d>-.02&&d<.6){const k=clamp(d/.6),r=(10+34*eo(k))*2.63;sx.strokeStyle=`rgba(255,255,255,${.85*(1-k)})`;sx.lineWidth=7;sx.beginPath();sx.arc(a[1]*2.6256,a[2]*2.4265,r,0,6.283);sx.stroke();sx.fillStyle=`rgba(11,79,158,${.35*(1-k)})`;sx.fill()}});
+  let i=0;for(let k=0;k<TL.seq.length;k++)if(t>=TL.seq[k][0])i=k;
+  const cur=imgAt(i,t);
+  const f=i===0?1:eo(seg(t,TL.seq[i][0],TL.seq[i][0]+.32));
+  const draw=(n,a,dy)=>{sx.globalAlpha=a;if(n==='chat'){drawChat(Math.min(t,TL.telegram[1]));sx.drawImage(CC,0,dy);return}sx.drawImage(IM[n],0,SB+dy,780,1688);};
+  sx.globalAlpha=1;sx.fillStyle='#fff';sx.fillRect(0,0,780,1762);
+  if(i>0&&f<1)draw(imgAt(i-1,1e9),1,0);
+  draw(cur,f,(1-f)*26);
+  sx.globalAlpha=1;
+  // barra de status: estica a 1ª linha do cabeçalho
+  if(cur!=='chat'){const im=IM[cur];sx.drawImage(im,0,0,780,3,0,0,780,SB+2);}
+  sx.fillStyle='#fff';sx.font='700 30px "Inter Display",Inter,sans-serif';sx.textBaseline='middle';sx.fillText('9:41',58,42);
+  // sinal + bateria
+  for(let k=0;k<4;k++){sx.fillRect(592+k*11,48-k*6,7,8+k*6)}
+  rr(sx,650,30,46,24,7);sx.strokeStyle='#fff';sx.lineWidth=2.5;sx.stroke();sx.fillRect(654,34,32,16);sx.fillRect(698,37,4,10);
+  // destaque da área com chamada
+  TL.callouts.forEach(c=>{const a=Math.min(seg(t,c[0]-.05,c[0]+.2),1-seg(t,c[1]-.1,c[1]+.25));if(a>0&&imgAt(i,t)===c[2]){sx.globalAlpha=a;rr(sx,c[3]*2,SB+c[4]*2,c[5]*2,c[6]*2,22);sx.lineWidth=6;sx.strokeStyle='#E31E24';sx.stroke();sx.globalAlpha=1}});
+  // leitura (feixe vermelho)
+  const s=TL.scan;if(t>s[0]&&t<s[1]+.25){const k=seg(t,s[0],s[1]);const y=SB+80+k*1500;sx.globalAlpha=1-seg(t,s[1],s[1]+.25);
+    const g=sx.createLinearGradient(0,y-120,0,y+12);g.addColorStop(0,'rgba(227,30,36,0)');g.addColorStop(1,'rgba(227,30,36,.28)');sx.fillStyle=g;sx.fillRect(0,y-120,780,132);
+    sx.fillStyle='#ff3b3f';sx.shadowColor='#ff2a2f';sx.shadowBlur=30;sx.fillRect(30,y,720,8);sx.shadowBlur=0;sx.globalAlpha=1}
+  // toques
+  TL.taps.forEach(a=>{const d=t-a[0];if(d>-.22&&d<.55){const X=a[1]*2,Y=SB+a[2]*2;
+    const vis=d<0?ss(seg(d,-.22,-.05)):1-ss(seg(d,.25,.55));const pr=d>=0?Math.exp(-Math.pow(d/.08,2)):0;
+    sx.globalAlpha=vis*.55;sx.fillStyle='#fff';sx.beginPath();sx.arc(X,Y,34*(1-.18*pr),0,6.283);sx.fill();
+    sx.globalAlpha=vis*.8;sx.strokeStyle='rgba(11,79,158,.55)';sx.lineWidth=4;sx.stroke();
+    if(d>0){const k=seg(d,0,.5);sx.globalAlpha=(1-k)*.7;sx.strokeStyle='#fff';sx.lineWidth=5;sx.beginPath();sx.arc(X,Y,34+70*eo(k),0,6.283);sx.stroke()}
+    sx.globalAlpha=1}});
+  TL.drags.forEach(a=>{const vis=Math.min(seg(t,a[0]-.15,a[0]),1-seg(t,a[1],a[1]+.2));if(vis>0){const k=eio(seg(t,a[0],a[1]));const X=a[2]*2,Y=SB+lerp(a[3],a[4],k)*2;
+    sx.globalAlpha=vis*.55;sx.fillStyle='#fff';sx.beginPath();sx.arc(X,Y,34,0,6.283);sx.fill();sx.globalAlpha=vis*.8;sx.strokeStyle='rgba(11,79,158,.55)';sx.lineWidth=4;sx.stroke();sx.globalAlpha=1}});
 }
-// ---------- falas ----------
-function mouthAt(t){let m=0;for(const s of SYL){if(t>=s[0]&&t<s[0]+s[1]){const k=(t-s[0])/s[1];m=Math.max(m,Math.sin(Math.PI*k)*(.55+.12*s[2]))}}return m}
-const talking=t=>TALK.some(a=>t>=a[0]&&t<=a[1]);
-// ---------- câmera ----------
-const KEYS=[[0,0],[5.2,0],[6.0,1],[13.8,1],[14.6,0],[15.2,0],[15.9,1],[22.6,1],[23.2,0],[23.4,1],[25.8,1],[26.3,0],[30.8,0],[31.4,1],[38.6,1],[39.3,0]];
-function mode(t){for(let i=0;i<KEYS.length-1;i++){if(t<KEYS[i+1][0])return lerp(KEYS[i][1],KEYS[i+1][1],ss(seg(t,KEYS[i][0],KEYS[i+1][0])))}return KEYS[KEYS.length-1][1]}
-const PH={t:[.12,.66,.62],rx:-.08,ry:0,s:1.1};
-let B,rigM;
+// ---------- conversa no Telegram (desenhada) ----------
+const CC=document.createElement('canvas');CC.width=780;CC.height=1762;const cx=CC.getContext('2d');
+const FONT='"Inter Display",Inter,sans-serif';
+function wrap(g,txt,maxW){const out=[];txt.split('\n').forEach(par=>{if(!par){out.push('');return}let line='';par.split(' ').forEach(w=>{const tst=line?line+' '+w:w;if(g.measureText(tst).width>maxW&&line){out.push(line);line=w}else line=tst});out.push(line)});return out}
+const HDR=150,INP=128,TOP=SB+HDR-SB; // cabeçalho começa após a barra de status
+let CHAT=null;
+function layoutChat(){
+  cx.font='500 29px '+FONT;
+  const msgs=[{from:'bot',t:-1,img:'tg_vinculado',text:'✅ Pronto, Ana! Seu Telegram está vinculado.\n\nAgora é só me mandar o código de barras ou o nome do produto.'}].concat(TL.chat.map(m=>m[0]==='me'?{from:'me',t:m[1],text:m[2]}:{from:'bot',t:m[1],img:'tg_'+m[2],text:m[3]}));
+  let y=24;msgs.forEach(m=>{const maxW=m.from==='me'?470:520;const bw=m.from==='bot'?560:0;
+    m.lines=wrap(cx,m.text,maxW);const tw=Math.max(...m.lines.map(l=>cx.measureText(l).width));
+    m.w=m.from==='bot'?bw:Math.max(150,tw+200);m.imgH=m.from==='bot'?Math.round(560*510/960):0;
+    m.h=m.imgH+(m.from==='bot'?24:18)+m.lines.length*38+(m.from==='bot'?34:18);m.y=y;y+=m.h+16});
+  CHAT={msgs};
+}
+function drawChat(t){
+  if(!CHAT)layoutChat();const g=cx;const area=1762-SB-HDR-INP;
+  // fundo
+  const bg=g.createLinearGradient(0,0,780,1762);bg.addColorStop(0,'#cfe0c6');bg.addColorStop(1,'#a9c9a4');g.fillStyle=bg;g.fillRect(0,0,780,1762);
+  g.globalAlpha=.08;g.fillStyle='#2d5a27';for(let i=0;i<70;i++){const x=(i*137)%780,y=(i*211)%1762;g.beginPath();g.arc(x,y,6+(i%4)*3,0,6.283);g.fill()}g.globalAlpha=1;
+  // rolagem determinística
+  const vis=CHAT.msgs.filter(m=>m.t<=t);let scroll=0;
+  CHAT.msgs.forEach((m,i)=>{const bottom=m.y+m.h+40;const prevB=i?CHAT.msgs[i-1].y+CHAT.msgs[i-1].h+40:0;const tgt=Math.max(0,bottom-area),prev=Math.max(0,prevB-area);scroll+=(tgt-prev)*eo(seg(t,m.t,m.t+.38))});
+  g.save();g.beginPath();g.rect(0,SB+HDR,780,area);g.clip();
+  CHAT.msgs.forEach(m=>{if(m.t>t)return;const a=seg(t,m.t,m.t+.25);const off=(1-eo(a))*40;const y=SB+HDR+m.y-scroll+off;
+    if(y>1762||y+m.h<SB+HDR)return;g.globalAlpha=clamp(a*1.6);
+    const x=m.from==='me'?780-24-m.w:24;
+    g.fillStyle=m.from==='me'?'#EFFDDE':'#fff';g.shadowColor='rgba(0,0,0,.12)';g.shadowBlur=6;g.shadowOffsetY=2;rr(g,x,y,m.w,m.h,26);g.fill();g.shadowBlur=0;g.shadowOffsetY=0;
+    let ty=y;if(m.img){g.save();rr(g,x+6,y+6,m.w-12,m.imgH,22);g.clip();g.drawImage(IM[m.img],x+6,y+6,m.w-12,m.imgH);g.restore();ty+=m.imgH+6}
+    g.fillStyle='#111';g.font='500 29px '+FONT;g.textBaseline='top';m.lines.forEach((l,k)=>g.fillText(l,x+(m.from==='me'?26:22),ty+(m.from==='bot'?18:16)+k*38));
+    g.font='400 21px '+FONT;g.fillStyle=m.from==='me'?'#5aa25a':'#8a98a8';const hh=m.from==='me'?'19:02 ✓✓':'19:02';const tw=g.measureText(hh).width;g.fillText(hh,x+m.w-tw-18,y+m.h-32);
+    g.globalAlpha=1});
+  g.restore();
+  // cabeçalho
+  g.fillStyle='#517DA2';g.fillRect(0,0,780,SB+HDR);
+  g.strokeStyle='#fff';g.lineWidth=5;g.lineCap='round';g.beginPath();g.moveTo(52,SB+52);g.lineTo(34,SB+75);g.lineTo(52,SB+98);g.stroke();
+  g.save();g.beginPath();g.arc(124,SB+75,46,0,6.283);g.clip();g.drawImage(AV,78,SB+29,92,92);g.restore();
+  g.fillStyle='#fff';g.font='700 33px '+FONT;g.fillText('Bipi · Condor Validade',190,SB+34);
+  let typingBot=false;TL.chat.forEach((m,i)=>{if(m[0]==='bot'&&t>m[1]-.42&&t<m[1])typingBot=true});
+  g.font='400 25px '+FONT;g.fillStyle='#d5e4f2';g.fillText(typingBot?'digitando'+'.'.repeat(1+Math.floor(t*6)%3):'bot',190,SB+82);
+  g.fillStyle='#fff';[0,1,2].forEach(k=>{g.beginPath();g.arc(735,SB+56+k*19,4.5,0,6.283);g.fill()});
+  // campo de mensagem
+  const iy=1762-INP;g.fillStyle='#fff';g.fillRect(0,iy,780,INP);g.fillStyle='#e9eef2';g.fillRect(0,iy,780,2);
+  let draft='',send=-9;TL.chat.forEach(m=>{if(m[0]==='me'){const st=m[1]-.5,en=m[1]-.1;if(t>=st&&t<m[1]){draft=m[2].slice(0,Math.ceil(m[2].length*seg(t,st,en)))}if(Math.abs(t-m[1])<.5)send=t-m[1]}});
+  g.font='500 30px '+FONT;g.textBaseline='middle';
+  if(draft){g.fillStyle='#111';g.fillText(draft,110,iy+INP/2);const w=g.measureText(draft).width;if(Math.floor(t*4)%2===0)g.fillRect(112+w,iy+INP/2-18,3,36)}
+  else{g.fillStyle='#9aa7b4';g.fillText('Mensagem',110,iy+INP/2)}
+  g.strokeStyle='#9aa7b4';g.lineWidth=4;g.beginPath();g.arc(56,iy+INP/2,20,0,6.283);g.stroke();
+  // botão enviar / microfone
+  if(draft||send>-.1&&send<.15){g.fillStyle='#3E8EDE';g.beginPath();g.arc(718,iy+INP/2,34,0,6.283);g.fill();g.fillStyle='#fff';g.beginPath();g.moveTo(704,iy+INP/2-16);g.lineTo(736,iy+INP/2);g.lineTo(704,iy+INP/2+16);g.lineTo(710,iy+INP/2);g.closePath();g.fill()}
+  else{g.fillStyle='#9aa7b4';rr(g,708,iy+INP/2-22,20,34,10);g.fill();g.fillRect(716,iy+INP/2+14,4,12)}
+  // toque no enviar
+  if(send>-.18&&send<.45){const d=send;const vis=d<0?ss(seg(d,-.18,-.04)):1-ss(seg(d,.2,.45));const X=718,Y=iy+INP/2;
+    g.globalAlpha=vis*.5;g.fillStyle='#fff';g.beginPath();g.arc(X,Y,30,0,6.283);g.fill();g.globalAlpha=vis*.8;g.strokeStyle='rgba(11,79,158,.6)';g.lineWidth=4;g.stroke();
+    if(d>0){const k=seg(d,0,.45);g.globalAlpha=(1-k)*.7;g.strokeStyle='#fff';g.lineWidth=5;g.beginPath();g.arc(X,Y,30+60*eo(k),0,6.283);g.stroke()}g.globalAlpha=1}
+  g.textBaseline='alphabetic';
+  // barra de status
+  g.fillStyle='#fff';g.font='700 30px '+FONT;g.textBaseline='middle';g.fillText('9:41',58,42);for(let k=0;k<4;k++){g.fillRect(592+k*11,48-k*6,7,8+k*6)}
+  rr(g,650,30,46,24,7);g.strokeStyle='#fff';g.lineWidth=2.5;g.stroke();g.fillRect(654,34,32,16);g.fillRect(698,37,4,10);g.textBaseline='alphabetic';
+}
+// ---------- celular (transformação) ----------
+const DEV={x:430,y:384,w:560,h:1225,cx:710,cy:996.5};
+let devT={dx:0,dy:0,s:1,rot:0,ry:0};
+function phoneTf(t){
+  const [a,b]=TL.phoneIn,[c,d]=TL.phoneOut;
+  let dx=0,dy=0,rot=0,ry=0,s=1,op=1;
+  if(t<a){op=0}
+  else if(t<b){const k=seg(t,a,b);const e=eq(k);dy=(1-e)*1500;rot=(1-e)*-9;ry=(1-e)*-18}
+  if(t>=c){const k=seg(t,c,d);const e=ei(k);dx=e*900;rot=e*10;ry=e*20;op=1-seg(t,d-.15,d)}
+  // flutuação leve e aproximação lenta por capítulo
+  dy+=Math.sin(t*1.1)*5;
+  TL.chapters.forEach(ch=>{if(t>=ch[0]&&t<ch[1]){s=1+.018*ss(seg(t,ch[0],ch[1]))}});
+  return {dx,dy,s,rot,ry,op};
+}
+function mapRect(x,y,w,h){ // retângulo em unidades 390 -> px da página (sem rotação)
+  const k=528/390;const px=DEV.x+16+x*k,py=DEV.y+16+SB*528/780+y*k;
+  const m=(X,Y)=>[DEV.cx+(X-DEV.cx)*devT.s+devT.dx,DEV.cy+(Y-DEV.cy)*devT.s+devT.dy];
+  const p0=m(px,py),p1=m(px+w*k,py+h*k);return [p0[0],p0[1],p1[0]-p0[0],p1[1]-p0[1]];
+}
+// ---------- chamadas (zoom) ----------
+const COS=TL.callouts.map(c=>{const el=document.createElement('div');el.className='co';
+  const W=620,H=Math.round(W*c[6]/c[5]);
+  el.innerHTML=`<div class="lab">${c[7]}</div><div class="card" style="width:${W}px;height:${H}px"><canvas width="${W*2}" height="${H*2}" style="width:${W}px;height:${H}px"></canvas></div>`;
+  $('cos').appendChild(el);return {c,el,W,H,cv:el.querySelector('canvas'),lab:el.querySelector('.lab'),drawn:false}});
+function drawCallouts(t){
+  COS.forEach(o=>{const c=o.c;const vin=seg(t,c[0],c[0]+.55),vout=seg(t,c[1]-.05,c[1]+.4);
+    if(t<c[0]||t>c[1]+.4){o.el.style.opacity=0;return}
+    if(!o.drawn){const g=o.cv.getContext('2d');g.drawImage(IM[c[2]],c[3]*2,c[4]*2,c[5]*2,c[6]*2,0,0,o.W*2,o.H*2);o.drawn=true}
+    const src=mapRect(c[3],c[4],c[5],c[6]);
+    const cyS=src[1]+src[3]/2;let ty=clamp(cyS-o.H/2,450,1150-o.H);const dst=[40,ty,o.W,o.H];
+    const k=t<c[1]-.05?ob(vin,1.0):1-eio(vout);
+    const x=lerp(src[0],dst[0],k),y=lerp(src[1],dst[1],k),sc=lerp(src[2]/o.W,1,k);
+    o.el.style.opacity=t<c[1]-.05?clamp(vin*4):clamp(1-vout*1.4);
+    o.el.style.transform=`translate(${x}px,${y}px) scale(${sc})`;
+    o.lab.style.opacity=t<c[1]-.05?seg(t,c[0]+.3,c[0]+.55):1-seg(t,c[1]-.05,c[1]+.15);
+    o.lab.style.transform=`translateY(${(1-eo(seg(t,c[0]+.3,c[0]+.6)))*18}px)`;
+  });
+}
+// ---------- textos ----------
+function words(s){return s.split(' ').map(w=>({w:w.replace(/\*/g,''),em:false}))}
+function emWords(s){let on=false;return s.split(' ').map(w=>{const st=w.startsWith('*');if(st)on=true;const r={w:w.replace(/\*/g,''),em:on};if(w.endsWith('*'))on=false;return r})}
+let titleIdx=-2;
+function setTitle(i){if(i===titleIdx)return;titleIdx=i;if(i<0){$('title').innerHTML='';return}
+  $('title').innerHTML=TL.chapters[i][3].split('|').map(l=>'<div>'+emWords(l).map(o=>`<span>${o.em?'<b>'+o.w+'</b>':o.w}</span>`).join('')+'</div>').join('');
+  $('tagt').textContent=TL.chapters[i][2];[...document.querySelectorAll('#tag .bars i')].forEach((b,k)=>b.className=k<=i?'on':'')}
+let bubIdx=-2;
+function bubbleHTML(s,n){ // primeiros n caracteres (sem asteriscos), com negrito
+  let out='',cnt=0,on=false;for(const ch of s){if(ch==='*'){on=!on;out+=on?'<b>':'</b>';continue}if(cnt>=n)break;out+=ch;cnt++}if(on)out+='</b>';return out}
+const plain=s=>s.replace(/\*/g,'');
+let bubState={typing:false};
+function drawBubble(t,place){
+  const el=$('bubble');let bi=-1;TL.bubbles.forEach((b,i)=>{if(t>=b[0]&&t<b[1]+.3)bi=i});
+  if(bi<0){el.style.opacity=0;bubState.typing=false;return}
+  const b=TL.bubbles[bi];const L=plain(b[2]).length;const n=Math.floor((t-b[0]-.18)*30);
+  const typed=clamp(n,0,L);bubState.typing=n>=0&&n<L;
+  // texto inteiro reservado (invisível) para o balão não mudar de tamanho enquanto digita
+  let vis='',hid='',cnt=0,on=false;for(const ch of b[2]){if(ch==='*'){on=!on;const tg=on?'<b>':'</b>';if(cnt<typed)vis+=tg;else hid+=tg;continue}if(cnt<typed)vis+=ch;else hid+=ch;cnt++}
+  const caret=(n<L+6&&Math.floor(t*4)%2===0)?'<span class="caret"></span>':'<span class="caret" style="visibility:hidden"></span>';
+  el.innerHTML=vis+(vis.split('<b>').length>vis.split('</b>').length?'</b>':'')+caret+'<span style="visibility:hidden">'+hid+'</span>';
+  const cfg=place==='center'?{cx:540,bottom:790,max:720,al:'center'}:place==='corner'?{x:24,bottom:1428,max:400,al:'left'}:{cx:540,bottom:1075,max:720,al:'center'};
+  el.style.width='max-content';el.style.maxWidth=cfg.max+'px';el.style.textAlign=cfg.al;
+  const w=el.offsetWidth,h=el.offsetHeight;const left=cfg.cx!=null?cfg.cx-w/2:cfg.x;
+  el.style.left=left+'px';el.style.top=(cfg.bottom-h)+'px';
+  const tail=cfg.cx!=null?w/2-20:Math.min(170,w-70);el.style.setProperty('--tail',tail+'px');el.style.setProperty('--ox',(tail+20)+'px');
+  const a=seg(t,b[0],b[0]+.3),z=1-seg(t,b[1],b[1]+.3);el.style.opacity=Math.min(a,z);
+  el.style.transform=`scale(${(.7+.3*ob(a,1.4))*(.92+.08*z)})`;
+}
+// ---------- Bipi ----------
+let B;
 const bin=Uint8Array.from(atob(BIPI_GLB),c=>c.charCodeAt(0)).buffer;
 Promise.all([Bipi3D.create($('gl'),bin),...loads]).then(([b])=>{B=b;window.ready=true});
-function finger(t){ // posição do dedo (u,v da tela em -1..1) e altura
-  let act=0;for(const a of ACT){const w=ss(seg(t,a[0],a[0]+.35))*(1-ss(seg(t,a[1]-.3,a[1])));act=Math.max(act,w)}
-  if(act<=0)return null;
-  let idx=-1;for(let k=0;k<WP.length;k++)if(WP[k].a<=t)idx=k;
-  const toUV=(x,y)=>[(x/390-.5)*2,(.5-y/844)*2];
-  let u,v,lift=.2,press=0;
-  const first=WP.find(w=>w.a>=ACT.find(a=>t>=a[0]-.01&&t<=a[1]+.01)?.[0]);
-  if(idx<0||WP[idx].a<ACT.find(a=>t>=a[0]-.01&&t<=a[1]+.01)?.[0]-.001){
-    const w=first||WP[0];const p=toUV(w.x0,w.y0);const k=ss(seg(t,ACT.find(a=>t>=a[0]-.01&&t<=a[1]+.01)[0],w.a-.25));u=lerp(-1.5,p[0],k);v=lerp(-.2,p[1],k);lift=.22;
-  } else {
-    const w=WP[idx], nx=WP[idx+1];
-    if(t<=w.d){const k=eio(seg(t,w.a,w.d));const p0=toUV(w.x0,w.y0),p1=toUV(w.x1,w.y1);u=lerp(p0[0],p1[0],k);v=lerp(p0[1],p1[1],k);press=w.tap?Math.exp(-Math.pow((t-w.a)/.07,2)):1;lift=.02*(1-press)}
-    else {
-      const p0=toUV(w.x1,w.y1);let p1=p0;let down=0;let up=ss(seg(t,w.d,w.d+.22));
-      if(nx&&nx.a<=ACT.find(a=>t>=a[0]-.01&&t<=a[1]+.01)[1]+.01&&nx.a-w.d<3){p1=toUV(nx.x0,nx.y0);const k=ss(seg(t,w.d+.05,nx.a-.2));u=lerp(p0[0],p1[0],k);v=lerp(p0[1],p1[1],k);down=1-ss(seg(t,nx.a-.22,nx.a));}
-      else {u=p0[0];v=p0[1];down=1}
-      lift=.02+.2*Math.min(up,down);
-    }
-  }
-  return {u,v,lift,act};
+const SPOT={center:{x:90,y:760,s:1},corner:{x:-46,y:1407,s:.58},outro:{x:180,y:1040,s:.78}};
+function bipiSpot(t){
+  const [c0,c1]=TL.toCorner,[o0,o1]=TL.toOutro;let A=SPOT.center,Bp=SPOT.center,k=0;
+  if(t>=c0&&t<o0){A=SPOT.center;Bp=SPOT.corner;k=eio(seg(t,c0,c1))}
+  else if(t>=o0){A=SPOT.corner;Bp=SPOT.outro;k=eio(seg(t,o0,o1))}
+  // arco ao trocar de lugar
+  const arc=Math.sin(Math.PI*k)*-90;
+  return {x:lerp(A.x,Bp.x,k),y:lerp(A.y,Bp.y,k)+arc,s:lerp(A.s,Bp.s,k),k};
 }
+function place(t){if(t<TL.toCorner[0]+.4)return 'center';if(t<TL.toOutro[0]+.5)return 'corner';return 'outro'}
+function mouthAt(t){if(!bubState.typing)return 0;const v=Math.abs(Math.sin(t*15.5))*(.55+.45*Math.abs(Math.sin(t*4.3+1)));return v}
 window.frame=function(t){
-  $('circ').style.transform=`translate(${Math.sin(t*.5)*30}px,${Math.cos(t*.4)*24}px) scale(${1+Math.sin(t*.6)*.03})`;
-  bubs.forEach(b=>{const y=1980-((t*b.sp+b.ph*200)%2100);b.d.style.transform=`translate(${b.x+Math.sin(t+b.ph)*24}px,${y}px)`;});
-  // legenda
-  let ci=-1;CAPS.forEach((c,i)=>{if(t>=c[0])ci=i});const c=CAPS[ci]; setCap(ci>=0&&t<c[1]+.35?ci:-1);
-  if(ci>=0){const lt=t-c[0];const sp=$('cap').children;for(let k=0;k<sp.length;k++){const p=ob(seg(lt,.05+k*.07,.4+k*.07));sp[k].style.opacity=clamp(seg(lt,.02+k*.07,.3+k*.07));sp[k].style.transform=`translateY(${(1-p)*36}px)`}$('cap').style.opacity=1-seg(t,c[1]-.15,c[1]+.35)}
-  $('brand').style.opacity=t>39.4?0:.9;
-  // sobreposições
-  const ov=(el,a,b,fo)=>{const i=seg(t,a,a+.3),o=1-seg(t,fo,fo+.3);el.style.opacity=Math.min(i,o);const p=ob(seg(t,a,a+.45));el.style.transform=`translateY(${(1-p)*140}px) scale(${.6+.4*p})`};
-  ov($('b1'),27.5,0,29.5);ov($('b2'),28.7,0,29.6);ov($('pdf'),38.6,0,39.4);
-  $('s6').style.opacity=seg(t,40.0,40.5);
-  $('lg0').style.transform=`translateY(${(1-ob(seg(t,40.0,40.7)))*80}px)`;$('lg2').style.opacity=seg(t,40.5,40.9);$('lg3').style.opacity=seg(t,41.2,41.6);
-  if(!B)return; const M=B.M;
-  drawScreen(t);
-  const pose={}; const m=mode(t), talk=talking(t), mo=mouthAt(t);
-  // ---- raiz do Bipi
-  let pos=[0,0,0],scale=1,rotY=Math.sin(t*.7)*.06,phone=null,squash=1,phoneS=PH.s;
-  if(t<1.0){const e=ob(seg(t,.0,.9));pos=[0,(1-e)*-5.2,0]}
-  if(t>=1.0&&t<1.5){const k=seg(t,1.0,1.5);squash=1-.1*Math.sin(Math.PI*k)}
-  // pulos de comemoração
-  const jump=(a,b,h)=>(t>a&&t<b)?Math.abs(Math.sin((t-a)/(b-a)*Math.PI))*h:0;
-  pos[1]+=jump(13.7,14.5,.55)+jump(30.0,30.9,.3);
-  // mergulho no celular e saída pelo topo
-  let diving=false;const C0=[.12,.66,.5];
-  if(t>=26.0&&t<27.2){diving=true;const k=seg(t,26.0,27.1),up=Math.sin(Math.PI*Math.min(1,k*1.6))*.9*(1-seg(k,.45,1));
-    const s=1-.96*ss(seg(k,.3,1));scale=Math.max(.04,s);const c=lerp3([0,1.0,.1],[C0[0],C0[1]+.25,.95],ss(seg(k,0,.55)));const c2=lerp3(c,C0,ss(seg(k,.55,1)));
-    pos=[c2[0],c2[1]+up-scale*1.0,c2[2]];phone={pos:[0,0,0],scale:1,rotY:0}; rotY=0}
-  if(t>=27.2&&t<29.5){diving=true;scale=.04;pos=[C0[0],C0[1]-.04,C0[2]-.3];phone={pos:[0,0,0],scale:1,rotY:0}}
-  if(t>=29.5&&t<30.5){diving=true;const k=seg(t,29.5,30.5),s=Math.max(.04,ob(seg(k,0,.85)));scale=s;const c=lerp3([C0[0],C0[1],C0[2]-.3],[0,1.0,0],ss(k));const arc=Math.sin(Math.PI*seg(k,0,.8))*1.05;
-    pos=[c[0],c[1]+arc-scale*1.0,c[2]];phone={pos:[0,0,0],scale:1,rotY:0};rotY=0; if(k>=1)diving=false}
-  if(t>=30.5)diving=false;
-  const retorno=t>=29.5&&t<30.5;
-  // saída: celular guardado
-  let phS=phoneS;const out=ss(seg(t,39.4,40.1));phS=phoneS*(1-out);
-  
-  // ---- celular (segue o Bipi, exceto no mergulho)
-  const ph={t:PH.t,rx:PH.rx,ry:PH.ry,s:phS};
-  pose.celular={tx:ph.t[0],ty:ph.t[1],tz:ph.t[2],rx:ph.rx,ry:ph.ry,rz:0,s:Math.max(.001,phS)};
-  const pp=(p)=>BipiRig.phonePt(M,{t:ph.t,rx:ph.rx,ry:ph.ry},[p[0]*phoneS,p[1]*phoneS,p[2]*phoneS]);
-  // ---- braço que segura
-  const holdOn=!diving&&t<39.6;
-  const polR=[.5,-1,-.15];
-  let rR;
-  if(diving||retorno){rR=BipiRig.ik('R',[.9,1.95+Math.sin(t*14)*.1,.25],[.6,-1,-.2])}
-  else if(t>=39.6){const w=[.88+Math.sin(t*9+1)*.1,1.95+Math.sin(t*9)*.08,.3];rR=BipiRig.ik('R',lerp3(pp([.44,0,-.06]),w,ss(seg(t,39.6,40.2))),[.6,-1,-.2])}
-  else rR=BipiRig.ikTip('R',pp([.44,.0,-.06]),polR);
-  BipiRig.armPose('R',rR,pose);
-  if(holdOn||true){pose.dedoR={s:.001}}
-  // ---- braço que toca/acena
-  const fg=finger(t); let lw;const idle=[-.62,.78,.36];
-  let wave=0;[[1.2,4.9],[39.8,45]].forEach(a=>{wave=Math.max(wave,ss(seg(t,a[0],a[0]+.35))*(1-(a[1]>44?0:ss(seg(t,a[1]-.3,a[1])))))});
-  const cheer=Math.max(ss(seg(t,13.6,13.9))*(1-ss(seg(t,14.4,14.7))),ss(seg(t,29.9,30.1))*(1-ss(seg(t,30.6,30.9))));
-  let target=idle.slice();
-  if(wave>0||cheer>0){const w=[-.82+Math.sin(t*10)*.12,2.0+Math.sin(t*10+1)*.06,.3];target=lerp3(target,w,Math.max(wave,cheer))}
-  let rL;
-  if(diving&&!retorno){rL=BipiRig.ik('L',[-.9,1.95+Math.sin(t*14+1)*.1,.25],[-.6,-1,-.2])}
-  else if(fg&&fg.act>0){
-    const tip=pp([fg.u*.33,fg.v*.715,.045+fg.lift/phoneS]);
-    const r1=BipiRig.ikTip('L',tip,[-.4,-1,-.2]);
-    const W=lerp3(target,r1.W,fg.act);rL=BipiRig.ik('L',W,[-.4,-1,-.2]);
-  } else rL=BipiRig.ik('L',target,[-.4,-1,-.2]);
-  BipiRig.armPose('L',rL,pose);
-  // ---- rosto
-  const blink=((t*1.0)%3.3)<.13?.12:1;pose.olhoL={sy:blink};pose.olhoR={sy:blink};
-  const brow=talk?.012*Math.sin(t*12):0;pose.cejaL={ty:.205+brow+(fg?.012:0),rz:.08};pose.cejaR={ty:.205+brow+(fg?.012:0),rz:-.08};
-  pose.boca={sy:Math.max(.0001,mo>.06?.12+mo*1.5:.0001)};pose.sorriso={s:mo>.06?.0001:1};
-  const lookDown=fg&&fg.act>.5?.16:(m>.5?.1:.0);
-  pose.cabeca={ty:1.98+Math.sin(t*3.2)*.015,rx:lookDown+(talk?Math.sin(t*5)*.03:0),ry:Math.sin(t*.9)*.08+(talk?Math.sin(t*3.3)*.04:0),rz:Math.sin(t*2.1)*.02};
-  pose.antenaPivo={rz:Math.sin(t*5)*(talk?.09:.04)};
+  if(!B)return;
+  // fundo
+  $('b1').style.transform=`translate(${Math.sin(t*.35)*40}px,${Math.cos(t*.3)*30}px)`;$('b2').style.transform=`translate(${Math.cos(t*.25)*40}px,${Math.sin(t*.32)*30}px)`;
+  bubs.forEach(b=>{const y=1980-((t*b.sp+b.ph*260)%2100);b.d.style.transform=`translate(${b.x+Math.sin(t*.6+b.ph)*20}px,${y}px)`});
+  // gancho
+  const hk=[...$('h1').children,...$('h2').children];
+  hk.forEach((s,i)=>{const t0=i<6?.25+i*.11:1.65+(i-6)*.16;const p=seg(t,t0,t0+.5);s.style.opacity=clamp(p*2.2);s.style.transform=`translateY(${(1-eq(p))*70}px)`});
+  const hout=seg(t,3.25,3.75);$('hook').style.opacity=1-hout;$('hook').style.transform=`translateY(${-eio(hout)*120}px) scale(${1-.04*hout})`;
+  const red=$('h2').querySelector('.red');red.style.transform+=` scale(${1+.06*Math.exp(-Math.pow((t-2.2)/.12,2))})`;
+  $('brand').style.opacity=Math.min(seg(t,3.6,4.1),1-seg(t,38.1,38.5))*.95;
+  // título do capítulo
+  let ci=-1;TL.chapters.forEach((c,i)=>{if(t>=c[0]&&t<c[1])ci=i});setTitle(ci);
+  if(ci>=0){const c=TL.chapters[ci];const lt=t-c[0];const sp=$('title').querySelectorAll('span');
+    for(let k=0;k<sp.length;k++){const p=seg(lt,.08+k*.06,.55+k*.06);sp[k].style.opacity=clamp(p*2);sp[k].style.transform=`translateY(${(1-eq(p))*44}px)`}
+    const out=seg(t,c[1]-.35,c[1]);$('title').style.opacity=1-out;$('title').style.transform=`translateY(${-out*30}px)`;
+    $('tag').style.opacity=Math.min(seg(lt,0,.3),ci===3?1-seg(t,c[1]-.35,c[1]):1);
+  } else {$('title').style.opacity=0;$('tag').style.opacity=0}
+  // celular
+  const P=phoneTf(t);devT=P;$('dev').style.opacity=P.op;
+  $('dev').style.transform=`translate(${P.dx}px,${P.dy}px) perspective(2400px) rotateY(${P.ry}deg) rotate(${P.rot}deg) scale(${P.s})`;
+  if(P.op>0)drawScreen(t);
+  drawCallouts(t);
+  // validade lançada
+  const sv=TL.saved;const sa=Math.min(seg(t,sv[0],sv[0]+.3),1-seg(t,sv[1]-.25,sv[1]));$('saved').style.opacity=sa;$('saved').style.transform=`translateY(${(1-ob(seg(t,sv[0],sv[0]+.45),1.5))*40}px) scale(${.85+.15*ob(seg(t,sv[0],sv[0]+.45),1.5)})`;
+  // Telegram
+  TL.banners.forEach((b,i)=>{const el=$('ban'+i);const a=seg(t,b[0],b[0]+.55),z=seg(t,b[1]-.35,b[1]);el.style.opacity=Math.min(clamp(a*3),1-z);
+    const top=i?800:470;el.style.top=top+'px';el.style.transform=`translateX(${(1-eq(a))*-700+z*-60}px) rotate(${(1-eq(a))*-8+(i?1.5:-1.5)}deg)`});
+  $('tgl').style.opacity=Math.min(seg(t,TL.telegram[0],TL.telegram[0]+.35),1-seg(t,TL.telegram[1]-.35,TL.telegram[1]));$('tgl').style.transform=`translateY(${(1-eo(seg(t,TL.telegram[0],TL.telegram[0]+.4)))*20}px)`;
+  // final
+  $('outro').style.opacity=seg(t,TL.logo-.2,TL.logo+.3);
+  $('lg').style.transform=`translateY(${(1-ob(seg(t,TL.logo,TL.logo+.7),1.3))*90}px) scale(${.9+.1*eq(seg(t,TL.logo,TL.logo+.6))})`;
+  [['o1',.35],['o2',.55],['o3',1.0]].forEach(([id,d])=>{const p=seg(t,TL.logo+d,TL.logo+d+.5);$(id).style.opacity=p;$(id).style.transform=`translateY(${(1-eq(p))*40}px)`});
+  const cp=seg(t,TL.logo+2.2,TL.logo+2.7);$('cta').style.opacity=cp;$('cta').style.transform=`translateX(-50%) translateY(${(1-ob(cp,1.6))*40}px)`;
+  // balão
+  const pl=place(t);drawBubble(t,pl);
+  // ---- Bipi
+  const sp=bipiSpot(t);let visible=t>=TL.bipiIn;
+  let rise=1;if(t<TL.bipiIn+.75){rise=ob(seg(t,TL.bipiIn,TL.bipiIn+.7),1.6)}
+  const gl=$('gl');gl.style.opacity=visible?1:0;
+  gl.style.transform=`translate(${sp.x}px,${sp.y+(1-rise)*700}px) scale(${sp.s})`;
+  if(!visible){return}
+  const pose={dedoL:{s:.001},dedoR:{s:.001},polegarL:{s:.001},polegarR:{s:.001}};
+  let squash=1;const land=t-(TL.bipiIn+.45);if(land>0&&land<.4)squash=1-.09*Math.sin(Math.PI*land/.4);
+  // corpo
+  const inCorner=t>=TL.toCorner[0]&&t<TL.toOutro[1];
+  const face=inCorner?lerp(0,.42,ss(seg(t,TL.toCorner[0],TL.toCorner[1])))*(1-ss(seg(t,TL.toOutro[0],TL.toOutro[1]))):0;
+  let rotY=face+Math.sin(t*.8)*.05;let pos=[0,Math.abs(Math.sin(t*2.6))*.015,0];
+  // pulos
+  const hop=(a,b,h)=>(t>a&&t<b)?Math.sin((t-a)/(b-a)*Math.PI)*h:0;
+  pos[1]+=hop(TL.toCorner[0],TL.toCorner[1],0)+hop(TL.cheer[0][0],TL.cheer[0][0]+.45,.32)+hop(TL.cheer[0][0]+.45,TL.cheer[0][0]+.8,.12);
+  // braços
+  const idleL=[-.66,.76+Math.sin(t*2)*.02,.28],idleR=[.66,.76+Math.sin(t*2+1)*.02,.28];
+  let wL=idleL.slice(),wR=idleR.slice();
+  const env=(a,b,r=.35)=>ss(seg(t,a,a+r))*(1-ss(seg(t,b-r,b)));
+  // aceno (início e final)
+  const wave=Math.max(env(TL.bipiIn+.55,7.6),env(TL.logo+.4,45.2));
+  if(wave>0){wR=lerp3(wR,[.9+Math.sin(t*9)*.13,2.0+Math.sin(t*9+1.3)*.05,.32],wave)}
+  // apontar para o celular durante as chamadas
+  let point=0;TL.callouts.forEach(c=>{point=Math.max(point,env(c[0]-.1,c[1]+.1,.3))});
+  point=Math.max(point,env(TL.telegram[0]+.1,TL.telegram[1],.35));
+  if(point>0){wR=lerp3(wR,[1.18,1.62+Math.sin(t*3)*.03,.42],point)}
+  // comemoração
+  const ch=env(TL.cheer[0][0],TL.cheer[0][1],.2);if(ch>0){wL=lerp3(wL,[-.82+Math.sin(t*14)*.05,2.05,.2],ch);wR=lerp3(wR,[.82+Math.sin(t*14+1)*.05,2.05,.2],ch)}
+  // mãos juntas ao "explicar" (falando sem apontar)
+  BipiRig.armPose('L',BipiRig.ik('L',wL,[-.45,-1,-.25]),pose);
+  BipiRig.armPose('R',BipiRig.ik('R',wR,[.45,-1,-.25]),pose);
+  // rosto
+  const blink=((t+.4)%3.4)<.13?.1:1;pose.olhoL={sy:blink};pose.olhoR={sy:blink};
+  const mo=mouthAt(t);
+  pose.boca={sy:Math.max(.0001,mo>.06?.12+mo*1.4:.0001)};pose.sorriso={s:mo>.06?.0001:1};
+  let nod=0;TL.taps.forEach(a=>{nod+=Math.exp(-Math.pow((t-a[0]-.12)/.14,2))*.07});
+  const ey=(point>.5||inCorner)?.04:0;
+  pose.cejaL={ty:.205+(mo>.06?.01*Math.sin(t*9):0)+ch*.02,rz:.08};pose.cejaR={ty:.205+(mo>.06?.01*Math.sin(t*9):0)+ch*.02,rz:-.08};
+  pose.cabeca={ty:1.98+Math.sin(t*3.0)*.012,rx:nod+ey+(mo>.06?Math.sin(t*5)*.025:0),ry:Math.sin(t*.9)*.06+(inCorner?.12*point:0),rz:Math.sin(t*1.9)*.025};
+  pose.antenaPivo={rz:Math.sin(t*5)*(mo>.06?.09:.045)+Math.sin(t*1.3)*.02};
   pose.feixe={ty:-.02+Math.sin(t*3)*.07};
-  // ---- câmera
-  const cx=.12;
-  let talkCam={eye:[.1,1.66,7.2],at:[.1,1.66,.3]}, demoCam={eye:[cx,.84,4.23],at:[cx,.84,.62]};
-  const outro=ss(seg(t,39.4,40.2));
-  talkCam={eye:[.1,lerp(1.85,2.49,outro),lerp(7.6,8.9,outro)],at:[.1,lerp(1.85,2.49,outro),.3]};
-  const sh=t>5.8&&t<6.5?Math.sin((t-5.8)*40)*0:0;
-  const cam={eye:lerp3(talkCam.eye,demoCam.eye,m),at:lerp3(talkCam.at,demoCam.at,m),fov:32};
-  // flashes da tela
-  let glow=0;[[6.3,.35],[13.8,.3],[26.9,.4],[29.6,.4]].forEach(a=>{const d=t-a[0];if(d>0&&d<a[1])glow=Math.max(glow,Math.sin(Math.PI*d/a[1])*.7)});
-  const o={rotY,pos,scale,squash,pose,cam,screen:sc,screenGlow:glow,shadowA:.8,glow:{ledPeito:0}};
-  if(phone)o.phone=phone; else if(false){}
-  B.render(o);
+  const cam={eye:[0,1.32,7.4],at:[0,1.3,0],fov:30};
+  B.render({rotY,pos,scale:1,squash,pose,cam,shadowA:.55,glow:{ledPeito:0}});
 };
 </script></html>
