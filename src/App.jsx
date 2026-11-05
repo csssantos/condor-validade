@@ -2926,6 +2926,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-05-promotor-ve-marca", data: "05/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Promotor agora vê, em Início, Setores e Produtos, só os produtos das marcas do convite dele (acesso total continua vendo tudo)." },
+  ] },
   { id: "2026-11-05-atalhos-cargo", data: "05/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "Atalhos, Torre de controle, Relatórios, Histórico de baixas e Auditoria agora aparecem só para encarregado ou cargo superior." },
   ] },
