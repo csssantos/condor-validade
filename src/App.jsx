@@ -2622,20 +2622,20 @@ function AppInner() {
             onBaixaDireta={!editingItemId && nivelUsuario <= 5 && podeGerirProduto(draftProduct) ? registrarBaixaDireta : null} />
         )}
 
-        {flow === "auditoria" && <AuditoriaView T={T} auditoria={auditoria} />}
-        {flow === "torre" && <TorreControleView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
+        {flow === "auditoria" && ehEncarregado && <AuditoriaView T={T} auditoria={auditoria} />}
+        {flow === "torre" && ehEncarregado && <TorreControleView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
         {flow === "rede" && ehCorporativo && <PainelRedeView T={T} showToast={showToast} />}
         {flow === "convites" && ehEncarregado && <ConvitesPromotorView T={T} showToast={showToast} lojaAtiva={lojaAtiva} nivelUsuario={perfil?.cargos?.nivel ?? 99} />}
         {flow === "gestao" && ehDev && <GestaoAplicativoView T={T} showToast={showToast} lojaAtiva={lojaAtiva} lojas={todasLojas} onRecarregarLojas={recarregarLojas} nivelUsuario={perfil?.cargos?.nivel} onTrocarLoja={(l) => { setLojaAtivaOverride(l); showToast(`Trocado pra loja ${l.numero_loja}.`); }} />}
-        {flow === "relatorios" && <RelatoriosView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} onOpenDetail={setDetalheItem} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
+        {flow === "relatorios" && ehEncarregado && <RelatoriosView T={T} items={items} historico={historico} auditoria={auditoria} usuario={usuario} showToast={showToast} onOpenDetail={setDetalheItem} rondas={rondas} lojaNumero={perfil?.lojas?.numero_loja} />}
         {/* Inteligência operacional (módulos novos, em src/inteligencia.jsx) */}
         {flow === "previsao" && ehEncarregado && <PrevisaoOperacionalView T={T} perfil={perfil} lojaAtiva={lojaAtiva} showToast={showToast} onCriarRonda={abrirRondaInteligente} />}
         {flow === "prevencao" && ehEncarregado && <PrevencaoPerdasView T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} showToast={showToast} onCriarRonda={abrirRondaInteligente} ScanView={ScanView} />}
         {flow === "assistente" && ehEncarregado && <AssistenteIAView T={T} perfil={perfil} lojaAtiva={lojaAtiva} showToast={showToast} onCriarRonda={abrirRondaInteligente} />}
 
         {flow === null && tab === "home" && telaLarga && (
-          <DashboardView T={T} items={items} historico={historico} rondas={rondas} auditoria={auditoria} nome={perfil?.nome} lojaNumero={lojaAtiva?.numero_loja}
-            onOpenDetail={setDetalheItem} onTab={(t) => { setSetorAtivo(null); setTab(t); }} onFlow={(f) => setFlow(f)} />
+          <DashboardView T={T} items={items} historico={historico} rondas={rondas} auditoria={ehEncarregado ? auditoria : []} nome={perfil?.nome} lojaNumero={lojaAtiva?.numero_loja}
+            onOpenDetail={setDetalheItem} onTab={(t) => { setSetorAtivo(null); setTab(t); }} onFlow={(f) => setFlow(!ehEncarregado && ["auditoria", "torre", "relatorios", "historico"].includes(f) ? null : f)} />
         )}
         {flow === null && tab === "produtos" && telaLarga && (
           <ProdutosDashboard T={T} items={items} historico={historico} search={search} setSearch={setSearch}
@@ -2681,7 +2681,7 @@ function AppInner() {
         {flow === null && tab === "rondas" && (
           <RondasView T={T} perfil={perfil} lojaAtiva={lojaAtiva} catalog={catalog} showToast={showToast} intent={rondaIntent} onIntentUsada={() => setRondaIntent(null)} />
         )}
-        {flow === "historico" && <HistoricoView T={T} historico={historico} items={items} usuario={usuario} />}
+        {flow === "historico" && ehEncarregado && <HistoricoView T={T} historico={historico} items={items} usuario={usuario} />}
         {flow === null && (tab === "ajustes" || tab.startsWith("cfg-")) && (
           <MaisView secao={tab.startsWith("cfg-") ? tab.slice(4) : null} T={T} dark={dark} tema={tema}
             setTema={(t) => setPrefs((p) => ({ ...p, tema: t }))}
@@ -2926,6 +2926,9 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-05-atalhos-cargo", data: "05/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Atalhos, Torre de controle, Relatórios, Histórico de baixas e Auditoria agora aparecem só para encarregado ou cargo superior." },
+  ] },
   { id: "2026-11-04-bipi-compartilhar", data: "04/11/2026", itens: [
     { tipo: "novo", ate: 7, texto: "A imagem de compartilhar produto agora traz o Bipi sorridente no canto da foto." },
   ] },
@@ -7343,7 +7346,7 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
       { tab: "setores", label: "Setores", Icon: LayoutGrid },
       { tab: "rondas", label: "Rondas", Icon: ShieldCheck },
     ] },
-    { titulo: "Análise", itens: [
+    ...(ehEncarregado ? [{ titulo: "Análise", itens: [
       { flow: "prioridade", label: "Prioridade de perda", Icon: Flame },
       ...(podeVerValores ? [
         { flow: "torre", label: "Torre de controle", Icon: Radar },
@@ -7351,7 +7354,7 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
       ] : []),
       { flow: "historico", label: "Histórico de baixas", Icon: History },
       { flow: "auditoria", label: "Auditoria", Icon: ListChecks },
-    ] },
+    ] }] : []),
     { titulo: "Inteligência", itens: [
       ...(ehEncarregado ? [
         { flow: "assistente", label: "Assistente IA", Icon: Sparkles },
@@ -12109,7 +12112,7 @@ function MaisView(props) {
     { id: "conta", titulo: "Conta", desc: "Senha, e-mail e sessão", Icon: KeyRound, cor: COR_MAIS.conta },
     { id: "aparencia", titulo: "Aparência", desc: "Claro, escuro ou automático", Icon: Palette, cor: COR_MAIS.aparencia },
     { id: "notificacoes", titulo: "Notificações e som", desc: "Alertas e beep ao bipar", Icon: Bell, cor: COR_MAIS.notificacoes },
-    { id: "atalhos", titulo: "Atalhos", desc: "Análises, rondas e gestão", Icon: LayoutGrid, cor: COR_MAIS.atalhos, soMobile: true },
+    ...(ehEncarregado ? [{ id: "atalhos", titulo: "Atalhos", desc: "Análises, rondas e gestão", Icon: LayoutGrid, cor: COR_MAIS.atalhos, soMobile: true }] : []),
     ...(ehEncarregado ? [{ id: "aprovacoes", titulo: "Aprovar produtos novos", desc: props.aprovPendentes > 0 ? `${props.aprovPendentes} aguardando você` : "Produtos lançados pelo Telegram aguardando você", Icon: Package, cor: COR_MAIS.aprovacoes }] : []),
     ...(ehDev ? [
       { id: "avisos", titulo: "Avisos", desc: "Enviar para a rede, uma loja, setor ou pessoas", Icon: Megaphone, cor: COR_MAIS.avisos },
@@ -12141,7 +12144,7 @@ function MaisView(props) {
       case "conta": return <PaginaConta T={T} dark={dark} perfil={perfil} usuario={usuario} showToast={props.showToast} onSair={props.onSair} />;
       case "aparencia": return <PaginaAparencia T={T} dark={dark} tema={tema} onTema={trocarTema} />;
       case "notificacoes": return <PaginaNotificacoes T={T} dark={dark} som={props.som} setSom={props.setSom} notifPermission={props.notifPermission} onToggleNotif={props.onToggleNotif} />;
-      case "atalhos": return <PaginaAtalhos T={T} dark={dark} historico={historico} ehEncarregado={ehEncarregado} ehCorporativo={ehCorporativo} ehDev={ehDev} acoes={acoes} />;
+      case "atalhos": return !ehEncarregado ? null : <PaginaAtalhos T={T} dark={dark} historico={historico} ehEncarregado={ehEncarregado} ehCorporativo={ehCorporativo} ehDev={ehDev} acoes={acoes} />;
       case "aprovacoes": return ehEncarregado ? <PaginaAprovacoes T={T} dark={dark} perfil={perfil} showToast={props.showToast} subsetoresExtra={props.subsetoresExtra || []} /> : null;
       case "avisos": return ehDev ? <PaginaAvisos T={T} dark={dark} perfil={perfil} showToast={props.showToast} /> : null;
       case "balanca": return ehDev ? <PaginaBalanca T={T} dark={dark} perfil={perfil} configBalanca={props.configBalanca} onSalvou={props.onBalancaSalva} showToast={props.showToast} /> : null;

@@ -268,3 +268,7 @@ Ideia em avaliação (sem decisão): localização ao lançar validade (modo "si
 
 ## BIPI NA IMAGEM DE COMPARTILHAR (2026-11-04, pedido do dono) — sem SQL
 - `src/compartilharImagem.js`: o Bipi sorridente (PNG `public/bipi-compartilhar.png`, 600x600 transparente, gerado de `public/mascote.svg`) é desenhado AO LADO do cartão da foto (cartão fx=70/fw=640; Bipi 320 px à direita, alinhado à base do cartão), nunca em cima da embalagem. Carrega em paralelo com a foto (`Promise.all`), memoizado (`bipiCache`), timeout 4 s; se falhar a imagem sai sem ele. Mesma origem (não suja o canvas). Pendência aceita: 1º compartilhar offline sai sem Bipi (PNG fora do precache do sw.js; ao incluir, trocar CACHE_SHELL nos dois arquivos).
+
+## ATALHOS SÓ PARA ENCARREGADO+ (2026-11-05, pedido do dono) — `supabase-auditoria-nivel.sql` (usuário roda; auto-teste; NÃO reaplicar supabase-seguranca.sql depois: volta a policy antiga)
+- Nível >5 (funcionário/promotor) não vê "Atalhos" no Mais nem o grupo "Análise" do SideNav (PC); os flows `auditoria`, `torre`, `relatorios`, `historico` exigem `ehEncarregado` no render; DashboardView (PC) recebe `auditoria=[]` e `onFlow` ignora esses 4 flows para nível >5. Banco: `auditoria_sel` = `loja_ok(loja_id) and coalesce(nivel_do_usuario(),99)<=5` (insert igual).
+- DECISÃO CONSCIENTE: flow `prioridade` continua aberto (Home dá "Ver prioridades" a todos) e `historico` continua legível no banco (Home/Setores dependem). Pendência: se o dono quiser, restringir `historico` ao autor para nível >5 e esconder "Ver prioridades".
