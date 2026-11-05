@@ -64,6 +64,22 @@
       `precision mediump float; varying vec2 vQ; uniform vec4 uCol; uniform float uShape;
       void main(){ vec2 q = vQ; float d = uShape > 0.5 ? length(vec2(q.x*0.5, q.y*3.0)) : length(q);
         float a = pow(max(1.0 - d, 0.0), 2.2); gl_FragColor = vec4(uCol.rgb * a * uCol.a, a * uCol.a); }`);
+    const T = prog(`attribute vec3 aP; attribute vec2 aT; uniform mat4 uM, uVP; varying vec2 vT; varying vec3 vW;
+      void main(){ vec4 w = uM * vec4(aP,1.0); vW = w.xyz; vT = aT; gl_Position = uVP * w; }`,
+    `precision mediump float; varying vec2 vT; varying vec3 vW; uniform sampler2D uTex; uniform float uAsp, uGlow; uniform vec3 uCam;
+      void main(){
+        vec2 q = (vT - 0.5) * vec2(uAsp, 1.0) * 2.0; vec2 hb = vec2(uAsp, 1.0) - 0.1;
+        vec2 d = abs(q) - hb; float sd = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - 0.1;
+        if (sd > 0.0) discard;
+        vec3 c = texture2D(uTex, vT).rgb;
+        c += vec3(0.55,0.75,1.0) * uGlow;
+        float edge = smoothstep(0.0, -0.012, sd); c *= mix(0.55, 1.0, edge);
+        gl_FragColor = vec4(c, 1.0);
+      }`);
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
+    const anis = gl.getExtension("EXT_texture_filter_anisotropic");
     const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
 
@@ -71,28 +87,36 @@
     const bv = json.bufferViews, ac = json.accessors;
     const sl = i => { const v = bv[i]; return bin.slice(v.byteOffset, v.byteOffset + v.byteLength); };
     const meshes = json.meshes.map(m => {
-      const p = m.primitives[0], a = ac[p.attributes.POSITION], n = ac[p.attributes.NORMAL], ix = ac[p.indices];
+      const p = m.primitives[0], a = ac[p.attributes.POSITION], n = ac[p.attributes.NORMAL], ix = ac[p.indices], tc = p.attributes.TEXCOORD_0 != null ? ac[p.attributes.TEXCOORD_0] : null;
       const mk = (target, data) => { const b = gl.createBuffer(); gl.bindBuffer(target, b); gl.bufferData(target, data, gl.STATIC_DRAW); return b; };
       return { pos: mk(gl.ARRAY_BUFFER, new Float32Array(sl(a.bufferView))), nor: mk(gl.ARRAY_BUFFER, new Float32Array(sl(n.bufferView))),
-               idx: mk(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(sl(ix.bufferView))), count: ix.count, mat: p.material };
+               idx: mk(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(sl(ix.bufferView))), count: ix.count, mat: p.material,
+               uv: tc ? mk(gl.ARRAY_BUFFER, new Float32Array(sl(tc.bufferView))) : null };
     });
-    const mats = json.materials.map(m => ({ c: lin(m.pbrMetallicRoughness.baseColorFactor.slice(0, 3)), r: m.pbrMetallicRoughness.roughnessFactor, e: lin(m.emissiveFactor || [0, 0, 0]) }));
+    const mats = json.materials.map(m => ({ name: m.name, c: lin(m.pbrMetallicRoughness.baseColorFactor.slice(0, 3)), r: m.pbrMetallicRoughness.roughnessFactor, e: lin(m.emissiveFactor || [0, 0, 0]) }));
     const nodes = json.nodes;
     const byName = {}; nodes.forEach((n, i) => { byName[n.name] = i; });
     const parent = new Array(nodes.length).fill(-1);
     nodes.forEach((n, i) => (n.children || []).forEach(c => { parent[c] = i; }));
     const rootIdx = json.scenes[0].nodes[0];
     const aLoc = { P: [gl.getAttribLocation(P, "aP"), gl.getAttribLocation(P, "aN")], G: gl.getAttribLocation(G, "aQ") };
-    const U = n => gl.getUniformLocation(P, n), UG = n => gl.getUniformLocation(G, n);
+    const U = n => gl.getUniformLocation(P, n), UG = n => gl.getUniformLocation(G, n), UT = n => gl.getUniformLocation(T, n);
 
-    function world(pose, rootM) {
+    function world(pose, rootM, phoneM) {
       const W = new Array(nodes.length);
       const walk = (i, pm) => {
         const n = nodes[i], o = (pose && pose[n.name]) || {};
         const rest = (n.extras && n.extras.rest) || [0, 0, 0], t = n.translation || [0, 0, 0], s = n.scale || [1, 1, 1];
-        const lm = M.trs([o.tx ?? t[0], o.ty ?? t[1], o.tz ?? t[2]], o.rx ?? rest[0], o.ry ?? rest[1], o.rz ?? rest[2],
+        let lm;
+        if (o.aim) {
+          let y = o.aim.map(v => -v); const l = Math.hypot(...y) || 1; y = y.map(v => v / l);
+          let ref = Math.abs(y[2]) > 0.95 ? [1, 0, 0] : [0, 0, 1];
+          let x = [y[1]*ref[2]-y[2]*ref[1], y[2]*ref[0]-y[0]*ref[2], y[0]*ref[1]-y[1]*ref[0]]; const lx = Math.hypot(...x); x = x.map(v => v / lx);
+          const z = [x[1]*y[2]-x[2]*y[1], x[2]*y[0]-x[0]*y[2], x[0]*y[1]-x[1]*y[0]];
+          lm = [x[0],x[1],x[2],0, y[0],y[1],y[2],0, z[0],z[1],z[2],0, o.tx ?? t[0], o.ty ?? t[1], o.tz ?? t[2], 1];
+        } else lm = M.trs([o.tx ?? t[0], o.ty ?? t[1], o.tz ?? t[2]], o.rx ?? rest[0], o.ry ?? rest[1], o.rz ?? rest[2],
           o.s != null ? [o.s, o.s, o.s] : [o.sx ?? s[0], o.sy ?? s[1], o.sz ?? s[2]]);
-        W[i] = M.mul(pm, lm);
+        W[i] = M.mul((phoneM && n.name === "celular") ? phoneM : pm, lm);
         (n.children || []).forEach(c => walk(c, W[i]));
       };
       walk(rootIdx, rootM); return W;
@@ -105,7 +129,8 @@
       const V = M.lookAt(cam.eye, cam.at, [0, 1, 0]), Pm = M.persp(cam.fov * Math.PI / 180, w / h, 0.1, 60), VP = M.mul(Pm, V);
       const sc = o.scale ?? 1, pos = o.pos || [0, 0, 0];
       const rootM = M.trs(pos, o.rotX || 0, o.rotY || 0, o.rotZ || 0, [sc, sc * (o.squash ?? 1), sc]);
-      const W = world(o.pose, rootM);
+      const phoneM = o.phone ? M.trs(o.phone.pos || [0,0,0], 0, o.phone.rotY || 0, 0, [o.phone.scale ?? 1, o.phone.scale ?? 1, o.phone.scale ?? 1]) : null;
+      const W = world(o.pose, rootM, phoneM);
       // sombra de contato
       if (o.shadow !== false) {
         const cx = pos[0], cz = pos[2], gy = pos[1];
@@ -122,9 +147,11 @@
       // malha
       gl.useProgram(P); gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK); gl.disable(gl.BLEND);
       gl.uniformMatrix4fv(U("uVP"), false, VP); gl.uniform3f(U("uCam"), ...cam.eye);
+      const screenDraws = [];
       nodes.forEach((n, i) => {
         if (n.mesh == null) return;
         const m = meshes[n.mesh], mt = mats[m.mat], Wm = W[i];
+        if (mt.name === "tela") { screenDraws.push([m, Wm]); return; }
         gl.uniformMatrix4fv(U("uM"), false, Wm); gl.uniformMatrix3fv(U("uNM"), false, M.normalMat(Wm));
         const glowMul = (o.glow && o.glow[n.name]) ?? 1;
         gl.uniform3f(U("uC"), ...mt.c); gl.uniform3f(U("uE"), mt.e[0]*glowMul, mt.e[1]*glowMul, mt.e[2]*glowMul);
@@ -133,6 +160,26 @@
         gl.bindBuffer(gl.ARRAY_BUFFER, m.nor); gl.enableVertexAttribArray(aLoc.P[1]); gl.vertexAttribPointer(aLoc.P[1], 3, gl.FLOAT, false, 0, 0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.idx); gl.drawElements(gl.TRIANGLES, m.count, gl.UNSIGNED_SHORT, 0);
       });
+      if (screenDraws.length) {
+        gl.useProgram(T); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+        if (o.screen) {
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, o.screen);
+          gl.generateMipmap(gl.TEXTURE_2D);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          if (anis) gl.texParameterf(gl.TEXTURE_2D, anis.TEXTURE_MAX_ANISOTROPY_EXT, 8);
+        }
+        gl.uniformMatrix4fv(UT("uVP"), false, VP); gl.uniform1i(UT("uTex"), 0); gl.uniform1f(UT("uAsp"), o.screenAsp || 0.4615); gl.uniform1f(UT("uGlow"), o.screenGlow || 0);
+        const aP = gl.getAttribLocation(T, "aP"), aT = gl.getAttribLocation(T, "aT");
+        screenDraws.forEach(([m, Wm]) => {
+          gl.uniformMatrix4fv(UT("uM"), false, Wm);
+          gl.bindBuffer(gl.ARRAY_BUFFER, m.pos); gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 3, gl.FLOAT, false, 0, 0);
+          gl.bindBuffer(gl.ARRAY_BUFFER, m.uv); gl.enableVertexAttribArray(aT); gl.vertexAttribPointer(aT, 2, gl.FLOAT, false, 0, 0);
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.idx); gl.drawElements(gl.TRIANGLES, m.count, gl.UNSIGNED_SHORT, 0);
+        });
+        gl.disableVertexAttribArray(aT);
+      }
       // brilho nos emissivos
       if (o.bloom !== false) {
         const headM = W[byName.cabeca];
@@ -142,7 +189,7 @@
         gl.useProgram(G); gl.disable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
         gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.enableVertexAttribArray(aLoc.G); gl.vertexAttribPointer(aLoc.G, 2, gl.FLOAT, false, 0, 0);
         const spr = (name, col, rad, k, shape, always) => {
-          const m = W[byName[name]], p = [m[12], m[13], m[14], 1];
+          if (byName[name] == null) return; const m = W[byName[name]], p = [m[12], m[13], m[14], 1];
           const r = [0,1,2,3].map(q => VP[q]*p[0] + VP[4+q]*p[1] + VP[8+q]*p[2] + VP[12+q]);
           const gm = ((o.glow && o.glow[name]) ?? 1) * (always ? 1 : face) * k; if (gm < 0.01) return;
           const sx = (rad * sc / r[3]) * Pm[5] / (w / h), sy = (rad * sc / r[3]) * Pm[5];
@@ -158,7 +205,7 @@
       gl.disable(gl.BLEND);
       return { W, VP, byName };
     }
-    return { render, gl, byName, nodes };
+    return { render, gl, byName, nodes, M };
   }
   window.Bipi3D = { create };
 })();

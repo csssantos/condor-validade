@@ -2,7 +2,7 @@
 """Gera o Bipi (mascote do Condor · Alerta de Validade) em 3D, formato glTF binário (.glb).
 Sem dependências além de numpy. Cada parte é um nó com nome (head, armR, eyeL, beam...),
 para poder animar. Unidades: ~2,7 de altura, +Y para cima, rosto voltado para +Z.
-Uso: python3 make_bipi_glb.py saida.glb"""
+Uso: python3 make_bipi_glb.py saida.glb [--celular] [--placa]"""
 import json, struct, sys, math
 import numpy as np
 
@@ -112,6 +112,9 @@ MATS = {
     "ledverm":  dict(c="#E31E24", r=0.25, e="#E31E24"),
     "check":    dict(c="#1F9D55", r=0.3, e="#1F9D55"),
     "sorriso":  dict(c="#FFFFFF", r=0.3, e="#FFFFFF"),
+    "luva":     dict(c="#FFFFFF", r=0.5, e="#33415C"),
+    "fone":     dict(c="#0B1B33", r=0.28),
+    "tela":     dict(c="#FFFFFF", r=0.1),
 }
 mat_names = list(MATS)
 
@@ -142,49 +145,70 @@ def add(name, geom=None, mat=None, t=(0, 0, 0), rest=(0, 0, 0), scale=None, pare
     else: nodes[parent].setdefault("children", []).append(i)
     return i
 
-HEAD_Y = 2.05
-# corpo e pernas
-add("corpo", rounded_box(.55, .50, .40, .22), "azul", (0, .98, 0))
-add("pescoco", cylinder(.16, .14), "marinho", (0, 1.52, 0))
+import argparse
+ap = argparse.ArgumentParser(); ap.add_argument("out"); ap.add_argument("--celular", action="store_true"); ap.add_argument("--placa", action="store_true")
+args = ap.parse_args()
+
+def plane_uv(w, h, z):  # tela do celular (UV 0..1, v para baixo)
+    v = np.array([[-w, -h, z], [w, -h, z], [-w, h, z], [w, h, z]], "f4")
+    n = np.array([[0, 0, 1]] * 4, "f4")
+    uv = np.array([[0, 1], [1, 1], [0, 0], [1, 0]], "f4")
+    return v, n, np.array([0, 1, 3, 0, 3, 2], "u2"), uv
+
+HEAD_Y = 1.98
+# ---- corpo e pernas
+add("corpo", rounded_box(.50, .42, .38, .24), "azul", (0, .92, 0))
+add("pescoco", cylinder(.15, .14), "marinho", (0, 1.40, 0))
 for s, nm in ((-1, "L"), (1, "R")):
-    add("perna" + nm, cylinder(.09, .26), "marinho", (s * .27, .33, 0))
-    add("pe" + nm, rounded_box(.25, .10, .30, .09), "vermelho", (s * .27, .10, .06))
+    add("perna" + nm, cylinder(.085, .24), "marinho", (s * .25, .31, 0))
+    add("pe" + nm, rounded_box(.23, .09, .28, .09), "vermelho", (s * .25, .09, .06))
+    add("ombro" + nm, sphere(.12), "azul", (s * .56, 1.16, 0))
 # painel do peito com código de barras
-add("painel", rounded_box(.30, .26, .025, .03), "branco", (0, .98, .405))
-ws_ = [w * .8 for w in [.018, .01, .026, .01, .018, .03, .01, .02, .012, .026, .01, .018]]
-x = -(sum(ws_) * 2 + .006 * (len(ws_) - 1)) / 2
+add("painel", rounded_box(.27, .22, .025, .03), "branco", (0, .93, .385))
+ws_ = [w * .72 for w in [.018, .01, .026, .01, .018, .03, .01, .02, .012, .026, .01, .018]]
+x = -(sum(ws_) * 2 + .005 * (len(ws_) - 1)) / 2
 for i, w in enumerate(ws_):
-    add(f"barra{i}", rounded_box(w, .13, .008, .004), "marinho", (x + w, 1.02, .438)); x += 2 * w + .006
-add("ledPeito", sphere(.035), "led", (-.2, .79, .44))
-add("barraVermelha", rounded_box(.11, .018, .01, .008), "vermelho", (.07, .79, .44))
-# cabeça (grupo)
+    add(f"barra{i}", rounded_box(w, .105, .008, .004), "marinho", (x + w, .965, .416)); x += 2 * w + .005
+add("ledPeito", sphere(.032), "led", (-.18, .76, .42))
+add("barraVermelha", rounded_box(.10, .016, .01, .008), "vermelho", (.06, .76, .42))
+# ---- cabeça
 head = add("cabeca", None, None, (0, HEAD_Y, 0))
-add("cascoCabeca", rounded_box(.64, .48, .52, .22), "cabeca", (0, 0, 0), parent=head)
-add("visor", rounded_box(.44, .27, .035, .12), "visor", (0, .0, .525), parent=head)
+add("cascoCabeca", rounded_box(.74, .54, .56, .27), "cabeca", (0, 0, 0), parent=head)
+add("visor", rounded_box(.53, .32, .04, .14), "visor", (0, -.01, .565), parent=head)
 for s, nm in ((-1, "L"), (1, "R")):
-    add("olho" + nm, rounded_box(.062, .095, .02, .06), "olho", (s * .17, .075, .565), parent=head)
-    add("orelha" + nm, cylinder(.17, .13), "azul", (s * .70, 0, 0), rest=(0, 0, math.pi / 2), parent=head)
-add("feixe", rounded_box(.41, .011, .012, .01), "feixe", (0, -.025, .568), parent=head)
-add("sorriso", arc_tube(.125, 222, 318, .018), "sorriso", (0, .0, .572), parent=head)
-add("antena", cylinder(.022, .34), "azulclaro", (0, .64, 0), parent=head)
-add("antenaBola", sphere(.085), "ledverm", (0, .84, 0), parent=head)
-add("ledCabeca", sphere(.045), "led", (.36, .50, .30), parent=head)
-# braços
-armL = add("bracoL", None, None, (-.65, 1.28, 0), (0, 0, .12))
-add("bracoLmalha", rounded_box(.085, .30, .085, .085), "marinho", (0, -.28, 0), parent=armL)
-add("maoL", sphere(.12), "branco", (0, -.62, 0), parent=armL)
-# braço direito ergue a etiqueta
-armR = add("bracoR", None, None, (.65, 1.28, 0), (0, 0, 2.35))
-add("bracoRmalha", rounded_box(.085, .30, .085, .085), "marinho", (0, -.28, 0), parent=armR)
-add("maoR", sphere(.12), "branco", (0, -.62, 0), parent=armR)
-# etiqueta presa à mão (contra-rotação para ficar em pé)
-etq = add("etiqueta", None, None, (0, -.62, .10), (0, 0, -2.35), parent=armR)
-nodes[etq]["translation"] = [0, -.62, .10]
-add("etiquetaBorda", rounded_box(.27, .20, .012, .045), "vermelho", (0, .12, -.01), parent=etq)
-add("etiquetaFolha", rounded_box(.235, .17, .014, .035), "branco", (0, .12, .004), parent=etq)
-add("check1", rounded_box(.045, .013, .012, .006), "check", (-.045, .095, .02), (0, 0, -math.pi / 4), parent=etq)
-add("check2", rounded_box(.09, .013, .012, .006), "check", (.03, .125, .02), (0, 0, math.pi / 4), parent=etq)
-add("furoEtiqueta", sphere(.022), "vermelho", (0, .27, .02), parent=etq)
+    add("olho" + nm, rounded_box(.068, .105, .02, .066), "olho", (s * .185, .055, .608), parent=head)
+    add("ceja" + nm, rounded_box(.062, .014, .012, .01), "olho", (s * .185, .205, .606), parent=head)
+    add("orelha" + nm, cylinder(.19, .14), "azul", (s * .80, 0, 0), rest=(0, 0, math.pi / 2), parent=head)
+add("feixe", rounded_box(.47, .011, .012, .01), "feixe", (0, -.02, .61), parent=head)
+add("sorriso", arc_tube(.14, 224, 316, .019), "sorriso", (0, -.01, .614), parent=head)
+add("boca", rounded_box(.085, .06, .015, .045), "sorriso", (0, -.115, .614), parent=head, scale=(1, .08, 1))
+ant = add("antenaPivo", None, None, (0, .52, 0), parent=head)
+add("antena", cylinder(.022, .30), "azulclaro", (0, .15, 0), parent=ant)
+add("antenaBola", sphere(.088), "ledverm", (0, .34, 0), parent=ant)
+add("ledCabeca", sphere(.045), "led", (.43, .42, .30), parent=head)
+# ---- braços (todos filhos da raiz; a pose é calculada por IK no código)
+for s, nm in ((-1, "L"), (1, "R")):
+    sh = (s * .56, 1.16, 0)
+    up = add("braco" + nm, None, None, sh, (0, 0, s * .12))
+    add("braco" + nm + "malha", rounded_box(.09, .275, .09, .09), "marinho", (0, -.275, 0), parent=up)
+    fo = add("antebraco" + nm, None, None, (sh[0], sh[1] - .55, sh[2]), (0, 0, s * .06))
+    add("antebraco" + nm + "malha", rounded_box(.082, .26, .082, .082), "marinho", (0, -.26, 0), parent=fo)
+    hd = add("mao" + nm, sphere(.105), "luva", (0, -.55, 0), parent=fo, scale=(1, .92, 1.05))
+    add("polegar" + nm, sphere(.045), "luva", (-s * .085, .02, .05), parent=hd)
+    add("dedo" + nm, rounded_box(.03, .075, .03, .03), "luva", (0, -.14, .02), parent=hd)
+# ---- celular (opcional)
+if args.celular:
+    ph = add("celular", None, None, (0, 1.0, .9))
+    add("celularCorpo", rounded_box(.36, .78, .03, .085), "fone", (0, 0, 0), parent=ph)
+    meshes.append(("celularTela", plane_uv(.33, .715, .0315), mat_names.index("tela")))
+    nodes.append({"name": "celularTela", "translation": [0, 0, 0], "mesh": len(meshes) - 1, "extras": {"rest": [0, 0, 0]}}); nodes[ph].setdefault("children", []).append(len(nodes) - 1)
+# ---- placa (só para versões futuras do Bipi; NÃO faz parte do Bipi padrão)
+if args.placa:
+    etq = add("etiqueta", None, None, (.62, 1.5, .12))
+    add("etiquetaBorda", rounded_box(.27, .20, .012, .045), "vermelho", (0, .12, -.01), parent=etq)
+    add("etiquetaFolha", rounded_box(.235, .17, .014, .035), "branco", (0, .12, .004), parent=etq)
+    add("check1", rounded_box(.045, .013, .012, .006), "check", (-.045, .095, .02), (0, 0, -math.pi / 4), parent=etq)
+    add("check2", rounded_box(.09, .013, .012, .006), "check", (.03, .125, .02), (0, 0, math.pi / 4), parent=etq)
 
 # ---------- empacotar glb ----------
 bin_data = bytearray(); bviews, accs, gl_meshes = [], [], []
@@ -193,14 +217,19 @@ def push(arr, target):
     off = len(bin_data); bin_data.extend(arr.tobytes())
     bviews.append({"buffer": 0, "byteOffset": off, "byteLength": arr.nbytes, "target": target})
     return len(bviews) - 1
-for name, (v, n, i), m in meshes:
+for name, g, m in meshes:
+    v, n, i = g[0], g[1], g[2]; uv = g[3] if len(g) > 3 else None
     pv = push(v.astype("f4"), 34962); pn = push(n.astype("f4"), 34962); pi = push(i.astype("u2"), 34963)
     accs.append({"bufferView": pv, "componentType": 5126, "count": len(v), "type": "VEC3",
                  "min": v.min(0).tolist(), "max": v.max(0).tolist()})
     accs.append({"bufferView": pn, "componentType": 5126, "count": len(n), "type": "VEC3"})
     accs.append({"bufferView": pi, "componentType": 5123, "count": len(i), "type": "SCALAR"})
     a = len(accs) - 3
-    gl_meshes.append({"name": name, "primitives": [{"attributes": {"POSITION": a, "NORMAL": a + 1}, "indices": a + 2, "material": m}]})
+    attrs = {"POSITION": a, "NORMAL": a + 1}
+    if uv is not None:
+        pu = push(uv.astype("f4"), 34962)
+        accs.append({"bufferView": pu, "componentType": 5126, "count": len(uv), "type": "VEC2"}); attrs["TEXCOORD_0"] = len(accs) - 1
+    gl_meshes.append({"name": name, "primitives": [{"attributes": attrs, "indices": a + 2, "material": m}]})
 gl_mats = []
 for nm in mat_names:
     d = MATS[nm]
@@ -217,5 +246,5 @@ while len(js) % 4: js += b" "
 while len(bin_data) % 4: bin_data.append(0)
 out = struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(js) + 8 + len(bin_data))
 out += struct.pack("<II", len(js), 0x4E4F534A) + js + struct.pack("<II", len(bin_data), 0x004E4942) + bytes(bin_data)
-open(sys.argv[1], "wb").write(out)
-print("ok", sys.argv[1], len(out) // 1024, "KB,", len(nodes), "nós,", len(meshes), "malhas")
+open(args.out, "wb").write(out)
+print("ok", args.out, len(out) // 1024, "KB,", len(nodes), "nós,", len(meshes), "malhas")
