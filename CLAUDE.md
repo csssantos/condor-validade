@@ -285,6 +285,8 @@ Ideia em avaliação (sem decisão): localização ao lançar validade (modo "si
 - Modal do produto no PC: painel azul (foto em cartão branco, nome, ações em grade 2x2) + cartões à direita; celular intacto.
 - Pendências: jsPDF não instala no sandbox, então o layout dos PDFs não foi visto renderizado (só teste com mock); jsPDF no bundle principal (lazy import); encarregado nível 5 exporta todos os setores; PDFs sem teste automatizado.
 
-## BIPI 3D + VÍDEO DE APRESENTAÇÃO (2026-11-05, pedido do dono) — sem SQL
-- `3d/` no repo: `bipi.glb` (gerado por `fonte/make_bipi_glb.py`, numpy puro), `bipi-3d.html` (visualizador), `bipi-3d-previa.png`, `fonte/bipi3d.js` (renderer WebGL próprio). Bipi só em 3D a partir do 2D oficial; nunca redesenhar.
-- Vídeo 45 s (1080x1920, 30 fps, trilha sintetizada): feito no scratchpad (`bipi3d/video.html` + `capture.py` + `make_audio.py`), com TELAS REAIS do app no celular (harness `dashH/`, `shotm.py`; ícones reais via react-icons no `buildH.cjs`) e banners reais do bot. Regra do dono: nunca inventar layout que não existe. O mp4 não está no git (pesado).
+## BIPI 3D + VÍDEO DE APRESENTAÇÃO (v2, 2026-11-05, pedido do dono: refeito do zero)
+- REGRA FIXA: o Bipi padrão NÃO tem placa/etiqueta na mão. A placa só existe em `3d/bipi-placa.glb` (versões futuras). Anúncios: Bipi animado (fala, segura e toca no celular, entra no celular) e explicando PASSO A PASSO como o app funciona, só com telas reais do celular (nunca layout inventado).
+- `3d/`: `bipi.glb` (padrão), `bipi-celular.glb` (celular com tela de textura dinâmica), `bipi-placa.glb`, `bipi-3d.html` (visualizador), prévias PNG, `LEIA-ME.md`. `fonte/`: `make_bipi_glb.py` (numpy; `--celular`/`--placa`), `bipi3d.js` (WebGL próprio, textura da tela, `phone:{pos,scale,rotY}`), `bipi_rig.js` (IK de 2 ossos dos braços). `video-fonte/`: `video.html` (`frame(t)` determinístico, 1080x1920, 30 fps, 45 s), `capture.py`, `make_audio.py`, `talk.json`.
+- Vídeo: telas reais capturadas no harness `dashH/` (scratchpad; digitação real via Playwright), servidas por http (canvas não pode ser "tainted"); captura com swiftshader e 2 workers (máquina de 2 núcleos, ~8 min); trilha sintetizada com voz-balbucio sincronizada à boca. O mp4 não vai ao git.
+
