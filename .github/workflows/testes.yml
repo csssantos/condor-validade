@@ -1,6 +1,8 @@
 name: testes
 # Roda em todo push/PR: confere nomes/imports, testes do app e do bot, e o build real do Vite.
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   testes:
     runs-on: ubuntu-latest

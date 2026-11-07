@@ -17,7 +17,7 @@ import { BottomNav, SideNav } from "./componentes/Navegacao";
 import { AtualizacaoModal, NOVIDADES, gravarNovidadeVista, lerNovidadeVista, novidadesParaCargo } from "./componentes/Novidades";
 import { BLUE, BLUE_SOFT, LOGO_SRC, NOTIF_KEY, PREFS_KEY, RED, RED_DARK, RED_SOFT, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, setorPrincipal } from "./lib/constantes";
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
-import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila } from "./lib/fila";
+import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
 import { dispararNotificacao, inscreverPush, isIOS, isStandalone } from "./lib/notificacoes";
 import { eanValido, limiteSomaLote, textoLote } from "./lib/produto";
@@ -129,19 +129,30 @@ function AppInner() {
   const [detalheItem, setDetalheItem] = useState(null);
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
 
+  const sessaoRef = useRef(null);
+  const loginRegistradoRef = useRef(null);
+  useEffect(() => { sessaoRef.current = sessao?.user?.id || null; }, [sessao]);
+
   // Sessão real do Supabase Auth — sobrepõe o antigo sistema de "nome digitado + PIN local".
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSessao(data.session ?? null));
+    supabase.auth.getSession().then(({ data }) => { definirUsuarioFila(data.session?.user?.id || null); setSessao(data.session ?? null); });
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       // ao sair, a cópia offline dos produtos/histórico não fica no aparelho para a próxima pessoa
-      if (event === "SIGNED_OUT") { try { localStorage.removeItem(SNAPSHOT_KEY); } catch { /* sem armazenamento */ } }
+      definirUsuarioFila(session?.user?.id || null); // antes de qualquer envio da fila: ação de uma pessoa nunca vai com a sessão de outra
+      if (event === "SIGNED_OUT") {
+        // nada da pessoa que saiu fica na tela nem no aparelho
+        setItems([]); setCatalog({}); setHistorico([]); setAuditoria([]); setRondas([]);
+        try { localStorage.removeItem(SNAPSHOT_KEY); } catch { /* sem armazenamento */ }
+      }
       setSessao(session ?? null);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
 
   // dono das ações guardadas sem internet: a fila só envia ações da pessoa logada (nunca com a sessão de outra)
-  useEffect(() => { definirUsuarioFila(sessao === undefined ? null : sessao?.user?.id || null); }, [sessao]);
+  useEffect(() => { if (sessao !== undefined) definirUsuarioFila(sessao?.user?.id || null); }, [sessao]);
+  // quem entrou já viu o aviso de armazenamento (está nos termos aceitos)
+  useEffect(() => { if (sessao?.user?.id) { try { localStorage.setItem("avdc_aviso_armazenamento", "1"); } catch { /* sem armazenamento */ } } }, [sessao?.user?.id]);
 
   // Assim que há sessão, busca o perfil (nome, cargo, loja) na tabela "usuarios".
   useEffect(() => {
@@ -239,7 +250,7 @@ function AppInner() {
       const identidade = perfil.cargo_nome_loja ? `${nomeExibicao} - ${perfil.cargo_nome_loja}` : nomeExibicao;
       setUsuario(identidade);
       // Auditoria de acesso: o SERVIDOR grava nome, loja e IP (o app só informa o aparelho); sem serviço externo de IP
-      supabase.rpc("registrar_login", { p_dispositivo: String(navigator.userAgent || "").slice(0, 300) }).then(({ error }) => { if (error) console.warn("registrar_login:", error.message); }, () => {});
+      if (loginRegistradoRef.current !== sessao?.user?.id) { loginRegistradoRef.current = sessao?.user?.id; supabase.rpc("registrar_login", { p_dispositivo: String(navigator.userAgent || "").slice(0, 300) }).then(({ error }) => { if (error) console.warn("registrar_login:", error.message); }, () => {}); }
       if (typeof Notification !== "undefined" && Notification.permission === "granted") inscreverPush(identidade);
     }
   }, [perfil]);
@@ -315,10 +326,11 @@ function AppInner() {
       let cat, its, hist;
       if (navigator.onLine) {
         [cat, its, hist] = await Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]);
-        saveLocal(SNAPSHOT_KEY, { cat, its, hist });
+        if (sessaoRef.current) saveLocal(SNAPSHOT_KEY, { uid: sessaoRef.current, cat, its, hist });
       } else {
         const snap = loadLocal(SNAPSHOT_KEY, { cat: {}, its: [], hist: [] });
-        cat = snap.cat; its = snap.its; hist = snap.hist;
+        const minha = snap && snap.uid && snap.uid === sessaoRef.current; // cópia de outra pessoa (ou sem dono) não abre
+        cat = minha ? snap.cat : {}; its = minha ? snap.its : []; hist = minha ? snap.hist : [];
       }
       setCatalog(cat); setItems(its); setHistorico(hist);
       supaFetchRondas().then(setRondas);
@@ -355,7 +367,7 @@ function AppInner() {
           await processarFila();
           const [cat, its, hist] = await Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]);
           setCatalog(cat); setItems(its); setHistorico(hist);
-          saveLocal(SNAPSHOT_KEY, { cat, its, hist });
+          if (sessaoRef.current) saveLocal(SNAPSHOT_KEY, { uid: sessaoRef.current, cat, its, hist });
           const restam = minhas().length;
           if (restam > 0) showToast(`${restam} registro(s) ainda não foram enviados e continuam guardados no aparelho.`, "aviso");
           else showToast("Tudo sincronizado.");
@@ -363,15 +375,27 @@ function AppInner() {
       })();
     }
     function aoFicarOffline() { setOnline(false); }
+    const aoVoltar = () => { if (document.visibilityState === "visible" && navigator.onLine) aoFicarOnline(); };
     window.addEventListener("online", aoFicarOnline);
     window.addEventListener("offline", aoFicarOffline);
-    return () => { window.removeEventListener("online", aoFicarOnline); window.removeEventListener("offline", aoFicarOffline); };
+    window.addEventListener("condor-sincronizar-fila", aoFicarOnline);
+    document.addEventListener("visibilitychange", aoVoltar);
+    return () => { window.removeEventListener("online", aoFicarOnline); window.removeEventListener("offline", aoFicarOffline); window.removeEventListener("condor-sincronizar-fila", aoFicarOnline); document.removeEventListener("visibilitychange", aoVoltar); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ao entrar (ou trocar de conta) com internet: descarta ações sem dono/vencidas e envia as da pessoa
+  useEffect(() => {
+    if (!sessao?.user?.id || !dadosProntos) return;
+    const descartadas = limparFilaOrfa();
+    if (descartadas > 0) showToast(`${descartadas} ação(ões) antiga(s) guardada(s) sem dono foram descartadas por segurança. Confira e lance de novo se precisar.`, "aviso");
+    if (navigator.onLine) { try { window.dispatchEvent(new CustomEvent("condor-sincronizar-fila")); } catch { /* sem janela */ } }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessao?.user?.id, dadosProntos]);
+
   // mantém um instantâneo local sempre atualizado pra abrir o app offline com os últimos dados
   useEffect(() => {
-    if (!loading) saveLocal(SNAPSHOT_KEY, { cat: catalog, its: items, hist: historico });
+    if (!loading && sessaoRef.current) saveLocal(SNAPSHOT_KEY, { uid: sessaoRef.current, cat: catalog, its: items, hist: historico });
   }, [catalog, items, historico, loading]);
 
   // ---------- Sistema de avisos: modalzinho de comunicado geral (demo — por enquanto pra todo mundo) ----------
@@ -517,10 +541,10 @@ function AppInner() {
   const uidTutorial = sessao?.user?.id;
   const outroModal = !!avisoAtual || (mostrarAtualizacao && novidadesDoCargo.length > 0);
   useEffect(() => {
-    if (!uidTutorial || !perfil || aceiteOk === false || !dadosProntos || outroModal || tutorialJaVisto(uidTutorial)) return undefined;
+    if (!uidTutorial || !perfil || aceiteOk === false || !dadosProntos || outroModal || flow !== null || tab !== "home" || tutorialJaVisto(uidTutorial)) return undefined;
     const t = setTimeout(() => setTutorialAberto(true), 900);
     return () => clearTimeout(t);
-  }, [uidTutorial, perfil, aceiteOk, dadosProntos, outroModal]);
+  }, [uidTutorial, perfil, aceiteOk, dadosProntos, outroModal, flow, tab]);
   const etapasTutorial = useMemo(() => etapasDoTutorial({ nivel: perfil?.cargos?.nivel, promotor: !!perfil?.promotor, pc: ehDesktop }), [perfil?.cargos?.nivel, perfil?.promotor, ehDesktop]);
   useEffect(() => { if (mostrarAtualizacao && perfil && novidadesDoCargo.length === 0) { gravarNovidadeVista(NOVIDADES[0].id); setMostrarAtualizacao(false); } }, [mostrarAtualizacao, perfil, novidadesDoCargo.length]);
   // Chamado pelo login/cadastro antes de enviar a senha: confere na hora se existe versão nova e, se existir, trava a entrada.
@@ -573,7 +597,7 @@ function AppInner() {
 
   // sincronização em tempo real: mudanças feitas por qualquer colega aparecem instantaneamente
   useEffect(() => {
-    if (loading) return;
+    if (loading || !sessao?.user?.id) return;
     const canalProdutos = supabase
       .channel("realtime-produtos")
       .on("postgres_changes", { event: "*", schema: "public", table: "produtos" }, (payload) => {
@@ -592,7 +616,7 @@ function AppInner() {
       })
       .subscribe();
     return () => { supabase.removeChannel(canalProdutos); supabase.removeChannel(canalHistorico); };
-  }, [loading]);
+  }, [loading, sessao?.user?.id]);
 
   // Tempo real para o resto dos dados da loja: qualquer mudança no banco (app de outro colega, painel do Supabase,
   // SQL) recarrega só a parte afetada, com um pequeno atraso pra juntar várias mudanças seguidas.
@@ -1449,7 +1473,7 @@ function AppInner() {
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
         {avisoAtual && <AvisoModal T={T} aviso={avisoAtual} onFechar={() => marcarAvisoVisto(avisoAtual.id)} />}
-        {tutorialAberto && !outroModal && <TutorialBipi key="tutorial" etapas={etapasTutorial} onFechar={() => { marcarTutorialVisto(uidTutorial); setTutorialAberto(false); }} />}
+        {tutorialAberto && !outroModal && <TutorialBipi key="tutorial" etapas={etapasTutorial} onFechar={(concluiu) => { marcarTutorialVisto(uidTutorial); setTutorialAberto(false); if (!concluiu) showToast(`Para rever o tutorial: ${ehDesktop ? "Configurações" : "Mais"} → Sobre o app → Ver o tutorial do Bipi.`, "info"); }} />}
         {!avisoAtual && mostrarAtualizacao && novidadesDoCargo.length > 0 && <AtualizacaoModal T={T} novidades={novidadesDoCargo} cargoNome={perfil?.cargos?.nome} onFechar={() => { gravarNovidadeVista(NOVIDADES[0].id); setMostrarAtualizacao(false); }} />}
       </AnimatePresence>
     </div>

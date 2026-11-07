@@ -9,7 +9,6 @@ import { supaFetchAlteracoesValidade } from "../lib/dados";
 import { descontoSugerido, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, statusStyles, useValoresVisiveis } from "../lib/formatos";
 import { clampNumero } from "../lib/utilidades";
 import { InfoTile } from "./Analises";
-import { diasTexto } from "./Home";
 
 // ============ Modal de detalhe do produto ============
 function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdit, onDuplicate, onBaixa, onShare, onAplicarPromocao, onPedido, podeGerirPedido, onExcluir }) {

@@ -1,6 +1,5 @@
 // Parte do App (separado de App.jsx em 2026-11-05). Mudanças de comportamento: ver CLAUDE.md.
 import { useMemo } from "react";
-import { COR } from "../pdfMarca.js";
 import { DollarSign, AlertTriangle, Clock, TrendingDown } from "lucide-react";
 import { Thumb } from "../componentes/ItemCards";
 import { DashArea, DashBars, DashCard, DashDonut, DashKpi, DashSpark } from "../componentes/dash";

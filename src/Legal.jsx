@@ -17,7 +17,7 @@ export const TERMOS_ALTERACOES = [
       "De onde vêm seus dados: parte deles é informada por quem administra a sua loja no pré-cadastro (nome, matrícula, cargo, setor e loja).",
       "Lista de fornecedores com o que cada um recebe e onde fica (alguns fora do Brasil).",
       "O registro de login (data, hora, IP e aparelho) agora é feito pelo servidor; o app deixou de consultar um serviço externo para descobrir o IP.",
-      "Pedidos de direitos (LGPD) ficam guardados por 5 anos depois de respondidos, para comprovar o atendimento. Quem responde é o desenvolvedor ou a diretoria do app; a gerência da sua loja não vê esses pedidos.",
+      "Pedidos de direitos (LGPD) ficam guardados por 5 anos depois de respondidos, para comprovar o atendimento. Quem vê e responde é o desenvolvedor do app e quem tem cargo de Diretoria cadastrado no app; a gerência da sua loja (gerente e encarregados) não vê esses pedidos.",
       "Ao sair da conta, o app apaga deste aparelho a cópia offline dos produtos e do histórico. Ações feitas sem internet só são enviadas com a conta de quem as fez.",
     ],
     armazenamento: [
@@ -160,7 +160,7 @@ export const DOCUMENTOS = [
       return [
         { t: "1. Quem é o controlador dos dados", p: [
           `Somos ${partes}, o controlador dos dados tratados neste app, nos termos da Lei Geral de Proteção de Dados (Lei 13.709/2018 — LGPD).`,
-          "Este é um aplicativo avulso, mantido por uma pessoa física, sem CNPJ. Como agente de tratamento de pequeno porte (Resolução CD/ANPD nº 2/2022), não indicamos encarregado (DPO) formal e mantemos um canal de comunicação: Mais → Privacidade e termos → Solicitar um direito (Falar com o responsável). Os pedidos são respondidos pelo desenvolvedor ou pela diretoria do app, não pela gerência da sua loja.",
+          "Este é um aplicativo avulso, mantido por uma pessoa física, sem CNPJ. Como agente de tratamento de pequeno porte (Resolução CD/ANPD nº 2/2022), não indicamos encarregado (DPO) formal e mantemos um canal de comunicação: Mais → Privacidade e termos → Solicitar um direito (Falar com o responsável). Os pedidos são vistos e respondidos pelo desenvolvedor do app e por quem tem cargo de Diretoria cadastrado no app; a gerência da sua loja (gerente e encarregados) não vê esses pedidos.",
         ] },
         { t: "2. Quais dados coletamos", p: [
           "Dados de cadastro: nome, matrícula, e-mail, cargo, setor, loja e, quando informado, telefone. Para promotores: nome e marcas (de 1 a 5) ou acesso total.",
@@ -471,7 +471,9 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
   const [baixando, setBaixando] = useState(false);
   const cartao = { background: T.card };
 
+  const seqPriv = React.useRef(0);
   async function carregar() {
+    const minha = ++seqPriv.current;
     try {
       const { data: a } = await supabase.from("consentimentos").select("versao, aceito_em, documento").order("aceito_em", { ascending: false }).limit(20);
       setAceites(a || []);
@@ -481,7 +483,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
       if (!uid) { setPedidos([]); return; }
       // filtra pelo próprio id: quem é responsável (DEV/diretoria) enxerga todos os pedidos pela regra do banco
       const { data: p } = await supabase.from("solicitacoes_lgpd").select("id, tipo, detalhe, status, resposta, criado_em, respondido_em").eq("usuario_id", uid).order("criado_em", { ascending: false }).limit(20);
-      setPedidos(p || []);
+      if (minha === seqPriv.current) setPedidos(p || []); // resposta atrasada não sobrescreve a mais nova
     } catch { setPedidos([]); }
   }
   useEffect(() => {
@@ -490,7 +492,8 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
     const ch = supabase.channel("lgpd_meus_" + Math.random().toString(36).slice(2, 8)).on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes_lgpd" }, () => carregar()).subscribe();
     const foco = () => { if (document.visibilityState === "visible") carregar(); };
     document.addEventListener("visibilitychange", foco);
-    return () => { supabase.removeChannel(ch); document.removeEventListener("visibilitychange", foco); };
+    const t = setInterval(() => { if (document.visibilityState === "visible") carregar(); }, 60000);
+    return () => { supabase.removeChannel(ch); document.removeEventListener("visibilitychange", foco); clearInterval(t); };
   }, []);
 
   async function baixarDados() {
@@ -517,7 +520,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
     setEnviando(true);
     try {
       const { error } = await supabase.rpc("criar_solicitacao_lgpd", { p_tipo: tipo, p_detalhe: detalhe.trim().slice(0, 1000) });
-      if (error) throw error;
+      if (error) { if (/pedidos_em_aberto/.test(error.message || "")) { showToast?.("Você já tem 3 pedidos em aberto. Aguarde a resposta antes de enviar outro.", "warn"); setEnviando(false); return; } throw error; }
       setDetalhe("");
       showToast?.("Pedido enviado. Respondemos em até 15 dias.");
       carregar();
@@ -591,7 +594,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
                 <div key={p.id} style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-3">
                   <div className="flex items-center justify-between gap-2"><span style={{ color: T.text }} className="text-[13px] font-bold">{(TIPOS_PEDIDO.find((t) => t[0] === p.tipo) || [0, p.tipo])[1]}</span><span style={{ background: bg, color: cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1">{rot}</span></div>
                   <p style={{ color: T.subtext }} className="text-[12px] mt-1 leading-snug">{p.detalhe}</p>
-                  {p.resposta && <p style={{ color: T.text }} className="text-[12px] mt-1.5 leading-snug whitespace-pre-line"><b>Resposta:</b> {p.resposta}</p>}
+                  {p.resposta && (p.status === "respondida" || p.status === "negada") && <p style={{ color: T.text }} className="text-[12px] mt-1.5 leading-snug whitespace-pre-line break-words"><b>Resposta:</b> {p.resposta}</p>}
                   <p style={{ color: T.subtext }} className="text-[10.5px] mt-1 font-mono">Enviado {fmt(p.criado_em)}{p.respondido_em ? ` · respondido ${fmt(p.respondido_em)}` : ""}</p>
                 </div>
               );
@@ -668,52 +671,69 @@ export function PaginaPedidosLGPD({ T, showToast }) {
   const [erro, setErro] = useState("");
   const [filtro, setFiltro] = useState("abertos");
   const [aberto, setAberto] = useState(null);
-  const [texto, setTexto] = useState("");
+  const [rascunhos, setRascunhos] = useState({}); // um rascunho por pedido: trocar de cartão não apaga o que foi escrito
   const [salvando, setSalvando] = useState(false);
+  const seq = React.useRef(0);
   const cartao = { background: T.card };
+  const texto = (aberto && rascunhos[aberto]) || "";
+  const setTexto = (v) => setRascunhos((r) => ({ ...r, [aberto]: v }));
 
   async function carregar() {
+    const minha = ++seq.current;
     const { data, error } = await supabase.rpc("listar_solicitacoes_lgpd");
+    if (minha !== seq.current) return; // chegou depois de uma busca mais nova
     if (error) { setErro(/listar_solicitacoes_lgpd|function|schema cache/i.test(error.message || "") ? "Falta rodar o SQL supabase-lgpd-respostas.sql no Supabase." : "Não foi possível carregar os pedidos agora."); setLista([]); return; }
     setErro(""); setLista(data || []);
   }
   useEffect(() => {
     carregar();
-    const ch = supabase.channel("lgpd_resp_" + Math.random().toString(36).slice(2, 8)).on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes_lgpd" }, () => carregar()).subscribe();
+    let t1 = null; const juntar = () => { clearTimeout(t1); t1 = setTimeout(carregar, 800); }; // vários eventos seguidos = uma busca
+    const ch = supabase.channel("lgpd_resp_" + Math.random().toString(36).slice(2, 8)).on("postgres_changes", { event: "*", schema: "public", table: "solicitacoes_lgpd" }, juntar).subscribe();
     const foco = () => { if (document.visibilityState === "visible") carregar(); };
     document.addEventListener("visibilitychange", foco);
-    const t = setInterval(carregar, 60000);
-    return () => { supabase.removeChannel(ch); document.removeEventListener("visibilitychange", foco); clearInterval(t); };
+    const t = setInterval(() => { if (document.visibilityState === "visible") carregar(); }, 60000);
+    return () => { supabase.removeChannel(ch); document.removeEventListener("visibilitychange", foco); clearInterval(t); clearTimeout(t1); };
   }, []);
 
   async function responder(p, status) {
     const r = texto.trim();
-    if (status !== "em_analise" && r.length < 10) { showToast?.("Escreva a resposta para a pessoa (mínimo de 10 letras).", "warn"); return; }
-    if (r.length > 2000) { showToast?.("Resposta longa demais (máximo de 2000 letras).", "warn"); return; }
+    if (status !== "em_analise" && [...r].length < 10) { showToast?.("Escreva a resposta para a pessoa (mínimo de 10 letras).", "warn"); return; }
+    if ([...r].length > 2000) { showToast?.("Resposta longa demais (máximo de 2000 letras).", "warn"); return; }
+    if (status === "negada" && !window.confirm("Negar este pedido? A pessoa recebe o motivo na hora e não dá para desfazer.")) return;
+    if (status === "respondida" && !window.confirm("Enviar esta resposta? A pessoa vê na hora e não dá para alterar depois.")) return;
     if (salvando) return;
     setSalvando(true);
-    const { error } = await supabase.rpc("responder_solicitacao_lgpd", { p_id: p.id, p_status: status, p_resposta: r || null });
+    // "em análise" não envia texto: o rascunho fica só aqui até a resposta final
+    const { error } = await supabase.rpc("responder_solicitacao_lgpd", { p_id: p.id, p_status: status, p_resposta: status === "em_analise" ? null : r });
     setSalvando(false);
     if (error) {
       const m = error.message || "";
-      showToast?.(m.includes("pedido_ja_respondido") ? "Esse pedido já foi respondido por outra pessoa." : m.includes("resposta_obrigatoria") ? "Escreva a resposta (mínimo de 10 letras)." : m.includes("sem_permissao") ? "Só o desenvolvedor ou a diretoria respondem pedidos LGPD." : "Não foi possível salvar a resposta. Tente de novo.", "erro");
+      showToast?.(m.includes("pedido_ja_respondido") ? "Esse pedido já foi respondido por outra pessoa." : m.includes("nao_responde_o_proprio") ? "Você não pode responder um pedido seu. Peça a outra pessoa da diretoria ou ao desenvolvedor." : m.includes("resposta_obrigatoria") ? "Escreva a resposta (mínimo de 10 letras)." : m.includes("sem_permissao") ? "Só o desenvolvedor ou a diretoria respondem pedidos LGPD." : m.includes("limite_excedido") ? "Muitas ações em pouco tempo. Espere um minuto." : "Não foi possível salvar a resposta. Tente de novo.", "erro");
       carregar(); return;
     }
-    showToast?.(status === "em_analise" ? "Pedido marcado como em análise." : "Resposta enviada. A pessoa vê na hora, em Privacidade e termos.", "ok");
-    setAberto(null); setTexto(""); carregar();
+    if (status === "em_analise") { showToast?.("Pedido marcado como em análise. O texto não foi enviado.", "ok"); carregar(); return; }
+    showToast?.("Resposta enviada. A pessoa vê na hora, em Privacidade e termos.", "ok");
+    setRascunhos((x) => { const y = { ...x }; delete y[p.id]; return y; });
+    setAberto(null); carregar();
+  }
+  function fecharCartao() {
+    if (texto.trim() && !window.confirm("Fechar sem enviar? O texto continua guardado aqui até você sair desta tela.")) return;
+    setAberto(null);
   }
 
   const fmt = (iso) => { try { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); } catch { return iso; } };
-  const abertos = (lista || []).filter((p) => p.status === "aberta" || p.status === "em_analise");
-  const mostrar = filtro === "abertos" ? abertos : (lista || []).filter((p) => !(p.status === "aberta" || p.status === "em_analise"));
+  const ehAberto = (p) => p.status === "aberta" || p.status === "em_analise";
+  const abertos = (lista || []).filter(ehAberto);
+  const mostrar = filtro === "abertos" ? abertos : (lista || []).filter((p) => !ehAberto(p));
   const atrasados = abertos.filter((p) => (diasAte(p.prazo) ?? 99) < 0).length;
 
   const cartaoPedido = (p) => {
     const [rot, cor, bg] = STATUS_PEDIDO[p.status] || STATUS_PEDIDO.aberta;
-    const fim = !(p.status === "aberta" || p.status === "em_analise");
+    const fim = !ehAberto(p);
     const dias = diasAte(p.prazo);
     const corPrazo = dias == null ? T.subtext : dias < 0 ? "#A81419" : dias <= 3 ? "#C2760C" : "#1F7A4D";
     const ab = aberto === p.id;
+    const temRascunho = !!(rascunhos[p.id] || "").trim();
     return (
       <div key={p.id} style={cartao} className="rounded-[22px] shadow-lg shadow-black/5 p-4">
         <div className="flex items-start justify-between gap-2">
@@ -727,25 +747,26 @@ export function PaginaPedidosLGPD({ T, showToast }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[11.5px]" style={{ color: T.subtext }}>
           <span>Enviado {fmt(p.criado_em)}</span>
           {!fim && dias != null && <span style={{ color: corPrazo }} className="font-bold flex items-center gap-1"><Clock size={12} />{dias < 0 ? `prazo vencido há ${-dias} dia(s)` : dias === 0 ? "prazo vence hoje" : `prazo em ${dias} dia(s)`}</span>}
-          {fim && p.respondido_em && <span>Respondido {fmt(p.respondido_em)}{p.respondido_por_nome ? ` por ${p.respondido_por_nome}` : ""}</span>}
+          {fim && p.respondido_em && <span>{p.status === "negada" ? "Negado" : "Respondido"} {fmt(p.respondido_em)}{p.respondido_por_nome ? ` por ${p.respondido_por_nome}` : ""}</span>}
         </div>
-        {p.resposta && <p style={{ background: T.chipBg, color: T.text }} className="text-[12.5px] mt-2.5 leading-snug rounded-2xl px-3 py-2.5 whitespace-pre-line break-words"><b>Resposta:</b> {p.resposta}</p>}
-        {!fim && !ab && (
-          <motion.button whileTap={{ scale: 0.97 }} onClick={() => { setAberto(p.id); setTexto(p.resposta || ""); }} className="mt-3 w-full rounded-2xl py-2.5 text-[13px] font-extrabold text-white" style={{ background: `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` }}>Responder</motion.button>
+        {fim && p.resposta && <p style={{ background: T.chipBg, color: T.text }} className="text-[12.5px] mt-2.5 leading-snug rounded-2xl px-3 py-2.5 whitespace-pre-line break-words"><b>{p.status === "negada" ? "Motivo:" : "Resposta:"}</b> {p.resposta}</p>}
+        {!fim && p.eh_meu && <p style={{ background: T.chipBg, color: T.subtext }} className="text-[12px] mt-3 rounded-2xl px-3 py-2 leading-snug">Este pedido é seu: outra pessoa da diretoria ou o desenvolvedor precisa responder.</p>}
+        {!fim && !p.eh_meu && !ab && (
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => setAberto(p.id)} className="mt-3 w-full rounded-2xl py-2.5 text-[13px] font-extrabold text-white" style={{ background: `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` }}>{temRascunho ? "Continuar atendimento" : "Atender"}</motion.button>
         )}
-        {!fim && ab && (
+        {!fim && !p.eh_meu && ab && (
           <div className="mt-3">
             {DICA_PEDIDO[p.tipo] && <p style={{ background: "#E6F0FF", color: "#1F4F9E" }} className="text-[12px] rounded-2xl px-3 py-2 leading-snug"><b>Como atender:</b> {DICA_PEDIDO[p.tipo]}</p>}
-            <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={4} maxLength={2000} autoFocus placeholder="Resposta para a pessoa (ela vê no app)…"
+            <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={4} maxLength={2000} autoFocus placeholder="Resposta para a pessoa (ela só vê quando você tocar em Enviar resposta ou Negar)…"
               style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full mt-2 border rounded-2xl px-3.5 py-3 text-sm outline-none focus:ring-2 resize-none" />
-            <p style={{ color: T.subtext }} className="text-[10.5px] text-right">{texto.trim().length}/2000</p>
-            <div className="grid grid-cols-3 gap-2 mt-1.5">
-              <button type="button" disabled={salvando || p.status === "em_analise"} onClick={() => responder(p, "em_analise")} style={{ background: T.chipBg, color: T.text }} className="rounded-2xl py-2.5 text-[12px] font-bold disabled:opacity-50">Em análise</button>
-              <button type="button" disabled={salvando} onClick={() => responder(p, "negada")} style={{ background: "#FDECEE", color: "#A81419" }} className="rounded-2xl py-2.5 text-[12px] font-bold disabled:opacity-50">Negar</button>
-              <button type="button" disabled={salvando} onClick={() => responder(p, "respondida")} style={{ background: "#1F9D55", color: "#fff" }} className="rounded-2xl py-2.5 text-[12px] font-extrabold disabled:opacity-50 flex items-center justify-center gap-1">{salvando ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}Responder</button>
+            <p style={{ color: T.subtext }} className="text-[10.5px] text-right">{[...texto.trim()].length}/2000</p>
+            <button type="button" disabled={salvando || p.status === "em_analise"} onClick={() => responder(p, "em_analise")} style={{ background: T.chipBg, color: T.text }} className="w-full rounded-2xl py-2.5 text-[12.5px] font-bold disabled:opacity-50">{p.status === "em_analise" ? "Já está em análise" : "Marcar em análise (sem enviar texto)"}</button>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button type="button" disabled={salvando} onClick={() => responder(p, "negada")} style={{ background: "#FDECEE", color: "#A81419" }} className="rounded-2xl py-2.5 text-[12.5px] font-bold disabled:opacity-50">Negar (com motivo)</button>
+              <button type="button" disabled={salvando} onClick={() => responder(p, "respondida")} style={{ background: "#1F9D55", color: "#fff" }} className="rounded-2xl py-2.5 text-[12.5px] font-extrabold disabled:opacity-50 flex items-center justify-center gap-1">{salvando ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}Enviar resposta</button>
             </div>
-            <button type="button" onClick={() => { setAberto(null); setTexto(""); }} style={{ color: T.subtext }} className="w-full mt-2 text-[12px] font-semibold flex items-center justify-center gap-1"><X size={13} />Fechar sem salvar</button>
-            <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 leading-snug">“Negar” também exige o motivo. Depois de respondido ou negado, o pedido não pode ser alterado.</p>
+            <button type="button" onClick={fecharCartao} style={{ color: T.subtext }} className="w-full mt-2 text-[12px] font-semibold flex items-center justify-center gap-1"><X size={13} />Fechar</button>
+            <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 leading-snug">Depois de enviada ou negada, a resposta não pode ser alterada.</p>
           </div>
         )}
       </div>
@@ -759,11 +780,11 @@ export function PaginaPedidosLGPD({ T, showToast }) {
         <div className="relative">
           <p className="text-[11px] font-bold tracking-[.18em] text-white/70">PEDIDOS LGPD</p>
           <p className="text-[30px] font-extrabold leading-none mt-1">{lista === null ? "…" : abertos.length}<span className="text-[14px] font-bold text-white/75"> em aberto</span></p>
-          <p className="text-[12.5px] text-white/80 mt-1.5 leading-snug">Prazo de resposta: 15 dias. {atrasados > 0 ? `${atrasados} pedido(s) com prazo vencido.` : "Nenhum pedido atrasado."} A gerência das lojas não vê esta tela.</p>
+          <p className="text-[12.5px] text-white/80 mt-1.5 leading-snug">Prazo de resposta: 15 dias. {atrasados > 0 ? `${atrasados} pedido(s) com prazo vencido.` : "Nenhum pedido atrasado."} Gerente e encarregados das lojas não veem esta tela.</p>
         </div>
       </section>
       <div className="flex gap-1.5">
-        {[["abertos", `Em aberto (${abertos.length})`], ["fechados", "Respondidos"]].map(([id, r]) => (
+        {[["abertos", `Em aberto (${abertos.length})`], ["fechados", "Fechados"]].map(([id, r]) => (
           <button key={id} type="button" onClick={() => setFiltro(id)} aria-pressed={filtro === id} className="text-[12.5px] font-bold rounded-full px-3.5 py-2" style={filtro === id ? { background: AZUL_ESC, color: "#fff" } : { background: T.chipBg, color: T.text }}>{r}</button>
         ))}
       </div>
@@ -771,7 +792,7 @@ export function PaginaPedidosLGPD({ T, showToast }) {
     </div>
   );
   const corpo = lista === null ? <Loader2 size={18} className="animate-spin mx-auto mt-6" color={T.subtext} /> : mostrar.length === 0 ? (
-    <div style={cartao} className="rounded-[22px] p-6 text-center"><Inbox size={26} color={T.subtext} className="mx-auto" /><p style={{ color: T.subtext }} className="text-[13px] mt-2">{filtro === "abertos" ? "Nenhum pedido aguardando resposta." : "Nenhum pedido respondido ainda."}</p></div>
+    <div style={cartao} className="rounded-[22px] p-6 text-center"><Inbox size={26} color={T.subtext} className="mx-auto" /><p style={{ color: T.subtext }} className="text-[13px] mt-2">{filtro === "abertos" ? "Nenhum pedido aguardando resposta." : "Nenhum pedido fechado ainda."}</p></div>
   ) : (
     <div className={larga ? "grid grid-cols-2 xl:grid-cols-3 gap-4 items-start" : "flex flex-col gap-3"}>{mostrar.map(cartaoPedido)}</div>
   );
@@ -789,8 +810,8 @@ export function AvisoArmazenamento() {
     <>
       <AnimatePresence>
         {ver && (
-          <motion.div role="region" aria-label="Aviso de armazenamento" initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: "spring", stiffness: 320, damping: 30 }}
-            className="fixed left-3 right-3 z-[90] mx-auto max-w-md rounded-[22px] p-4 text-white shadow-2xl" style={{ bottom: "calc(env(safe-area-inset-bottom) + 12px)", background: FUNDO_MARCA, isolation: "isolate" }}>
+          <motion.div role="region" aria-label="Aviso de armazenamento" initial={{ y: -60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -60, opacity: 0 }} transition={{ type: "spring", stiffness: 320, damping: 30 }}
+            className="fixed left-3 right-3 z-[90] mx-auto max-w-md rounded-[22px] p-4 text-white shadow-2xl ring-1 ring-white/20" style={{ top: "calc(env(safe-area-inset-top) + 10px)", background: FUNDO_MARCA, isolation: "isolate" }}>
             <div className="flex gap-3">
               <span className="h-10 w-10 rounded-2xl bg-white/15 flex items-center justify-center shrink-0"><Smartphone size={19} /></span>
               <div className="min-w-0">

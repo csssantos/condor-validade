@@ -2,7 +2,7 @@
 import { eanValido, limiteSomaLote, textoLote } from "../src/lib/produto";
 import { diasRestantes, getStatus, sugestaoDesconto } from "../src/lib/formatos";
 import { parseCodigoBalanca, celulaCSV, celulaPlanilha } from "../src/lib/utilidades";
-import { erroDeRede, definirUsuarioFila, enfileirar, lerFila, gravarFila, processarFila } from "../src/lib/fila";
+import { erroDeRede, definirUsuarioFila, enfileirar, lerFila, gravarFila, processarFila, limparFilaOrfa } from "../src/lib/fila";
 import { etapasDoTutorial } from "../src/componentes/TutorialBipi";
 import { isoParaBR, brParaISO, mascaraData } from "../src/componentes/CampoData";
 
@@ -76,6 +76,14 @@ igual("outra pessoa não envia", await processarFila(), 0);
 igual("ação da outra pessoa continua guardada", lerFila().length, 1);
 definirUsuarioFila(null);
 igual("sem login não envia", await processarFila(), 0);
+igual("sem login não guarda", enfileirar("upsertProduto", { id: "y" }), false);
+// ação sem dono (versão antiga) é descartada; de outra pessoa recente fica
+gravarFila([{ id: "a", tipo: "upsertProduto", payload: {}, criadoEm: new Date().toISOString() }, { id: "b", tipo: "upsertProduto", payload: {}, uid: "bia", criadoEm: new Date().toISOString() }, { id: "c", tipo: "upsertProduto", payload: {}, uid: "bia", criadoEm: "2020-01-01T00:00:00Z" }]);
+definirUsuarioFila("ana");
+igual("descarta sem dono e vencida de outra pessoa", limparFilaOrfa(), 2);
+igual("fica a recente de outra pessoa", lerFila().map((o) => o.id), ["b"]);
+// sessão vencida = guarda e tenta depois
+igual("jwt vencido fica na fila", erroDeRede({ message: "JWT expired", code: "PGRST301" }), true);
 gravarFila([]);
 
 console.log(`teste-lib: ${ok} ok, ${falhas} falha(s)`);

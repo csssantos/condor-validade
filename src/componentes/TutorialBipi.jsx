@@ -14,7 +14,8 @@ export const abrirTutorial = () => { try { window.dispatchEvent(new CustomEvent(
 
 // cada etapa: o que o Bipi fala, um título curto e os "cartões" de apoio (ícone + texto)
 export function etapasDoTutorial({ nivel, promotor, pc }) {
-  const encarregado = nivel != null && nivel <= 5;
+  const encarregado = !promotor && nivel != null && nivel <= 5;
+  const mais = pc ? "Configurações" : "Mais"; // no computador não existe a aba Mais: é o menu lateral
   const e = [];
   e.push({ id: "oi", titulo: "Oi! Eu sou o Bipi", fala: "Vou te mostrar como o app funciona. É rapidinho.", Icone: Sparkles, cor: "#2ECC71",
     itens: [["Controle de validade da loja", Package], ["Avisos antes de vencer", AlertTriangle], ["Menos perda, mais controle", Check]] });
@@ -23,9 +24,9 @@ export function etapasDoTutorial({ nivel, promotor, pc }) {
       itens: [["Painel com o que vence primeiro", Home], ["Relatórios e gestão", ListChecks], ["Lançamento: no celular", Camera]] });
   } else {
     e.push({ id: "bipar", titulo: "Bipe o produto", fala: "Toque no botão vermelho da câmera e aponte para o código de barras.", Icone: Camera, cor: "#E31E24",
-      itens: [["Botão vermelho no meio da barra de baixo", Camera], ["Aceita EAN-8, UPC e EAN-13", Hash], ["Produto da balança também", Package]] });
+      itens: [["Botão vermelho no meio da barra de baixo", Camera], ["Lê o código de barras de qualquer produto", Hash], ["Produto da balança também", Package]] });
     e.push({ id: "lancar", titulo: "Validade, lote e quantidade", fala: "Digite a data da embalagem, o lote impresso perto dela e quantas unidades tem.", Icone: CalendarDays, cor: "#1F9D55",
-      itens: [["Data no formato dd/mm/aaaa", CalendarDays], ["Lote igual ao já lançado? Eu só somo", Tag], encarregado ? ["Vence em até 2 dias? Não lança: peça o preço direto", AlertTriangle] : ["Unidade padrão: grama (G)", Hash]] });
+      itens: [["Data no formato dd/mm/aaaa", CalendarDays], ["Lote igual ao já lançado? Eu só somo", Tag], encarregado ? ["Vence em até 2 dias? Não lança: peça o preço direto", AlertTriangle] : ["Sem lote impresso? Marque a opção", Hash]] });
     if (!encarregado) e.push({ id: "perto", titulo: "Vence em até 2 dias?", fala: "Aí não lança: leve ao encarregado ou gerente para pedir o preço direto.", Icone: AlertTriangle, cor: "#F59E0B",
       itens: [["Hoje, amanhã ou depois: não lança", AlertTriangle], ["Leve o produto ao encarregado", Store], ["Ele pede o preço direto", Tag]] });
   }
@@ -38,17 +39,17 @@ export function etapasDoTutorial({ nivel, promotor, pc }) {
       itens: [[encarregado ? "Crie por setor e subcategoria" : "Confira validade e lote de cada item", ListChecks], ["Tudo em tempo real", Sparkles], ["Funciona sem internet e envia depois", Check]] });
   }
   e.push({ id: "telegram", titulo: "Pelo Telegram, comigo", fala: "Você também pode lançar conversando comigo no Telegram. Eu pergunto tudo e confirmo antes.", Icone: Send, cor: "#2AA3E0",
-    itens: [[promotor ? "Use o código do seu convite" : "Vincule em Mais → Conta", Send], ["Mande o código de barras ou o nome", Hash], ["Nada é lançado sem você confirmar", Check]] });
+    itens: [[promotor ? "Use o código do seu convite" : `Vincule em ${mais} → Conta`, Send], ["Mande o código de barras ou o nome", Hash], ["Nada é lançado sem você confirmar", Check]] });
   if (!promotor) {
-    e.push({ id: "pedido", titulo: "Pedido de campanha", fala: "Perto de vencer? Abra o lote e registre o pedido de promoção ou preço direto, com o valor sugerido.", Icone: Tag, cor: "#C2570C",
+    e.push({ id: "pedido", titulo: "Pedido de campanha", fala: encarregado ? "Perto de vencer? Abra o lote e registre o pedido de promoção ou preço direto, com o valor sugerido." : "Perto de vencer? Nos lotes que você lançou, registre o pedido de promoção ou preço direto. Nos outros, avise o encarregado.", Icone: Tag, cor: "#C2570C",
       itens: [["Número da campanha (opcional)", Hash], ["Valor sugerido: a central libera", Tag], ["Com pedido, o lote fica travado", Check]] });
   }
   if (encarregado) {
     e.push({ id: "aprovar", titulo: "Aprovar produtos novos", fala: "Produto que não existe no app e foi lançado pelo Telegram espera a sua aprovação.", Icone: Package, cor: "#1F7A4D",
-      itens: [["Mais → Aprovar produtos novos", Package], ["Confira nome, setor, foto e preço", Check], ["Recusa precisa de motivo", AlertTriangle]] });
+      itens: [[`${mais} → Aprovar produtos novos`, Package], ["Confira nome, setor, foto e preço", Check], ["Recusa precisa de motivo", AlertTriangle]] });
   }
-  e.push({ id: "fim", titulo: "Pronto!", fala: "Se quiser rever, está em Mais → Sobre o app. Bom trabalho!", Icone: Check, cor: "#2ECC71",
-    itens: [["Rever: Mais → Sobre o app", Sparkles]] });
+  e.push({ id: "fim", titulo: "Pronto!", fala: `Se quiser rever, está em ${mais} → Sobre o app. Bom trabalho!`, Icone: Check, cor: "#2ECC71",
+    itens: [[`Rever: ${mais} → Sobre o app`, Sparkles]] });
   return e.slice(0, 10);
 }
 
@@ -73,9 +74,11 @@ function useDigitando(texto, ativo) {
   return n;
 }
 
-export function TutorialBipi({ etapas, onFechar }) {
+export function TutorialBipi({ etapas: etapasIniciais, onFechar }) {
   const reduzir = useReducedMotion();
-  const [i, setI] = useState(0);
+  const [etapas] = useState(etapasIniciais); // congela ao abrir: girar/redimensionar a tela não muda a lista no meio
+  const [i, setIdx] = useState(0);
+  const setI = (j) => setIdx(Math.max(0, Math.min(j, etapas.length - 1)));
   const [dir, setDir] = useState(1);
   const botaoRef = useRef(null);
   const toque = useRef(null);
@@ -85,11 +88,13 @@ export function TutorialBipi({ etapas, onFechar }) {
   const ir = (d) => { const j = i + d; if (j < 0) return; if (j >= etapas.length) { onFechar(true); return; } setDir(d); setI(j); };
 
   useEffect(() => { botaoRef.current?.focus({ preventScroll: true }); }, [i]);
+  const teclas = useRef(null);
+  teclas.current = (ev) => { if (ev.key === "Escape") onFechar(false); else if (ev.key === "ArrowRight") ir(1); else if (ev.key === "ArrowLeft") ir(-1); };
   useEffect(() => {
-    const k = (ev) => { if (ev.key === "Escape") onFechar(false); else if (ev.key === "ArrowRight") ir(1); else if (ev.key === "ArrowLeft") ir(-1); };
+    const k = (ev) => teclas.current?.(ev);
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
-  });
+  }, []);
 
   if (typeof document === "undefined") return null;
   return createPortal(
@@ -97,7 +102,7 @@ export function TutorialBipi({ etapas, onFechar }) {
       role="dialog" aria-modal="true" aria-label={`Tutorial do Bipi, etapa ${i + 1} de ${etapas.length}: ${etapa.titulo}`}
       onTouchStart={(e) => { toque.current = e.touches[0].clientX; }}
       onTouchEnd={(e) => { if (toque.current == null) return; const dx = e.changedTouches[0].clientX - toque.current; toque.current = null; if (Math.abs(dx) > 60) ir(dx < 0 ? 1 : -1); }}>
-      <div className="absolute inset-0 bg-[#061C3A]/70 backdrop-blur-[2px]" onClick={() => onFechar(false)} />
+      <div className="absolute inset-0 bg-[#061C3A]/70 backdrop-blur-[2px]" aria-hidden="true" />
       <motion.section initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} transition={{ type: "spring", stiffness: 260, damping: 28 }}
         className="relative w-full lg:w-[560px] rounded-t-[30px] lg:rounded-[30px] overflow-hidden text-white shadow-2xl"
         style={{ background: FUNDO_MARCA, isolation: "isolate", paddingBottom: "calc(env(safe-area-inset-bottom) + 18px)" }}>
@@ -111,7 +116,8 @@ export function TutorialBipi({ etapas, onFechar }) {
           <div className="flex items-end gap-2 mt-3">
             <Bipi falando={n < etapa.fala.length} reduzir={reduzir} />
             <div className="relative flex-1 min-w-0 bg-white text-[#0B2A55] rounded-[22px] rounded-bl-md px-4 py-3 mb-6 shadow-lg">
-              <p className="text-[14.5px] lg:text-[15.5px] font-semibold leading-snug min-h-[3.9em]" aria-live="polite">
+              <p className="sr-only" aria-live="polite">{etapa.titulo}. {etapa.fala}</p>
+              <p className="text-[14.5px] lg:text-[15.5px] font-semibold leading-snug min-h-[3.9em]" aria-hidden="true">
                 {etapa.fala.slice(0, n)}<span className="invisible">{etapa.fala.slice(n)}</span>
               </p>
             </div>

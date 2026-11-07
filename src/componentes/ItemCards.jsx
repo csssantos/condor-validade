@@ -6,7 +6,6 @@ import { EstadoVazioNovo } from "./ui";
 import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT, gerarCodigoLocalizacao } from "../lib/constantes";
 import { formatarData, formatarMoeda, statusStyles, sugestaoDesconto, useValoresVisiveis } from "../lib/formatos";
 import { useDesktop } from "../lib/tela";
-import { diasTexto } from "../telas/Home";
 
 function FichaFiltro({ children, onRemove }) {
   return (

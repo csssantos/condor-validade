@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { criarPDF, COR } from "../pdfMarca.js";
 import { supabase } from "../supabaseClient";
 import { CONDOR_LOGO_BASE64 } from "./constantes";
-import { formatarData, formatarDataHora, formatarDataHoraExtenso, formatarMoeda, getStatus } from "./formatos";
+import { formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus } from "./formatos";
 import { textoLote } from "./produto";
 import { calcularPrioridade } from "./utilidades";
 

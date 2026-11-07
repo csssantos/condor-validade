@@ -108,7 +108,7 @@ function erroRonda(error) {
   return "Não foi possível concluir. Tente de novo.";
 }
 
-const ehErroDeRede = (error) => !!error && (!navigator.onLine || /failed to fetch|networkerror|load failed|network request failed/i.test(error.message || ""));
+const ehErroDeRede = (error) => !!error && (!navigator.onLine || /failed to fetch|networkerror|load failed|network request failed|PGRST301|jwt expired|invalid jwt|nao_autenticado/i.test((error.message || "") + " " + (error.code || "")));
 
 const fmtDuracao = (ms) => {
   if (!ms || ms < 0) return "0min";
@@ -194,23 +194,33 @@ async function enviarConferencia(a) {
 }
 
 // devolve { enviadas, rejeitadas:[{op,motivo}] }
+let SINCRONIZANDO_RONDA = false;
+// envia só as conferências da pessoa logada; no fim relê a fila e tira só o que foi resolvido (o que entrou no meio continua)
+// conferência sem dono (versão antiga) ou de outra pessoa há mais de 7 dias é descartada
 async function sincronizarFila(rondaId) {
-  const fila = lerFilaRonda();
-  const resto = [], rejeitadas = []; let enviadas = 0;
   const eu = usuarioFila();
-  if (!eu) return { enviadas: 0, rejeitadas: [] }; // sem ninguém logado não envia nada
-  for (const a of fila) {
-    if (rondaId && a.ronda !== rondaId) { resto.push(a); continue; }
-    if (a.uid && a.uid !== eu) { resto.push(a); continue; } // conferência de outra pessoa: só vai com a conta dela
-    const { error } = await enviarConferencia(a);
-    if (!error) { enviadas++; continue; }
-    if (ehErroDeRede(error)) { resto.push(a); continue; }
-    const m = error.message || "";
-    if (m.includes("ja_conferido")) { enviadas++; continue; } // já está no servidor
-    rejeitadas.push({ op: a.op, nome: a.nome, motivo: erroRonda(error) });
+  if (!eu || SINCRONIZANDO_RONDA) return { enviadas: 0, rejeitadas: [] };
+  SINCRONIZANDO_RONDA = true;
+  const resolvidos = new Set(), rejeitadas = []; let enviadas = 0;
+  try {
+    const agora = Date.now();
+    for (const a of lerFilaRonda()) {
+      if (!a.uid || (a.uid !== eu && agora - (a.criadoEm || 0) > 7 * 86400000)) { resolvidos.add(a.op); continue; }
+      if (a.uid !== eu || (rondaId && a.ronda !== rondaId)) continue; // de outra pessoa ou de outra ronda: fica
+      if (usuarioFila() !== eu) break; // trocou de conta no meio
+      const { error } = await enviarConferencia(a);
+      if (!error) { enviadas++; resolvidos.add(a.op); continue; }
+      if (ehErroDeRede(error)) continue;
+      const m = error.message || "";
+      if (m.includes("ja_conferido")) { enviadas++; resolvidos.add(a.op); continue; } // já está no servidor
+      resolvidos.add(a.op); rejeitadas.push({ op: a.op, nome: a.nome, motivo: erroRonda(error) });
+    }
+  } finally {
+    const resto = lerFilaRonda().filter((a) => !resolvidos.has(a.op));
+    gravarFilaRonda(resto);
+    SINCRONIZANDO_RONDA = false;
   }
-  gravarFilaRonda(resto);
-  return { enviadas, rejeitadas, restantes: resto.length };
+  return { enviadas, rejeitadas, restantes: lerFilaRonda().length };
 }
 
 // ---------- avisos em tempo real (ronda encerrada, ronda/tarefa designada...) — ficam ativos no app inteiro ----------
@@ -467,7 +477,8 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
     const { error } = await enviarConferencia(args);
     if (!error) { setItens((prev) => prev.map((x) => (x.id === item.id ? { ...x, _pendente: false } : x))); setAberto(null); return true; }
     if (ehErroDeRede(error)) {
-      gravarFilaRonda([...lerFilaRonda(), { ...args, uid: usuarioFila() }]); setNaFila((n) => n + 1);
+      if (!usuarioFila()) { showToast("Sua sessão terminou. Entre de novo e confira outra vez.", "erro"); return false; }
+      gravarFilaRonda([...lerFilaRonda(), { ...args, uid: usuarioFila(), criadoEm: Date.now() }]); setNaFila((n) => n + 1);
       showToast("Sem internet: conferência guardada no aparelho. Ela é enviada sozinha quando a conexão voltar.", "aviso");
       setAberto(null); return true;
     }

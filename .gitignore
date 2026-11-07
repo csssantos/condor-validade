@@ -1,0 +1,5 @@
+node_modules/
+dist/
+testes/.tmp-*
+.DS_Store
+*.log

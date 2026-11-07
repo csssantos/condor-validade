@@ -13,10 +13,23 @@ function lerFila() { return loadLocal(OUTBOX_KEY, []); }
 
 function gravarFila(fila) { saveLocal(OUTBOX_KEY, fila); }
 
+// guarda a ação com o dono; sem ninguém logado não guarda (devolve false)
 function enfileirar(tipo, payload) {
+  if (!USUARIO_FILA) return false;
   const fila = lerFila();
   fila.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, tipo, payload, uid: USUARIO_FILA, criadoEm: new Date().toISOString() });
   gravarFila(fila);
+  return true;
+}
+
+// Ações gravadas antes do dono existir (versão antiga) não vão com a conta de ninguém; ações de outra pessoa vencem em 7 dias.
+// Devolve quantas foram descartadas, para avisar na tela.
+const PRAZO_FILA_MS = 7 * 86400000;
+function limparFilaOrfa() {
+  const fila = lerFila(); const agora = Date.now();
+  const fica = fila.filter((op) => op.uid && (op.uid === USUARIO_FILA || agora - Date.parse(op.criadoEm || 0) < PRAZO_FILA_MS));
+  if (fica.length !== fila.length) gravarFila(fica);
+  return fila.length - fica.length;
 }
 
 // Erro de rede (volta sozinho) x erro do banco (regra/permissão: reenviar não adianta)
@@ -24,6 +37,7 @@ function erroDeRede(e) {
   if (!navigator.onLine) return true;
   const m = String((e && (e.message || e.details)) || e || "");
   if (/limite_excedido/.test(m)) return true; // limite por minuto: não é falha definitiva, a operação fica na fila e tenta de novo
+  if (/PGRST301|JWT expired|jwt expired|invalid jwt|nao_autenticado/i.test(m + " " + ((e && e.code) || ""))) return true; // sessão vencida: guarda e envia quando a pessoa entrar de novo
   return !(e && e.code) && /fetch|network|timeout|conex|load failed|abort/i.test(m);
 }
 
@@ -45,6 +59,7 @@ function mensagemErroGravacao(e) {
   if (/pedido_promocao_invalido/.test(m)) return "tipo de pedido inválido";
   if (/pedido_so_pela_funcao/.test(m)) return "esse campo só muda pelo botão de pedido";
   if (/sem_permissao/.test(m)) return "você não tem permissão para isso";
+  if (/sem_sessao/.test(m)) return "sua sessão terminou; entre de novo e refaça";
   if (/validade_vencida/.test(m)) return "a validade já passou";
   if (/produto_fora_da_marca/.test(m)) return "esse produto não é de uma das marcas do seu acesso de promotor";
   if (/validade_muito_proxima/.test(m)) return "o produto vence em até 2 dias: leve ao gerente ou encarregado para pedir o preço direto";
@@ -84,38 +99,45 @@ function nomeDaOp(op) {
 // baixa reenviada depois de uma resposta perdida: se o produto já não existe, a baixa JÁ aconteceu (ou outra pessoa fez); não é erro
 function jaFeita(op, e) { return op.tipo === "baixarProduto" && /produto_nao_encontrado/.test(String((e && e.message) || "")); }
 
+let ENVIANDO_FILA = false;
+// envia só as ações da pessoa logada; no fim relê a fila e tira só o que foi resolvido (o que entrou no meio continua guardado)
 async function processarFila(onProgresso) {
-  const fila = lerFila();
-  if (!fila.length || !USUARIO_FILA) return 0; // sem ninguém logado não envia nada
-  const daPessoa = fila.filter((op) => !op.uid || op.uid === USUARIO_FILA);
+  if (ENVIANDO_FILA || !USUARIO_FILA) return 0;
+  const dono = USUARIO_FILA;
+  const daPessoa = lerFila().filter((op) => op.uid === dono);
   if (!daPessoa.length) return 0;
-  let processados = 0;
-  const restantes = [];
-  for (const op of fila) {
-    if (op.uid && op.uid !== USUARIO_FILA) { restantes.push(op); continue; } // de outra pessoa: espera ela entrar de novo
-    try {
-      await executarOp(op);
-      processados++;
-      if (onProgresso) onProgresso(processados, daPessoa.length);
-    } catch (e) {
-      if (jaFeita(op, e)) { // só na FILA (reenvio depois de resposta perdida): a baixa já existe no servidor; alinha a tela sem aviso
-        processados++; if (onProgresso) onProgresso(processados, daPessoa.length);
-        try { window.dispatchEvent(new CustomEvent("condor-recarregar-dados")); } catch {}
-      } else if (erroDeRede(e)) restantes.push(op); // sem internet de verdade: tenta de novo depois, NÃO apaga
-      else avisarErroGravacao(e, nomeDaOp(op)); // recusado pelo banco: avisa (com o nome do produto), não adianta reenviar
+  ENVIANDO_FILA = true;
+  const resolvidos = new Set(); let processados = 0;
+  try {
+    for (const op of daPessoa) {
+      if (USUARIO_FILA !== dono) break; // trocou de conta no meio: o resto espera o dono
+      try {
+        await executarOp(op);
+        resolvidos.add(op.id); processados++;
+        if (onProgresso) onProgresso(processados, daPessoa.length);
+      } catch (e) {
+        if (jaFeita(op, e)) { // reenvio depois de resposta perdida: a baixa já existe no servidor; alinha a tela sem aviso
+          resolvidos.add(op.id); processados++; if (onProgresso) onProgresso(processados, daPessoa.length);
+          try { window.dispatchEvent(new CustomEvent("condor-recarregar-dados")); } catch {}
+        } else if (!erroDeRede(e)) { resolvidos.add(op.id); avisarErroGravacao(e, nomeDaOp(op)); } // recusado pelo banco: avisa, não adianta reenviar
+        // erro de rede/sessão: continua guardada
+      }
     }
+  } finally {
+    gravarFila(lerFila().filter((op) => !resolvidos.has(op.id)));
+    ENVIANDO_FILA = false;
   }
-  gravarFila(restantes);
   return processados;
 }
 
 // wrappers que caem pra fila automaticamente quando offline
 async function gravarComFila(tipo, payload) {
-  if (!navigator.onLine) { enfileirar(tipo, payload); return; }
   const op = { tipo, payload };
+  const guardar = () => { if (!enfileirar(tipo, payload)) avisarErroGravacao({ message: "sem_sessao" }, nomeDaOp(op)); };
+  if (!navigator.onLine) { guardar(); return; }
   try { await executarOp(op); }
   catch (e) {
-    if (erroDeRede(e)) enfileirar(tipo, payload);
+    if (erroDeRede(e)) guardar();
     else avisarErroGravacao(e, nomeDaOp(op));
   }
 }
@@ -128,4 +150,4 @@ async function gravarCatalogo(barcode, dados) { return gravarComFila("upsertCata
 
 async function gravarHistorico(registro) { return gravarComFila("inserirHistorico", registro); }
 
-export { definirUsuarioFila, usuarioFila, NOME_OP, OUTBOX_KEY, avisarErroGravacao, enfileirar, erroDeRede, executarOp, gravarCatalogo, gravarComFila, gravarFila, gravarHistorico, gravarProduto, jaFeita, lerFila, mensagemErroGravacao, nomeDaOp, processarFila, removerProduto };
+export { definirUsuarioFila, usuarioFila, limparFilaOrfa, NOME_OP, OUTBOX_KEY, avisarErroGravacao, enfileirar, erroDeRede, executarOp, gravarCatalogo, gravarComFila, gravarFila, gravarHistorico, gravarProduto, jaFeita, lerFila, mensagemErroGravacao, nomeDaOp, processarFila, removerProduto };
