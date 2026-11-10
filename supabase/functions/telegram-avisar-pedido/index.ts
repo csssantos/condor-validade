@@ -6,10 +6,12 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
-const SITE = "https://condor-validade.vercel.app";
+// Domínios do app: o antigo continua valendo durante a transição; APP_URL (secret) escolhe o principal (só aceita um da lista).
+const SITES = ["https://condor-validade.vercel.app", "https://app.usebipi.com"];
+const SITE = SITES.includes(Deno.env.get("APP_URL") || "") ? Deno.env.get("APP_URL")! : SITES[0];
 const URL_SB = Deno.env.get("SUPABASE_URL")!;
 const sb = createClient(URL_SB, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-const cors = { "Access-Control-Allow-Origin": SITE, "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };
+let cors = { "Access-Control-Allow-Origin": SITE, "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };
 const resp = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const fmt = (iso: string) => { if (!iso) return "sem data"; const [a, m, d] = String(iso).slice(0, 10).split("-"); return `${d}/${m}/${a}`; };
 const reais = (v: number) => "R$ " + Number(v).toFixed(2).replace(".", ",");
@@ -23,6 +25,7 @@ async function tg(method: string, body: Record<string, unknown>) {
 }
 
 Deno.serve(async (req: Request) => {
+  { const o = req.headers.get("origin") || ""; cors = { ...cors, "Access-Control-Allow-Origin": SITES.includes(o) ? o : SITE }; } // aceita o domínio antigo e o novo
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return resp({ erro: "metodo" }, 405);
   const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
