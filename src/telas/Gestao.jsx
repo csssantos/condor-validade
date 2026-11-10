@@ -255,6 +255,8 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
     setPedidos(pd || []);
   }
   useEffect(() => { carregar(); }, [lojaSel]);
+  const [, setRelogio] = useState(0); // convite que vence com a tela aberta vira "Expirado" sozinho
+  useEffect(() => { const t = setInterval(() => setRelogio((n) => n + 1), 30000); return () => clearInterval(t); }, []);
   // tempo real: mudanças de outros gestores aparecem sem recarregar
   useEffect(() => {
     if (!lojaSel) return;
@@ -727,6 +729,20 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
     setConvites(data || []);
   }
   useEffect(() => { carregar(); }, [lojaAtiva?.id]);
+  // tempo real: convite cancelado, pausado, usado ou criado em outro aparelho aparece na hora
+  useEffect(() => {
+    if (!lojaAtiva?.id) return undefined;
+    let t; const r = () => { clearTimeout(t); t = setTimeout(() => carregar(), 400); };
+    const ch = supabase.channel(`convites-${lojaAtiva.id}-${Math.random().toString(36).slice(2, 7)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "convites_promotor" }, r)
+      .subscribe();
+    const foco = () => { if (document.visibilityState === "visible") carregar(); };
+    document.addEventListener("visibilitychange", foco);
+    return () => { clearTimeout(t); supabase.removeChannel(ch); document.removeEventListener("visibilitychange", foco); };
+  }, [lojaAtiva?.id]);
+  // "Expirado" aparece sozinho quando o prazo passa (não há evento no banco quando o tempo vence)
+  const [, setRelogio] = useState(0);
+  useEffect(() => { const t = setInterval(() => setRelogio((n) => n + 1), 30000); return () => clearInterval(t); }, []);
 
   async function gerar() {
     let lista = marcas;

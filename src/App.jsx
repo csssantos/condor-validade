@@ -231,6 +231,25 @@ function AppInner() {
     })();
   }, []);
 
+  // Promotor: convite cancelado/pausado na gestão derruba o acesso NA HORA (tempo real na própria linha de usuarios
+  // + conferência a cada 60 s e ao voltar para o app, caso o tempo real caia).
+  useEffect(() => {
+    if (!perfil?.promotor || !sessao?.user?.id) return undefined;
+    const uid = sessao.user.id;
+    const conferir = async () => {
+      const { data } = await supabase.from("usuarios").select("ativo, acesso_expira_em").eq("id", uid).maybeSingle();
+      const valido = data && data.ativo && (!data.acesso_expira_em || new Date(data.acesso_expira_em) > new Date());
+      if (!valido) { setPerfil(undefined); setPerfilTick((n) => n + 1); }
+    };
+    const ch = supabase.channel(`promotor-${uid}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "usuarios", filter: `id=eq.${uid}` }, conferir)
+      .subscribe();
+    const foco = () => { if (document.visibilityState === "visible") conferir(); };
+    document.addEventListener("visibilitychange", foco);
+    const t = setInterval(conferir, 60000);
+    return () => { supabase.removeChannel(ch); document.removeEventListener("visibilitychange", foco); clearInterval(t); };
+  }, [perfil?.promotor, sessao?.user?.id]);
+
   // Quando o acesso do promotor vence com o app aberto, recarrega o perfil (que aí cai na tela de expirado).
   useEffect(() => {
     if (!perfil?.acesso_expira_em) return;

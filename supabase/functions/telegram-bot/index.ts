@@ -365,7 +365,14 @@ async function porBarcode(ctx: Ctx, chat: number, s: { id: string }, d: Dados, b
   const e = cat[bc];
   if (e) { d.barcode = e.barcode; d.nome = e.nome; d.porPeso = e.por_peso; delete d.opcoes; delete d.lote; delete d.semLote; return proximoPasso(ctx, chat, s, d); }
   delete d.barcode; delete d.nome;
-  if (ctx.tipo === "promotor") { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código não é de um produto das suas marcas nesta loja. Confira o número.", undefined, "atencao"); }
+  if (ctx.tipo === "promotor") {
+    await salvar(s.id, "aguardando_info", d);
+    // distingue "existe na loja mas é de outra marca" de "não está cadastrado" (acesso total cai sempre no 2º caso)
+    const existe = (cacheCat.get(ctx.loja_id)?.rows || []).some((r) => r.barcode === bc);
+    return falar(chat, existe && !ctx.acesso_total
+      ? `Esse produto existe na loja, mas não é de uma das suas marcas (${textoMarcas(ctx)}). Confira o número.`
+      : "Esse produto ainda não está cadastrado no app desta loja. Promotor não cadastra produto novo: peça ao encarregado ou a um funcionário da loja para cadastrar e depois mande o código de novo.", undefined, "atencao");
+  }
   if (!eanOk(bc)) { await salvar(s.id, "aguardando_info", d); return falar(chat, "Esse código de barras não é válido: aceito EAN-8 (8 dígitos), UPC-A (12) ou EAN-13 (13), e o último dígito é o de verificação. Confira o número e envie de novo.", undefined, "atencao"); }
   // produto novo: busca nome e imagem na internet e pede a confirmação do funcionário
   const { data: lim } = await sb.rpc("rl_servico", { p_chave: String(chat), p_bucket: "tg_web", p_max: 6 });
