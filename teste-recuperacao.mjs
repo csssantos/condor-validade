@@ -21,7 +21,7 @@ t("login normal sem erro", mk("#/")[1] === false);
 t("flag persistida e limpa", /avdc_recuperando/.test(src) && /export const limparRecuperacao/.test(src) && /abriuPorRecuperacao = veioDoLink || lerFlag\(\)/.test(src));
 t("localStorage só dentro de try/catch (verificado também por teste-recuperacao-modulo)", (src.match(/localStorage/g) || []).length >= 4 && /catch \{ \/\* sem armazenamento: trata como deslogado \*\/ \}/.test(src));
 t("cliente declara as constantes ANTES de criar o cliente", src.indexOf("abriuPorRecuperacao") < src.indexOf("export const supabase = createClient"));
-t("App importa as constantes", /import \{ supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, linkIgnoradoLogado \}/.test(app));
+t("App importa as constantes", /import \{ supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, temLinkPendente, descartarLinkPendente, usarLinkPendente \}/.test(app));
 t("AppInner escuta PASSWORD_RECOVERY", /event === "PASSWORD_RECOVERY"\) setRecuperandoSenha\(true\)/.test(app));
 t("tela de nova senha vem ANTES do login/sessão", app.indexOf("if (recuperandoSenha && sessao)") > 0 && app.indexOf("if (recuperandoSenha && sessao)") < app.indexOf("if (sessao === null) {\n    return ("));
 t("trava desliga sem sessão", /if \(sessao === null && recuperandoSenha\) \{ setRecuperandoSenha\(false\)/.test(app));
@@ -31,4 +31,6 @@ t("aviso de link vencido é estado consumido (não constante)", /erroInicial=\{a
 t("tela Nova senha tem Cancelar e sair", /Cancelar e sair/.test(app));
 t("salvar senha: guarda contra toque duplo e limpa a flag", /if \(senhaSalva \|\| carregando\) return;/.test(app) && /limparRecuperacao\(\);\n\s+supabase\.auth\.signOut\(\{ scope: "others" \}\)/.test(app));
 t("erros do servidor mapeados (senha igual/fraca/sessão)", /same_password/.test(app) && /weak_password/.test(app) && /Sua sessão expirou/.test(app));
+t("App pergunta antes de trocar de conta (link com alguém logado)", /linkPendenteAtivo && sessao && !sessao\.user\?\.is_anonymous/.test(app) && /Sair e criar a nova senha pelo link/.test(app) && /Continuar como/.test(app));
+t("link nunca vira sessão sem escolha (detectSessionInUrl desliga)", /detectSessionInUrl: !ignorarLink/.test(src));
 console.log(`${ok} ok, ${falhas.length} falhas`); if (falhas.length) { console.log(falhas.join("\n")); process.exit(1); }

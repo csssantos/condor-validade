@@ -54,9 +54,9 @@ export function montar(p: Peca, m: Marca): { subject: string; html: string; text
 <tr><td class="px" style="padding:10px 28px 0;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
 <td valign="middle" style="padding:6px 8px 22px 0;"><div class="h" style="font-size:29px;line-height:1.18;font-weight:800;color:#ffffff;">${esc(p.titulo)}</div></td>
-<td width="190" valign="bottom" align="right" style="width:190px;"><img class="bp" src="${esc(bipi)}" width="190" height="190" alt="Bipi, mascote da Bipi Tech" style="display:block;border:0;outline:none;text-decoration:none;"></td>
+<td width="190" valign="bottom" align="right" style="width:190px;"><img class="bp" src="${esc(bipi)}" width="190" height="190" alt="Bipi, mascote da Bipi Tech" style="color:#ffffff;font-size:12px;display:block;border:0;outline:none;text-decoration:none;"></td>
 </tr></table></td></tr>
-<tr><td class="px" style="padding:0 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="background:#ffffff;border-radius:16px;"><tr><td class="cardi" style="padding:26px 28px 14px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr><td class="px" style="padding:0 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="background:#ffffff;border-radius:16px;"><tr><td class="cardi" style="padding:26px 28px 22px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 ${p.saudacao ? `<tr><td style="padding:0 0 12px;font-size:17px;color:#0B4F9E;">${p.saudacao}</td></tr>` : ""}${paras}${cod}${btn}${cx}${det}${alt}${av}
 </table></td></tr></table></td></tr>
 <tr><td class="px" align="center" style="padding:20px 28px 26px;font-size:12px;line-height:1.6;color:#DCE9FB;"><b style="color:#ffffff;">${esc(m.nome)}</b> · tecnologia para controle de validade<br>Mensagem automática, não responda este e-mail. ${esc(m.suporte)}</td></tr>

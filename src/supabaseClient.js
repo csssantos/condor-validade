@@ -36,26 +36,52 @@ const CHAVE_RECUPERANDO = "avdc_recuperando";
 const lerFlag = () => { try { return localStorage.getItem(CHAVE_RECUPERANDO) === "1"; } catch { return false; } };
 // Só vale o link de verdade: fragmento com token E type=recovery (a query sozinha, ?type=recovery, é forjável e NÃO liga a tela).
 const linkRecuperacao = /(^|[#&])access_token=/.test(hashDoLink) && /(^|[#&])type=recovery(&|$)/.test(hashDoLink);
-// Já tem alguém logado neste aparelho (sessão do Supabase guardada, não anônima)? Então o link do e-mail NÃO assume a conta:
-// o app apaga o trecho do link ANTES de o Supabase ler (a sessão atual fica intacta) e orienta a trocar a senha em Mais → Conta.
+// Já tem alguém logado neste aparelho (sessão do Supabase DESTE projeto, não anônima)? Então o link do e-mail NÃO assume a conta sozinho:
+// o trecho do link sai da barra e o supabase-js é impedido de lê-lo (detectSessionInUrl:false só neste caso); os tokens ficam SÓ na memória
+// (linkPendente) e o app pergunta: "Continuar na minha conta" ou "Sair e usar o link" (usarLinkPendente). O token do link é de uso único:
+// por isso ele não pode ser apenas apagado.
+const REF_PROJETO = (() => { try { return new URL(String(supabaseUrl)).hostname.split(".")[0]; } catch { return ""; } })();
 function jaLogadoNoAparelho() {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (!k || !/^sb-.*-auth-token$/.test(k)) continue;
+      if (!k || !/^sb-.+-auth-token$/.test(k)) continue;
+      if (REF_PROJETO && k !== `sb-${REF_PROJETO}-auth-token`) continue; // sessão de outro projeto não conta
       const v = JSON.parse(localStorage.getItem(k) || "null");
       if (v && v.refresh_token && v.user && !v.user.is_anonymous) return true;
     }
   } catch { /* sem armazenamento: trata como deslogado */ }
   return false;
 }
-export const linkIgnoradoLogado = linkRecuperacao && jaLogadoNoAparelho();
-if (linkIgnoradoLogado) { try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch { /* ok */ } }
-const veioDoLink = linkRecuperacao && !linkIgnoradoLogado;
+let linkPendente = null;
+const ignorarLink = linkRecuperacao && jaLogadoNoAparelho();
+if (ignorarLink) {
+  const q = new URLSearchParams(hashDoLink.replace(/^#/, ""));
+  const at = q.get("access_token"), rt = q.get("refresh_token");
+  if (at && rt) linkPendente = { access_token: at, refresh_token: rt };
+  try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch { /* ok */ }
+}
+export const linkIgnoradoLogado = ignorarLink;
+export const temLinkPendente = () => !!linkPendente;
+export const descartarLinkPendente = () => { linkPendente = null; };
+const veioDoLink = linkRecuperacao && !ignorarLink;
 if (veioDoLink) { try { localStorage.setItem(CHAVE_RECUPERANDO, "1"); } catch { /* sem armazenamento */ } }
 // Persistido: se a pessoa recarregar/fechar a aba ANTES de trocar a senha, a tela "Nova senha" volta (a sessão do link continua salva).
 export const abriuPorRecuperacao = veioDoLink || lerFlag();
 export const limparRecuperacao = () => { try { localStorage.removeItem(CHAVE_RECUPERANDO); } catch { /* ok */ } };
 export const linkComErro = /(^|[#&?])error(_code)?=/.test(hashDoLink) || /(^|[#&?])error(_code)?=/.test(buscaDoLink); // ex.: otp_expired (link vencido ou já usado)
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, { global: { fetch: fetchComFreio } });
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, { global: { fetch: fetchComFreio }, auth: { detectSessionInUrl: !ignorarLink } });
+
+// "Sair e usar o link": sai SÓ deste aparelho (escopo local, não derruba os outros), entra com a sessão do link e liga a tela "Nova senha".
+export async function usarLinkPendente() {
+  const t = linkPendente; linkPendente = null;
+  if (!t) return false;
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+    const { error } = await supabase.auth.setSession(t);
+    if (error) return false;
+    try { localStorage.setItem(CHAVE_RECUPERANDO, "1"); } catch { /* sem armazenamento */ }
+    return true;
+  } catch { return false; }
+}

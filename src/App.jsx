@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { criarPDF, COR } from "./pdfMarca.js";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, linkIgnoradoLogado } from "./supabaseClient";
+import { supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, temLinkPendente, descartarLinkPendente, usarLinkPendente } from "./supabaseClient";
 import {
   HomeIcon, Squares2X2Icon, FireIcon, SignalIcon, ClockIcon, Cog6ToothIcon,
   CameraIcon, PlusIcon, ShieldExclamationIcon, ShieldCheckIcon, QuestionMarkCircleIcon,
@@ -999,7 +999,7 @@ function useTelaLarga() { return useMediaQuery("(min-width: 1024px)"); }
 const SITE_URL = String(import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, "");
 
 // ============ Tela de login / recuperação de senha (Supabase Auth) ============
-function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null, erroInicial = "" }) {
+function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null, erroInicial = "", emailConta = "" }) {
   const ehDesktop = useDesktop();
   const [matriculaDigitada, setMatriculaDigitada] = useState("");
   const [modo, setModo] = useState(modoInicial); // "login" | "recuperar" | "nova-senha" | "cadastro-scan" | "cadastro-confirmar" | "cadastro-info"
@@ -1146,7 +1146,7 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
     limparRecuperacao();
     supabase.auth.signOut({ scope: "others" }).catch(() => {}); // quem estava logado em outros aparelhos (ex.: invasor) é desconectado
     setNovaSenha(""); setConfirmarSenha(""); setErro(""); setSenhaSalva(true);
-    setMensagem("Senha alterada! Use a nova senha também no app da tela inicial, se ele pedir login.");
+    setMensagem("Senha alterada! Os outros aparelhos (inclusive o app da tela inicial) vão pedir login de novo com a nova senha.");
   }
 
   // Layout novo: palco azul animado em cima e "folha" com o formulário embaixo (no PC: duas colunas).
@@ -1191,7 +1191,7 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
   } else if (modo === "nova-senha") {
     conteudo = (
       <motion.form key="nova-senha" onSubmit={salvarNovaSenha} variants={grupoForm} initial="hidden" animate="show" exit={SAI} className={formCls}>
-        <AuthTitulo T={T} titulo="Nova senha" sub={senhaSalva ? "Tudo certo." : "Escolha uma senha com pelo menos 8 caracteres."} />
+        <AuthTitulo T={T} titulo="Nova senha" sub={senhaSalva ? "Tudo certo." : `${emailConta ? `Conta: ${emailConta}. ` : ""}Escolha uma senha com pelo menos 8 caracteres.`} />
         {!senhaSalva && <>
           <AuthCampo T={T} rotulo="Nova senha" type="password" required autoComplete="new-password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
           <AuthCampo T={T} rotulo="Confirmar nova senha" type="password" required autoComplete="new-password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} />
@@ -1418,6 +1418,8 @@ function AppInner() {
   const [sistemaEscuro, setSistemaEscuro] = useState(() => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const [usuario, setUsuario] = useState(null);
   const [recuperandoSenha, setRecuperandoSenha] = useState(abriuPorRecuperacao);
+  const [linkPendenteAtivo, setLinkPendenteAtivo] = useState(() => temLinkPendente()); // abriu o link do e-mail com alguém logado: perguntar
+  const [trocandoConta, setTrocandoConta] = useState(false);
   const [avisoLink, setAvisoLink] = useState(linkComErro); // "link venceu": aparece uma vez e some (não volta em logouts seguintes)
   const [sessao, setSessao] = useState(undefined); // undefined = carregando, null = sem login, objeto = logado
   const [perfil, setPerfil] = useState(undefined); // linha da tabela "usuarios" (nome, cargo, loja, ativo)
@@ -1504,6 +1506,13 @@ function AppInner() {
   }, []);
 
   // Link vencido/sem sessão: não deixa a trava de "nova senha" ligada para o próximo login normal.
+  useEffect(() => {
+    if (sessao !== null || !linkPendenteAtivo) return;
+    // o aparelho tinha uma sessão velha (já caiu): o link é de quem está tentando entrar, então usa direto
+    let vivo = true;
+    usarLinkPendente().then((ok) => { if (!vivo) return; setLinkPendenteAtivo(false); if (ok) setRecuperandoSenha(true); else setAvisoLink(true); });
+    return () => { vivo = false; };
+  }, [sessao, linkPendenteAtivo]);
   useEffect(() => {
     if (sessao === null && recuperandoSenha) { setRecuperandoSenha(false); setAvisoLink(true); limparRecuperacao(); }
     if (sessao) setAvisoLink(false);
@@ -2009,14 +2018,6 @@ function AppInner() {
     toastTimerRef.current = setTimeout(() => setToast(null), duracaoAviso(msg, tom));
   }, []);
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
-  // Abriu o link "esqueci minha senha" já logado: a conta atual foi mantida; avisa onde trocar a senha (uma vez).
-  const avisouLinkLogado = useRef(false);
-  useEffect(() => {
-    if (!linkIgnoradoLogado || avisouLinkLogado.current || !sessao || sessao.user?.is_anonymous) return;
-    avisouLinkLogado.current = true;
-    showToast("Você já está logado neste aparelho. Para trocar a senha, vá em Mais → Conta. Para usar o link do e-mail, saia da conta primeiro.", "aviso");
-  }, [sessao, showToast]);
-
   // Aprovação de produto novo (Telegram): encarregado+ é avisado NA HORA quando chega pedido (tempo real) e vê quantos faltam em Mais
   const [aprovPendentes, setAprovPendentes] = useState(0);
   const idLojaAprov = perfil?.loja_id;
@@ -2572,10 +2573,27 @@ function AppInner() {
       </div>
     );
   }
+  // Abriu o link "esqueci minha senha" com alguém já logado neste aparelho: não troca a conta sem perguntar.
+  if (linkPendenteAtivo && sessao && !sessao.user?.is_anonymous) {
+    const emailAtual = sessao.user?.email || "esta conta";
+    return (
+      <div style={{ background: T.bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
+        <Lock size={28} color={BLUE} />
+        <p className="text-base font-extrabold max-w-xs">Você já está logado neste aparelho</p>
+        <p className="text-sm max-w-xs" style={{ color: T.subtext }}>Conta atual: <strong>{emailAtual}</strong>. O link que você abriu cria uma nova senha para a conta do e-mail que pediu a recuperação.</p>
+        <button type="button" disabled={trocandoConta} onClick={() => { descartarLinkPendente(); setLinkPendenteAtivo(false); }}
+          style={{ background: BLUE }} className="w-full max-w-xs rounded-2xl py-3 text-sm font-bold text-white disabled:opacity-60">Continuar como {emailAtual}</button>
+        <button type="button" disabled={trocandoConta}
+          onClick={async () => { setTrocandoConta(true); const ok = await usarLinkPendente(); setTrocandoConta(false); setLinkPendenteAtivo(false); if (ok) setRecuperandoSenha(true); else setAvisoLink(true); }}
+          style={{ color: BLUE }} className="text-sm font-semibold disabled:opacity-60">{trocandoConta ? "Abrindo…" : "Sair e criar a nova senha pelo link"}</button>
+      </div>
+    );
+  }
   // Chegou pelo link de recuperação de senha: mostra "Nova senha / Confirmar" em vez de entrar direto na conta.
   if (recuperandoSenha && sessao) {
     return (
-      <AuthScreen T={T} modoInicial="nova-senha" antesDeEntrar={antesDeEntrarNoApp}
+      <AuthScreen T={T} modoInicial="nova-senha" emailConta={sessao?.user?.email || ""} antesDeEntrar={antesDeEntrarNoApp}
         aoConcluir={(como) => { setRecuperandoSenha(false); setAvisoLink(false); limparRecuperacao(); if (como === "sair") supabase.auth.signOut().catch(() => {}); }} />
     );
   }
@@ -2979,7 +2997,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-11-11-link-logado", data: "11/11/2026", itens: [
-    { tipo: "alterado", ate: 7, texto: "Se você já está logado e abre o link de \"esqueci minha senha\", o app mantém a sua conta e avisa para trocar a senha em Mais → Conta." },
+    { tipo: "alterado", ate: 7, texto: "Se você já está logado e abre o link de \"esqueci minha senha\", o app pergunta se você quer continuar na sua conta ou sair e criar a nova senha pelo link. A tela de nova senha mostra de qual conta ela é." },
     { tipo: "novo", ate: 7, texto: "Os e-mails de confirmação e de recuperação de senha ganharam um visual novo, no estilo da tela de carregamento." },
   ] },
   { id: "2026-11-11-nova-senha", data: "11/11/2026", itens: [

@@ -94,7 +94,7 @@ export function PalcoInicio({
       // totalmente atrás: sai do foco/leitor de tela. NÃO usar visibility:hidden aqui: no Safari do iPhone a camada não é
       // repintada ao voltar (o círculo sumia por ~10 s ao subir). inert + aria-hidden fazem o mesmo sem tirar a camada da tela.
       const oculto = p >= 1;
-      if (el.inert !== oculto) el.inert = oculto;
+      if ("inert" in el && el.inert !== oculto) el.inert = oculto;
       if (oculto) el.setAttribute("aria-hidden", "true"); else el.removeAttribute("aria-hidden");
     };
     const aoRolar = () => { if (!quadro) quadro = requestAnimationFrame(aplicar); };

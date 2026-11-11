@@ -110,7 +110,8 @@ export async function tratar(req: Request, env: (k: string) => string | undefine
   if (!chave || !/^https:\/\/[a-z0-9.-]+\.supabase\.co\/?$/i.test(supaUrl)) return falha(500, "configuracao_incompleta"); // link de verificação só para o projeto Supabase (https)
   const dominio = env("EMAIL_DOMINIO") || DOMINIO_ENVIO;
   const siteUrl = (env("SITE_URL") || SITE_PADRAO).replace(/\/$/, "");
-  const assets = (env("ASSET_BASE_URL") || ASSETS_PADRAO).replace(/\/$/, "");
+  const assetsBruto = (env("ASSET_BASE_URL") || ASSETS_PADRAO).replace(/\/$/, "");
+  const assets = /^https:\/\/[A-Za-z0-9.\/:_-]+$/.test(assetsBruto) ? assetsBruto : ASSETS_PADRAO; // vai para CSS url(): só caracteres seguros
   let hostAssets = ""; try { hostAssets = new URL(assets).host; } catch { /* inválido */ }
   let hostSite = ""; try { const s = new URL(siteUrl); if (s.protocol === "https:") hostSite = s.host; } catch { /* inválido */ }
   if (!dominioOficial(dominio) || !dominioOficial(hostAssets) || !dominioOficial(hostSite.split(":")[0])) return falha(500, "dominio_nao_oficial"); // barra configuração com domínio misturado
