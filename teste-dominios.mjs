@@ -21,25 +21,36 @@ for (const f of ["assistente-ia", "identificar-produto", "enviar-push"]) {
   });
 }
 
+const hostis = ["https://evil.com#" + NOVO, "https://evil.com/" + NOVO, "https://evil.com?x=" + NOVO, "x" + NOVO, NOVO + "\n", "\n" + NOVO, NOVO + "/", NOVO + " ", " " + NOVO, NOVO.toUpperCase(), "https://APP.usebipi.com", "https://app.usebipi.com.", "https://app%2eusebipi.com", "https://appXusebipi.com", "https://app.usebipi.co", "https://\u0430pp.usebipi.com", "https://app.usebipi.com\u0000", "HTTPS://app.usebipi.com", "https://app.usebipi.com:443", "http://localhost.evil.com", "http://localhost:80a", "http://localhost:", "https://condor-validade.vercel.app.evil.com", "https://condor-validadeXvercel.app", "https://condor-validade-x.vercel-app"];
+for (const f of ["assistente-ia", "identificar-produto", "enviar-push"]) t(`CORS ${f}: âncoras ^ e $, ponto escapado, sem injeção de prefixo/sufixo (${hostis.length} casos)`, () => { const r = regexDe(f); for (const o of hostis) assert.ok(!r.test(o), JSON.stringify(o)); });
 const comSites = ["telegram-bot", "telegram-avisar", "telegram-avisar-pedido", "telegram-desvincular"];
-const siteCom = (f, appUrl) => { // executa só as linhas de SITES/SITE da função, com um Deno.env falso
-  const fonte = ler(`${F}/${f}/index.ts`); const a = fonte.indexOf("const SITES"), b = fonte.indexOf("\n", fonte.indexOf("const SITE =")); assert.ok(a > 0 && b > a, f);
-  return new Function("Deno", `${fonte.slice(a, b).replace(/!;?$/, "")}; return {SITES, SITE};`.replace("Deno.env.get(\"APP_URL\")!", "Deno.env.get(\"APP_URL\")"))({ env: { get: (k) => (k === "APP_URL" ? appUrl : undefined) } });
+const siteCom = (f, appUrl) => { // executa só o bloco SITES/SITE/APP_URL da função, com Deno.env e console falsos
+  const fonte = ler(`${F}/${f}/index.ts`); const a = fonte.indexOf("const SITES"), fim = fonte.indexOf("\n", fonte.indexOf("console.warn(\"APP_URL ignorado")); assert.ok(a > 0 && fim > a, f);
+  const avisos = []; const r = new Function("Deno", "console", `${fonte.slice(a, fim)}; return {SITES, SITE};`)({ env: { get: (k) => (k === "APP_URL" ? appUrl : undefined) } }, { warn: (m) => avisos.push(m) });
+  return { ...r, avisos };
 };
 for (const f of comSites) {
   t(`SITE ${f}: sem APP_URL fica no domínio antigo (nada muda até o secret ser definido)`, () => { const r = siteCom(f, undefined); assert.equal(r.SITE, ANTIGO); assert.deepEqual(r.SITES, [ANTIGO, NOVO]); });
   t(`SITE ${f}: APP_URL=app.usebipi.com muda para o novo; qualquer outro valor é ignorado`, () => {
     assert.equal(siteCom(f, NOVO).SITE, NOVO);
-    for (const v of ["https://malicioso.com", "http://app.usebipi.com", "https://app.usebipi.com/", "https://usebipi.com", ""]) assert.equal(siteCom(f, v).SITE, ANTIGO, v);
+    for (const v of ["https://malicioso.com", "http://app.usebipi.com", "https://app.usebipi.com/", "https://usebipi.com", "HTTPS://APP.USEBIPI.COM", "app.usebipi.com", ""]) assert.equal(siteCom(f, v).SITE, ANTIGO, v);
+    assert.equal(siteCom(f, "  https://app.usebipi.com \n").SITE, NOVO, "espaços nas pontas são aceitos");
+  });
+  t(`SITE ${f}: APP_URL inválido gera aviso no log (nunca falha em silêncio); válido ou ausente não avisa`, () => {
+    assert.equal(siteCom(f, "https://app.usebipi.com/").avisos.length, 1); assert.equal(siteCom(f, "https://malicioso.com").avisos.length, 1);
+    assert.equal(siteCom(f, NOVO).avisos.length, 0); assert.equal(siteCom(f, undefined).avisos.length, 0); assert.ok(!/malicioso/.test(siteCom(f, "https://malicioso.com").avisos[0]), "o aviso não repete o valor recebido");
   });
 }
 for (const f of ["telegram-avisar", "telegram-avisar-pedido", "telegram-desvincular"]) {
   t(`CORS ${f}: devolve a origem de quem chamou se for o app novo ou o antigo; senão o SITE (nunca *)`, () => {
     const s = ler(`${F}/${f}/index.ts`);
-    assert.ok(/SITES\.includes\(o\) \? o : SITE/.test(s)); assert.ok(!/Access-Control-Allow-Origin": "\*"/.test(s)); assert.ok(/"Vary": "Origin"/.test(s));
+    assert.ok(/SITES\.includes\(origem\) \? origem : SITE/.test(s)); assert.ok(!/^let cors/m.test(s), "cors não pode ser variável de módulo (corrida entre requisições)"); assert.ok(!/Access-Control-Allow-Origin": "\*"/.test(s)); assert.ok(/"Vary": "Origin"/.test(s));
   });
 }
 
+for (const f of ["telegram-avisar", "telegram-avisar-pedido", "telegram-desvincular"]) {
+  t(`${f}: a foto do banner usa ${"${SITE}"} (nunca o domínio antigo fixo)`, () => { const x = ler(`${F}/${f}/index.ts`); assert.ok(/photo: `\$\{SITE\}\/bot\//.test(x)); assert.ok(!/photo: ["`']https?:\/\/condor/.test(x)); });
+}
 const vj = JSON.parse(ler("vercel.json")); const hd = Object.fromEntries(vj.headers[0].headers.map((h) => [h.key, h.value]));
 t("CSP: o app novo funciona com 'self' (sem domínio fixo), sem eval e sem curinga em script/connect", () => {
   const csp = hd["Content-Security-Policy"]; assert.ok(/default-src 'self'/.test(csp)); assert.ok(!/'unsafe-eval'/.test(csp)); assert.ok(!/(script|connect)-src[^;]*\*/.test(csp));

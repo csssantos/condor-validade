@@ -27,7 +27,9 @@ const SETORES = ["Hortifruti", "Açougue", "Padaria", "Frios e Laticínios", "Me
 type Banner = "codigo" | "vinculado" | "produto" | "validade" | "quantidade" | "lote" | "conferir" | "sucesso" | "lancada" | "aprovacao" | "atencao" | "cancelado" | "novo" | "ajuda";
 // Domínios do app: o antigo continua valendo durante a transição; APP_URL (secret) escolhe o principal (só aceita um da lista).
 const SITES = ["https://condor-validade.vercel.app", "https://app.usebipi.com"];
-const SITE = SITES.includes(Deno.env.get("APP_URL") || "") ? Deno.env.get("APP_URL")! : SITES[0];
+const appUrl = (Deno.env.get("APP_URL") || "").trim();
+const SITE = SITES.includes(appUrl) ? appUrl : SITES[0];
+if (appUrl && !SITES.includes(appUrl)) console.warn("APP_URL ignorado: use exatamente https://app.usebipi.com (sem barra no final)");
 async function tg(method: string, body: Record<string, unknown>) {
   try {
     const r = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {

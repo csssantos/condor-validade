@@ -8,11 +8,12 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
 // Domínios do app: o antigo continua valendo durante a transição; APP_URL (secret) escolhe o principal (só aceita um da lista).
 const SITES = ["https://condor-validade.vercel.app", "https://app.usebipi.com"];
-const SITE = SITES.includes(Deno.env.get("APP_URL") || "") ? Deno.env.get("APP_URL")! : SITES[0];
+const appUrl = (Deno.env.get("APP_URL") || "").trim();
+const SITE = SITES.includes(appUrl) ? appUrl : SITES[0];
+if (appUrl && !SITES.includes(appUrl)) console.warn("APP_URL ignorado: use exatamente https://app.usebipi.com (sem barra no final)");
 const URL_SB = Deno.env.get("SUPABASE_URL")!;
 const sb = createClient(URL_SB, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-let cors = { "Access-Control-Allow-Origin": SITE, "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };
-const resp = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+const corsBase = { "Access-Control-Allow-Origin": SITE, "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };
 const fmt = (iso: string) => { if (!iso) return "sem data"; const [a, m, d] = String(iso).slice(0, 10).split("-"); return `${d}/${m}/${a}`; };
 const reais = (v: number) => "R$ " + Number(v).toFixed(2).replace(".", ",");
 const limpaTxt = (s: unknown, n: number) => String(s ?? "").replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, " ").replace(/https?:\/\/\S+|www\.\S+/gi, "[link]").slice(0, n);
@@ -25,7 +26,10 @@ async function tg(method: string, body: Record<string, unknown>) {
 }
 
 Deno.serve(async (req: Request) => {
-  { const o = req.headers.get("origin") || ""; cors = { ...cors, "Access-Control-Allow-Origin": SITES.includes(o) ? o : SITE }; } // aceita o domínio antigo e o novo
+  // CORS calculado POR REQUISIÇÃO (variável local): requisições simultâneas de origens diferentes não misturam o cabeçalho
+  const origem = req.headers.get("origin") || "";
+  const cors = { ...corsBase, "Access-Control-Allow-Origin": SITES.includes(origem) ? origem : SITE }; // aceita o domínio antigo e o novo
+  const resp = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return resp({ erro: "metodo" }, 405);
   const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
