@@ -10,6 +10,10 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-11-editar-convite", data: "11/11/2026", itens: [
+    { tipo: "novo", ate: 5, texto: "Convite de promotor agora pode ser editado: mudar a data de vencimento, trocar acesso total por marcas específicas (ou o contrário) e ajustar as marcas. Fica em Funcionários → Promotores → ⋯ → Editar validade e marcas. A mudança já vale no servidor para quem já entrou (a tela dele atualiza ao recarregar) e tudo fica na auditoria." },
+    { tipo: "corrigido", ate: 5, texto: "Gerar convite com duração \"Permanente\" voltou a funcionar." },
+  ] },
   { id: "2026-11-11-link-logado", data: "11/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "Se você já está logado e abre o link de \"esqueci minha senha\", o app pergunta se você quer continuar na sua conta ou sair e criar a nova senha pelo link. A tela de nova senha mostra de qual conta ela é." },
     { tipo: "novo", ate: 7, texto: "Os e-mails de confirmação e de recuperação de senha ganharam um visual novo, no estilo da tela de carregamento." },
