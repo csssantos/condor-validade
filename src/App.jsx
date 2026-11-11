@@ -2995,6 +2995,10 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-11-editar-convite", data: "11/11/2026", itens: [
+    { tipo: "novo", ate: 5, texto: "Convite de promotor agora pode ser editado: mudar a data de vencimento, trocar acesso total por marcas específicas (ou o contrário) e ajustar as marcas. Fica em Funcionários → Promotores → ⋯ → Editar validade e marcas. O promotor que já entrou recebe a mudança na hora e tudo fica na auditoria." },
+    { tipo: "corrigido", ate: 5, texto: "Gerar convite com duração \"Permanente\" voltou a funcionar." },
+  ] },
   { id: "2026-11-11-link-logado", data: "11/11/2026", itens: [
     { tipo: "alterado", ate: 7, texto: "Se você já está logado e abre o link de \"esqueci minha senha\", o app pergunta se você quer continuar na sua conta ou sair e criar a nova senha pelo link. A tela de nova senha mostra de qual conta ela é." },
     { tipo: "novo", ate: 7, texto: "Os e-mails de confirmação e de recuperação de senha ganharam um visual novo, no estilo da tela de carregamento." },
@@ -5975,7 +5979,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
   async function carregarExtras() {
     if (!lojaSel) { setConvites([]); setPedidos([]); return; }
     const [{ data: cv }, { data: pr }, { data: pd }] = await Promise.all([
-      supabase.from("convites_promotor").select("id, token, codigo, nome, marca, marcas, acesso_total, expira_em, criado_em, revogado, pausado, usos, ultimo_uso").eq("loja_id", lojaSel).order("criado_em", { ascending: false }).limit(100),
+      supabase.from("convites_promotor").select("id, loja_id, token, codigo, nome, marca, marcas, acesso_total, expira_em, criado_em, revogado, pausado, usos, ultimo_uso").eq("loja_id", lojaSel).order("criado_em", { ascending: false }).limit(100),
       supabase.from("usuarios").select("id, convite_id, ativo").eq("loja_id", lojaSel).eq("promotor", true),
       supabase.from("solicitacoes_exclusao").select("*").eq("loja_id", lojaSel).eq("status", "pendente").order("criado_em", { ascending: false }),
     ]);
@@ -6119,7 +6123,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
       )}
 
       {acaoUsuario && <AcoesFuncionarioSheet T={T} u={acaoUsuario} nivelUsuario={nivelUsuario} cargos={cargos} showToast={showToast} onClose={() => setAcaoUsuario(null)} onFeito={() => { setAcaoUsuario(null); carregar(); }} />}
-      {acaoConvite && <AcoesConviteSheet T={T} c={acaoConvite} showToast={showToast} onClose={() => setAcaoConvite(null)} onFeito={() => { setAcaoConvite(null); carregar(); }} />}
+      {acaoConvite && <AcoesConviteSheet T={T} c={acaoConvite} nivelUsuario={nivelUsuario} showToast={showToast} onClose={() => setAcaoConvite(null)} onFeito={() => { setAcaoConvite(null); carregar(); }} />}
       {novoAberto && (
         <GestaoSheet T={T} title="Pré-cadastrar funcionário" subtitle={`Loja ${lojaObj?.numero_loja ?? "—"}${lojaObj?.bairro ? ` — ${lojaObj.bairro}` : ""}`} onClose={() => setNovoAberto(false)}>
           <div className="flex flex-col gap-3.5">
@@ -6156,6 +6160,11 @@ function erroAcao(error) {
     m.includes("ja_solicitado") ? "Já existe um pedido de exclusão pendente pra essa pessoa." :
     m.includes("pedido_invalido") ? "Esse pedido já foi resolvido." :
     m.includes("nome_vazio") ? "O nome não pode ficar vazio." :
+    m.includes("acesso_total_exige_gerencia") ? "Só gerência ou diretoria mexe em convite de acesso total." :
+    m.includes("marcas_demais") ? "No máximo 5 marcas por convite." :
+    m.includes("marca_invalida") ? "Informe de 1 a 5 marcas válidas (3 a 30 letras ou números)." :
+    m.includes("expira_invalida") ? "A nova data precisa ser no futuro (no máximo 100 anos). Para cortar o acesso agora, use Bloquear." :
+    m.includes("convite_revogado") ? "Esse convite está bloqueado e não pode ser editado." :
     m.includes("function") && m.includes("does not exist") ? "Falta rodar o SQL supabase-funcionarios-acoes.sql no Supabase." :
     "Não foi possível concluir. Tente de novo.";
 }
@@ -6282,8 +6291,9 @@ function PromotoresLista({ T, convites, termo, onAbrir }) {
   );
 }
 
-function AcoesConviteSheet({ T, c, showToast, onClose, onFeito }) {
+function AcoesConviteSheet({ T, c, nivelUsuario, showToast, onClose, onFeito }) {
   const [ocupado, setOcupado] = useState(false);
+  const [editando, setEditando] = useState(false);
   const st = statusConvite(c, T);
   async function executar(fn, msgOk) {
     setOcupado(true); const { error } = await fn(); setOcupado(false);
@@ -6293,9 +6303,14 @@ function AcoesConviteSheet({ T, c, showToast, onClose, onFeito }) {
   async function copiar() {
     try { await navigator.clipboard.writeText(linkDoConvite(c)); showToast("Link copiado."); } catch { showToast("Não deu pra copiar.", "warn"); }
   }
+  if (editando) return <EditarConviteSheet T={T} c={c} nivelUsuario={nivelUsuario} showToast={showToast} onClose={() => setEditando(false)} onFeito={onFeito} />;
+  const podeEditar = !c.revogado && !(c.acesso_total && !(nivelUsuario != null && nivelUsuario <= 4));
   return (
     <GestaoSheet T={T} title={c.nome} subtitle={`${marcasConvite(c)} · ${st.label}`} onClose={onClose}>
       <div className="flex flex-col gap-2.5">
+        {podeEditar && (
+          <button onClick={() => setEditando(true)} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left"><Pencil size={18} /><span className="flex-1 min-w-0"><span className="block text-sm font-bold">Editar validade e marcas</span><span className="block text-[11px] opacity-80 mt-0.5">Mudar a data de vencimento, tirar o acesso total ou trocar as marcas.</span></span></button>
+        )}
         {c.codigo && <p style={{ background: T.chipBg, color: T.text }} className="text-xs rounded-xl px-3 py-2">Código do promotor: <b className="font-mono select-all">{c.codigo}</b></p>}
         {st.id === "ativo" && (
           <button onClick={copiar} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left"><Copy size={18} /><span className="text-sm font-bold">Copiar link do convite</span></button>
@@ -6313,6 +6328,71 @@ function AcoesConviteSheet({ T, c, showToast, onClose, onFeito }) {
         )}
         <BotaoAcao T={T} ocupado={ocupado} Icon={Trash2} titulo="Excluir convite" desc="Apaga o convite e o acesso do promotor." cor={RED_DARK} bg={RED_SOFT}
           confirmaTexto="Toque de novo para EXCLUIR" onConfirmar={() => executar(() => supabase.rpc("excluir_convite", { p_id: c.id }), "Convite excluído.")} />
+      </div>
+    </GestaoSheet>
+  );
+}
+
+// Edita um convite de promotor já criado (validade e marcas). A regra de quem pode vale no banco (RPC atualizar_convite).
+function EditarConviteSheet({ T, c, nivelUsuario, showToast, onClose, onFeito }) {
+  const [total, setTotal] = useState(!!c.acesso_total);
+  const [marcas, setMarcas] = useState(Array.isArray(c.marcas) ? c.marcas : []);
+  const [txt, setTxt] = useState("");
+  const [modo, setModo] = useState("manter"); // manter | id de DURACOES_CONVITE | data
+  const [dataISO, setDataISO] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const podeTotal = nivelUsuario != null && nivelUsuario <= 4;
+  const inputCls = "border rounded-xl px-3 py-2.5 text-sm outline-none w-full";
+  const inputStyle = { background: T.inputBg, color: T.text, borderColor: T.inputBorder, boxSizing: "border-box" };
+  async function salvar() {
+    if (ocupado) return;
+    let lista = marcas;
+    if (!total) {
+      const pend = normalizarMarca(txt);
+      if (pend && !lista.includes(pend)) {
+        if (pend.length < 3 || pend.length > 30) { showToast("A marca digitada precisa ter de 3 a 30 letras.", "warn"); return; }
+        if (lista.length >= 5) { showToast("No máximo 5 marcas por convite.", "warn"); return; }
+        lista = [...lista, pend];
+      }
+      if (lista.length === 0) { showToast("Informe pelo menos uma marca (ou marque acesso total).", "warn"); return; }
+    }
+    let expira = null;
+    if (modo === "data") {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dataISO)) { showToast("Informe a data completa (dd/mm/aaaa).", "warn"); return; }
+      const d = new Date(`${dataISO}T23:59:59`);
+      if (isNaN(d.getTime()) || d.getTime() <= Date.now()) { showToast("A data precisa ser no futuro. Para cortar o acesso agora, use Bloquear.", "warn"); return; }
+      expira = d.toISOString();
+    } else if (modo !== "manter") {
+      const horas = DURACOES_CONVITE.find((x) => x.id === modo)?.horas;
+      if (!horas) return;
+      expira = new Date(Date.now() + horas * 3600000).toISOString();
+    }
+    setOcupado(true);
+    const { data, error } = await supabase.rpc("atualizar_convite", { p_id: c.id, p_expira_em: expira, p_marcas: total ? null : lista, p_acesso_total: total });
+    setOcupado(false);
+    if (error) { console.error(error); showToast(erroAcao(error), "warn"); return; }
+    showToast(data?.mudou === false ? "Nada mudou." : "Convite atualizado.", "ok");
+    onFeito();
+  }
+  return (
+    <GestaoSheet T={T} title={`Editar convite de ${c.nome}`} subtitle={`${marcasConvite(c)} · ${validadeConvite(c)}`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <MarcasPicker T={T} lojaId={c.loja_id} marcas={marcas} setMarcas={setMarcas} acessoTotal={total} setAcessoTotal={setTotal} podeTotal={podeTotal} inputStyle={inputStyle} inputCls={inputCls} showToast={showToast} txt={txt} setTxt={setTxt} />
+        <div className="flex flex-col gap-1.5">
+          <label style={{ color: T.subtext }} className="text-[11px] font-medium">Validade do convite</label>
+          <select value={modo} onChange={(e) => setModo(e.target.value)} style={inputStyle} className={inputCls}>
+            <option value="manter">Manter ({validadeConvite(c)})</option>
+            {DURACOES_CONVITE.map((d) => <option key={d.id} value={d.id}>A partir de agora: {d.label}</option>)}
+            <option value="data">Escolher uma data…</option>
+          </select>
+          {modo === "data" && <CampoData T={T} value={dataISO} onChange={setDataISO} style={inputStyle} className={inputCls} />}
+          {modo === "data" && <p style={{ color: T.subtext }} className="text-[10.5px]">O acesso vale até o fim desse dia (23:59).</p>}
+        </div>
+        <p style={{ color: T.subtext }} className="text-[10.5px]">O código e o link do promotor continuam os mesmos. Quem já entrou recebe a mudança na hora. Fica registrado na auditoria.</p>
+        <div className="flex gap-2">
+          <button onClick={onClose} disabled={ocupado} style={{ color: T.subtext }} className="flex-1 text-sm py-2.5">Voltar</button>
+          <button onClick={salvar} disabled={ocupado} style={{ background: BLUE, color: "#fff" }} className="flex-[2] py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2">{ocupado ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Salvar alterações</button>
+        </div>
       </div>
     </GestaoSheet>
   );
