@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { TutorialBipi, etapasDoTutorial, marcarTutorialVisto, tutorialJaVisto } from "./componentes/TutorialBipi";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, temLinkPendente, descartarLinkPendente, usarLinkPendente, emailDoLinkPendente } from "./supabaseClient";
-import { Ticket, WifiOff, Barcode, Package, Calendar, Mic, ShieldAlert, AlertTriangle, Megaphone, Lock } from "lucide-react";
+import { Ticket, Barcode, Package, Calendar, Mic, ShieldAlert, AlertTriangle, Megaphone, Lock } from "lucide-react";
 import VozSheet from "./VozSheet";
 import { validarVoz } from "./voz";
 import { temAceitePendente, registrarAceite, TERMOS_VERSAO, lerAceiteLocal, gravarAceiteLocal, AceiteObrigatorio, AvisoArmazenamento } from "./Legal";
@@ -14,6 +14,7 @@ import { AtualizacaoObrigatoria, NovaVersaoBanner, baixarVersaoNova, buscarVersa
 import { ErrorBoundary } from "./componentes/ErrorBoundary";
 import { Header } from "./componentes/Header";
 import { BottomNav, SideNav } from "./componentes/Navegacao";
+import { FaixaFila } from "./componentes/FaixaFila";
 import { AtualizacaoModal, NOVIDADES, gravarNovidadeVista, lerNovidadeVista, novidadesParaCargo } from "./componentes/Novidades";
 import { BLUE, BLUE_SOFT, LOGO_SRC, NOTIF_KEY, PREFS_KEY, RED, RED_DARK, RED_SOFT, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, setorPrincipal } from "./lib/constantes";
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
@@ -1369,11 +1370,7 @@ function AppInner() {
         notifPermission={notifPermission} onToggleNotif={toggleNotificacoes}
         atualizacaoPendente={!!novaVersao && !mostrarBannerVersao} onAtualizacao={() => setVersaoDispensada(null)} />
 
-      {!online && (
-        <div style={{ background: "#7A1F23" }} className="text-white text-center text-[11px] font-medium py-1.5 flex items-center justify-center gap-1.5">
-          <WifiOff size={12} /> Modo offline — suas alterações estão sendo guardadas e sincronizam sozinhas quando a internet voltar.
-        </div>
-      )}
+      <FaixaFila online={online} />
 
       <main className={`${larguraMain} mx-auto pb-32 lg:pb-10 lg:px-6`}>
         {flow === "scan" && <ScanView T={T} onDetected={handleBarcodeCaptured} onCancel={resetFlow} />}

@@ -11,7 +11,11 @@ function usuarioFila() { return USUARIO_FILA; }
 
 function lerFila() { return loadLocal(OUTBOX_KEY, []); }
 
-function gravarFila(fila) { saveLocal(OUTBOX_KEY, fila); }
+function avisarFilaMudou() { try { window.dispatchEvent(new CustomEvent("condor-fila-mudou")); } catch { /* sem janela (testes) */ } }
+function gravarFila(fila) { saveLocal(OUTBOX_KEY, fila); avisarFilaMudou(); }
+// quantas ações da pessoa logada estão guardadas neste aparelho (a tela mostra isso na hora)
+function contarFilaDaPessoa() { return lerFila().filter((op) => !op.uid || op.uid === USUARIO_FILA).length; }
+function filaEnviando() { return ENVIANDO_FILA; }
 
 // guarda a ação com o dono; sem ninguém logado não guarda (devolve false)
 function enfileirar(tipo, payload) {
@@ -106,7 +110,7 @@ async function processarFila(onProgresso) {
   const dono = USUARIO_FILA;
   const daPessoa = lerFila().filter((op) => op.uid === dono);
   if (!daPessoa.length) return 0;
-  ENVIANDO_FILA = true;
+  ENVIANDO_FILA = true; avisarFilaMudou();
   const resolvidos = new Set(); let processados = 0;
   try {
     for (const op of daPessoa) {
@@ -125,7 +129,7 @@ async function processarFila(onProgresso) {
     }
   } finally {
     gravarFila(lerFila().filter((op) => !resolvidos.has(op.id)));
-    ENVIANDO_FILA = false;
+    ENVIANDO_FILA = false; avisarFilaMudou();
   }
   return processados;
 }
@@ -150,4 +154,4 @@ async function gravarCatalogo(barcode, dados) { return gravarComFila("upsertCata
 
 async function gravarHistorico(registro) { return gravarComFila("inserirHistorico", registro); }
 
-export { definirUsuarioFila, usuarioFila, limparFilaOrfa, NOME_OP, OUTBOX_KEY, avisarErroGravacao, enfileirar, erroDeRede, executarOp, gravarCatalogo, gravarComFila, gravarFila, gravarHistorico, gravarProduto, jaFeita, lerFila, mensagemErroGravacao, nomeDaOp, processarFila, removerProduto };
+export { contarFilaDaPessoa, filaEnviando, definirUsuarioFila, usuarioFila, limparFilaOrfa, NOME_OP, OUTBOX_KEY, avisarErroGravacao, enfileirar, erroDeRede, executarOp, gravarCatalogo, gravarComFila, gravarFila, gravarHistorico, gravarProduto, jaFeita, lerFila, mensagemErroGravacao, nomeDaOp, processarFila, removerProduto };

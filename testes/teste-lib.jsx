@@ -2,7 +2,7 @@
 import { eanValido, limiteSomaLote, textoLote } from "../src/lib/produto";
 import { diasRestantes, getStatus, sugestaoDesconto } from "../src/lib/formatos";
 import { parseCodigoBalanca, celulaCSV, celulaPlanilha } from "../src/lib/utilidades";
-import { erroDeRede, definirUsuarioFila, enfileirar, lerFila, gravarFila, processarFila, limparFilaOrfa } from "../src/lib/fila";
+import { contarFilaDaPessoa, filaEnviando, erroDeRede, definirUsuarioFila, enfileirar, lerFila, gravarFila, processarFila, limparFilaOrfa } from "../src/lib/fila";
 import { etapasDoTutorial } from "../src/componentes/TutorialBipi";
 import { isoParaBR, brParaISO, mascaraData } from "../src/componentes/CampoData";
 
@@ -84,6 +84,20 @@ igual("descarta sem dono e vencida de outra pessoa", limparFilaOrfa(), 2);
 igual("fica a recente de outra pessoa", lerFila().map((o) => o.id), ["b"]);
 // sessão vencida = guarda e tenta depois
 igual("jwt vencido fica na fila", erroDeRede({ message: "JWT expired", code: "PGRST301" }), true);
+gravarFila([]);
+
+// fila visível: a contagem é só da pessoa logada, e o evento avisa a tela quando a fila muda
+let avisos = 0; { const alvo = new EventTarget(); globalThis.window ??= {}; if (!window.addEventListener) { window.addEventListener = alvo.addEventListener.bind(alvo); window.dispatchEvent = alvo.dispatchEvent.bind(alvo); } } globalThis.CustomEvent = globalThis.CustomEvent || class extends Event { constructor(t) { super(t); } };
+window.addEventListener("condor-fila-mudou", () => { avisos++; });
+definirUsuarioFila("ana"); gravarFila([]);
+igual("fila vazia conta 0", contarFilaDaPessoa(), 0);
+enfileirar("upsertProduto", { id: "1" }); enfileirar("upsertProduto", { id: "2" });
+igual("conta as 2 da pessoa", contarFilaDaPessoa(), 2);
+igual("evento disparou ao guardar", avisos >= 3, true);
+definirUsuarioFila("bia");
+igual("outra pessoa não vê a contagem alheia", contarFilaDaPessoa(), 0);
+definirUsuarioFila("ana");
+igual("não está enviando parado", filaEnviando(), false);
 gravarFila([]);
 
 console.log(`teste-lib: ${ok} ok, ${falhas} falha(s)`);

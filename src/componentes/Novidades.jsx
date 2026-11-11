@@ -10,6 +10,9 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-11-fila-visivel", data: "11/11/2026", itens: [
+    { tipo: "novo", ate: 7, texto: "Faixa de registros guardados: sem internet (ou enquanto algo ainda não foi enviado), o app mostra quantos registros estão neste aparelho, atualiza na hora e tem o botão \"Enviar agora\"." },
+  ] },
   { id: "2026-11-11-verificar-banco", data: "11/11/2026", itens: [
     { tipo: "novo", ate: 1, texto: "Gestão do aplicativo → Banco: botão \"Verificar banco\" confere se regras de segurança, funções e rotinas do banco estão como o app espera (use depois de aplicar qualquer SQL)." },
   ] },
