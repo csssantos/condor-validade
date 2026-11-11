@@ -146,6 +146,7 @@ function AppInner() {
       if (event === "SIGNED_OUT") {
         // nada da pessoa que saiu fica na tela nem no aparelho
         setItems([]); setCatalog({}); setHistorico([]); setAuditoria([]); setRondas([]);
+        setLojaAtivaOverride(null); setFlow(null); setTab("home"); setDetalheItem(null); // a próxima pessoa não herda a loja trocada nem a tela aberta
         try { localStorage.removeItem(SNAPSHOT_KEY); } catch { /* sem armazenamento */ }
       }
       if (event === "PASSWORD_RECOVERY") setRecuperandoSenha(true); // link de "esqueci minha senha": pede a nova senha antes de entrar
@@ -576,7 +577,7 @@ function AppInner() {
   const uidTutorial = sessao?.user?.id;
   const outroModal = !!avisoAtual || (mostrarAtualizacao && novidadesDoCargo.length > 0);
   useEffect(() => {
-    if (!uidTutorial || !perfil || aceiteOk === false || !dadosProntos || outroModal || flow !== null || tab !== "home" || tutorialJaVisto(uidTutorial)) return undefined;
+    if (!uidTutorial || !perfil || aceiteOk !== true || !dadosProntos || outroModal || flow !== null || tab !== "home" || tutorialJaVisto(uidTutorial)) return undefined;
     const t = setTimeout(() => setTutorialAberto(true), 900);
     return () => clearTimeout(t);
   }, [uidTutorial, perfil, aceiteOk, dadosProntos, outroModal, flow, tab]);
