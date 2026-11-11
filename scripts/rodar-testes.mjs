@@ -12,6 +12,7 @@ const rodar = (nome, args) => { process.stdout.write(`\n▶ ${nome}\n`); execFil
 let falhou = false;
 const passo = async (nome, fn) => { try { await fn(); } catch (e) { falhou = true; if (!e.status) console.error(String(e.message || e).slice(0, 2000)); console.error(`✖ ${nome} falhou`); } };
 await passo("nomes e imports", () => rodar("nomes e imports (checar-nomes)", ["scripts/checar-nomes.cjs"]));
+await passo("cópias do bot", () => rodar("cópias do bot (voz.js e subcategorias)", ["scripts/checar-copias.mjs"]));
 for (const t of ["teste-voz.mjs", "teste-bot.mjs", "teste-data.mjs", "teste-recuperacao.mjs", "teste-recuperacao-modulo.mjs", "teste-dominios.mjs", "teste-dominios-cors.mjs", "teste-auth-email.mjs", "teste-convite-editar.mjs"]) if (fs.existsSync(path.join(RAIZ, t))) await passo(t, () => rodar(t, [t]));
 // testes das funções do app (empacotados com esbuild porque importam .jsx)
 for (const f of fs.readdirSync(path.join(RAIZ, "testes")).filter((f) => /^teste-.*\.jsx?$/.test(f))) {
