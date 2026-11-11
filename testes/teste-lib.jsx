@@ -2,7 +2,7 @@
 import { eanValido, limiteSomaLote, textoLote } from "../src/lib/produto";
 import { diasRestantes, getStatus, sugestaoDesconto } from "../src/lib/formatos";
 import { parseCodigoBalanca, celulaCSV, celulaPlanilha } from "../src/lib/utilidades";
-import { contarFilaRonda, CHAVE_FILA_RONDA, contarFilaDaPessoa, filaEnviando, erroDeRede, definirUsuarioFila, enfileirar, lerFila, gravarFila, processarFila, limparFilaOrfa } from "../src/lib/fila";
+import { textoFaixaOffline, textoFaixaPendente, contarFilaRonda, CHAVE_FILA_RONDA, contarFilaDaPessoa, filaEnviando, erroDeRede, definirUsuarioFila, enfileirar, lerFila, gravarFila, processarFila, limparFilaOrfa } from "../src/lib/fila";
 import { etapasDoTutorial } from "../src/componentes/TutorialBipi";
 import { isoParaBR, brParaISO, mascaraData } from "../src/componentes/CampoData";
 
@@ -108,6 +108,14 @@ igual("conta só a ronda da pessoa", contarFilaRonda(), 1);
 localStorage.setItem(CHAVE_FILA_RONDA, "lixo");
 igual("ronda ilegível = 0", contarFilaRonda(), 0);
 gravarFila([]);
+
+// textos da faixa
+igual("offline vazio é frase completa", textoFaixaOffline(0, 0), "Sem internet. O que você lançar fica guardado neste aparelho e será enviado quando a internet voltar.");
+igual("offline 1 registro", textoFaixaOffline(1, 0), "Sem internet. 1 registro guardado neste aparelho será enviado quando a internet voltar.");
+igual("offline 2 registros plural", /serão enviados/.test(textoFaixaOffline(2, 0)), true);
+igual("offline com ronda", /conferência de ronda guardada/.test(textoFaixaOffline(0, 1)) && /abrir a ronda/.test(textoFaixaOffline(0, 1)), true);
+igual("pendente plural", textoFaixaPendente(3, 0), "3 registros ainda não foram enviados.");
+igual("pendente misto", textoFaixaPendente(1, 2), "1 registro ainda não foi enviado · 2 conferências de ronda aguardando (abra a ronda para enviar).");
 
 console.log(`teste-lib: ${ok} ok, ${falhas} falha(s)`);
 if (falhas) process.exit(1);

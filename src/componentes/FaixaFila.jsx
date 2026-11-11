@@ -2,7 +2,7 @@
 // (sem internet ou ainda não enviados) e deixa tentar enviar na hora. Some quando não há nada pendente e há internet.
 import { useState, useEffect } from "react";
 import { WifiOff, CloudUpload, Loader2 } from "lucide-react";
-import { contarFilaDaPessoa, contarFilaRonda, filaEnviando } from "../lib/fila";
+import { contarFilaDaPessoa, contarFilaRonda, filaEnviando, textoFaixaOffline, textoFaixaPendente } from "../lib/fila";
 
 function FaixaFila({ online }) {
   const [, forcar] = useState(0);
@@ -26,14 +26,12 @@ function FaixaFila({ online }) {
   const r = contarFilaRonda();
   const enviando = filaEnviando();
   if (online && n === 0 && r === 0 && !enviando) return null;
-  const txt = n === 1 ? "1 registro" : `${n} registros`;
-  const txtR = r === 1 ? "1 conferência de ronda" : `${r} conferências de ronda`;
   const tentar = () => { try { window.dispatchEvent(new CustomEvent("condor-sincronizar-fila")); } catch { /* sem janela */ } };
   return (
     <div role="status" aria-live="polite" style={{ background: online ? "#8A5A00" : "#7A1F23" }} className="text-white text-center text-[12px] font-medium py-2 px-3 flex items-center justify-center gap-2 flex-wrap">
-      {!online ? <><WifiOff size={13} /> Sem internet. {n + r > 0 ? [n > 0 && `${txt} guardado${n === 1 ? "" : "s"} neste aparelho`, r > 0 && `${txtR} guardada${r === 1 ? "" : "s"}`].filter(Boolean).join(" e ") : "Produtos e baixas ficam guardados neste aparelho"} {n + r === 1 ? "será enviado" : "serão enviados"} quando a internet voltar{r > 0 ? " (as conferências de ronda saem quando você abrir a ronda)" : ""}.</>
-        : enviando ? <><Loader2 size={13} className="animate-spin" /> Enviando {txt}…</>
-        : <><CloudUpload size={13} /> {[n > 0 && `${txt} ainda não ${n === 1 ? "foi enviado" : "foram enviados"}`, r > 0 && `${txtR} aguardando (abra a ronda para enviar)`].filter(Boolean).join(" · ")}.
+      {!online ? <><WifiOff size={13} /> {textoFaixaOffline(n, r)}</>
+        : enviando ? <><Loader2 size={13} className="animate-spin" /> Enviando {n === 1 ? "1 registro" : `${n} registros`}…</>
+        : <><CloudUpload size={13} /> {textoFaixaPendente(n, r)}
             {n > 0 && <button onClick={tentar} className="underline font-bold active:opacity-70">Enviar agora</button>}</>}
     </div>
   );

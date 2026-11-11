@@ -397,7 +397,7 @@ function AppInner() {
       setOnline(true);
       if (filaEnviando()) return; // já está enviando: o segundo gatilho (online/foco/botão) não repete nem mostra aviso falso
       (async () => {
-        const minhas = () => lerFila().filter((op) => !op.uid || op.uid === usuarioFila()); // só as ações da pessoa logada
+        const minhas = () => lerFila().filter((op) => op.uid && op.uid === usuarioFila()); // só as ações da pessoa logada (igual à contagem da faixa)
         const fila = minhas();
         if (!fila.length) return;
         showToast(`Sincronizando ${fila.length} registro(s)…`, "carregando");

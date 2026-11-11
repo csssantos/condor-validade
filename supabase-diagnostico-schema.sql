@@ -27,7 +27,8 @@ declare
     'rl_checar','rl_servico','nivel_do_usuario','loja_ok','_promotor_ve','_sou_promotor','_produto_da_marca','registrar_login',
     'listar_solicitacoes_lgpd','responder_solicitacao_lgpd','exportar_meus_dados','aprovar_produto_novo','recusar_produto_novo',
     'telegram_enviar_aprovacao','telegram_contexto','gerar_codigo_telegram','remover_telegram','excluir_convite','pausar_convite',
-    'revogar_convite','resgatar_convite_codigo','salvar_push','telegram_complementar_lote','telegram_pedido_aviso','telegram_auditar'];
+    'revogar_convite','resgatar_convite_codigo','salvar_push','telegram_complementar_lote','telegram_pedido_aviso','telegram_auditar',
+    'telegram_vincular_funcionario','telegram_vincular_promotor','telegram_vinc_bloqueio','telegram_vinc_falha','telegram_vinc_ok'];
   c_triggers constant text[] := array[
     'auditoria:trg_auditoria_quem','auditoria:trg_limite',
     'catalogo:trg_catalogo_ean','catalogo:trg_catalogo_marca','catalogo:trg_limite',

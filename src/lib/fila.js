@@ -20,6 +20,20 @@ const CHAVE_FILA_RONDA = "avdc_ronda_fila";
 function contarFilaRonda() {
   try { return (JSON.parse(localStorage.getItem(CHAVE_FILA_RONDA) || "[]") || []).filter((a) => a && a.uid && a.uid === USUARIO_FILA).length; } catch { return 0; }
 }
+// textos da faixa (puros, para testar): n = registros comuns, r = conferências de ronda
+function textoFaixaOffline(n, r) {
+  if (n + r === 0) return "Sem internet. O que você lançar fica guardado neste aparelho e será enviado quando a internet voltar.";
+  const partes = [];
+  if (n > 0) partes.push(`${n === 1 ? "1 registro guardado" : `${n} registros guardados`} neste aparelho`);
+  if (r > 0) partes.push(`${r === 1 ? "1 conferência de ronda guardada" : `${r} conferências de ronda guardadas`}`);
+  return `Sem internet. ${partes.join(" e ")} ${n + r === 1 ? "será enviado" : "serão enviados"} quando a internet voltar${r > 0 ? " (as conferências de ronda saem quando você abrir a ronda)" : ""}.`;
+}
+function textoFaixaPendente(n, r) {
+  const partes = [];
+  if (n > 0) partes.push(`${n === 1 ? "1 registro ainda não foi enviado" : `${n} registros ainda não foram enviados`}`);
+  if (r > 0) partes.push(`${r === 1 ? "1 conferência de ronda aguardando" : `${r} conferências de ronda aguardando`} (abra a ronda para enviar)`);
+  return partes.join(" · ") + ".";
+}
 function filaEnviando() { return ENVIANDO_FILA; }
 
 // guarda a ação com o dono; sem ninguém logado não guarda (devolve false)
@@ -159,4 +173,4 @@ async function gravarCatalogo(barcode, dados) { return gravarComFila("upsertCata
 
 async function gravarHistorico(registro) { return gravarComFila("inserirHistorico", registro); }
 
-export { CHAVE_FILA_RONDA, contarFilaRonda, contarFilaDaPessoa, filaEnviando, definirUsuarioFila, usuarioFila, limparFilaOrfa, NOME_OP, OUTBOX_KEY, avisarErroGravacao, enfileirar, erroDeRede, executarOp, gravarCatalogo, gravarComFila, gravarFila, gravarHistorico, gravarProduto, jaFeita, lerFila, mensagemErroGravacao, nomeDaOp, processarFila, removerProduto };
+export { textoFaixaOffline, textoFaixaPendente, CHAVE_FILA_RONDA, contarFilaRonda, contarFilaDaPessoa, filaEnviando, definirUsuarioFila, usuarioFila, limparFilaOrfa, NOME_OP, OUTBOX_KEY, avisarErroGravacao, enfileirar, erroDeRede, executarOp, gravarCatalogo, gravarComFila, gravarFila, gravarHistorico, gravarProduto, jaFeita, lerFila, mensagemErroGravacao, nomeDaOp, processarFila, removerProduto };
