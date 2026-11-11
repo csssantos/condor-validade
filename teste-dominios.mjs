@@ -68,7 +68,7 @@ t("app: nenhum endereço vercel.app fixo no código da interface (src/)", () => 
   assert.ok(!r.replace(/^.*\/\/.*vercel\.app.*$/gm, "").trim(), r);
 });
 t("nenhum domínio errado no repositório (usibip, usebip.com, usebipe)", () => {
-  const arqs = execSync("git ls-files", { encoding: "utf8" }).split("\n").filter((x) => x && !/\.(png|jpg|jpeg|ico|mp4|glb|woff2?|gz|lock)$|package-lock/.test(x) && x !== "teste-dominios.mjs");
+  const arqs = execSync("git ls-files", { encoding: "utf8" }).split("\n").filter((x) => x && !/\.(png|jpg|jpeg|ico|mp4|glb|woff2?|gz|lock)$|package-lock/.test(x) && !/^teste-.*\.mjs$/.test(x)); // os testes citam os domínios errados de propósito
   const ruins = arqs.filter((a) => { try { return /usibip|usebip\.com|usebipe/i.test(ler(a)); } catch { return false; } }); assert.deepEqual(ruins, []);
 });
 t("telegram-bot: imagens dos banners usam o SITE configurado (some do domínio antigo ao trocar o secret)", () => { assert.ok(/\$\{SITE\}\/bot\/\$\{banner\}\.jpg/.test(ler(`${F}/telegram-bot/index.ts`))); });

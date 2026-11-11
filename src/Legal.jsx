@@ -7,10 +7,16 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-11-04";
+export const TERMOS_VERSAO = "2026-11-11";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-11", docs: {
+    privacidade: [
+      "Novo fornecedor: Resend (envio dos e-mails do app: confirmação de cadastro e recuperação de senha). Ele recebe só o seu e-mail, o primeiro nome do cadastro e o link de uso único daquela mensagem. Os e-mails saem de endereços @mail.usebipi.com.",
+      "O app agora fica no endereço app.usebipi.com. Ao entrar por ele, você precisa fazer login de novo, e o login e as preferências guardados no aparelho são independentes dos do endereço antigo.",
+    ],
+  } },
   { versao: "2026-11-04", docs: {
     termos: [
       "Pedido de promoção ou preço direto passa a levar o valor pedido (uma sugestão, que depende da liberação da central). Se o lote foi lançado pelo Telegram, quem lançou recebe um aviso no Telegram com a campanha e o valor pedido; no caso de promotor, o aviso inclui o nome de quem fez o pedido.",
@@ -170,7 +176,7 @@ export const DOCUMENTOS = [
         ] },
         { t: "5. Com quem compartilhamos", p: [
           "Dentro da sua loja/empresa: gestores e pessoas autorizadas no app, de acordo com o cargo e a loja. Os valores financeiros podem ser ocultados de alguns cargos.",
-          "Fornecedores de tecnologia (operadores) que armazenam e entregam o app: Supabase (banco de dados, autenticação e arquivos) e Vercel (hospedagem do site), além dos serviços de notificação push do seu aparelho (Apple, Google ou Microsoft), o Telegram (apenas se você vincular, para o bot de lançamento) o Open Food Facts (busca de nome e imagem de produto novo, só com o código de barras) e o Google Gemini (assistente de IA). Eles tratam os dados só para prestar o serviço, sob contrato.",
+          "Fornecedores de tecnologia (operadores) que armazenam e entregam o app: Supabase (banco de dados, autenticação e arquivos) e Vercel (hospedagem do site), o Resend (envio dos e-mails de confirmação de cadastro e recuperação de senha), além dos serviços de notificação push do seu aparelho (Apple, Google ou Microsoft), o Telegram (apenas se você vincular, para o bot de lançamento) o Open Food Facts (busca de nome e imagem de produto novo, só com o código de barras) e o Google Gemini (assistente de IA). Eles tratam os dados só para prestar o serviço, sob contrato.",
           "Autoridades públicas e judiciais, quando houver obrigação legal ou ordem válida.",
           "Não vendemos nem alugamos dados pessoais.",
         ] },

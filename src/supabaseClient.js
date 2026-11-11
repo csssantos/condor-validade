@@ -32,7 +32,14 @@ async function fetchComFreio(url, opcoes) {
 // ao iniciar, e o aviso PASSWORD_RECOVERY pode sair antes de qualquer tela escutar. Por isso guardamos aqui, ANTES de criar o cliente.
 const hashDoLink = typeof window !== "undefined" ? String(window.location.hash || "") : "";
 const buscaDoLink = typeof window !== "undefined" ? String(window.location.search || "") : "";
-export const abriuPorRecuperacao = /(^|[#&?])type=recovery(&|$)/.test(hashDoLink) || /(^|[?&])type=recovery(&|$)/.test(buscaDoLink);
-export const linkComErro = /(^|[#&?])error(_code)?=/.test(hashDoLink); // ex.: otp_expired (link vencido ou já usado)
+const CHAVE_RECUPERANDO = "avdc_recuperando";
+const lerFlag = () => { try { return localStorage.getItem(CHAVE_RECUPERANDO) === "1"; } catch { return false; } };
+// Só vale o link de verdade: fragmento com token E type=recovery (a query sozinha, ?type=recovery, é forjável e NÃO liga a tela).
+const veioDoLink = /(^|[#&])access_token=/.test(hashDoLink) && /(^|[#&])type=recovery(&|$)/.test(hashDoLink);
+if (veioDoLink) { try { localStorage.setItem(CHAVE_RECUPERANDO, "1"); } catch { /* sem armazenamento */ } }
+// Persistido: se a pessoa recarregar/fechar a aba ANTES de trocar a senha, a tela "Nova senha" volta (a sessão do link continua salva).
+export const abriuPorRecuperacao = veioDoLink || lerFlag();
+export const limparRecuperacao = () => { try { localStorage.removeItem(CHAVE_RECUPERANDO); } catch { /* ok */ } };
+export const linkComErro = /(^|[#&?])error(_code)?=/.test(hashDoLink) || /(^|[#&?])error(_code)?=/.test(buscaDoLink); // ex.: otp_expired (link vencido ou já usado)
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, { global: { fetch: fetchComFreio } });

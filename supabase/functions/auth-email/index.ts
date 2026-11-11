@@ -1,8 +1,8 @@
 // Edge Function "auth-email": Send Email Hook do Supabase Auth → Resend.
 // verify_jwt = FALSE (o Supabase chama sem JWT; a autenticação é a assinatura Standard Webhooks do corpo).
 // Segredos (Supabase → Edge Functions → Secrets): RESEND_API_KEY, SEND_EMAIL_HOOK_SECRET (v1,whsec_…).
-// Opcionais: EMAIL_DOMINIO (padrão mail.usebipi.com; precisa ser usebipi.com ou subdomínio), ASSET_BASE_URL (padrão https://usebipi.com/email), SITE_URL,
-// SITE_URL (padrão https://usebipi.com), AMBIENTE_DEV ("true" libera localhost só em desenvolvimento),
+// Opcionais: EMAIL_DOMINIO (padrão mail.usebipi.com; precisa ser usebipi.com ou subdomínio), ASSET_BASE_URL (padrão https://usebipi.com/email),
+// SITE_URL (padrão https://app.usebipi.com = o APP; é para onde o link cai quando o redirect_to não é aprovado), AMBIENTE_DEV ("true" libera localhost só em desenvolvimento),
 // EMAIL_CHANGE_ENABLED ("true" liga a troca de e-mail; padrão DESLIGADA),
 // REDIRECT_HOSTS (lista de hosts aceitos), LINK_VALIDADE_MIN (padrão 60 = OTP_EXPIRY do Auth).
 // Nunca registra token, link nem corpo do pedido.
@@ -11,7 +11,7 @@ import { modelo, REMETENTE, type Tipo } from "./templates.ts";
 // Domínio oficial ÚNICO: remetentes, Resend e URLs dos templates saem daqui (nenhum outro é aceito).
 export const DOMINIO_ENVIO = "mail.usebipi.com"; // verificado no Resend
 export const DOMINIO_SITE = "usebipi.com";
-export const SITE_PADRAO = `https://${DOMINIO_SITE}`; // produção; localhost só com AMBIENTE_DEV=true
+export const SITE_PADRAO = `https://app.${DOMINIO_SITE}`; // o APP (não o site institucional: o link traz a sessão no fragmento da URL); localhost só com AMBIENTE_DEV=true
 export const ASSETS_PADRAO = `https://${DOMINIO_SITE}/email`;
 const dominioOficial = (host: string) => host === DOMINIO_SITE || host.endsWith("." + DOMINIO_SITE);
 
@@ -28,6 +28,7 @@ function igual(a: string, b: string) { // comparação em tempo constante
 
 export async function assinaturaValida(corpo: string, h: { id: string | null; ts: string | null; sig: string | null }, segredo: string, agora = Date.now()) {
   if (!h.id || !h.ts || !h.sig || !segredo) return false;
+  if (!/^\d{1,12}$/.test(h.ts)) return false; // inteiro estrito (padrão Standard Webhooks)
   const t = Number(h.ts);
   if (!Number.isFinite(t) || Math.abs(agora / 1000 - t) > 300) return false; // 5 min: barra reenvio de pedido antigo
   try { return await conferir(corpo, h as { id: string; ts: string; sig: string }, segredo); } catch { return false; } // segredo/assinatura malformados = inválida (nunca derruba a função)
@@ -48,7 +49,7 @@ export function linkDeVerificacao(supabaseUrl: string, tokenHash: string, tipo: 
     const localDev = u.protocol === "http:" && u.hostname === "localhost" && hostsOk.includes(u.host); // só quando AMBIENTE_DEV listou o localhost
     if (semCredencial && (httpsOficial || localDev)) r = u.toString();
   } catch { /* redirect inválido */ }
-  if (!r && siteUrl) r = siteUrl;
+  if (!r && siteUrl) { r = siteUrl; if (redirect) console.warn("auth-email: redirect_to fora da lista; usando SITE_URL"); }
   const q = `token=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(tipo)}${r ? `&redirect_to=${encodeURIComponent(r)}` : ""}`;
   return `${supabaseUrl.replace(/\/$/, "")}/auth/v1/verify?${q}`;
 }
@@ -70,23 +71,39 @@ async function enviar(chave: string, de: string, para: string, m: { subject: str
 const resp = (status: number, corpo: unknown) => new Response(JSON.stringify(corpo), { status, headers: { "Content-Type": "application/json" } });
 const falha = (status: number, msg: string) => resp(status, { error: { http_code: status, message: msg } });
 
+async function lerCorpo(req: Request, max: number): Promise<string | null> {
+  if (!req.body) return "";
+  const rd = req.body.getReader(); const dec = new TextDecoder(); let total = 0, txt = "";
+  try {
+    for (;;) {
+      const { done, value } = await rd.read(); if (done) break;
+      total += value.byteLength; if (total > max) { try { await rd.cancel(); } catch { /* ok */ } return null; }
+      txt += dec.decode(value, { stream: true });
+    }
+    return txt + dec.decode();
+  } catch { return null; }
+}
+
 export async function tratar(req: Request, env: (k: string) => string | undefined): Promise<Response> {
   if (req.method !== "POST") return falha(405, "metodo_invalido");
   if (Number(req.headers.get("content-length") || 0) > 20000) return falha(413, "corpo_grande"); // barra antes de ler o corpo
-  const corpo = await req.text();
-  if (corpo.length > 20000) return falha(413, "corpo_grande");
+  const corpo = await lerCorpo(req, 20000); // lê em blocos e aborta ao passar do limite (mesmo sem content-length)
+  if (corpo === null) return falha(413, "corpo_grande");
   const ok = await assinaturaValida(corpo, { id: req.headers.get("webhook-id"), ts: req.headers.get("webhook-timestamp"), sig: req.headers.get("webhook-signature") }, env("SEND_EMAIL_HOOK_SECRET") || "");
   if (!ok) { console.warn("auth-email: assinatura_invalida"); return falha(401, "assinatura_invalida"); } // só o evento, nunca o corpo
   const idWebhook = req.headers.get("webhook-id") || "";
   if (!/^[A-Za-z0-9_-]{1,120}$/.test(idWebhook)) return falha(400, "webhook_id_invalido"); // vira Idempotency-Key (Resend: até 256)
 
   let p: any; try { p = JSON.parse(corpo); } catch { return falha(400, "json_invalido"); }
-  const tipo = String(p?.email_data?.email_action_type || "");
-  const email = String(p?.user?.email || "");
+  const str = (v: unknown) => (typeof v === "string" ? v : ""); // só texto de verdade (nada de lista/objeto virando "[object Object]")
+  const tipo = str(p?.email_data?.email_action_type);
+  const email = str(p?.user?.email);
+  if (!p || typeof p !== "object" || typeof p.email_data !== "object" || p.email_data === null) return falha(400, "corpo_invalido");
+  for (const k of ["token", "token_hash", "token_hash_new", "redirect_to"]) if (p.email_data[k] != null && typeof p.email_data[k] !== "string") return falha(400, "campo_invalido");
   if (!TIPOS.has(tipo)) return falha(400, "tipo_nao_suportado");
-  const emailOk = (e: string) => /^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$/.test(e) && e.length <= 254;
+  const emailOk = (e: string) => /^[A-Za-z0-9][A-Za-z0-9._%+'-]*@[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$/.test(e) && !e.includes("..") && e.length <= 254;
   if (!emailOk(email)) return falha(400, "email_invalido");
-  const novoEmail = String(p?.user?.new_email || "");
+  const novoEmail = str(p?.user?.new_email);
   if (tipo === "email_change" && novoEmail && !emailOk(novoEmail)) return falha(400, "email_invalido");
 
   const chave = env("RESEND_API_KEY"); const supaUrl = env("SUPABASE_URL") || "";
@@ -100,7 +117,7 @@ export async function tratar(req: Request, env: (k: string) => string | undefine
   const marca = { assets, nome: "Bipi Tech", suporte: "" };
   const dev = env("AMBIENTE_DEV") === "true"; // localhost só em desenvolvimento (nunca em produção)
   const hostsOk = [...(env("REDIRECT_HOSTS") || "").split(",").map((s) => s.trim()).filter(Boolean), ...(dev ? ["localhost:3000", "localhost:5173"] : [])];
-  if (hostsOk.some((h) => !dominioOficial(h.split(":")[0]) && !(dev && h.startsWith("localhost")))) return falha(500, "redirect_nao_oficial");
+  if (hostsOk.some((h) => !dominioOficial(h.split(":")[0]) && !(dev && /^localhost(:\d+)?$/.test(h)))) return falha(500, "redirect_nao_oficial");
   const validadeMin = Math.max(1, Number(env("LINK_VALIDADE_MIN")) || 60);
   // o nome vem do cadastro (controlado por quem cria a conta): sem quebra de linha/controle e sem endereços, no máx. 40 caracteres
   const nome = String(p?.user?.user_metadata?.nome || "").replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " ").replace(/\S*(:\/\/|www\.|@)\S*/gi, " ").replace(/\s+/g, " ").trim().slice(0, 40);
@@ -118,8 +135,10 @@ export async function tratar(req: Request, env: (k: string) => string | undefine
       // troca segura de e-mail: dois pedidos. Nomes INVERTIDOS no Supabase (confirmado na documentação):
       // token_hash_new → e-mail ATUAL (user.email); token_hash → e-mail NOVO (user.new_email).
       if (!novoEmail) return falha(400, "novo_email_ausente");
-      await enviar(chave, de, email, modelo("email_change", { nome, link: linkDeVerificacao(supaUrl, ed.token_hash_new, tipo, ed.redirect_to, hostsOk, siteUrl), validadeMin }, marca), `${idem}-a`, limiteMs);
-      await enviar(chave, de, novoEmail, modelo("email_change", { nome, link: linkDeVerificacao(supaUrl, ed.token_hash, tipo, ed.redirect_to, hostsOk, siteUrl), validadeMin }, marca), `${idem}-b`, limiteMs);
+      await Promise.all([ // em paralelo: dois envios em série (4 s cada) estourariam o prazo do hook (~5 s)
+        enviar(chave, de, email, modelo("email_change", { nome, link: linkDeVerificacao(supaUrl, ed.token_hash_new, tipo, ed.redirect_to, hostsOk, siteUrl), validadeMin }, marca), `${idem}-a`, limiteMs),
+        enviar(chave, de, novoEmail, modelo("email_change", { nome, link: linkDeVerificacao(supaUrl, ed.token_hash, tipo, ed.redirect_to, hostsOk, siteUrl), validadeMin }, marca), `${idem}-b`, limiteMs),
+      ]);
     } else if (tipo === "email_change") {
       // sem troca segura: um único e-mail, só para o endereço NOVO, usando token_hash. Qualquer outra combinação é recusada.
       if (!ed.token_hash || ed.token_hash_new || !novoEmail) return falha(400, "troca_email_combinacao_invalida");

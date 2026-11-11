@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { criarPDF, COR } from "./pdfMarca.js";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { supabase, abriuPorRecuperacao, linkComErro } from "./supabaseClient";
+import { supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao } from "./supabaseClient";
 import {
   HomeIcon, Squares2X2Icon, FireIcon, SignalIcon, ClockIcon, Cog6ToothIcon,
   CameraIcon, PlusIcon, ShieldExclamationIcon, ShieldCheckIcon, QuestionMarkCircleIcon,
@@ -1121,21 +1121,32 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
     setErro(""); setMensagem(""); setCarregando(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: SITE_URL });
     setCarregando(false);
-    if (error) { setErro("Não foi possível enviar o e-mail de recuperação."); return; }
-    setMensagem("Enviamos um link de recuperação para o seu e-mail.");
+    if (error) { setErro(error.status === 429 ? "Espere um minuto antes de pedir outro e-mail." : "Não foi possível enviar o e-mail de recuperação."); return; }
+    setMensagem("Se esse e-mail tiver cadastro, enviamos um link (vale 1 hora). Olhe também o Spam e use sempre o e-mail mais recente.");
   }
 
   async function salvarNovaSenha(e) {
     e.preventDefault();
     setErro("");
+    if (senhaSalva || carregando) return;
     if (novaSenha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
     if (novaSenha !== confirmarSenha) { setErro("As senhas não coincidem."); return; }
     setCarregando(true);
     const { error } = await supabase.auth.updateUser({ password: novaSenha });
     setCarregando(false);
-    if (error) { setErro("Não foi possível salvar a nova senha."); return; }
-    setNovaSenha(""); setConfirmarSenha(""); setSenhaSalva(true);
-    setMensagem("Senha alterada com sucesso! Você já pode continuar.");
+    if (error) {
+      const c = String(error.code || error.message || "");
+      setErro(/same_password|different from the old/i.test(c) ? "A nova senha precisa ser diferente da senha atual."
+        : /weak_password|pwned|weak/i.test(c) ? "Essa senha é fraca ou já vazou. Escolha outra."
+        : /session|jwt|expired|not.?authenticated/i.test(c) ? "Sua sessão expirou. Toque em Cancelar e peça um novo link."
+        : error.status === 429 ? "Muitas tentativas. Espere um minuto e tente de novo."
+        : "Não foi possível salvar a nova senha. Tente de novo.");
+      return;
+    }
+    limparRecuperacao();
+    supabase.auth.signOut({ scope: "others" }).catch(() => {}); // quem estava logado em outros aparelhos (ex.: invasor) é desconectado
+    setNovaSenha(""); setConfirmarSenha(""); setErro(""); setSenhaSalva(true);
+    setMensagem("Senha alterada! Use a nova senha também no app da tela inicial, se ele pedir login.");
   }
 
   // Layout novo: palco azul animado em cima e "folha" com o formulário embaixo (no PC: duas colunas).
@@ -1180,14 +1191,19 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
   } else if (modo === "nova-senha") {
     conteudo = (
       <motion.form key="nova-senha" onSubmit={salvarNovaSenha} variants={grupoForm} initial="hidden" animate="show" exit={SAI} className={formCls}>
-        <AuthTitulo T={T} titulo="Nova senha" sub="Escolha uma senha com pelo menos 8 caracteres." />
-        <AuthCampo T={T} rotulo="Nova senha" type="password" required autoComplete="new-password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
-        <AuthCampo T={T} rotulo="Confirmar nova senha" type="password" required autoComplete="new-password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} />
+        <AuthTitulo T={T} titulo="Nova senha" sub={senhaSalva ? "Tudo certo." : "Escolha uma senha com pelo menos 8 caracteres."} />
+        {!senhaSalva && <>
+          <AuthCampo T={T} rotulo="Nova senha" type="password" required autoComplete="new-password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
+          <AuthCampo T={T} rotulo="Confirmar nova senha" type="password" required autoComplete="new-password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} />
+        </>}
         <AuthAviso tipo="erro">{erro}</AuthAviso>
         <AuthAviso tipo="ok">{mensagem}</AuthAviso>
         {senhaSalva && aoConcluir
           ? <AuthBotao T={T} type="button" onClick={aoConcluir}>Continuar no app</AuthBotao>
           : <AuthBotao T={T} carregando={carregando}>Salvar senha</AuthBotao>}
+        {aoConcluir && !senhaSalva && (
+          <AuthLink T={T} onClick={() => { limparRecuperacao(); aoConcluir("sair"); }}><ArrowLeft size={13} /> Cancelar e sair</AuthLink>
+        )}
       </motion.form>
     );
   } else if (modo === "cadastro-info") {
@@ -1402,6 +1418,7 @@ function AppInner() {
   const [sistemaEscuro, setSistemaEscuro] = useState(() => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const [usuario, setUsuario] = useState(null);
   const [recuperandoSenha, setRecuperandoSenha] = useState(abriuPorRecuperacao);
+  const [avisoLink, setAvisoLink] = useState(linkComErro); // "link venceu": aparece uma vez e some (não volta em logouts seguintes)
   const [sessao, setSessao] = useState(undefined); // undefined = carregando, null = sem login, objeto = logado
   const [perfil, setPerfil] = useState(undefined); // linha da tabela "usuarios" (nome, cargo, loja, ativo)
   const [perfilErro, setPerfilErro] = useState(false); // true = falhou ao buscar (rede/permissão), diferente de "sem vínculo"
@@ -1487,7 +1504,10 @@ function AppInner() {
   }, []);
 
   // Link vencido/sem sessão: não deixa a trava de "nova senha" ligada para o próximo login normal.
-  useEffect(() => { if (sessao === null && recuperandoSenha) setRecuperandoSenha(false); }, [sessao, recuperandoSenha]);
+  useEffect(() => {
+    if (sessao === null && recuperandoSenha) { setRecuperandoSenha(false); setAvisoLink(true); limparRecuperacao(); }
+    if (sessao) setAvisoLink(false);
+  }, [sessao, recuperandoSenha]);
 
   // Assim que há sessão, busca o perfil (nome, cargo, loja) na tabela "usuarios".
   useEffect(() => {
@@ -2549,7 +2569,7 @@ function AppInner() {
   if (recuperandoSenha && sessao) {
     return (
       <AuthScreen T={T} modoInicial="nova-senha" antesDeEntrar={antesDeEntrarNoApp}
-        aoConcluir={() => { setRecuperandoSenha(false); }} />
+        aoConcluir={(como) => { setRecuperandoSenha(false); setAvisoLink(false); limparRecuperacao(); if (como === "sair") supabase.auth.signOut().catch(() => {}); }} />
     );
   }
   if (sessao === null) {
@@ -2557,7 +2577,7 @@ function AppInner() {
       <>
         <div inert={novaVersao ? "" : undefined} aria-hidden={novaVersao ? true : undefined}>
           <AuthScreen T={T} antesDeEntrar={antesDeEntrarNoApp}
-            erroInicial={(abriuPorRecuperacao || linkComErro) ? "O link do e-mail venceu ou já foi usado. Peça um novo em \"Esqueci minha senha\"." : ""} />
+            erroInicial={avisoLink ? "O link do e-mail venceu ou já foi usado. Peça um novo em \"Esqueci minha senha\"." : ""} />
         </div>
         {!!novaVersao && <AtualizacaoObrigatoria logo={LOGO_SRC} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} />}
       </>
@@ -2951,6 +2971,10 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-11-nova-senha", data: "11/11/2026", itens: [
+    { tipo: "novo", ate: 7, texto: "O app agora também abre em app.usebipi.com. Nesse endereço você faz login de novo (o endereço antigo continua funcionando)." },
+    { tipo: "alterado", ate: 7, texto: "Esqueci minha senha: ao abrir o link do e-mail, o app pede a nova senha e a confirmação antes de entrar, e mostra o que fazer se o link venceu." },
+  ] },
   { id: "2026-11-05-pdf-novo", data: "05/11/2026", itens: [
     { tipo: "novo", ate: 5, texto: "Todos os PDFs foram refeitos no visual da tela de carregamento (azul da marca, Bipi). Nomes compridos não passam mais por cima das outras colunas." },
     { tipo: "novo", ate: 5, texto: "Novos relatórios: Pedidos de campanha (promoção e preço direto, com nº da campanha, valor, quem pediu e críticos sem pedido), Perdas e baixas e Posição por setor. Pedidos também saem em CSV e Excel." },

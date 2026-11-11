@@ -166,21 +166,21 @@ await t("TEXTO puro (cliente sem HTML) traz a marca e o link", async () => {
   envios.length = 0; await H.tratar(pedido(base("signup")), env()); const x = envios[0].body.text; assert.ok(x.includes("verify?token=TH123") && /Bipi/.test(x));
 });
 
-await t("PRODUÇÃO: sem configuração, o redirect padrão é https://usebipi.com e localhost não passa", async () => {
+await t("PRODUÇÃO: sem configuração, o redirect padrão é https://app.usebipi.com e localhost não passa", async () => {
   const e0 = (k) => ({ SEND_EMAIL_HOOK_SECRET: SECRET, RESEND_API_KEY: "re_teste", SUPABASE_URL: "https://proj.supabase.co" })[k];
   envios.length = 0; await H.tratar(pedido(base("signup", { ed: { redirect_to: "http://localhost:3000" } })), e0);
-  const u = verif(envios[0].body.html); assert.equal(u.searchParams.get("redirect_to"), "https://usebipi.com");
+  const u = verif(envios[0].body.html); assert.equal(u.searchParams.get("redirect_to"), "https://app.usebipi.com");
   envios.length = 0; await H.tratar(pedido(base("recovery", { ed: { redirect_to: "https://usebipi.com/redefinir" } })), e0);
-  assert.equal(verif(envios[0].body.html).searchParams.get("redirect_to"), "https://usebipi.com/redefinir");
+  assert.equal(verif(envios[0].body.html).searchParams.get("redirect_to"), "https://app.usebipi.com");
   envios.length = 0; await H.tratar(pedido(base("recovery", { ed: { redirect_to: "https://usebipi.com.malicioso.com" } })), e0);
-  assert.equal(verif(envios[0].body.html).searchParams.get("redirect_to"), "https://usebipi.com");
+  assert.equal(verif(envios[0].body.html).searchParams.get("redirect_to"), "https://app.usebipi.com");
 });
 await t("DESENVOLVIMENTO: AMBIENTE_DEV=true libera localhost:3000 e só ele", async () => {
   const ed = (k) => ({ SEND_EMAIL_HOOK_SECRET: SECRET, RESEND_API_KEY: "re_teste", SUPABASE_URL: "https://proj.supabase.co", AMBIENTE_DEV: "true" })[k];
   envios.length = 0; await H.tratar(pedido(base("signup", { ed: { redirect_to: "http://localhost:3000/" } })), ed);
   assert.equal(verif(envios[0].body.html).searchParams.get("redirect_to"), "http://localhost:3000/");
   envios.length = 0; await H.tratar(pedido(base("signup", { ed: { redirect_to: "http://localhost:9999/" } })), ed);
-  assert.equal(verif(envios[0].body.html).searchParams.get("redirect_to"), "https://usebipi.com");
+  assert.equal(verif(envios[0].body.html).searchParams.get("redirect_to"), "https://app.usebipi.com");
 });
 await t("REDIRECT_HOSTS com domínio estranho → 500 (configuração misturada é barrada)", async () => {
   const r = await H.tratar(pedido(base("signup")), env({ REDIRECT_HOSTS: "outro.com" })); assert.equal(r.status, 500);
@@ -292,6 +292,46 @@ await t("AUD aviso: botão para domínio de terceiros, http ou com usuário@ é 
 await t("AUD logs: em falha e em assinatura inválida nada de token, e-mail, chave ou corpo nos logs", async () => {
   logs.length = 0; respResend = { ok: false, status: 500 }; await H.tratar(pedido(base("signup")), env()); respResend = { ok: true, status: 200 }; await H.tratar(pedido(base("signup"), { sig: "v1,x" }), env());
   const tudo = logs.join(" "); assert.ok(!/TH123|re_teste|ana@ex\.com|123456|whsec|segredo/i.test(tudo), tudo);
+});
+
+// ===== Banca 2026-11-11 (achados do testador/hacker) =====
+await t("BANCA tipos: token_hash/token/redirect_to/email que não são texto → 400 e nada enviado", async () => {
+  for (const ed of [{ token_hash: { a: 1 } }, { token_hash: ["x"] }, { token: 123456 }, { redirect_to: ["https://app.usebipi.com"] }, { email_action_type: ["recovery"] }]) {
+    envios.length = 0; const r = await H.tratar(pedido(base("recovery", { ed })), env()); assert.equal(r.status, 400, JSON.stringify(ed)); assert.equal(envios.length, 0);
+  }
+  envios.length = 0; const r = await H.tratar(pedido(base("recovery", { user: { email: ["a@b.com"] } })), env()); assert.equal(r.status, 400); assert.equal(envios.length, 0);
+});
+await t("BANCA e-mail: lixo (\\0, zero-width, '..', '-b') → 400", async () => {
+  for (const e of ["a@b..com", "a@-b.com", "a@b.com\u0000", "a@b.com\u200b", "x@y.zz\\", "a b@c.com", "@b.com", "a@b"]) { envios.length = 0; const r = await H.tratar(pedido(base("recovery", { user: { email: e } })), env()); assert.equal(r.status, 400, JSON.stringify(e)); assert.equal(envios.length, 0); }
+  envios.length = 0; const r = await H.tratar(pedido(base("recovery", { user: { email: "ana.souza+x@ex.com.br" } })), env()); assert.equal(r.status, 200);
+});
+await t("BANCA timestamp: só inteiro (0x…, decimal, notação científica → 401)", async () => {
+  const agora = Math.floor(Date.now() / 1000);
+  for (const ts of ["0x" + agora.toString(16), agora + ".5", "1e9", " " + agora, "-" + agora]) { envios.length = 0; const r = await H.tratar(pedido(base("recovery"), { ts }), env()); assert.equal(r.status, 401, ts); assert.equal(envios.length, 0); }
+});
+await t("BANCA corpo: stream de 50 MB sem content-length é cortado cedo (413)", async () => {
+  let lidos = 0; const chunk = new Uint8Array(65536).fill(97);
+  const body = new ReadableStream({ pull(c) { if (lidos > 50 * 1024 * 1024) return c.close(); lidos += chunk.length; c.enqueue(chunk); } });
+  const req = new Request("https://f/auth-email", { method: "POST", body, duplex: "half", headers: { "webhook-id": "m1", "webhook-timestamp": String(Math.floor(Date.now() / 1000)), "webhook-signature": "v1,x" } });
+  const r = await H.tratar(req, env()); assert.equal(r.status, 413); assert.ok(lidos < 2 * 1024 * 1024, "leu " + lidos);
+});
+await t("BANCA troca de e-mail: os dois envios saem em PARALELO (cabe no prazo do hook)", async () => {
+  let ativos = 0, pico = 0; const f = globalThis.fetch;
+  globalThis.fetch = async (u, init) => { ativos++; pico = Math.max(pico, ativos); await new Promise((r) => setTimeout(r, 60)); ativos--; envios.push({ url: u, init, body: JSON.parse(init.body) }); return { ok: true, status: 200 }; };
+  envios.length = 0; const r = await H.tratar(pedido(base("email_change", { user: { new_email: "novo@ex.com" }, ed: { token_hash: "N", token_hash_new: "A" } }), { id: "msg_par2" }), env({ EMAIL_CHANGE_ENABLED: "true" })); globalThis.fetch = f;
+  assert.equal(r.status, 200); assert.equal(envios.length, 2); assert.equal(pico, 2);
+});
+await t("BANCA replay: mesmo pedido assinado → mesma Idempotency-Key (Resend ignora a repetição)", async () => {
+  const ped = () => pedido(base("recovery"), { id: "msg_rep" }); envios.length = 0;
+  await H.tratar(ped(), env()); await H.tratar(ped(), env());
+  assert.equal(envios.length, 2); assert.equal(envios[0].init.headers["Idempotency-Key"], "msg_rep"); assert.equal(envios[1].init.headers["Idempotency-Key"], "msg_rep");
+});
+await t("BANCA dev: AMBIENTE_DEV não aceita host 'localhost.evil.com' em REDIRECT_HOSTS", async () => {
+  const r = await H.tratar(pedido(base("signup")), env({ AMBIENTE_DEV: "true", REDIRECT_HOSTS: "localhost.evil.com" })); assert.equal(r.status, 500);
+});
+await t("BANCA padrão: sem SITE_URL o link cai no APP (app.usebipi.com), nunca no site institucional", async () => {
+  envios.length = 0; await H.tratar(pedido(base("recovery", { ed: { redirect_to: "https://evil.com" } })), (k) => env()(k === "SITE_URL" ? undefined : k));
+  assert.equal(verif(envios[0].body.html).searchParams.get("redirect_to"), "https://app.usebipi.com");
 });
 console.error = _e; console.warn = _w;
 // pré-visualização (fora do teste de lógica): grava os HTML para renderizar

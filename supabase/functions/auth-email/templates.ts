@@ -56,7 +56,8 @@ ${p.saudacao ? `<tr><td style="padding:0 0 12px;font-size:16px;color:#0F2744;">$
 <tr><td class="px" style="padding:20px 30px 28px;border-top:1px solid #E6EDF7;font-size:12px;line-height:1.6;color:#6A809E;"><b style="color:#0B4F9E;">${esc(m.nome)}</b> · tecnologia para controle de validade<br>Mensagem automática, não responda este e-mail. ${esc(m.suporte)}</td></tr>
 </table></td></tr></table></body></html>`;
 
-  const text = [p.titulo, "", ...(p.saudacao ? [p.saudacao.replace(/<[^>]+>/g, "")] : []), ...p.paragrafos.map((t) => t.replace(/<[^>]+>/g, "")),
+  const semTag = (t: string) => t.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'"); // versão em texto puro: sem etiquetas nem entidades
+  const text = [p.titulo, "", ...(p.saudacao ? [semTag(p.saudacao)] : []), ...p.paragrafos.map(semTag),
     ...(p.codigo ? ["", `Código: ${p.codigo}`] : []), ...(p.botao ? ["", `${p.botao.texto}: ${p.botao.url}`] : []),
     ...(p.caixa ? ["", `${p.caixa.titulo}: ${p.caixa.texto}`] : []), ...(p.detalhes || []).map(([k, v]) => `${k}: ${v}`),
     ...(p.aviso ? ["", p.aviso] : []), "", `${m.nome} · mensagem automática`].join("\n");
