@@ -1,5 +1,5 @@
 // Executa o src/supabaseClient.js REAL (com o supabase-js trocado por um stub) em cenários de link de recuperação.
-import { build } from "/opt/npm-tools/node_modules/esbuild/lib/main.js";
+const { build } = await import("esbuild").catch(() => import("/opt/npm-tools/node_modules/esbuild/lib/main.js")); // esbuild do projeto (CI) ou o do sandbox
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 const raiz = new URL(".", import.meta.url).pathname, dir = tmpdir() + "/rec-modulo/";

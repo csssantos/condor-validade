@@ -1,4 +1,4 @@
-import { build } from "/opt/npm-tools/node_modules/esbuild/lib/main.js";
+const { build } = await import("esbuild").catch(() => import("/opt/npm-tools/node_modules/esbuild/lib/main.js")); // esbuild do projeto (CI) ou o do sandbox
 import { createHmac } from "node:crypto";
 import { writeFileSync, mkdirSync } from "node:fs";
 import assert from "node:assert/strict";
