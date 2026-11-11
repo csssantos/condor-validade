@@ -1,7 +1,7 @@
 // Parte do App (separado de App.jsx em 2026-11-05). Mudanças de comportamento: ver CLAUDE.md.
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../supabaseClient";
+import { supabase, limparRecuperacao } from "../supabaseClient";
 import { ArrowLeft } from "lucide-react";
 import { TERMOS_VERSAO, marcarAceitePendente, LinksLegais, AceiteCampo, LegalLeitor } from "../Legal";
 import { grupoForm, AuthTitulo, AuthCampo, AuthAviso, AuthBotao, AuthLink, itemForm, AuthPalco } from "../TelasEntrada";
@@ -10,16 +10,17 @@ import { useDesktop } from "../lib/tela";
 import { ScanView } from "./Scan";
 
 // ============ Tela de login / recuperação de senha (Supabase Auth) ============
-function AuthScreen({ T, antesDeEntrar }) {
+function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null, erroInicial = "", emailConta = "" }) {
   const ehDesktop = useDesktop();
   const [matriculaDigitada, setMatriculaDigitada] = useState("");
-  const [modo, setModo] = useState("login"); // "login" | "recuperar" | "nova-senha" | "cadastro-scan" | "cadastro-confirmar" | "cadastro-info"
+  const [modo, setModo] = useState(modoInicial); // "login" | "recuperar" | "nova-senha" | "cadastro-scan" | "cadastro-confirmar" | "cadastro-info"
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState("");
+  const [erro, setErro] = useState(erroInicial);
+  const [senhaSalva, setSenhaSalva] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [funcionarioEncontrado, setFuncionarioEncontrado] = useState(null);
   const [cadEmail, setCadEmail] = useState("");
@@ -131,20 +132,32 @@ function AuthScreen({ T, antesDeEntrar }) {
     setErro(""); setMensagem(""); setCarregando(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: SITE_URL });
     setCarregando(false);
-    if (error) { setErro("Não foi possível enviar o e-mail de recuperação."); return; }
-    setMensagem("Enviamos um link de recuperação para o seu e-mail.");
+    if (error) { setErro(error.status === 429 ? "Espere um minuto antes de pedir outro e-mail." : "Não foi possível enviar o e-mail de recuperação."); return; }
+    setMensagem("Se esse e-mail tiver cadastro, enviamos um link (vale 1 hora). Olhe também o Spam e use sempre o e-mail mais recente.");
   }
 
   async function salvarNovaSenha(e) {
     e.preventDefault();
     setErro("");
+    if (senhaSalva || carregando) return;
     if (novaSenha.length < 8) { setErro("A senha precisa ter pelo menos 8 caracteres."); return; }
     if (novaSenha !== confirmarSenha) { setErro("As senhas não coincidem."); return; }
     setCarregando(true);
     const { error } = await supabase.auth.updateUser({ password: novaSenha });
     setCarregando(false);
-    if (error) { setErro("Não foi possível salvar a nova senha."); return; }
-    setMensagem("Senha alterada com sucesso! Você já pode continuar.");
+    if (error) {
+      const c = String(error.code || error.message || "");
+      setErro(/same_password|different from the old/i.test(c) ? "A nova senha precisa ser diferente da senha atual."
+        : /weak_password|pwned|weak/i.test(c) ? "Essa senha é fraca ou já vazou. Escolha outra."
+        : /session|jwt|expired|not.?authenticated/i.test(c) ? "Sua sessão expirou. Toque em Cancelar e peça um novo link."
+        : error.status === 429 ? "Muitas tentativas. Espere um minuto e tente de novo."
+        : "Não foi possível salvar a nova senha. Tente de novo.");
+      return;
+    }
+    limparRecuperacao();
+    supabase.auth.signOut({ scope: "others" }).catch(() => {}); // quem estava logado em outros aparelhos (ex.: invasor) é desconectado
+    setNovaSenha(""); setConfirmarSenha(""); setErro(""); setSenhaSalva(true);
+    setMensagem("Senha alterada! Os outros aparelhos (inclusive o app da tela inicial) vão pedir login de novo com a nova senha.");
   }
 
   // Layout novo: palco azul animado em cima e "folha" com o formulário embaixo (no PC: duas colunas).
@@ -189,12 +202,19 @@ function AuthScreen({ T, antesDeEntrar }) {
   } else if (modo === "nova-senha") {
     conteudo = (
       <motion.form key="nova-senha" onSubmit={salvarNovaSenha} variants={grupoForm} initial="hidden" animate="show" exit={SAI} className={formCls}>
-        <AuthTitulo T={T} titulo="Nova senha" sub="Escolha uma senha com pelo menos 8 caracteres." />
-        <AuthCampo T={T} rotulo="Nova senha" type="password" required autoComplete="new-password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
-        <AuthCampo T={T} rotulo="Confirmar nova senha" type="password" required autoComplete="new-password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} />
+        <AuthTitulo T={T} titulo="Nova senha" sub={senhaSalva ? "Tudo certo." : `${emailConta ? `Conta: ${emailConta}. ` : ""}Escolha uma senha com pelo menos 8 caracteres.`} />
+        {!senhaSalva && <>
+          <AuthCampo T={T} rotulo="Nova senha" type="password" required autoComplete="new-password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
+          <AuthCampo T={T} rotulo="Confirmar nova senha" type="password" required autoComplete="new-password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} />
+        </>}
         <AuthAviso tipo="erro">{erro}</AuthAviso>
         <AuthAviso tipo="ok">{mensagem}</AuthAviso>
-        <AuthBotao T={T} carregando={carregando}>Salvar senha</AuthBotao>
+        {senhaSalva && aoConcluir
+          ? <AuthBotao T={T} type="button" onClick={aoConcluir}>Continuar no app</AuthBotao>
+          : <AuthBotao T={T} carregando={carregando}>Salvar senha</AuthBotao>}
+        {aoConcluir && !senhaSalva && (
+          <AuthLink T={T} onClick={() => { limparRecuperacao(); aoConcluir("sair"); }}><ArrowLeft size={13} /> Cancelar e sair</AuthLink>
+        )}
       </motion.form>
     );
   } else if (modo === "cadastro-info") {

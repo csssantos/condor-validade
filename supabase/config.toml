@@ -1,0 +1,4 @@
+# Só o que o repositório precisa registrar. O hook de e-mail é chamado pelo Supabase Auth SEM JWT:
+# a segurança dele é a assinatura Standard Webhooks do corpo (veja supabase/functions/auth-email/index.ts).
+[functions.auth-email]
+verify_jwt = false

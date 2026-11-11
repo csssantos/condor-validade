@@ -1,0 +1,36 @@
+// Testa a detecção do link de recuperação de senha (src/supabaseClient.js) e a ligação com o App.jsx.
+import fs from "node:fs";
+let ok = 0, falhas = [];
+const t = (nome, cond) => { cond ? ok++ : falhas.push(nome); };
+const src = fs.readFileSync("src/supabaseClient.js", "utf8");
+const app = fs.readFileSync("src/App.jsx", "utf8") + "\n" + fs.readFileSync("src/telas/AuthScreen.jsx", "utf8"); // AuthScreen mora em telas/ desde a divisão do App.jsx
+const mv = src.match(/const linkRecuperacao = (.*);\n/), me = src.match(/export const linkComErro = (.*?); \/\//);
+t("regex veioDoLink existe", !!mv); t("regex linkComErro existe", !!me);
+const mk = (hash, search = "") => new Function("hashDoLink", "buscaDoLink", `return [${mv[1]}, ${me[1]}];`)(hash, search);
+t("hash recovery com token", mk("#access_token=abc&expires_in=3600&refresh_token=x&token_type=bearer&type=recovery")[0] === true);
+t("type=recovery antes do token", mk("#type=recovery&access_token=abc")[0] === true);
+t("hash signup NÃO é recuperação", mk("#access_token=abc&type=signup")[0] === false);
+t("#type=recovery sem token é forjável: NÃO liga", mk("#type=recovery")[0] === false);
+t("?type=recovery na query NÃO liga (forjável)", mk("", "?type=recovery")[0] === false && mk("", "?token_hash=a&type=recovery")[0] === false);
+t("hash vazio", mk("")[0] === false && mk("")[1] === false);
+t("type=recoveryX não casa", mk("#access_token=a&type=recoveryX")[0] === false);
+t("subtype=recovery não casa", mk("#access_token=a&subtype=recovery")[0] === false);
+t("link vencido no hash (otp_expired)", mk("#error=access_denied&error_code=otp_expired&error_description=x")[1] === true);
+t("link vencido na query", mk("", "?error=access_denied&error_code=otp_expired")[1] === true);
+t("login normal sem erro", mk("#/")[1] === false);
+t("flag persistida e limpa", /avdc_recuperando/.test(src) && /export const limparRecuperacao/.test(src) && /abriuPorRecuperacao = veioDoLink || lerFlag\(\)/.test(src));
+t("localStorage só dentro de try/catch (verificado também por teste-recuperacao-modulo)", (src.match(/localStorage/g) || []).length >= 4 && /catch \{ \/\* sem armazenamento: trata como deslogado \*\/ \}/.test(src));
+t("cliente declara as constantes ANTES de criar o cliente", src.indexOf("abriuPorRecuperacao") < src.indexOf("export const supabase = createClient"));
+t("App importa as constantes", /import \{ supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, temLinkPendente, descartarLinkPendente, usarLinkPendente, emailDoLinkPendente \}/.test(app));
+t("AppInner escuta PASSWORD_RECOVERY", /event === "PASSWORD_RECOVERY"\) setRecuperandoSenha\(true\)/.test(app));
+t("tela de nova senha vem ANTES do login/sessão", app.indexOf("if (recuperandoSenha && sessao)") > 0 && app.indexOf("if (recuperandoSenha && sessao)") < app.indexOf("if (sessao === null) {\n    return ("));
+t("trava desliga sem sessão", /if \(sessao === null && recuperandoSenha\) \{ setRecuperandoSenha\(false\)/.test(app));
+t("AuthScreen aceita modoInicial/aoConcluir", /function AuthScreen\(\{ T, antesDeEntrar, modoInicial = "login", aoConcluir = null/.test(app));
+t("senha mínima 8 e confirmação mantidas", /novaSenha\.length < 8/.test(app) && /novaSenha !== confirmarSenha/.test(app));
+t("aviso de link vencido é estado consumido (não constante)", /erroInicial=\{avisoLink \?/.test(app) && /if \(sessao\) setAvisoLink\(false\)/.test(app));
+t("tela Nova senha tem Cancelar e sair", /Cancelar e sair/.test(app));
+t("salvar senha: guarda contra toque duplo e limpa a flag", /if \(senhaSalva \|\| carregando\) return;/.test(app) && /limparRecuperacao\(\);\n\s+supabase\.auth\.signOut\(\{ scope: "others" \}\)/.test(app));
+t("erros do servidor mapeados (senha igual/fraca/sessão)", /same_password/.test(app) && /weak_password/.test(app) && /Sua sessão expirou/.test(app));
+t("App pergunta antes de trocar de conta (link com alguém logado)", /linkPendenteAtivo && sessao && !sessao\.user\?\.is_anonymous/.test(app) && /Sair e criar a nova senha pelo link/.test(app) && /Continuar como/.test(app));
+t("link nunca vira sessão sem escolha (detectSessionInUrl desliga)", /detectSessionInUrl: !ignorarLink/.test(src));
+console.log(`${ok} ok, ${falhas.length} falhas`); if (falhas.length) { console.log(falhas.join("\n")); process.exit(1); }

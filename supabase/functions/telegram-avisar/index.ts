@@ -6,10 +6,13 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
-const SITE = "https://condor-validade.vercel.app";
+// Domínios do app: o antigo continua valendo durante a transição; APP_URL (secret) escolhe o principal (só aceita um da lista).
+const SITES = ["https://condor-validade.vercel.app", "https://app.usebipi.com"];
+const appUrl = (Deno.env.get("APP_URL") || "").trim();
+const SITE = SITES.includes(appUrl) ? appUrl : SITES[0];
+if (appUrl && !SITES.includes(appUrl)) console.warn("APP_URL ignorado: use exatamente https://app.usebipi.com (sem barra no final)");
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-const cors = { "Access-Control-Allow-Origin": SITE, "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };
-const resp = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+const corsBase = { "Access-Control-Allow-Origin": SITE, "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };
 const fmt = (iso: string) => { const [a, m, d] = iso.split("-"); return `${d}/${m}/${a}`; };
 
 async function tg(method: string, body: Record<string, unknown>) {
@@ -20,6 +23,10 @@ async function tg(method: string, body: Record<string, unknown>) {
 }
 
 Deno.serve(async (req: Request) => {
+  // CORS calculado POR REQUISIÇÃO (variável local): requisições simultâneas de origens diferentes não misturam o cabeçalho
+  const origem = req.headers.get("origin") || "";
+  const cors = { ...corsBase, "Access-Control-Allow-Origin": SITES.includes(origem) ? origem : SITE }; // aceita o domínio antigo e o novo
+  const resp = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return resp({ erro: "metodo" }, 405);
   const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");

@@ -19,10 +19,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 // CORS: só o site do app (e previews/localhost) pode chamar do navegador
-const ORIGEM_OK = /^https:\/\/condor-validade[a-z0-9-]*\.vercel\.app$|^http:\/\/localhost(:\d+)?$/;
-let CORS: Record<string, string> = { "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+const ORIGEM_OK = /^https:\/\/condor-validade[a-z0-9-]*\.vercel\.app$|^https:\/\/app\.usebipi\.com$|^http:\/\/localhost(:\d+)?$/;
 
 // Modelo: GEMINI_MODEL (se definido) ou descoberto automaticamente na API do Google
 // (o Flash mais novo disponível para a chave). Assim a função não quebra quando o Google aposenta um modelo.
@@ -372,7 +369,10 @@ async function conversar(contents: any[], c: Ctx) {
 
 // ---------------------------------------------------------------- handler
 Deno.serve(async (req) => {
-  { const o = req.headers.get("origin") || ""; CORS = { "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin", ...(ORIGEM_OK.test(o) ? { "Access-Control-Allow-Origin": o } : {}) }; }
+  // CORS calculado POR REQUISIÇÃO (variável local): requisições simultâneas de origens diferentes não misturam o cabeçalho
+  const origem = req.headers.get("origin") || "";
+  const CORS: Record<string, string> = { "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin", ...(ORIGEM_OK.test(origem) ? { "Access-Control-Allow-Origin": origem } : {}) };
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ erro: "método não permitido" }, 405);
   let body: any = {};

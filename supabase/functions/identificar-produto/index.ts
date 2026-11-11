@@ -11,7 +11,7 @@ const SETORES = [
 const MODELOS = ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-pro"];
 const TIMEOUT_MS = 8000;
 const MAX_BASE64 = 1_500_000;
-const ORIGEM_OK = /^https:\/\/condor-validade[a-z0-9-]*\.vercel\.app$|^http:\/\/localhost(:\d+)?$/;
+const ORIGEM_OK = /^https:\/\/condor-validade[a-z0-9-]*\.vercel\.app$|^https:\/\/app\.usebipi\.com$|^http:\/\/localhost(:\d+)?$/;
 
 Deno.serve(async (req: Request) => {
   const o = req.headers.get("origin") || "";

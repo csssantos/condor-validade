@@ -10,6 +10,14 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-11-link-logado", data: "11/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Se você já está logado e abre o link de \"esqueci minha senha\", o app pergunta se você quer continuar na sua conta ou sair e criar a nova senha pelo link. A tela de nova senha mostra de qual conta ela é." },
+    { tipo: "novo", ate: 7, texto: "Os e-mails de confirmação e de recuperação de senha ganharam um visual novo, no estilo da tela de carregamento." },
+  ] },
+  { id: "2026-11-11-nova-senha", data: "11/11/2026", itens: [
+    { tipo: "novo", ate: 7, texto: "O app agora também abre em app.usebipi.com. Nesse endereço você faz login de novo (o endereço antigo continua funcionando)." },
+    { tipo: "alterado", ate: 7, texto: "Esqueci minha senha: ao abrir o link do e-mail, o app pede a nova senha e a confirmação antes de entrar, e mostra o que fazer se o link venceu." },
+  ] },
   { id: "2026-11-05-tutorial-lgpd", data: "05/11/2026", itens: [
     { tipo: "novo", ate: 7, texto: "Tutorial do Bipi: no primeiro acesso, o Bipi mostra em poucas etapas como o app funciona. Para rever, toque em Mais → Sobre o app → Ver o tutorial do Bipi." },
     { tipo: "alterado", ate: 7, texto: "Privacidade: os termos foram atualizados (quem responde pelos dados, fornecedores, o que fica guardado no aparelho). Ao sair da conta, o app apaga deste aparelho a cópia offline dos produtos, e ações feitas sem internet só são enviadas com a conta de quem as fez." },

@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { TutorialBipi, etapasDoTutorial, marcarTutorialVisto, tutorialJaVisto } from "./componentes/TutorialBipi";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "./supabaseClient";
-import { Ticket, WifiOff, Barcode, Package, Calendar, Mic, ShieldAlert, AlertTriangle, Megaphone } from "lucide-react";
+import { supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, temLinkPendente, descartarLinkPendente, usarLinkPendente, emailDoLinkPendente } from "./supabaseClient";
+import { Ticket, WifiOff, Barcode, Package, Calendar, Mic, ShieldAlert, AlertTriangle, Megaphone, Lock } from "lucide-react";
 import VozSheet from "./VozSheet";
 import { validarVoz } from "./voz";
 import { temAceitePendente, registrarAceite, TERMOS_VERSAO, lerAceiteLocal, gravarAceiteLocal, AceiteObrigatorio, AvisoArmazenamento } from "./Legal";
@@ -55,6 +55,10 @@ function AppInner() {
   const [prefs, setPrefs] = useState({ tema: "claro", som: true });
   const [sistemaEscuro, setSistemaEscuro] = useState(() => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const [usuario, setUsuario] = useState(null);
+  const [recuperandoSenha, setRecuperandoSenha] = useState(abriuPorRecuperacao);
+  const [linkPendenteAtivo, setLinkPendenteAtivo] = useState(() => temLinkPendente()); // abriu o link do e-mail com alguém logado: perguntar
+  const [trocandoConta, setTrocandoConta] = useState(false);
+  const [avisoLink, setAvisoLink] = useState(linkComErro); // "link venceu": aparece uma vez e some (não volta em logouts seguintes)
   const [sessao, setSessao] = useState(undefined); // undefined = carregando, null = sem login, objeto = logado
   const [perfil, setPerfil] = useState(undefined); // linha da tabela "usuarios" (nome, cargo, loja, ativo)
   const [perfilErro, setPerfilErro] = useState(false); // true = falhou ao buscar (rede/permissão), diferente de "sem vínculo"
@@ -144,10 +148,22 @@ function AppInner() {
         setItems([]); setCatalog({}); setHistorico([]); setAuditoria([]); setRondas([]);
         try { localStorage.removeItem(SNAPSHOT_KEY); } catch { /* sem armazenamento */ }
       }
+      if (event === "PASSWORD_RECOVERY") setRecuperandoSenha(true); // link de "esqueci minha senha": pede a nova senha antes de entrar
       setSessao(session ?? null);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  // Link vencido/sem sessão: não deixa a trava de "nova senha" ligada para o próximo login normal.
+  useEffect(() => {
+    if (sessao !== null || !linkPendenteAtivo || trocandoConta) return;
+    // o aparelho tinha uma sessão velha (já caiu): o link é de quem está tentando entrar, então usa direto
+    usarLinkPendente().then((ok) => { setLinkPendenteAtivo(false); if (ok) setRecuperandoSenha(true); else setAvisoLink(true); });
+  }, [sessao, linkPendenteAtivo, trocandoConta]);
+  useEffect(() => {
+    if (sessao === null && recuperandoSenha) { setRecuperandoSenha(false); setAvisoLink(true); limparRecuperacao(); }
+    if (sessao) setAvisoLink(false);
+  }, [sessao, recuperandoSenha]);
 
   // dono das ações guardadas sem internet: a fila só envia ações da pessoa logada (nunca com a sessão de outra)
   useEffect(() => { if (sessao !== undefined) definirUsuarioFila(sessao?.user?.id || null); }, [sessao]);
@@ -698,7 +714,6 @@ function AppInner() {
     toastTimerRef.current = setTimeout(() => setToast(null), duracaoAviso(msg, tom));
   }, []);
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
-
   // Aprovação de produto novo (Telegram): encarregado+ é avisado NA HORA quando chega pedido (tempo real) e vê quantos faltam em Mais
   const [aprovPendentes, setAprovPendentes] = useState(0);
   const idLojaAprov = perfil?.loja_id;
@@ -1254,11 +1269,37 @@ function AppInner() {
       </div>
     );
   }
+  // Abriu o link "esqueci minha senha" com alguém já logado neste aparelho: não troca a conta sem perguntar.
+  if (linkPendenteAtivo && sessao && !sessao.user?.is_anonymous) {
+    const emailAtual = sessao.user?.email || "esta conta";
+    const emailLink = emailDoLinkPendente();
+    return (
+      <div style={{ background: T.bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
+        <Lock size={28} color={BLUE} />
+        <p className="text-base font-extrabold max-w-xs">Você já está logado neste aparelho</p>
+        <p className="text-sm max-w-xs" style={{ color: T.subtext }}>Conta atual: <strong>{emailAtual}</strong>.{emailLink ? <> O link do e-mail é da conta <strong>{emailLink}</strong>.</> : " O link do e-mail é de outra conta."} Se você usar o link, sai desta conta neste aparelho (seus lançamentos já salvos continuam salvos). O link só funciona uma vez.</p>
+        <button type="button" disabled={trocandoConta} onClick={() => { descartarLinkPendente(); setLinkPendenteAtivo(false); }}
+          style={{ background: BLUE }} className="w-full max-w-xs rounded-2xl py-3 text-sm font-bold text-white disabled:opacity-60">Continuar como {emailAtual}</button>
+        <button type="button" disabled={trocandoConta}
+          onClick={async () => { setTrocandoConta(true); const ok = await usarLinkPendente(); setTrocandoConta(false); setLinkPendenteAtivo(false); if (ok) setRecuperandoSenha(true); else showToast("O link venceu ou já foi usado. Você continua na sua conta; peça outro e-mail se precisar.", "aviso"); }}
+          style={{ color: BLUE }} className="text-sm font-semibold disabled:opacity-60">{trocandoConta ? "Abrindo…" : "Sair e criar a nova senha pelo link"}</button>
+      </div>
+    );
+  }
+  // Chegou pelo link de recuperação de senha: mostra "Nova senha / Confirmar" em vez de entrar direto na conta.
+  if (recuperandoSenha && sessao) {
+    return (
+      <AuthScreen T={T} modoInicial="nova-senha" emailConta={sessao?.user?.email || ""} antesDeEntrar={antesDeEntrarNoApp}
+        aoConcluir={(como) => { setRecuperandoSenha(false); setAvisoLink(false); limparRecuperacao(); if (como === "sair") supabase.auth.signOut().catch(() => {}); }} />
+    );
+  }
   if (sessao === null) {
     return (
       <>
         <div inert={novaVersao ? "" : undefined} aria-hidden={novaVersao ? true : undefined}>
-          <AuthScreen T={T} antesDeEntrar={antesDeEntrarNoApp} />
+          <AuthScreen T={T} antesDeEntrar={antesDeEntrarNoApp}
+            erroInicial={avisoLink ? "O link do e-mail venceu ou já foi usado. Peça um novo em \"Esqueci minha senha\"." : ""} />
         </div>
         {!novaVersao && <AvisoArmazenamento />}
         {!!novaVersao && <AtualizacaoObrigatoria logo={LOGO_SRC} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} />}

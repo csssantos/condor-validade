@@ -91,12 +91,16 @@ export function PalcoInicio({
       el.style.transform = p > 0 ? `translate3d(0, ${(-p * 28).toFixed(1)}px, 0) scale(${(1 - p * 0.1).toFixed(3)})` : "";
       el.style.opacity = p > 0 ? String((1 - p * 0.9).toFixed(3)) : "";
       el.style.pointerEvents = p > 0.5 ? "none" : ""; // coberto pela folha: não recebe toque
-      el.style.visibility = p >= 1 ? "hidden" : ""; // totalmente atrás: sai do foco/leitor de tela
+      // totalmente atrás: sai do foco/leitor de tela. NÃO usar visibility:hidden aqui: no Safari do iPhone a camada não é
+      // repintada ao voltar (o círculo sumia por ~10 s ao subir). inert + aria-hidden fazem o mesmo sem tirar a camada da tela.
+      const oculto = p >= 1;
+      if ("inert" in el && el.inert !== oculto) el.inert = oculto;
+      if (oculto) el.setAttribute("aria-hidden", "true"); else el.removeAttribute("aria-hidden");
     };
     const aoRolar = () => { if (!quadro) quadro = requestAnimationFrame(aplicar); };
     rolagem.addEventListener("scroll", aoRolar, { passive: true });
     aplicar();
-    return () => { rolagem.removeEventListener("scroll", aoRolar); if (quadro) cancelAnimationFrame(quadro); el.style.transform = ""; el.style.opacity = ""; el.style.pointerEvents = ""; el.style.visibility = ""; };
+    return () => { rolagem.removeEventListener("scroll", aoRolar); if (quadro) cancelAnimationFrame(quadro); el.style.transform = ""; el.style.opacity = ""; el.style.pointerEvents = ""; el.inert = false; el.removeAttribute("aria-hidden"); };
   }, [reduzir]);
   const ok = Math.max(0, total - vencidos - alerta);
   const valor = useContagem(valorNum, 1100);

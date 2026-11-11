@@ -139,7 +139,7 @@ function montarPayloadAviso(aviso: any) {
     requireInteraction: aviso.tipo === "urgente", data: { avisoId: aviso.id, url: "/" } });
 }
 function formatarMoeda(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
-const ORIGEM_OK = /^https:\/\/condor-validade[a-z0-9-]*\.vercel\.app$|^http:\/\/localhost(:\d+)?$/;
+const ORIGEM_OK = /^https:\/\/condor-validade[a-z0-9-]*\.vercel\.app$|^https:\/\/app\.usebipi\.com$|^http:\/\/localhost(:\d+)?$/;
 function corsHeaders(req: Request) {
   const o = req.headers.get("origin") || "";
   const h: Record<string, string> = { "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };

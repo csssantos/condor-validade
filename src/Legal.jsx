@@ -7,10 +7,16 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-11-05";
+export const TERMOS_VERSAO = "2026-11-11";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-11", docs: {
+    privacidade: [
+      "Novo fornecedor: Resend (envio dos e-mails do app: confirmação de cadastro e recuperação de senha). Ele recebe só o seu e-mail, o primeiro nome do cadastro e o link de uso único daquela mensagem. Os e-mails saem de endereços @mail.usebipi.com.",
+      "O app agora fica no endereço app.usebipi.com. Ao entrar por ele, você precisa fazer login de novo, e o login e as preferências guardados no aparelho são independentes dos do endereço antigo.",
+    ],
+  } },
   { versao: "2026-11-05", docs: {
     privacidade: [
       "Quem é o responsável pelos seus dados: o app é mantido por uma pessoa física, como agente de tratamento de pequeno porte; por isso não há encarregado (DPO) formal, e o canal oficial é “Falar com o responsável”, dentro do app.",
@@ -186,7 +192,7 @@ export const DOCUMENTOS = [
         { t: "5. Com quem compartilhamos", p: [
           "Dentro da sua loja/empresa: gestores e pessoas autorizadas no app, de acordo com o cargo e a loja. Os valores financeiros podem ser ocultados de alguns cargos.",
           "Fornecedores de tecnologia (operadores), que tratam os dados só para prestar o serviço, sob os termos de uso e de proteção de dados de cada um:",
-          "• Supabase: banco de dados, login e funções do servidor (todos os dados do app). • Vercel: hospedagem do site (endereço IP e dados técnicos de acesso). • Serviço de notificações do seu aparelho (Apple, Google ou Microsoft): só o identificador de inscrição e o texto do aviso, se você ativar. • Telegram: só se você vincular (identificador da conversa e mensagens ao bot). • Open Food Facts: só o código de barras de produto novo. • Google Gemini: as perguntas feitas ao assistente de IA e os dados da loja necessários para responder. • Reconhecimento de voz do seu navegador ou aparelho: o que você fala, só quando usa a voz.",
+          "• Supabase: banco de dados, login e funções do servidor (todos os dados do app). • Vercel: hospedagem do site (endereço IP e dados técnicos de acesso). • Resend: envio dos e-mails de confirmação de cadastro e recuperação de senha (recebe só o seu e-mail, o primeiro nome do cadastro e o link de uso único da mensagem). • Serviço de notificações do seu aparelho (Apple, Google ou Microsoft): só o identificador de inscrição e o texto do aviso, se você ativar. • Telegram: só se você vincular (identificador da conversa e mensagens ao bot). • Open Food Facts: só o código de barras de produto novo. • Google Gemini: as perguntas feitas ao assistente de IA e os dados da loja necessários para responder. • Reconhecimento de voz do seu navegador ou aparelho: o que você fala, só quando usa a voz.",
           "Autoridades públicas e judiciais, quando houver obrigação legal ou ordem válida.",
           "Não vendemos nem alugamos dados pessoais.",
         ] },
