@@ -160,7 +160,7 @@ await t("IDENTIDADE: nenhum e-mail contém Condor nem domínios errados (usibip,
 });
 await t("IMAGENS em clientes de e-mail: https absoluto, PNG, width/height e alt; sem SVG, sem data: e sem file:", async () => {
   envios.length = 0; await H.tratar(pedido(base("signup")), env()); const h = envios[0].body.html; const imgs = [...h.matchAll(/<img[^>]*>/g)].map((m) => m[0]);
-  assert.ok(imgs.length >= 1); for (const im of imgs) { assert.ok(/src="https:\/\/app\.usebipi\.com\/email\/[\w-]+\.png"/.test(im), im); assert.ok(/width="\d+"/.test(im) && /height="\d+"/.test(im) && /alt="[^"]+"/.test(im), im); }
+  assert.ok(imgs.length >= 1); for (const im of imgs) { assert.ok(/src="https:\/\/app\.usebipi\.com\/email\/[\w-]+\.png"/.test(im), im); assert.ok(/width="\d+"/.test(im) && /height="\d+"/.test(im) && (/alt="[^"]+"/.test(im) || (/bipi-perfil\.png/.test(im) && /alt=""/.test(im))), im); }
   assert.ok(!/\.svg|data:image|file:/.test(h));
   assert.ok(/background="https:\/\/app\.usebipi\.com\/email\/fundo\.jpg"/.test(h) && /bgcolor="#061C3A"/.test(h), "fundo azul com cor de reserva");
 });

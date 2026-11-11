@@ -46,6 +46,7 @@ export function montar(p: Peca, m: Marca): { subject: string; html: string; text
 <table role="presentation" class="c" width="600" cellpadding="0" cellspacing="0" bgcolor="#061C3A" background="${esc(fundo)}" style="width:600px;max-width:600px;background-color:#061C3A;background-image:url('${esc(fundo)}');background-size:600px auto;background-position:top center;background-repeat:no-repeat;border-radius:18px;overflow:hidden;">
 <tr><td class="px" style="padding:24px 28px 0;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td valign="middle" align="left" width="48" style="width:48px;padding-right:10px;"><img src="${esc(m.assets)}/bipi-perfil.png" width="40" height="40" alt="" style="display:block;width:40px;height:40px;border:2px solid rgba(255,255,255,.55);border-radius:50%;outline:none;text-decoration:none;"></td>
 <td valign="middle" align="left" style="font-family:Arial,Helvetica,sans-serif;font-size:21px;font-weight:800;letter-spacing:.16em;color:#ffffff;white-space:nowrap;">BIPI <span style="font-weight:400;">TECH</span></td>
 <td valign="middle" align="right"><span class="sel" style="display:inline-block;padding:6px 13px;border-radius:999px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.45);font-size:11px;font-weight:700;letter-spacing:.12em;color:#ffffff;white-space:nowrap;">${esc(p.selo)}</span></td>
 </tr></table>
