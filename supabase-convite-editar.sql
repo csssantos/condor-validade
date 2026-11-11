@@ -52,6 +52,7 @@ begin
     v_arr := '{}'; v_marca := 'TODAS AS MARCAS';
   else
     src := case when p_marcas is not null then p_marcas else coalesce(v_c.marcas, '{}') end;
+    if cardinality(src) > 20 then raise exception 'marcas_demais'; end if;  -- teto antes do laço (entrada gigante)
     if cardinality(src) = 0 then raise exception 'marca_invalida'; end if;  -- tirou o acesso total sem informar marcas
     foreach m in array src loop
       m := public._sem_acento(btrim(regexp_replace(coalesce(m, ''), '[^A-Za-zÀ-ÿ0-9 .&''-]', '', 'g')));
@@ -145,7 +146,7 @@ begin
       begin perform public.atualizar_convite(cid, now() + interval '5 days', null, null); exception when others then ok_n6 := (sqlerrm = 'sem_permissao'); end;
       reset role;
     else
-      ok_n6 := true;
+      raise exception 'AUTO-TESTE: nenhum usuário nível >= 6 ativo na loja de teste; não dá para provar a regra de permissão';
     end if;
 
     if uid6 is not null and cargo5 is not null then   -- vira encarregado (nível 5) só dentro do teste
@@ -160,7 +161,7 @@ begin
       exception when others then ok_n5_edita := false; end;
       reset role;
     else
-      ok_n5_dar := true; ok_n5_total := true; ok_n5_edita := true;   -- sem usuário de teste disponível
+      raise exception 'AUTO-TESTE: faltou usuário nível 6 ou cargo nível 5 para provar a regra do encarregado';
     end if;
     raise exception 'desfazer_autoteste';
   exception when others then

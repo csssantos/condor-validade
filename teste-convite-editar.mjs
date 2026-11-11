@@ -13,9 +13,13 @@ t("promotor que já entrou acompanha (usuarios.acesso_expira_em)", /update publi
 t("auditoria gravada", /insert into public\.auditoria[\s\S]*alterou convite de promotor/.test(sql));
 t("sem mudança real não grava", /if not v_mudou then return jsonb_build_object\('mudou', false\)/.test(sql));
 t("tem auto-teste que cancela se falhar", /AUTO-TESTE FALHOU/.test(sql) && /desfazer_autoteste/.test(sql));
-t("app chama a RPC com os 4 parâmetros", /rpc\("atualizar_convite", \{ p_id: c\.id, p_expira_em: expira, p_marcas: total \? null : lista, p_acesso_total: total \}\)/.test(app));
+t("app chama a RPC com os 4 parâmetros", /rpc\("atualizar_convite", \{ p_id: c\.id, p_expira_em: expira, p_marcas: [^\n]*? \? null : lista, p_acesso_total: total \}\)/.test(app));
 t("botão Editar só aparece para quem pode (bloqueado/acesso total sem nível 4 escondem)", /const podeEditar = !c\.revogado && !\(c\.acesso_total && !\(nivelUsuario != null && nivelUsuario <= 4\)\)/.test(app));
 t("seletor de convites traz loja_id (sugestões de marca)", /select\("id, loja_id, token, codigo/.test(app));
 t("erros novos mapeados em mensagem clara", ["acesso_total_exige_gerencia", "marcas_demais", "marca_invalida", "expira_invalida", "convite_revogado"].every((e) => app.includes(`m.includes("${e}")`)));
 t("novidade registrada", /2026-11-11-editar-convite/.test(app));
+t("update de usuarios ancorado no convite", /update public\.usuarios[\s\S]{0,260}where convite_id = p_id;/.test(sql));
+t("teto de marcas antes do laço", /cardinality\(src\) > 20 then raise exception 'marcas_demais'/.test(sql));
+t("auto-teste não dá falso verde", !/ok_n6 := true;\n\s*end if/.test(sql) && /raise exception 'AUTO-TESTE: nenhum usuário nível >= 6/.test(sql));
+
 console.log(`${ok} ok, ${falhas.length} falhas`); if (falhas.length) { console.log(falhas.join("\n")); process.exit(1); }

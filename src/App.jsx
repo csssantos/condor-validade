@@ -6163,8 +6163,9 @@ function erroAcao(error) {
     m.includes("acesso_total_exige_gerencia") ? "Só gerência ou diretoria mexe em convite de acesso total." :
     m.includes("marcas_demais") ? "No máximo 5 marcas por convite." :
     m.includes("marca_invalida") ? "Informe de 1 a 5 marcas válidas (3 a 30 letras ou números)." :
-    m.includes("expira_invalida") ? "A nova data precisa ser no futuro (no máximo 100 anos). Para cortar o acesso agora, use Bloquear." :
+    m.includes("expira_invalida") ? "A nova data precisa ser no futuro (no máximo 100 anos). Para cortar o acesso agora, use Pausar (volta depois) ou Bloquear (não volta)." :
     m.includes("convite_revogado") ? "Esse convite está bloqueado e não pode ser editado." :
+    m.includes("atualizar_convite") && (m.includes("PGRST202") || m.includes("schema cache") || m.includes("does not exist")) ? "Falta rodar o SQL supabase-convite-editar.sql no Supabase." :
     m.includes("function") && m.includes("does not exist") ? "Falta rodar o SQL supabase-funcionarios-acoes.sql no Supabase." :
     "Não foi possível concluir. Tente de novo.";
 }
@@ -6342,10 +6343,11 @@ function EditarConviteSheet({ T, c, nivelUsuario, showToast, onClose, onFeito })
   const [dataISO, setDataISO] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const podeTotal = nivelUsuario != null && nivelUsuario <= 4;
+  const salvandoRef = useRef(false);
   const inputCls = "border rounded-xl px-3 py-2.5 text-sm outline-none w-full";
   const inputStyle = { background: T.inputBg, color: T.text, borderColor: T.inputBorder, boxSizing: "border-box" };
   async function salvar() {
-    if (ocupado) return;
+    if (ocupado || salvandoRef.current) return;
     let lista = marcas;
     if (!total) {
       const pend = normalizarMarca(txt);
@@ -6360,7 +6362,7 @@ function EditarConviteSheet({ T, c, nivelUsuario, showToast, onClose, onFeito })
     if (modo === "data") {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dataISO)) { showToast("Informe a data completa (dd/mm/aaaa).", "warn"); return; }
       const d = new Date(`${dataISO}T23:59:59`);
-      if (isNaN(d.getTime()) || d.getTime() <= Date.now()) { showToast("A data precisa ser no futuro. Para cortar o acesso agora, use Bloquear.", "warn"); return; }
+      if (isNaN(d.getTime()) || d.getTime() <= Date.now()) { showToast("A data precisa ser no futuro. Para cortar o acesso agora, use Pausar (volta depois) ou Bloquear (não volta).", "warn"); return; }
       expira = d.toISOString();
     } else if (modo !== "manter") {
       const horas = DURACOES_CONVITE.find((x) => x.id === modo)?.horas;
@@ -6368,9 +6370,11 @@ function EditarConviteSheet({ T, c, nivelUsuario, showToast, onClose, onFeito })
       expira = new Date(Date.now() + horas * 3600000).toISOString();
     }
     if (modo === "manter" && new Date(c.expira_em) <= new Date()) { showToast("Esse convite está vencido. Escolha uma nova validade para reativar.", "warn"); return; }
+    salvandoRef.current = true;
     setOcupado(true);
-    const { data, error } = await supabase.rpc("atualizar_convite", { p_id: c.id, p_expira_em: expira, p_marcas: total ? null : lista, p_acesso_total: total });
+    const { data, error } = await supabase.rpc("atualizar_convite", { p_id: c.id, p_expira_em: expira, p_marcas: total || (!c.acesso_total && JSON.stringify(lista) === JSON.stringify(c.marcas || [])) ? null : lista, p_acesso_total: total });
     setOcupado(false);
+    salvandoRef.current = false;
     if (error) { console.error(error); showToast(erroAcao(error), "warn"); return; }
     showToast(data?.mudou === false ? "Nada mudou." : "Convite atualizado.", "ok");
     onFeito();
