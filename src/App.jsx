@@ -2584,7 +2584,7 @@ function AppInner() {
         <button type="button" disabled={trocandoConta} onClick={() => { descartarLinkPendente(); setLinkPendenteAtivo(false); }}
           style={{ background: BLUE }} className="w-full max-w-xs rounded-2xl py-3 text-sm font-bold text-white disabled:opacity-60">Continuar como {emailAtual}</button>
         <button type="button" disabled={trocandoConta}
-          onClick={async () => { setTrocandoConta(true); const ok = await usarLinkPendente(); setTrocandoConta(false); setLinkPendenteAtivo(false); if (ok) setRecuperandoSenha(true); else setAvisoLink(true); }}
+          onClick={async () => { setTrocandoConta(true); const ok = await usarLinkPendente(); setTrocandoConta(false); setLinkPendenteAtivo(false); if (ok) setRecuperandoSenha(true); else showToast("O link venceu ou já foi usado. Você continua na sua conta; peça outro e-mail se precisar.", "aviso"); }}
           style={{ color: BLUE }} className="text-sm font-semibold disabled:opacity-60">{trocandoConta ? "Abrindo…" : "Sair e criar a nova senha pelo link"}</button>
       </div>
     );
