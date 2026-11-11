@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { criarPDF, COR } from "./pdfMarca.js";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, temLinkPendente, descartarLinkPendente, usarLinkPendente } from "./supabaseClient";
+import { supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, temLinkPendente, descartarLinkPendente, usarLinkPendente, emailDoLinkPendente } from "./supabaseClient";
 import {
   HomeIcon, Squares2X2Icon, FireIcon, SignalIcon, ClockIcon, Cog6ToothIcon,
   CameraIcon, PlusIcon, ShieldExclamationIcon, ShieldCheckIcon, QuestionMarkCircleIcon,
@@ -1507,12 +1507,10 @@ function AppInner() {
 
   // Link vencido/sem sessão: não deixa a trava de "nova senha" ligada para o próximo login normal.
   useEffect(() => {
-    if (sessao !== null || !linkPendenteAtivo) return;
+    if (sessao !== null || !linkPendenteAtivo || trocandoConta) return;
     // o aparelho tinha uma sessão velha (já caiu): o link é de quem está tentando entrar, então usa direto
-    let vivo = true;
-    usarLinkPendente().then((ok) => { if (!vivo) return; setLinkPendenteAtivo(false); if (ok) setRecuperandoSenha(true); else setAvisoLink(true); });
-    return () => { vivo = false; };
-  }, [sessao, linkPendenteAtivo]);
+    usarLinkPendente().then((ok) => { setLinkPendenteAtivo(false); if (ok) setRecuperandoSenha(true); else setAvisoLink(true); });
+  }, [sessao, linkPendenteAtivo, trocandoConta]);
   useEffect(() => {
     if (sessao === null && recuperandoSenha) { setRecuperandoSenha(false); setAvisoLink(true); limparRecuperacao(); }
     if (sessao) setAvisoLink(false);
@@ -2576,12 +2574,13 @@ function AppInner() {
   // Abriu o link "esqueci minha senha" com alguém já logado neste aparelho: não troca a conta sem perguntar.
   if (linkPendenteAtivo && sessao && !sessao.user?.is_anonymous) {
     const emailAtual = sessao.user?.email || "esta conta";
+    const emailLink = emailDoLinkPendente();
     return (
       <div style={{ background: T.bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
         <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
         <Lock size={28} color={BLUE} />
         <p className="text-base font-extrabold max-w-xs">Você já está logado neste aparelho</p>
-        <p className="text-sm max-w-xs" style={{ color: T.subtext }}>Conta atual: <strong>{emailAtual}</strong>. O link que você abriu cria uma nova senha para a conta do e-mail que pediu a recuperação.</p>
+        <p className="text-sm max-w-xs" style={{ color: T.subtext }}>Conta atual: <strong>{emailAtual}</strong>.{emailLink ? <> O link do e-mail é da conta <strong>{emailLink}</strong>.</> : " O link do e-mail é de outra conta."} Se você usar o link, sai desta conta neste aparelho (seus lançamentos já salvos continuam salvos). O link só funciona uma vez.</p>
         <button type="button" disabled={trocandoConta} onClick={() => { descartarLinkPendente(); setLinkPendenteAtivo(false); }}
           style={{ background: BLUE }} className="w-full max-w-xs rounded-2xl py-3 text-sm font-bold text-white disabled:opacity-60">Continuar como {emailAtual}</button>
         <button type="button" disabled={trocandoConta}

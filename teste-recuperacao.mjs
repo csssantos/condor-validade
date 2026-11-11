@@ -21,7 +21,7 @@ t("login normal sem erro", mk("#/")[1] === false);
 t("flag persistida e limpa", /avdc_recuperando/.test(src) && /export const limparRecuperacao/.test(src) && /abriuPorRecuperacao = veioDoLink || lerFlag\(\)/.test(src));
 t("localStorage só dentro de try/catch (verificado também por teste-recuperacao-modulo)", (src.match(/localStorage/g) || []).length >= 4 && /catch \{ \/\* sem armazenamento: trata como deslogado \*\/ \}/.test(src));
 t("cliente declara as constantes ANTES de criar o cliente", src.indexOf("abriuPorRecuperacao") < src.indexOf("export const supabase = createClient"));
-t("App importa as constantes", /import \{ supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, temLinkPendente, descartarLinkPendente, usarLinkPendente \}/.test(app));
+t("App importa as constantes", /import \{ supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, temLinkPendente, descartarLinkPendente, usarLinkPendente, emailDoLinkPendente \}/.test(app));
 t("AppInner escuta PASSWORD_RECOVERY", /event === "PASSWORD_RECOVERY"\) setRecuperandoSenha\(true\)/.test(app));
 t("tela de nova senha vem ANTES do login/sessão", app.indexOf("if (recuperandoSenha && sessao)") > 0 && app.indexOf("if (recuperandoSenha && sessao)") < app.indexOf("if (sessao === null) {\n    return ("));
 t("trava desliga sem sessão", /if \(sessao === null && recuperandoSenha\) \{ setRecuperandoSenha\(false\)/.test(app));

@@ -54,15 +54,26 @@ function jaLogadoNoAparelho() {
   return false;
 }
 let linkPendente = null;
-const ignorarLink = linkRecuperacao && jaLogadoNoAparelho();
+// Qualquer link com token no fragmento (recovery, signup, magiclink, invite…) com alguém logado: o tipo vem do fragmento e é forjável,
+// então a proteção não pode depender dele (senão trocar type=recovery por magiclink trocaria a conta em silêncio).
+const linkComToken = /(^|[#&])access_token=/.test(hashDoLink);
+const ignorarLink = linkComToken && jaLogadoNoAparelho();
 if (ignorarLink) {
   const q = new URLSearchParams(hashDoLink.replace(/^#/, ""));
   const at = q.get("access_token"), rt = q.get("refresh_token");
-  if (at && rt) linkPendente = { access_token: at, refresh_token: rt };
+  if (at && rt) linkPendente = { access_token: at, refresh_token: rt, recuperacao: q.get("type") === "recovery" };
   try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch { /* ok */ }
 }
 export const linkIgnoradoLogado = ignorarLink;
 export const temLinkPendente = () => !!linkPendente;
+// E-mail da conta do link (só para mostrar na tela de confirmação; vem do JWT, que o servidor assinou ao gerar o link).
+export const emailDoLinkPendente = () => {
+  try {
+    const b = linkPendente.access_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const e = JSON.parse(decodeURIComponent(escape(atob(b + "=".repeat((4 - (b.length % 4)) % 4))))).email;
+    return typeof e === "string" ? e.slice(0, 120) : "";
+  } catch { return ""; }
+};
 export const descartarLinkPendente = () => { linkPendente = null; };
 const veioDoLink = linkRecuperacao && !ignorarLink;
 if (veioDoLink) { try { localStorage.setItem(CHAVE_RECUPERANDO, "1"); } catch { /* sem armazenamento */ } }
@@ -73,15 +84,27 @@ export const linkComErro = /(^|[#&?])error(_code)?=/.test(hashDoLink) || /(^|[#&
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, { global: { fetch: fetchComFreio }, auth: { detectSessionInUrl: !ignorarLink } });
 
-// "Sair e usar o link": sai SÓ deste aparelho (escopo local, não derruba os outros), entra com a sessão do link e liga a tela "Nova senha".
-export async function usarLinkPendente() {
-  const t = linkPendente; linkPendente = null;
-  if (!t) return false;
-  try {
-    await supabase.auth.signOut({ scope: "local" });
-    const { error } = await supabase.auth.setSession(t);
-    if (error) return false;
-    try { localStorage.setItem(CHAVE_RECUPERANDO, "1"); } catch { /* sem armazenamento */ }
-    return true;
-  } catch { return false; }
+// "Sair e usar o link": confere o link ANTES de sair (se estiver vencido/usado a pessoa continua na conta dela), sai SÓ deste aparelho
+// (escopo local), entra com a sessão do link e, se for recuperação, liga a tela "Nova senha" (flag gravada ANTES de entrar).
+// Uma única execução por vez: chamadas repetidas devolvem a mesma promessa (efeito do React + botão não se atropelam).
+let emUso = null;
+export function usarLinkPendente() {
+  if (emUso) return emUso;
+  emUso = (async () => {
+    const t = linkPendente;
+    if (!t) return false;
+    let flagLigada = false;
+    try {
+      const { error: eUser } = await supabase.auth.getUser(t.access_token);
+      if (eUser) { linkPendente = null; return false; }
+      if (t.recuperacao) { try { localStorage.setItem(CHAVE_RECUPERANDO, "1"); flagLigada = true; } catch { /* sem armazenamento */ } }
+      await supabase.auth.signOut({ scope: "local" });
+      const { error } = await supabase.auth.setSession({ access_token: t.access_token, refresh_token: t.refresh_token });
+      if (error) { if (flagLigada) limparRecuperacao(); return false; }
+      linkPendente = null;
+      return true;
+    } catch { if (flagLigada) limparRecuperacao(); return false; }
+    finally { emUso = null; }
+  })();
+  return emUso;
 }
