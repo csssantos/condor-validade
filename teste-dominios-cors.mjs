@@ -37,4 +37,14 @@ for (const f of ["telegram-avisar", "telegram-avisar-pedido", "telegram-desvincu
     for (let i = 0; i < 20; i++) { const [rA, rB] = await Promise.all([h(mk(A)), h(mk(N))]); assert.equal(rA.headers.get("access-control-allow-origin"), A); assert.equal(rB.headers.get("access-control-allow-origin"), N); }
   });
 }
+
+// assistente-ia: aceita pelo regex (sem APP_URL); origem hostil/ausente não recebe cabeçalho; sem mistura entre requisições simultâneas
+await t("assistente-ia: origem nova e antiga ecoadas; hostil, ausente e null sem cabeçalho de origem", async () => {
+  const h = carregar("assistente-ia", undefined);
+  for (const m of ["OPTIONS", "POST", "GET"]) { assert.equal(await ao(h, m, N), N); assert.equal(await ao(h, m, A), A); for (const o of ["https://evil.com", undefined, "null", "http://app.usebipi.com"]) assert.equal(await ao(h, m, o), null, `${m} ${o}`); }
+});
+await t("assistente-ia: requisições SIMULTÂNEAS de origens diferentes não misturam o cabeçalho (corrida)", async () => {
+  const h = carregar("assistente-ia", undefined); const mk = (o) => new Request("http://x/f", { method: "POST", headers: { origin: o, authorization: "Bearer x", "content-type": "application/json" }, body: JSON.stringify({ pergunta: "oi" }) });
+  for (let i = 0; i < 20; i++) { const [rA, rB] = await Promise.all([h(mk(A)), h(mk(N))]); assert.equal(rA.headers.get("access-control-allow-origin"), A); assert.equal(rB.headers.get("access-control-allow-origin"), N); }
+});
 console.log(`\n${ok} ok, ${falhas} falhas`); process.exit(falhas ? 1 : 0);
