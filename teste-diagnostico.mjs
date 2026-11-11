@@ -14,5 +14,9 @@ for (const f of ["dar_baixa","somar_ao_lote","lancar_validade","atualizar_convit
 ok(/rpc\("diagnostico_schema"\)/.test(tela) && /function DiagnosticoBanco/.test(tela), "tela chama a RPC");
 ok(/aba === "saude" && <DiagnosticoBanco/.test(tela), "aba Banco ligada");
 ok(/ShieldCheck/.test(tela.split("\n").slice(0, 8).join("\n")), "ShieldCheck importado");
-ok(/verificar-banco/.test(nov) && /ate: 1/.test(nov.split("verificar-banco")[1].slice(0, 200)), "Novidade só para dev");
+ok(/verificar-banco/.test(nov) && /ate: 2/.test(nov.split("verificar-banco")[1].slice(0, 200)), "Novidade para dev e diretoria");
+const rondas = readFileSync("src/telas/Rondas.jsx", "utf8");
+const filaJs = readFileSync("src/lib/fila.js", "utf8");
+ok(/const FILA_CHAVE = "avdc_ronda_fila"/.test(rondas) && /CHAVE_FILA_RONDA = "avdc_ronda_fila"/.test(filaJs), "chave da fila da ronda igual em Rondas.jsx e fila.js");
+ok(/servico_trancado/.test(sql) && /lock_timeout/.test(sql) && /'pg_catalog', 'public'/.test(sql), "SQL: service trancado, lock_timeout, search_path");
 process.exit(falhas ? 1 : 0);

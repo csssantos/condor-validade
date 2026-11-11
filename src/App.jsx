@@ -18,7 +18,7 @@ import { FaixaFila } from "./componentes/FaixaFila";
 import { AtualizacaoModal, NOVIDADES, gravarNovidadeVista, lerNovidadeVista, novidadesParaCargo } from "./componentes/Novidades";
 import { BLUE, BLUE_SOFT, LOGO_SRC, NOTIF_KEY, PREFS_KEY, RED, RED_DARK, RED_SOFT, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, setorPrincipal } from "./lib/constantes";
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
-import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
+import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
 import { dispararNotificacao, inscreverPush, isIOS, isStandalone } from "./lib/notificacoes";
 import { eanValido, limiteSomaLote, textoLote } from "./lib/produto";
@@ -395,6 +395,7 @@ function AppInner() {
   useEffect(() => {
     function aoFicarOnline() {
       setOnline(true);
+      if (filaEnviando()) return; // já está enviando: o segundo gatilho (online/foco/botão) não repete nem mostra aviso falso
       (async () => {
         const minhas = () => lerFila().filter((op) => !op.uid || op.uid === usuarioFila()); // só as ações da pessoa logada
         const fila = minhas();

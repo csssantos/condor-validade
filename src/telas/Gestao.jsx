@@ -113,7 +113,8 @@ function DiagnosticoBanco({ T }) {
           ? "Falta rodar o SQL supabase-diagnostico-schema.sql no Supabase."
           : /sem_permissao/.test(m) ? "Só desenvolvedor e diretoria podem verificar o banco." : "Não foi possível verificar o banco agora. Tente de novo.");
         setRes(null);
-      } else setRes(data);
+      } else if (!data || !Array.isArray(data.itens)) { setErro("A verificação voltou vazia. Rode o SQL supabase-diagnostico-schema.sql de novo e tente outra vez."); setRes(null); }
+      else setRes(data);
     } catch { setErro("Não foi possível verificar o banco agora. Tente de novo."); }
     rodando.current = false; setCarregando(false);
   }
@@ -134,7 +135,7 @@ function DiagnosticoBanco({ T }) {
       {res && (
         <div className="mt-3" role="status" aria-live="polite">
           <p style={ruins.length ? { background: RED_SOFT, color: RED_DARK } : { background: "#E6F6EC", color: "#146C3A" }} className="text-xs font-extrabold rounded-xl px-3 py-2.5">
-            {ruins.length ? `${ruins.length} problema(s) em ${res.total} checagens. Veja abaixo e reaplique o SQL indicado.` : `Tudo certo: ${res.total} checagens passaram.`}
+            {ruins.length ? `${ruins.length} problema(s) em ${res.total} checagens. Veja abaixo. Não reaplique SQL antigo: cada item diz o que fazer.` : `Tudo certo: ${res.total} checagens passaram.`}
           </p>
           <ul className="mt-2 flex flex-col gap-1.5">
             {[...ruins, ...itens.filter((i) => i.ok)].map((i) => (

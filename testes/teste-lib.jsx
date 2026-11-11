@@ -2,7 +2,7 @@
 import { eanValido, limiteSomaLote, textoLote } from "../src/lib/produto";
 import { diasRestantes, getStatus, sugestaoDesconto } from "../src/lib/formatos";
 import { parseCodigoBalanca, celulaCSV, celulaPlanilha } from "../src/lib/utilidades";
-import { contarFilaDaPessoa, filaEnviando, erroDeRede, definirUsuarioFila, enfileirar, lerFila, gravarFila, processarFila, limparFilaOrfa } from "../src/lib/fila";
+import { contarFilaRonda, CHAVE_FILA_RONDA, contarFilaDaPessoa, filaEnviando, erroDeRede, definirUsuarioFila, enfileirar, lerFila, gravarFila, processarFila, limparFilaOrfa } from "../src/lib/fila";
 import { etapasDoTutorial } from "../src/componentes/TutorialBipi";
 import { isoParaBR, brParaISO, mascaraData } from "../src/componentes/CampoData";
 
@@ -98,6 +98,15 @@ definirUsuarioFila("bia");
 igual("outra pessoa não vê a contagem alheia", contarFilaDaPessoa(), 0);
 definirUsuarioFila("ana");
 igual("não está enviando parado", filaEnviando(), false);
+// ação sem dono não é enviada, então não entra na contagem
+gravarFila([{ id: "z", tipo: "upsertProduto", payload: {}, criadoEm: new Date().toISOString() }]);
+igual("sem dono não conta", contarFilaDaPessoa(), 0);
+// fila da ronda: só a da pessoa logada
+globalThis.localStorage ??= { _d: {}, getItem(k) { return this._d[k] ?? null; }, setItem(k, v) { this._d[k] = String(v); } };
+localStorage.setItem(CHAVE_FILA_RONDA, JSON.stringify([{ op: 1, uid: "ana" }, { op: 2, uid: "bia" }, { op: 3 }]));
+igual("conta só a ronda da pessoa", contarFilaRonda(), 1);
+localStorage.setItem(CHAVE_FILA_RONDA, "lixo");
+igual("ronda ilegível = 0", contarFilaRonda(), 0);
 gravarFila([]);
 
 console.log(`teste-lib: ${ok} ok, ${falhas} falha(s)`);

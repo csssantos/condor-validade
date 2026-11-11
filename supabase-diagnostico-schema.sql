@@ -11,7 +11,7 @@ returns jsonb
 language plpgsql
 security definer
 stable
-set search_path to 'public', 'pg_catalog'
+set search_path to 'pg_catalog', 'public'
 as $fn$
 declare
   v_itens jsonb := '[]'::jsonb;
@@ -45,6 +45,8 @@ declare
     '_produtos_del_ck|excluir_exige_encarregado','registrar_login|login_auditoria','_promotor_ve|_produto_da_marca',
     'responder_solicitacao_lgpd|solicitacoes_lgpd','_produtos_blindagem|produtos_aumento',
     'telegram_enviar_aprovacao|validade_muito_proxima','aprovar_produto_novo|p_subsetor'];
+  c_so_servico constant text[] := array['rl_servico','telegram_auditar','telegram_pedido_aviso','telegram_contexto','telegram_enviar_aprovacao',
+    'telegram_complementar_lote','telegram_vincular_funcionario','telegram_vincular_promotor','telegram_vinc_bloqueio','telegram_vinc_falha','telegram_vinc_ok'];
   c_pol_promotor constant text[] := array['produtos:produtos_sel','historico:historico_sel','catalogo:catalogo_sel'];
   c_realtime constant text[] := array['aprovacoes_produto','auditoria','avisos','catalogo','convites_promotor','historico',
     'ocorrencias','produtos','rondas','ronda_itens','solicitacoes_lgpd','telegram_vinculos'];
@@ -61,7 +63,7 @@ begin
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
   v_itens := v_itens || jsonb_build_object('id','rls_ligada','grupo','Segurança','ok', cardinality(v_lista) = 0,
-    'detalhe', case when cardinality(v_lista) = 0 then 'Todas as tabelas têm RLS.' else 'SEM RLS: ' || array_to_string(v_lista, ', ') end);
+    'detalhe', case when cardinality(v_lista) = 0 then 'Todas as tabelas têm RLS.' else 'SEM RLS: ' || array_to_string(v_lista, ', ') || '. Ligar com alter table ... enable row level security e conferir as policies.' end);
 
   -- 2) anônimo só executa as funções permitidas
   select coalesce(array_agg(p.proname order by p.proname), '{}') into v_extra
@@ -69,6 +71,13 @@ begin
      and has_function_privilege('anon', p.oid, 'execute') and not (p.proname = any(c_anon_ok));
   v_itens := v_itens || jsonb_build_object('id','anon_funcoes','grupo','Segurança','ok', cardinality(v_extra) = 0,
     'detalhe', case when cardinality(v_extra) = 0 then 'Visitante sem login só executa as funções públicas esperadas.' else 'Visitante pode executar: ' || array_to_string(v_extra, ', ') end);
+
+  -- 2b) funções "só do servidor" (service_role) não podem ser executadas por quem está logado (forjaria auditoria / burlaria limite)
+  select coalesce(array_agg(distinct p.proname order by p.proname), '{}') into v_extra
+    from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = any(c_so_servico)
+     and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute'));
+  v_itens := v_itens || jsonb_build_object('id','servico_trancado','grupo','Segurança','ok', cardinality(v_extra) = 0,
+    'detalhe', case when cardinality(v_extra) = 0 then 'Funções internas do bot e do limite só executam pelo servidor.' else 'USUÁRIO LOGADO PODE EXECUTAR: ' || array_to_string(v_extra, ', ') || '. Não reaplique SQL antigo; peça ao desenvolvedor para revogar (revoke execute ... from authenticated, anon).' end);
 
   -- 3) escrita direta em usuarios continua fechada (cargo/loja só por função)
   select count(*) into v_n from pg_policies where schemaname = 'public' and tablename = 'usuarios' and cmd in ('INSERT','UPDATE','DELETE','ALL');
@@ -79,7 +88,7 @@ begin
   select coalesce(array_agg(f), '{}') into v_falta from unnest(c_funcs) f
    where not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f);
   v_itens := v_itens || jsonb_build_object('id','funcoes_existem','grupo','Funções','ok', cardinality(v_falta) = 0,
-    'detalhe', case when cardinality(v_falta) = 0 then array_length(c_funcs, 1) || ' funções críticas presentes.' else 'FALTAM: ' || array_to_string(v_falta, ', ') end);
+    'detalhe', case when cardinality(v_falta) = 0 then array_length(c_funcs, 1) || ' funções críticas presentes.' else 'FALTAM: ' || array_to_string(v_falta, ', ') || '. Reaplique o SQL que criou essas funções (veja CLAUDE.md).' end);
 
   -- 5) funções críticas ainda têm a regra (SQL antigo reaplicado por cima apaga o marcador)
   v_falta := '{}';
@@ -89,7 +98,7 @@ begin
     if v_def is null or position(t in v_def) = 0 then v_falta := v_falta || (y || ' (sem "' || t || '")'); end if;
   end loop;
   v_itens := v_itens || jsonb_build_object('id','funcoes_regras','grupo','Funções','ok', cardinality(v_falta) = 0,
-    'detalhe', case when cardinality(v_falta) = 0 then 'Regras de negócio presentes nas funções-chave.' else 'REGRA PERDIDA (reaplicou um SQL antigo?): ' || array_to_string(v_falta, '; ') end);
+    'detalhe', case when cardinality(v_falta) = 0 then 'Regras de negócio presentes nas funções-chave.' else 'REGRA PERDIDA (um SQL antigo foi reaplicado?): ' || array_to_string(v_falta, '; ') || '. Não reaplique SQL antigo; reaplique só o SQL da regra citada (veja CLAUDE.md) e verifique de novo.' end);
 
   -- 6) triggers críticos existem e estão ligados
   select coalesce(array_agg(x), '{}') into v_falta from unnest(c_triggers) x
@@ -97,7 +106,7 @@ begin
                       where c.relnamespace = 'public'::regnamespace and not g.tgisinternal and g.tgenabled <> 'D'
                         and c.relname = split_part(x, ':', 1) and g.tgname = split_part(x, ':', 2));
   v_itens := v_itens || jsonb_build_object('id','triggers','grupo','Regras no banco','ok', cardinality(v_falta) = 0,
-    'detalhe', case when cardinality(v_falta) = 0 then array_length(c_triggers, 1) || ' triggers críticos ligados.' else 'TRIGGER AUSENTE/DESLIGADO: ' || array_to_string(v_falta, ', ') end);
+    'detalhe', case when cardinality(v_falta) = 0 then array_length(c_triggers, 1) || ' triggers críticos ligados.' else 'TRIGGER AUSENTE/DESLIGADO: ' || array_to_string(v_falta, ', ') || '. Reaplique o SQL que criou esse trigger (veja CLAUDE.md).' end);
 
   -- 7) promotor só vê as marcas dele (policies de leitura usam _promotor_ve)
   select coalesce(array_agg(x), '{}') into v_falta from unnest(c_pol_promotor) x
@@ -115,21 +124,21 @@ begin
   select coalesce(array_agg(x), '{}') into v_falta from unnest(c_realtime) x
    where not exists (select 1 from pg_publication_tables w where w.pubname = 'supabase_realtime' and w.schemaname = 'public' and w.tablename = x);
   v_itens := v_itens || jsonb_build_object('id','realtime','grupo','Tempo real','ok', cardinality(v_falta) = 0,
-    'detalhe', case when cardinality(v_falta) = 0 then 'Tabelas do tempo real publicadas.' else 'FORA do tempo real: ' || array_to_string(v_falta, ', ') end);
+    'detalhe', case when cardinality(v_falta) = 0 then 'Tabelas do tempo real publicadas.' else 'FORA do tempo real: ' || array_to_string(v_falta, ', ') || '. Rodar alter publication supabase_realtime add table <tabela>.' end);
 
   -- 10) colunas esperadas
   select coalesce(array_agg(x), '{}') into v_falta from unnest(c_colunas) x
    where not exists (select 1 from information_schema.columns k where k.table_schema = 'public'
                       and k.table_name = split_part(x, '.', 1) and k.column_name = split_part(x, '.', 2));
   v_itens := v_itens || jsonb_build_object('id','colunas','grupo','Tabelas','ok', cardinality(v_falta) = 0,
-    'detalhe', case when cardinality(v_falta) = 0 then 'Colunas esperadas presentes.' else 'COLUNA FALTANDO: ' || array_to_string(v_falta, ', ') end);
+    'detalhe', case when cardinality(v_falta) = 0 then 'Colunas esperadas presentes.' else 'COLUNA FALTANDO: ' || array_to_string(v_falta, ', ') || '. Reaplique o SQL que criou a coluna (veja CLAUDE.md).' end);
 
   -- 11) rotinas agendadas (limpezas, alertas)
   begin
     select coalesce(array_agg(x), '{}') into v_falta from unnest(c_cron) x
      where not exists (select 1 from cron.job j where j.jobname = x and j.active);
     v_itens := v_itens || jsonb_build_object('id','cron','grupo','Rotinas','ok', cardinality(v_falta) = 0,
-      'detalhe', case when cardinality(v_falta) = 0 then 'Rotinas agendadas ativas.' else 'ROTINA PARADA/AUSENTE: ' || array_to_string(v_falta, ', ') end);
+      'detalhe', case when cardinality(v_falta) = 0 then 'Rotinas agendadas ativas.' else 'ROTINA PARADA/AUSENTE: ' || array_to_string(v_falta, ', ') || '. Conferir em cron.job.' end);
   exception when others then
     v_itens := v_itens || jsonb_build_object('id','cron','grupo','Rotinas','ok', false, 'detalhe', 'Não consegui ler as rotinas agendadas.');
   end;
@@ -148,8 +157,9 @@ grant execute on function public.diagnostico_schema() to authenticated;
 -- ===== AUTO-TESTE (desfaz tudo): estrutura, permissão e DETECÇÃO de uma regra quebrada de propósito =====
 do $t$
 declare
-  uid2 uuid; uid6 uuid; r jsonb; ok_perm boolean := false; ok_estrutura boolean := false; ok_detecta boolean := false; ok_detecta2 boolean := false;
+  uid2 uuid; uid6 uuid; r jsonb; ok_perm boolean := false; ok_estrutura boolean := false; ok_detecta boolean := false; ok_detecta2 boolean := false; ok_detecta3 boolean := false; ok_verde boolean := false;
 begin
+  set local lock_timeout = '3s';  -- a quebra provocada pede lock na tabela: se estiver ocupada, falha clara em vez de travar a produção
   select u.id into uid2 from public.usuarios u join public.cargos c on c.id = u.cargo_id where c.nivel <= 2 and u.ativo limit 1;
   select u.id into uid6 from public.usuarios u join public.cargos c on c.id = u.cargo_id where c.nivel >= 6 and u.ativo limit 1;
   if uid2 is null then raise exception 'AUTO-TESTE: nenhum usuário nível <= 2 encontrado'; end if;
@@ -167,25 +177,28 @@ begin
     perform set_config('request.jwt.claims', json_build_object('sub', uid2, 'role', 'authenticated')::text, true);
     set local role authenticated;
     r := public.diagnostico_schema();
-    ok_estrutura := (jsonb_array_length(r->'itens') >= 10 and r ? 'falhas' and r ? 'gerado_em');
+    ok_estrutura := (jsonb_array_length(r->'itens') >= 12 and r ? 'falhas' and r ? 'gerado_em');
+    ok_verde := ((r->>'falhas')::int = 0);
     raise exception 'desfazer_autoteste';
   exception when others then if sqlerrm <> 'desfazer_autoteste' then raise exception 'AUTO-TESTE passo 2: %', sqlerrm; end if; end;
   reset role;
 
   begin  -- quebra de propósito: derruba um trigger e remove uma regra de uma função; o diagnóstico TEM de acusar
     drop trigger trg_produtos_prox on public.produtos;
+    grant execute on function public.telegram_auditar(bigint, text, text, text) to authenticated;
     alter table public.usuarios disable row level security;
     perform set_config('request.jwt.claims', json_build_object('sub', uid2, 'role', 'authenticated')::text, true);
     set local role authenticated;
     r := public.diagnostico_schema();
     ok_detecta := exists (select 1 from jsonb_array_elements(r->'itens') e where e->>'id' = 'triggers' and not (e->>'ok')::boolean and e->>'detalhe' like '%trg_produtos_prox%');
     ok_detecta2 := exists (select 1 from jsonb_array_elements(r->'itens') e where e->>'id' = 'rls_ligada' and not (e->>'ok')::boolean and e->>'detalhe' like '%usuarios%');
+    ok_detecta3 := exists (select 1 from jsonb_array_elements(r->'itens') e where e->>'id' = 'servico_trancado' and not (e->>'ok')::boolean and e->>'detalhe' like '%telegram_auditar%');
     raise exception 'desfazer_autoteste';
   exception when others then if sqlerrm <> 'desfazer_autoteste' then raise exception 'AUTO-TESTE passo 3: %', sqlerrm; end if; end;
   reset role;
 
-  if not (ok_perm and ok_estrutura and ok_detecta and ok_detecta2) then
-    raise exception 'AUTO-TESTE FALHOU (permissao=%, estrutura=%, detecta_trigger=%, detecta_rls=%): nada foi alterado', ok_perm, ok_estrutura, ok_detecta, ok_detecta2;
+  if not (ok_perm and ok_estrutura and ok_verde and ok_detecta and ok_detecta2 and ok_detecta3) then
+    raise exception 'AUTO-TESTE FALHOU (permissao=%, estrutura=%, banco_verde=%, detecta_trigger=%, detecta_rls=%, detecta_servico=%): nada foi alterado', ok_perm, ok_estrutura, ok_verde, ok_detecta, ok_detecta2, ok_detecta3;
   end if;
 end $t$;
 

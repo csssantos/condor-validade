@@ -14,7 +14,12 @@ function lerFila() { return loadLocal(OUTBOX_KEY, []); }
 function avisarFilaMudou() { try { window.dispatchEvent(new CustomEvent("condor-fila-mudou")); } catch { /* sem janela (testes) */ } }
 function gravarFila(fila) { saveLocal(OUTBOX_KEY, fila); avisarFilaMudou(); }
 // quantas ações da pessoa logada estão guardadas neste aparelho (a tela mostra isso na hora)
-function contarFilaDaPessoa() { return lerFila().filter((op) => !op.uid || op.uid === USUARIO_FILA).length; }
+function contarFilaDaPessoa() { return lerFila().filter((op) => op.uid && op.uid === USUARIO_FILA).length; }
+// conferências de ronda guardadas (a fila da ronda é outra; ela é enviada de dentro da ronda). Mesma chave de FILA_CHAVE em telas/Rondas.jsx (o teste confere).
+const CHAVE_FILA_RONDA = "avdc_ronda_fila";
+function contarFilaRonda() {
+  try { return (JSON.parse(localStorage.getItem(CHAVE_FILA_RONDA) || "[]") || []).filter((a) => a && a.uid && a.uid === USUARIO_FILA).length; } catch { return 0; }
+}
 function filaEnviando() { return ENVIANDO_FILA; }
 
 // guarda a ação com o dono; sem ninguém logado não guarda (devolve false)
@@ -154,4 +159,4 @@ async function gravarCatalogo(barcode, dados) { return gravarComFila("upsertCata
 
 async function gravarHistorico(registro) { return gravarComFila("inserirHistorico", registro); }
 
-export { contarFilaDaPessoa, filaEnviando, definirUsuarioFila, usuarioFila, limparFilaOrfa, NOME_OP, OUTBOX_KEY, avisarErroGravacao, enfileirar, erroDeRede, executarOp, gravarCatalogo, gravarComFila, gravarFila, gravarHistorico, gravarProduto, jaFeita, lerFila, mensagemErroGravacao, nomeDaOp, processarFila, removerProduto };
+export { CHAVE_FILA_RONDA, contarFilaRonda, contarFilaDaPessoa, filaEnviando, definirUsuarioFila, usuarioFila, limparFilaOrfa, NOME_OP, OUTBOX_KEY, avisarErroGravacao, enfileirar, erroDeRede, executarOp, gravarCatalogo, gravarComFila, gravarFila, gravarHistorico, gravarProduto, jaFeita, lerFila, mensagemErroGravacao, nomeDaOp, processarFila, removerProduto };
