@@ -1,7 +1,7 @@
 // Edge Function "auth-email": Send Email Hook do Supabase Auth → Resend.
 // verify_jwt = FALSE (o Supabase chama sem JWT; a autenticação é a assinatura Standard Webhooks do corpo).
 // Segredos (Supabase → Edge Functions → Secrets): RESEND_API_KEY, SEND_EMAIL_HOOK_SECRET (v1,whsec_…).
-// Opcionais: EMAIL_DOMINIO (padrão mail.usebipi.com; precisa ser usebipi.com ou subdomínio), ASSET_BASE_URL (padrão https://usebipi.com/email),
+// Opcionais: EMAIL_DOMINIO (padrão mail.usebipi.com; precisa ser usebipi.com ou subdomínio), ASSET_BASE_URL (padrão https://app.usebipi.com/email),
 // SITE_URL (padrão https://app.usebipi.com = o APP; é para onde o link cai quando o redirect_to não é aprovado), AMBIENTE_DEV ("true" libera localhost só em desenvolvimento),
 // EMAIL_CHANGE_ENABLED ("true" liga a troca de e-mail; padrão DESLIGADA),
 // REDIRECT_HOSTS (lista de hosts aceitos), LINK_VALIDADE_MIN (padrão 60 = OTP_EXPIRY do Auth).
@@ -12,7 +12,7 @@ import { modelo, REMETENTE, type Tipo } from "./templates.ts";
 export const DOMINIO_ENVIO = "mail.usebipi.com"; // verificado no Resend
 export const DOMINIO_SITE = "usebipi.com";
 export const SITE_PADRAO = `https://app.${DOMINIO_SITE}`; // o APP (não o site institucional: o link traz a sessão no fragmento da URL); localhost só com AMBIENTE_DEV=true
-export const ASSETS_PADRAO = `https://${DOMINIO_SITE}/email`;
+export const ASSETS_PADRAO = `https://app.${DOMINIO_SITE}/email`; // as imagens ficam em public/email do app (Vercel)
 const dominioOficial = (host: string) => host === DOMINIO_SITE || host.endsWith("." + DOMINIO_SITE);
 
 const TIPOS = new Set(["signup", "recovery", "invite", "magiclink", "email_change", "reauthentication"]);

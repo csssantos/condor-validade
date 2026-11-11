@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { criarPDF, COR } from "./pdfMarca.js";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao } from "./supabaseClient";
+import { supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, linkIgnoradoLogado } from "./supabaseClient";
 import {
   HomeIcon, Squares2X2Icon, FireIcon, SignalIcon, ClockIcon, Cog6ToothIcon,
   CameraIcon, PlusIcon, ShieldExclamationIcon, ShieldCheckIcon, QuestionMarkCircleIcon,
@@ -2009,6 +2009,13 @@ function AppInner() {
     toastTimerRef.current = setTimeout(() => setToast(null), duracaoAviso(msg, tom));
   }, []);
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
+  // Abriu o link "esqueci minha senha" já logado: a conta atual foi mantida; avisa onde trocar a senha (uma vez).
+  const avisouLinkLogado = useRef(false);
+  useEffect(() => {
+    if (!linkIgnoradoLogado || avisouLinkLogado.current || !sessao || sessao.user?.is_anonymous) return;
+    avisouLinkLogado.current = true;
+    showToast("Você já está logado neste aparelho. Para trocar a senha, vá em Mais → Conta. Para usar o link do e-mail, saia da conta primeiro.", "aviso");
+  }, [sessao, showToast]);
 
   // Aprovação de produto novo (Telegram): encarregado+ é avisado NA HORA quando chega pedido (tempo real) e vê quantos faltam em Mais
   const [aprovPendentes, setAprovPendentes] = useState(0);
@@ -2971,6 +2978,10 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-11-link-logado", data: "11/11/2026", itens: [
+    { tipo: "alterado", ate: 7, texto: "Se você já está logado e abre o link de \"esqueci minha senha\", o app mantém a sua conta e avisa para trocar a senha em Mais → Conta." },
+    { tipo: "novo", ate: 7, texto: "Os e-mails de confirmação e de recuperação de senha ganharam um visual novo, no estilo da tela de carregamento." },
+  ] },
   { id: "2026-11-11-nova-senha", data: "11/11/2026", itens: [
     { tipo: "novo", ate: 7, texto: "O app agora também abre em app.usebipi.com. Nesse endereço você faz login de novo (o endereço antigo continua funcionando)." },
     { tipo: "alterado", ate: 7, texto: "Esqueci minha senha: ao abrir o link do e-mail, o app pede a nova senha e a confirmação antes de entrar, e mostra o que fazer se o link venceu." },

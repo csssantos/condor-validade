@@ -35,7 +35,23 @@ const buscaDoLink = typeof window !== "undefined" ? String(window.location.searc
 const CHAVE_RECUPERANDO = "avdc_recuperando";
 const lerFlag = () => { try { return localStorage.getItem(CHAVE_RECUPERANDO) === "1"; } catch { return false; } };
 // Só vale o link de verdade: fragmento com token E type=recovery (a query sozinha, ?type=recovery, é forjável e NÃO liga a tela).
-const veioDoLink = /(^|[#&])access_token=/.test(hashDoLink) && /(^|[#&])type=recovery(&|$)/.test(hashDoLink);
+const linkRecuperacao = /(^|[#&])access_token=/.test(hashDoLink) && /(^|[#&])type=recovery(&|$)/.test(hashDoLink);
+// Já tem alguém logado neste aparelho (sessão do Supabase guardada, não anônima)? Então o link do e-mail NÃO assume a conta:
+// o app apaga o trecho do link ANTES de o Supabase ler (a sessão atual fica intacta) e orienta a trocar a senha em Mais → Conta.
+function jaLogadoNoAparelho() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !/^sb-.*-auth-token$/.test(k)) continue;
+      const v = JSON.parse(localStorage.getItem(k) || "null");
+      if (v && v.refresh_token && v.user && !v.user.is_anonymous) return true;
+    }
+  } catch { /* sem armazenamento: trata como deslogado */ }
+  return false;
+}
+export const linkIgnoradoLogado = linkRecuperacao && jaLogadoNoAparelho();
+if (linkIgnoradoLogado) { try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch { /* ok */ } }
+const veioDoLink = linkRecuperacao && !linkIgnoradoLogado;
 if (veioDoLink) { try { localStorage.setItem(CHAVE_RECUPERANDO, "1"); } catch { /* sem armazenamento */ } }
 // Persistido: se a pessoa recarregar/fechar a aba ANTES de trocar a senha, a tela "Nova senha" volta (a sessão do link continua salva).
 export const abriuPorRecuperacao = veioDoLink || lerFlag();

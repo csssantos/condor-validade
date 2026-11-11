@@ -148,7 +148,8 @@ await t("DOMÍNIO ÚNICO: remetente e imagens de todos os e-mails vêm só de us
   for (const tipo of ["signup", "recovery", "invite", "magiclink", "reauthentication"]) {
     envios.length = 0; await H.tratar(pedido(base(tipo)), env());
     const e = envios[0].body; assert.ok(/@mail\.usebipi\.com>$/.test(e.from), tipo);
-    for (const m of e.html.matchAll(/<img[^>]+src="([^"]+)"/g)) assert.equal(new URL(m[1]).host, "usebipi.com", tipo);
+    for (const m of e.html.matchAll(/<img[^>]+src="([^"]+)"/g)) assert.equal(new URL(m[1]).host, "app.usebipi.com", tipo);
+    for (const m of e.html.matchAll(/(?:background="|url\(')([^"')]+)/g)) assert.equal(new URL(m[1]).host, "app.usebipi.com", tipo + " (fundo)");
   }
 });
 await t("IDENTIDADE: nenhum e-mail contém Condor nem domínios errados (usibip, usebipe)", async () => {
@@ -159,8 +160,9 @@ await t("IDENTIDADE: nenhum e-mail contém Condor nem domínios errados (usibip,
 });
 await t("IMAGENS em clientes de e-mail: https absoluto, PNG, width/height e alt; sem SVG, sem data: e sem file:", async () => {
   envios.length = 0; await H.tratar(pedido(base("signup")), env()); const h = envios[0].body.html; const imgs = [...h.matchAll(/<img[^>]*>/g)].map((m) => m[0]);
-  assert.ok(imgs.length >= 1); for (const im of imgs) { assert.ok(/src="https:\/\/usebipi\.com\/email\/[\w-]+\.png"/.test(im), im); assert.ok(/width="\d+"/.test(im) && /height="\d+"/.test(im) && /alt="[^"]+"/.test(im), im); }
+  assert.ok(imgs.length >= 1); for (const im of imgs) { assert.ok(/src="https:\/\/app\.usebipi\.com\/email\/[\w-]+\.png"/.test(im), im); assert.ok(/width="\d+"/.test(im) && /height="\d+"/.test(im) && /alt="[^"]+"/.test(im), im); }
   assert.ok(!/\.svg|data:image|file:/.test(h));
+  assert.ok(/background="https:\/\/app\.usebipi\.com\/email\/fundo\.jpg"/.test(h) && /bgcolor="#061C3A"/.test(h), "fundo azul com cor de reserva");
 });
 await t("TEXTO puro (cliente sem HTML) traz a marca e o link", async () => {
   envios.length = 0; await H.tratar(pedido(base("signup")), env()); const x = envios[0].body.text; assert.ok(x.includes("verify?token=TH123") && /Bipi/.test(x));
@@ -335,7 +337,7 @@ await t("BANCA padrão: sem SITE_URL o link cai no APP (app.usebipi.com), nunca 
 });
 console.error = _e; console.warn = _w;
 // pré-visualização (fora do teste de lógica): grava os HTML para renderizar
-const M = { assets: "file://" + dir.replace(/\/$/, ""), nome: "Bipi Tech", suporte: "" };
+const M = { assets: "file://" + raiz + "public/email", nome: "Bipi Tech", suporte: "" };
 const L = "https://proj.supabase.co/auth/v1/verify?token=EXEMPLO&type=signup&redirect_to=https%3A%2F%2Fapp.usebipi.com";
 const previas = { signup: TPL.modelo("signup", { nome: "Cauã Silva", link: L, validadeMin: 60 }, M), recovery: TPL.modelo("recovery", { nome: "Cauã Silva", link: L, validadeMin: 60 }, M),
   aviso: TPL.modeloAviso({ titulo: "Acesso de promotor revogado", mensagem: "O acesso do promotor foi cancelado pela loja.", tom: "verm", detalhes: [["Promotor", "Gabriel"], ["Quando", "10/11/2026 às 17:20"], ["Por", "Equipe da loja"]], botao: { texto: "ABRIR O APLICATIVO", url: "https://app.usebipi.com" } }, M) };
