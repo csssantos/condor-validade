@@ -6,7 +6,7 @@ const t = (n, c) => { if (c) ok++; else falhas.push("FALHA " + n); };
 t("RPC só para authenticated (sem public/anon)", /revoke all on function public\.atualizar_convite[^;]*from public, anon;/.test(sql) && /grant execute on function public\.atualizar_convite[^;]*to authenticated;/.test(sql));
 t("RPC é security definer com search_path fixo", /security definer set search_path to 'public'/.test(sql));
 t("nível <= 5 e mesma loja", /v_nivel > 5 or \(not public\.eh_gestao_global\(\) and v_c\.loja_id is distinct from public\.loja_do_usuario\(\)\)/.test(sql));
-t("acesso total só nível <= 4", /if v_total and v_nivel > 4 then raise exception 'acesso_total_exige_gerencia'/.test(sql));
+t("acesso total só nível <= 4", /if \(v_total or v_c\.acesso_total\) and v_nivel > 4 then raise exception 'acesso_total_exige_gerencia'/.test(sql));
 t("convite bloqueado não edita", /if v_c\.revogado then raise exception 'convite_revogado'/.test(sql));
 t("expiração: futuro e no máximo 100 anos", /p_expira_em <= now\(\) or p_expira_em > now\(\) \+ interval '100 years 7 days'/.test(sql));
 t("promotor que já entrou acompanha (usuarios.acesso_expira_em)", /update public\.usuarios\s+set acesso_expira_em = v_exp/.test(sql));

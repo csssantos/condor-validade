@@ -8,12 +8,13 @@
 -- Regras (valem no banco, não só na tela):
 --  * quem pode: nível <= 5 (encarregado ou acima), na própria loja (diretoria/DEV: qualquer loja);
 --  * convite BLOQUEADO (revogado) não se edita;
---  * DAR acesso total, ou mexer em convite que já é acesso total: só nível <= 4 (gerência, diretoria, DEV);
---    qualquer um (nível <= 5) pode TIRAR o acesso total e definir marcas;
+--  * DAR acesso total, ou mexer em QUALQUER coisa de um convite que já é acesso total: só nível <= 4
+--    (gerência, diretoria, DEV). Encarregado (nível 5) edita só convites com marcas específicas;
 --  * marcas: de 1 a 5, 3 a 30 letras/números (mesma regra e normalização da criação);
 --  * nova expiração: precisa ser no futuro e no máximo 100 anos (permanente); para cortar o acesso agora use "Bloquear";
---  * o promotor que já entrou pelo link recebe a nova expiração e a nova marca na hora (usuarios.acesso_expira_em/marca);
---  * o código do promotor e o link continuam funcionando (o código não muda);
+--  * o servidor já aplica a nova expiração e as novas marcas ao promotor que entrou pelo link (usuarios.acesso_expira_em/marca);
+--    a tela dele só mostra a mudança ao recarregar;
+--  * o código do promotor não muda; links antigos continuam valendo (o resgate usa só o código; o texto do link usa a 1ª marca);
 --  * tudo fica na auditoria da loja ("alterou convite de promotor"); sem mudança real = não grava nada.
 
 begin;
@@ -40,7 +41,7 @@ begin
   if v_c.revogado then raise exception 'convite_revogado'; end if;
 
   v_total := coalesce(p_acesso_total, v_c.acesso_total);
-  if v_total and v_nivel > 4 then raise exception 'acesso_total_exige_gerencia'; end if;  -- dar OU mexer em convite de acesso total
+  if (v_total or v_c.acesso_total) and v_nivel > 4 then raise exception 'acesso_total_exige_gerencia'; end if;  -- dar OU mexer em convite de acesso total
 
   v_exp := coalesce(p_expira_em, v_c.expira_em);
   if p_expira_em is not null and (p_expira_em <= now() or p_expira_em > now() + interval '100 years 7 days') then
@@ -96,20 +97,21 @@ end $fn$;
 revoke all on function public.atualizar_convite(uuid, timestamptz, text[], boolean) from public, anon;
 grant execute on function public.atualizar_convite(uuid, timestamptz, text[], boolean) to authenticated;
 
--- AUTO-TESTE (cada passo é desfeito na hora; nada fica gravado). Se algo falhar, o arquivo inteiro é cancelado.
+-- AUTO-TESTE (cada bloco é desfeito na hora; nada fica gravado). Se algo falhar, o arquivo inteiro é cancelado.
 do $t$
 declare
-  uid uuid; lj bigint; uid_baixo uuid; cid uuid; r jsonb; row_c public.convites_promotor%rowtype;
-  ok_marcas boolean := false; ok_exp boolean := false; ok_total_baixo boolean := false; ok_sem_perm boolean := false;
-  ok_vazio boolean := false; ok_passado boolean := false; ok_igual boolean := false;
+  uid uuid; lj bigint; uid6 uuid; cargo5 int; cid uuid; cid_total uuid; r jsonb; row_c public.convites_promotor%rowtype;
+  ok_marcas boolean := false; ok_exp boolean := false; ok_igual boolean := false; ok_vazio boolean := false; ok_passado boolean := false;
+  ok_n6 boolean := false; ok_n5_dar boolean := false; ok_n5_total boolean := false; ok_n5_edita boolean := false;
 begin
   select u.id, u.loja_id into uid, lj from public.usuarios u join public.cargos c on c.id = u.cargo_id
    where c.nivel <= 4 and u.ativo and u.loja_id is not null limit 1;
   if uid is null then raise exception 'AUTO-TESTE: nenhum usuário nível <= 4 encontrado'; end if;
-  select u.id into uid_baixo from public.usuarios u join public.cargos c on c.id = u.cargo_id
-   where c.nivel >= 6 and not coalesce(u.promotor, false) and u.ativo limit 1;
+  select u.id into uid6 from public.usuarios u join public.cargos c on c.id = u.cargo_id
+   where c.nivel >= 6 and not coalesce(u.promotor, false) and u.ativo and u.loja_id = lj limit 1;
+  select id into cargo5 from public.cargos where nivel = 5 limit 1;
 
-  -- 1) acesso total -> marcas + nova data, como gerência
+  -- 1) gerência: acesso total -> marcas + nova data; sem mudança; vazio e passado barrados
   begin
     perform set_config('request.jwt.claims', json_build_object('sub', uid, 'role', 'authenticated')::text, true);
     set local role authenticated;
@@ -119,15 +121,10 @@ begin
     select * into row_c from public.convites_promotor where id = cid;
     ok_marcas := (row_c.acesso_total = false and row_c.marcas = array['NESTLE','MELITTA'] and row_c.marca = 'NESTLE');
     ok_exp := (row_c.expira_em > now() + interval '9 days');
-    -- sem mudança real: não grava
     r := public.atualizar_convite(cid, null, null, null);
     ok_igual := ((r->>'mudou')::boolean = false);
-    -- tirar acesso total sem marcas é recusado
-    begin
-      perform public.atualizar_convite(cid, null, null, true);  -- volta a acesso total (nível <= 4 pode)
-      begin perform public.atualizar_convite(cid, null, '{}', false); exception when others then ok_vazio := (sqlerrm = 'marca_invalida'); end;
-    end;
-    -- data no passado é recusada
+    perform public.atualizar_convite(cid, null, null, true);
+    begin perform public.atualizar_convite(cid, null, '{}', false); exception when others then ok_vazio := (sqlerrm = 'marca_invalida'); end;
     begin perform public.atualizar_convite(cid, now() - interval '1 hour', null, null); exception when others then ok_passado := (sqlerrm = 'expira_invalida'); end;
     raise exception 'desfazer_autoteste';
   exception when others then
@@ -135,25 +132,45 @@ begin
   end;
   reset role;
 
-  -- 2) usuário nível >= 6 não pode (se existir um na base)
-  if uid_baixo is not null then
-    begin
-      perform set_config('request.jwt.claims', json_build_object('sub', uid_baixo, 'role', 'authenticated')::text, true);
-      set local role authenticated;
-      begin perform public.atualizar_convite(gen_random_uuid(), null, null, null); exception when others then ok_sem_perm := (sqlerrm in ('sem_permissao','convite_invalido')); end;
-      raise exception 'desfazer_autoteste';
-    exception when others then
-      if sqlerrm <> 'desfazer_autoteste' then raise exception 'AUTO-TESTE passo 2 falhou: %', sqlerrm; end if;
-    end;
-    reset role;
-  else
-    ok_sem_perm := true;
-  end if;
-  ok_total_baixo := true; -- (dar acesso total por nível 5 é barrado pelo mesmo `if v_total and v_nivel > 4`; coberto na revisão)
+  -- 2) permissões reais sobre convites de verdade (criados direto, como dono do banco)
+  begin
+    insert into public.convites_promotor (nome, marca, marcas, acesso_total, loja_id, expira_em)
+      values ('AUTOTESTE', 'NESTLE', array['NESTLE'], false, lj, now() + interval '2 days') returning id into cid;
+    insert into public.convites_promotor (nome, marca, marcas, acesso_total, loja_id, expira_em)
+      values ('AUTOTESTE', 'TODAS AS MARCAS', '{}', true, lj, now() + interval '2 days') returning id into cid_total;
 
-  if not (ok_marcas and ok_exp and ok_igual and ok_vazio and ok_passado and ok_sem_perm) then
-    raise exception 'AUTO-TESTE FALHOU (marcas=%, expira=%, sem_mudanca=%, vazio_barrado=%, passado_barrado=%, sem_permissao=%): nada foi alterado',
-      ok_marcas, ok_exp, ok_igual, ok_vazio, ok_passado, ok_sem_perm;
+    if uid6 is not null then   -- nível >= 6 (funcionário) não edita nada
+      perform set_config('request.jwt.claims', json_build_object('sub', uid6, 'role', 'authenticated')::text, true);
+      set local role authenticated;
+      begin perform public.atualizar_convite(cid, now() + interval '5 days', null, null); exception when others then ok_n6 := (sqlerrm = 'sem_permissao'); end;
+      reset role;
+    else
+      ok_n6 := true;
+    end if;
+
+    if uid6 is not null and cargo5 is not null then   -- vira encarregado (nível 5) só dentro do teste
+      update public.usuarios set cargo_id = cargo5 where id = uid6;
+      perform set_config('request.jwt.claims', json_build_object('sub', uid6, 'role', 'authenticated')::text, true);
+      set local role authenticated;
+      begin perform public.atualizar_convite(cid, null, null, true); exception when others then ok_n5_dar := (sqlerrm = 'acesso_total_exige_gerencia'); end;
+      begin perform public.atualizar_convite(cid_total, now() + interval '5 days', null, null); exception when others then ok_n5_total := (sqlerrm = 'acesso_total_exige_gerencia'); end;
+      begin
+        r := public.atualizar_convite(cid, now() + interval '5 days', array['melitta'], false);
+        ok_n5_edita := ((r->>'mudou')::boolean = true);
+      exception when others then ok_n5_edita := false; end;
+      reset role;
+    else
+      ok_n5_dar := true; ok_n5_total := true; ok_n5_edita := true;   -- sem usuário de teste disponível
+    end if;
+    raise exception 'desfazer_autoteste';
+  exception when others then
+    if sqlerrm <> 'desfazer_autoteste' then raise exception 'AUTO-TESTE passo 2 falhou: %', sqlerrm; end if;
+  end;
+  reset role;
+
+  if not (ok_marcas and ok_exp and ok_igual and ok_vazio and ok_passado and ok_n6 and ok_n5_dar and ok_n5_total and ok_n5_edita) then
+    raise exception 'AUTO-TESTE FALHOU (marcas=%, expira=%, sem_mudanca=%, vazio=%, passado=%, nivel6=%, nivel5_dar_total=%, nivel5_mexer_total=%, nivel5_edita_marcas=%): nada foi alterado',
+      ok_marcas, ok_exp, ok_igual, ok_vazio, ok_passado, ok_n6, ok_n5_dar, ok_n5_total, ok_n5_edita;
   end if;
 end $t$;
 

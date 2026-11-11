@@ -2996,7 +2996,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-11-11-editar-convite", data: "11/11/2026", itens: [
-    { tipo: "novo", ate: 5, texto: "Convite de promotor agora pode ser editado: mudar a data de vencimento, trocar acesso total por marcas específicas (ou o contrário) e ajustar as marcas. Fica em Funcionários → Promotores → ⋯ → Editar validade e marcas. O promotor que já entrou recebe a mudança na hora e tudo fica na auditoria." },
+    { tipo: "novo", ate: 5, texto: "Convite de promotor agora pode ser editado: mudar a data de vencimento, trocar acesso total por marcas específicas (ou o contrário) e ajustar as marcas. Fica em Funcionários → Promotores → ⋯ → Editar validade e marcas. A mudança já vale no servidor para quem já entrou (a tela dele atualiza ao recarregar) e tudo fica na auditoria." },
     { tipo: "corrigido", ate: 5, texto: "Gerar convite com duração \"Permanente\" voltou a funcionar." },
   ] },
   { id: "2026-11-11-link-logado", data: "11/11/2026", itens: [
@@ -6367,6 +6367,7 @@ function EditarConviteSheet({ T, c, nivelUsuario, showToast, onClose, onFeito })
       if (!horas) return;
       expira = new Date(Date.now() + horas * 3600000).toISOString();
     }
+    if (modo === "manter" && new Date(c.expira_em) <= new Date()) { showToast("Esse convite está vencido. Escolha uma nova validade para reativar.", "warn"); return; }
     setOcupado(true);
     const { data, error } = await supabase.rpc("atualizar_convite", { p_id: c.id, p_expira_em: expira, p_marcas: total ? null : lista, p_acesso_total: total });
     setOcupado(false);
@@ -6388,7 +6389,7 @@ function EditarConviteSheet({ T, c, nivelUsuario, showToast, onClose, onFeito })
           {modo === "data" && <CampoData T={T} value={dataISO} onChange={setDataISO} style={inputStyle} className={inputCls} />}
           {modo === "data" && <p style={{ color: T.subtext }} className="text-[10.5px]">O acesso vale até o fim desse dia (23:59).</p>}
         </div>
-        <p style={{ color: T.subtext }} className="text-[10.5px]">O código e o link do promotor continuam os mesmos. Quem já entrou recebe a mudança na hora. Fica registrado na auditoria.</p>
+        <p style={{ color: T.subtext }} className="text-[10.5px]">O código do promotor continua o mesmo e links antigos seguem valendo. A mudança já vale no servidor; a tela de quem está com o app aberto atualiza ao recarregar. Fica registrado na auditoria.</p>
         <div className="flex gap-2">
           <button onClick={onClose} disabled={ocupado} style={{ color: T.subtext }} className="flex-1 text-sm py-2.5">Voltar</button>
           <button onClick={salvar} disabled={ocupado} style={{ background: BLUE, color: "#fff" }} className="flex-[2] py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2">{ocupado ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Salvar alterações</button>
