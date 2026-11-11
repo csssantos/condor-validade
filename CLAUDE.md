@@ -345,3 +345,9 @@ Ideia em avaliação (sem decisão): localização ao lançar validade (modo "si
 - ANTES de publicar a integração na main: rodar `supabase-lgpd-respostas.sql` (confirmar com execute_sql se já existe `responder_solicitacao_lgpd`); todos terão de aceitar os termos de novo.
 - CI (item 2): `.github/workflows/testes.yml` roda `npm test` + `vite build` em TODO push e PR (o `build.yml` antigo, só da branch mais-refeito, saiu). `npm test` agora inclui `scripts/checar-copias.mjs`: confere `src/voz.js` == cópia do bot e `SUBSETORES_PADRAO` == `SUBS_PADRAO` do bot (falha se esquecer de recopiar). Pendência: sem `package-lock.json` (npm bloqueado no sandbox; gerar com `npm install` numa máquina com rede e trocar `npm install` por `npm ci` no workflow).
 
+
+
+## VERIFICAR BANCO (2026-11-11, item 3 da lista da banca) — `supabase-diagnostico-schema.sql` (usuário roda ANTES de publicar o app; auto-teste com mutação)
+- RPC `diagnostico_schema()` (SECURITY DEFINER, só nível <= 2, só lê o catálogo): 11 checagens (RLS em todas as tabelas, anon só executa a allowlist, `usuarios` sem escrita, 30 funções críticas, marcadores de regra dentro das funções [pega SQL antigo reaplicado], 28 triggers, policies com `_promotor_ve`, `auditoria_sel` com nível, realtime, colunas, cron). Tela: Gestão do aplicativo → aba "Banco" (`DiagnosticoBanco` em telas/Gestao.jsx). Teste: `node teste-diagnostico.mjs` (entra no `npm test`).
+- MANTER O MANIFESTO (arrays `c_*` no SQL) ao criar função/trigger/policy/cron crítica nova; depois reaplicar o SQL. Rode "Verificar banco" depois de aplicar qualquer SQL. Cuidado: variável PL/pgSQL com nome igual ao alias de coluna dá "ambiguous" (usar `v_`).
+- Fora do escopo: integração com `main` já publicada (a3121ff); a seção "INTEGRAÇÃO ... NÃO está na main" acima está desatualizada.

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "../supabaseClient";
 import { ClockIcon } from "@heroicons/react/24/outline";
-import { X, Wrench, Building2, Users2, Loader2, Check, Plus, Edit2, Search, Lock, Send, Pencil, Mail, Trash2, Ticket, Copy, Clock, Link2, AlertTriangle, Share2 } from "lucide-react";
+import { X, Wrench, Building2, Users2, Loader2, Check, Plus, Edit2, Search, Lock, Send, Pencil, Mail, Trash2, Ticket, Copy, Clock, Link2, AlertTriangle, Share2, ShieldCheck } from "lucide-react";
 import { DashBadge, DashCard, DashKpi, DashPageHeader, DashTable, DashTabs } from "../componentes/dash";
 import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT, SETORES, SITE_URL } from "../lib/constantes";
 import { formatarDataHoraExtenso } from "../lib/formatos";
@@ -60,7 +60,7 @@ function GestaoStat({ T, label, value, Icon, color }) {
 
 function GestaoAplicativoView({ T, showToast, lojaAtiva, lojas, onTrocarLoja, onRecarregarLojas, nivelUsuario }) {
   const [aba, setAba] = useState("lojas");
-  const ABAS = [{ id: "lojas", label: "Lojas" }, { id: "funcionarios", label: "Funcionários" }];
+  const ABAS = [{ id: "lojas", label: "Lojas" }, { id: "funcionarios", label: "Funcionários" }, { id: "saude", label: "Banco" }];
   const ativas = (lojas || []).filter((l) => l.ativo !== false).length;
   const lojaEmUso = (lojas || []).find((l) => l.id === lojaAtiva?.id);
   return (
@@ -84,13 +84,72 @@ function GestaoAplicativoView({ T, showToast, lojaAtiva, lojas, onTrocarLoja, on
           {ABAS.map((a) => (
             <button key={a.id} onClick={() => setAba(a.id)} style={aba === a.id ? { background: T.card, color: RED_DARK, boxShadow: "0 1px 3px rgba(0,0,0,.1)" } : { color: T.subtext }}
               className="flex-1 text-sm font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
-              {a.id === "lojas" ? <Building2 size={15} /> : <Users2 size={15} />} {a.label}
+              {a.id === "lojas" ? <Building2 size={15} /> : a.id === "saude" ? <ShieldCheck size={15} /> : <Users2 size={15} />} {a.label}
             </button>
           ))}
         </div>
       </div>
       {aba === "lojas" && <GestaoLojas T={T} lojas={lojas} lojaAtiva={lojaAtiva} onTrocarLoja={onTrocarLoja} onRecarregarLojas={onRecarregarLojas} showToast={showToast} />}
       {aba === "funcionarios" && <GestaoFuncionarios T={T} showToast={showToast} lojas={lojas || []} lojaAtiva={lojaAtiva} nivelUsuario={nivelUsuario} />}
+      {aba === "saude" && <DiagnosticoBanco T={T} />}
+    </div>
+  );
+}
+
+// Confere se o banco REAL está como o app espera (RPC diagnostico_schema, só nível <= 2; só lê o catálogo, sem dado de loja/pessoa).
+function DiagnosticoBanco({ T }) {
+  const [res, setRes] = useState(null);
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
+  const rodando = useRef(false);
+  async function verificar() {
+    if (rodando.current) return;
+    rodando.current = true; setCarregando(true); setErro("");
+    try {
+      const { data, error } = await supabase.rpc("diagnostico_schema");
+      if (error) {
+        const m = String(error.message || "");
+        setErro(error.code === "PGRST202" || /diagnostico_schema/.test(m) && /not find|does not exist/i.test(m)
+          ? "Falta rodar o SQL supabase-diagnostico-schema.sql no Supabase."
+          : /sem_permissao/.test(m) ? "Só desenvolvedor e diretoria podem verificar o banco." : "Não foi possível verificar o banco agora. Tente de novo.");
+        setRes(null);
+      } else setRes(data);
+    } catch { setErro("Não foi possível verificar o banco agora. Tente de novo."); }
+    rodando.current = false; setCarregando(false);
+  }
+  const itens = res?.itens || [];
+  const ruins = itens.filter((i) => !i.ok);
+  return (
+    <div style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p style={{ color: T.text }} className="text-sm font-extrabold flex items-center gap-1.5"><ShieldCheck size={16} /> Verificar banco</p>
+          <p style={{ color: T.subtext }} className="text-xs mt-1 leading-snug">Confere se as regras de segurança e as funções do banco estão como o app espera. Rode depois de aplicar qualquer SQL. Só lê a estrutura, não mexe em nada.</p>
+        </div>
+        <button onClick={verificar} disabled={carregando} style={{ background: BLUE, color: "#fff" }} className="shrink-0 text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 disabled:opacity-60">
+          {carregando ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} {carregando ? "Verificando…" : res ? "Verificar de novo" : "Verificar agora"}
+        </button>
+      </div>
+      {erro && <p style={{ background: RED_SOFT, color: RED_DARK }} className="text-xs font-semibold rounded-xl px-3 py-2 mt-3">{erro}</p>}
+      {res && (
+        <div className="mt-3" role="status" aria-live="polite">
+          <p style={ruins.length ? { background: RED_SOFT, color: RED_DARK } : { background: "#E6F6EC", color: "#146C3A" }} className="text-xs font-extrabold rounded-xl px-3 py-2.5">
+            {ruins.length ? `${ruins.length} problema(s) em ${res.total} checagens. Veja abaixo e reaplique o SQL indicado.` : `Tudo certo: ${res.total} checagens passaram.`}
+          </p>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {[...ruins, ...itens.filter((i) => i.ok)].map((i) => (
+              <li key={i.id} style={{ background: T.chipBg }} className="rounded-xl px-3 py-2 flex items-start gap-2">
+                {i.ok ? <Check size={14} style={{ color: "#146C3A" }} className="mt-0.5 shrink-0" /> : <AlertTriangle size={14} style={{ color: RED_DARK }} className="mt-0.5 shrink-0" />}
+                <div className="min-w-0">
+                  <p style={{ color: T.subtext }} className="text-[10px] font-bold uppercase tracking-wide">{i.grupo}</p>
+                  <p style={{ color: i.ok ? T.text : RED_DARK }} className="text-xs font-semibold break-words">{i.detalhe}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p style={{ color: T.subtext }} className="text-[10.5px] mt-2">Verificado em {formatarDataHoraExtenso(res.gerado_em)}.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -997,4 +1056,4 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
   );
 }
 
-export { AcoesConviteSheet, AcoesFuncionarioSheet, BotaoAcao, COLUNAS_CONVITE, ConvitesPromotorView, DURACOES_CONVITE, GestaoAplicativoView, GestaoCampo, GestaoFuncionarios, GestaoLojas, GestaoSheet, GestaoStat, LojaFormSheet, MarcasPicker, PedidosExclusaoLista, PromotoresLista, conviteSemPrazo, erroAcao, linkDoConvite, marcasConvite, normalizarMarca, slugMarca, statusConvite, validadeConvite };
+export { DiagnosticoBanco, AcoesConviteSheet, AcoesFuncionarioSheet, BotaoAcao, COLUNAS_CONVITE, ConvitesPromotorView, DURACOES_CONVITE, GestaoAplicativoView, GestaoCampo, GestaoFuncionarios, GestaoLojas, GestaoSheet, GestaoStat, LojaFormSheet, MarcasPicker, PedidosExclusaoLista, PromotoresLista, conviteSemPrazo, erroAcao, linkDoConvite, marcasConvite, normalizarMarca, slugMarca, statusConvite, validadeConvite };

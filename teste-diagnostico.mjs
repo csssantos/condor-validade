@@ -1,0 +1,18 @@
+// Confere que o SQL do diagnóstico e a tela continuam ligados (comportamento real = auto-teste do SQL).
+import { readFileSync } from "node:fs";
+let falhas = 0;
+const ok = (c, m) => { if (!c) { console.error("FALHOU:", m); falhas++; } else console.log("ok:", m); };
+const sql = readFileSync("supabase-diagnostico-schema.sql", "utf8");
+const tela = readFileSync("src/telas/Gestao.jsx", "utf8");
+const nov = readFileSync("src/componentes/Novidades.jsx", "utf8");
+ok(/security definer/.test(sql) && /nivel_do_usuario\(\), 99\) > 2/.test(sql), "função só nível <= 2");
+ok(/revoke all on function public\.diagnostico_schema\(\) from public, anon/.test(sql), "revoke de anon/public");
+ok(/grant execute on function public\.diagnostico_schema\(\) to authenticated/.test(sql), "grant só authenticated");
+ok(/desfazer_autoteste/.test(sql) && /AUTO-TESTE FALHOU/.test(sql), "auto-teste com mutação");
+ok(!/\binsert into\b|\bupdate public\.|\bdelete from\b/i.test(sql.split("$fn$")[1] || ""), "função não escreve");
+for (const f of ["dar_baixa","somar_ao_lote","lancar_validade","atualizar_convite","responder_solicitacao_lgpd"]) ok(sql.includes(`'${f}'`), `manifesto cita ${f}`);
+ok(/rpc\("diagnostico_schema"\)/.test(tela) && /function DiagnosticoBanco/.test(tela), "tela chama a RPC");
+ok(/aba === "saude" && <DiagnosticoBanco/.test(tela), "aba Banco ligada");
+ok(/ShieldCheck/.test(tela.split("\n").slice(0, 8).join("\n")), "ShieldCheck importado");
+ok(/verificar-banco/.test(nov) && /ate: 1/.test(nov.split("verificar-banco")[1].slice(0, 200)), "Novidade só para dev");
+process.exit(falhas ? 1 : 0);
