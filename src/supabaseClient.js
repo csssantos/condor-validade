@@ -28,4 +28,11 @@ async function fetchComFreio(url, opcoes) {
   return resp;
 }
 
+// O link do e-mail ("esqueci minha senha") chega com #...&type=recovery. O Supabase lê e APAGA esse trecho da barra
+// ao iniciar, e o aviso PASSWORD_RECOVERY pode sair antes de qualquer tela escutar. Por isso guardamos aqui, ANTES de criar o cliente.
+const hashDoLink = typeof window !== "undefined" ? String(window.location.hash || "") : "";
+const buscaDoLink = typeof window !== "undefined" ? String(window.location.search || "") : "";
+export const abriuPorRecuperacao = /(^|[#&?])type=recovery(&|$)/.test(hashDoLink) || /(^|[?&])type=recovery(&|$)/.test(buscaDoLink);
+export const linkComErro = /(^|[#&?])error(_code)?=/.test(hashDoLink); // ex.: otp_expired (link vencido ou já usado)
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, { global: { fetch: fetchComFreio } });

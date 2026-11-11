@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { criarPDF, COR } from "./pdfMarca.js";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { supabase } from "./supabaseClient";
+import { supabase, abriuPorRecuperacao, linkComErro } from "./supabaseClient";
 import {
   HomeIcon, Squares2X2Icon, FireIcon, SignalIcon, ClockIcon, Cog6ToothIcon,
   CameraIcon, PlusIcon, ShieldExclamationIcon, ShieldCheckIcon, QuestionMarkCircleIcon,
@@ -999,16 +999,17 @@ function useTelaLarga() { return useMediaQuery("(min-width: 1024px)"); }
 const SITE_URL = String(import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, "");
 
 // ============ Tela de login / recuperação de senha (Supabase Auth) ============
-function AuthScreen({ T, antesDeEntrar }) {
+function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null, erroInicial = "" }) {
   const ehDesktop = useDesktop();
   const [matriculaDigitada, setMatriculaDigitada] = useState("");
-  const [modo, setModo] = useState("login"); // "login" | "recuperar" | "nova-senha" | "cadastro-scan" | "cadastro-confirmar" | "cadastro-info"
+  const [modo, setModo] = useState(modoInicial); // "login" | "recuperar" | "nova-senha" | "cadastro-scan" | "cadastro-confirmar" | "cadastro-info"
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState("");
+  const [erro, setErro] = useState(erroInicial);
+  const [senhaSalva, setSenhaSalva] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [funcionarioEncontrado, setFuncionarioEncontrado] = useState(null);
   const [cadEmail, setCadEmail] = useState("");
@@ -1133,6 +1134,7 @@ function AuthScreen({ T, antesDeEntrar }) {
     const { error } = await supabase.auth.updateUser({ password: novaSenha });
     setCarregando(false);
     if (error) { setErro("Não foi possível salvar a nova senha."); return; }
+    setNovaSenha(""); setConfirmarSenha(""); setSenhaSalva(true);
     setMensagem("Senha alterada com sucesso! Você já pode continuar.");
   }
 
@@ -1183,7 +1185,9 @@ function AuthScreen({ T, antesDeEntrar }) {
         <AuthCampo T={T} rotulo="Confirmar nova senha" type="password" required autoComplete="new-password" value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} />
         <AuthAviso tipo="erro">{erro}</AuthAviso>
         <AuthAviso tipo="ok">{mensagem}</AuthAviso>
-        <AuthBotao T={T} carregando={carregando}>Salvar senha</AuthBotao>
+        {senhaSalva && aoConcluir
+          ? <AuthBotao T={T} type="button" onClick={aoConcluir}>Continuar no app</AuthBotao>
+          : <AuthBotao T={T} carregando={carregando}>Salvar senha</AuthBotao>}
       </motion.form>
     );
   } else if (modo === "cadastro-info") {
@@ -1397,6 +1401,7 @@ function AppInner() {
   const [prefs, setPrefs] = useState({ tema: "claro", som: true });
   const [sistemaEscuro, setSistemaEscuro] = useState(() => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const [usuario, setUsuario] = useState(null);
+  const [recuperandoSenha, setRecuperandoSenha] = useState(abriuPorRecuperacao);
   const [sessao, setSessao] = useState(undefined); // undefined = carregando, null = sem login, objeto = logado
   const [perfil, setPerfil] = useState(undefined); // linha da tabela "usuarios" (nome, cargo, loja, ativo)
   const [perfilErro, setPerfilErro] = useState(false); // true = falhou ao buscar (rede/permissão), diferente de "sem vínculo"
@@ -1474,11 +1479,15 @@ function AppInner() {
   // Sessão real do Supabase Auth — sobrepõe o antigo sistema de "nome digitado + PIN local".
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSessao(data.session ?? null));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") setRecuperandoSenha(true); // link de "esqueci minha senha": pede a nova senha antes de entrar
       setSessao(session ?? null);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  // Link vencido/sem sessão: não deixa a trava de "nova senha" ligada para o próximo login normal.
+  useEffect(() => { if (sessao === null && recuperandoSenha) setRecuperandoSenha(false); }, [sessao, recuperandoSenha]);
 
   // Assim que há sessão, busca o perfil (nome, cargo, loja) na tabela "usuarios".
   useEffect(() => {
@@ -2536,11 +2545,19 @@ function AppInner() {
       </div>
     );
   }
+  // Chegou pelo link de recuperação de senha: mostra "Nova senha / Confirmar" em vez de entrar direto na conta.
+  if (recuperandoSenha && sessao) {
+    return (
+      <AuthScreen T={T} modoInicial="nova-senha" antesDeEntrar={antesDeEntrarNoApp}
+        aoConcluir={() => { setRecuperandoSenha(false); }} />
+    );
+  }
   if (sessao === null) {
     return (
       <>
         <div inert={novaVersao ? "" : undefined} aria-hidden={novaVersao ? true : undefined}>
-          <AuthScreen T={T} antesDeEntrar={antesDeEntrarNoApp} />
+          <AuthScreen T={T} antesDeEntrar={antesDeEntrarNoApp}
+            erroInicial={(abriuPorRecuperacao || linkComErro) ? "O link do e-mail venceu ou já foi usado. Peça um novo em \"Esqueci minha senha\"." : ""} />
         </div>
         {!!novaVersao && <AtualizacaoObrigatoria logo={LOGO_SRC} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} />}
       </>
