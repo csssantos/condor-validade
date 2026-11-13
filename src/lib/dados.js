@@ -93,14 +93,28 @@ async function supaFetchFuncionariosVisiveis(perfil) {
   return data || [];
 }
 
+// A API devolve no máximo 1000 linhas por pedido e NÃO avisa quando corta: busca de 1000 em 1000 até acabar.
+// `montar()` devolve a consulta já com filtro e ORDEM estável (sem ordem fixa as páginas podem repetir/pular linha).
+async function buscarTudo(montar, { pagina = 1000, teto = 60000 } = {}) {
+  let de = 0, tudo = [];
+  for (;;) {
+    const { data, error } = await montar().range(de, de + pagina - 1);
+    if (error) return { data: null, error };
+    tudo = tudo.concat(data || []);
+    if (!data || data.length < pagina || tudo.length >= teto) break;
+    de += pagina;
+  }
+  return { data: tudo, error: null };
+}
+
 async function supaFetchProdutos() {
-  const { data, error } = await supabase.from("produtos").select("*").eq("loja_id", LOJA_ID_ATIVA).order("validade", { ascending: true });
+  const { data, error } = await buscarTudo(() => supabase.from("produtos").select("*").eq("loja_id", LOJA_ID_ATIVA).order("validade", { ascending: true }).order("id", { ascending: true }));
   if (error) { console.error(error); return []; }
   return (data || []).map(produtoFromRow);
 }
 
 async function supaFetchCatalogo() {
-  const { data, error } = await supabase.from("catalogo").select("*").eq("loja_id", LOJA_ID_ATIVA);
+  const { data, error } = await buscarTudo(() => supabase.from("catalogo").select("*").eq("loja_id", LOJA_ID_ATIVA).order("barcode", { ascending: true }));
   if (error) { console.error(error); return {}; }
   const mapa = {};
   (data || []).forEach((r) => {
@@ -118,7 +132,7 @@ async function supaFetchCatalogo() {
 }
 
 async function supaFetchHistorico() {
-  const { data, error } = await supabase.from("historico").select("*").eq("loja_id", LOJA_ID_ATIVA).order("data_baixa", { ascending: false });
+  const { data, error } = await buscarTudo(() => supabase.from("historico").select("*").eq("loja_id", LOJA_ID_ATIVA).order("data_baixa", { ascending: false }).order("id", { ascending: true }));
   if (error) { console.error(error); return []; }
   return (data || []).map(historicoFromRow);
 }
@@ -301,4 +315,4 @@ async function supaCriarSubsetorCustomizado(setor, nome) {
   if (error) console.error("Erro ao criar subsetor customizado:", error);
 }
 
-export { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, produtoToRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaBaixarProduto, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaDeleteProduto, supaEnviarResumoRede, supaFetchAlteracoesValidade, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchFuncionariosVisiveis, supaFetchHistorico, supaFetchProdutos, supaFetchResumoRede, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaInserirHistorico, supaRegistrarAlteracaoValidade, supaRegistrarPedido, supaSalvarConfigLoja, supaUpsertCatalogo, supaUpsertProduto };
+export { buscarTudo, LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, produtoToRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaBaixarProduto, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaDeleteProduto, supaEnviarResumoRede, supaFetchAlteracoesValidade, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchFuncionariosVisiveis, supaFetchHistorico, supaFetchProdutos, supaFetchResumoRede, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaInserirHistorico, supaRegistrarAlteracaoValidade, supaRegistrarPedido, supaSalvarConfigLoja, supaUpsertCatalogo, supaUpsertProduto };

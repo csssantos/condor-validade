@@ -1,4 +1,5 @@
 // Testes das funções puras que saíram do App.jsx (rodam com: npm test)
+import { buscarTudo } from "../src/lib/dados";
 import { campanhaValida, normalizarCampanha, eanValido, limiteSomaLote, textoLote } from "../src/lib/produto";
 import { diasRestantes, getStatus, sugestaoDesconto } from "../src/lib/formatos";
 import { parseCodigoBalanca, celulaCSV, celulaPlanilha } from "../src/lib/utilidades";
@@ -34,6 +35,19 @@ igual("campanha com ponto", campanhaValida("12.3"), false);
 igual("campanha 20 digitos", campanhaValida("1".repeat(20)), true);
 igual("campanha 21 digitos", campanhaValida("1".repeat(21)), false);
 igual("campanha normalizar", normalizarCampanha(" 55 "), "55");
+{
+  // buscarTudo: junta as páginas de 1000 e para na página incompleta
+  const linhas = Array.from({ length: 2350 }, (_, i) => i);
+  let pedidos = 0;
+  const fake = () => ({ range: async (de, ate) => { pedidos++; return { data: linhas.slice(de, ate + 1), error: null }; } });
+  const r = await buscarTudo(fake);
+  igual("buscarTudo junta tudo", r.data.length, 2350);
+  igual("buscarTudo 3 paginas", pedidos, 3);
+  const e = await buscarTudo(() => ({ range: async () => ({ data: null, error: { message: "x" } }) }));
+  igual("buscarTudo erro", e.data, null);
+  const exato = await buscarTudo(() => ({ range: async (de, ate) => ({ data: linhas.slice(0, 2000).slice(de, ate + 1), error: null }) }));
+  igual("buscarTudo multiplo exato", exato.data.length, 2000);
+}
 igual("texto lote", textoLote({ lote: "L2410A" }), "L2410A");
 igual("sem lote", textoLote({ semLote: true }), "Sem lote");
 igual("lote ausente", textoLote(null), "");

@@ -6,7 +6,8 @@ const L = 1080;
 // e SVG (que pode sujar o canvas). Limite de tamanho e de tempo para não travar o aparelho.
 function origemPermitida(src) {
   if (/^data:image\/(jpeg|png|webp);base64,/i.test(src)) return src.length < 3_000_000;
-  try { const u = new URL(src); return u.protocol === "https:" && /(^|\.)openfoodfacts\.org$/i.test(u.hostname); } catch { return false; }
+  // links aceitos: Open Food Facts e o armazenamento de fotos do próprio app (bucket público "fotos")
+  try { const u = new URL(src); return u.protocol === "https:" && (/(^|\.)openfoodfacts\.org$/i.test(u.hostname) || (u.hostname === "fbovltxucooeoldjfckk.supabase.co" && u.pathname.startsWith("/storage/v1/object/public/fotos/"))); } catch { return false; }
 }
 function carregarImagem(src) {
   return new Promise((resolve) => {

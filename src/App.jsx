@@ -430,6 +430,25 @@ function AppInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fotos fora das tabelas: pede ao servidor para mover as fotos que ainda estão como texto (base64) para o
+  // armazenamento de arquivos. O servidor decide tudo (o app não manda dado nenhum); se a função ou o SQL ainda
+  // não existirem, a chamada falha em silêncio e nada muda. Roda ao abrir e a cada 10 min com o app aberto.
+  useEffect(() => {
+    if (!sessao?.user?.id || !dadosProntos) return undefined;
+    let vivo = true;
+    async function moverFotos() {
+      for (let volta = 0; volta < 8 && vivo && navigator.onLine; volta++) {
+        let r = null;
+        try { r = await supabase.functions.invoke("fotos-migrar", { body: {} }); } catch { return; }
+        if (!r || r.error || !r.data || !r.data.pode_ter_mais) return;
+        await new Promise((ok) => setTimeout(ok, 1500));
+      }
+    }
+    const inicio = setTimeout(moverFotos, 4000);
+    const relogio = setInterval(moverFotos, 10 * 60 * 1000);
+    return () => { vivo = false; clearTimeout(inicio); clearInterval(relogio); };
+  }, [sessao?.user?.id, dadosProntos]);
+
   // ao entrar (ou trocar de conta) com internet: descarta ações sem dono/vencidas e envia as da pessoa
   useEffect(() => {
     if (!sessao?.user?.id || !dadosProntos) return;
