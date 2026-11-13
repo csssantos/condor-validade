@@ -79,7 +79,7 @@ function mensagemErroGravacao(e) {
   if (/valor_pedido_obrigatorio/.test(m)) return "informe o valor pedido";
   if (/valor_pedido_invalido/.test(m)) return "valor pedido inválido (de R$ 0,01 a R$ 5.000,00)";
   if (/campanha_obrigatoria/.test(m)) return "informe o número da campanha";
-  if (/campanha_invalida/.test(m)) return "número da campanha inválido (use letras, números, . / - e até 20 caracteres)";
+  if (/campanha_invalida/.test(m)) return "número da campanha inválido (use só números, até 20 dígitos)";
   if (/pedido_promocao_invalido/.test(m)) return "tipo de pedido inválido";
   if (/pedido_so_pela_funcao/.test(m)) return "esse campo só muda pelo botão de pedido";
   if (/sem_permissao/.test(m)) return "você não tem permissão para isso";

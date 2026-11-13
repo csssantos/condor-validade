@@ -25,8 +25,8 @@ const textoLote = (x) => (x && x.lote ? x.lote : x && x.semLote ? "Sem lote" : "
 // Lote que já existe: só soma quantidade, no máximo metade do que já tem (mínimo 10 un) por vez
 const limiteSomaLote = (q) => Math.max(10, Math.ceil((Number(q) || 0) * 0.5));
 
-// Número da campanha do pedido de promoção/preço direto: letras sem acento, números, . / - e espaço; precisa de ao menos 1 letra/número (só símbolos não vale)
-function normalizarCampanha(s) { return String(s == null ? "" : s).toUpperCase().replace(/\s+/g, " ").trim(); }
-function campanhaValida(s) { const c = normalizarCampanha(s); return /^[A-Z0-9./ -]{1,20}$/.test(c) && /[A-Z0-9]/.test(c); }
+// Número da campanha do pedido de promoção/preço direto: SÓ números (1 a 20 dígitos), como na central
+function normalizarCampanha(s) { return String(s == null ? "" : s).trim(); }
+function campanhaValida(s) { return /^[0-9]{1,20}$/.test(normalizarCampanha(s)); }
 
 export { campanhaValida, normalizarCampanha, eanValido, limiteSomaLote, removerTelegramComAviso, textoLote };
