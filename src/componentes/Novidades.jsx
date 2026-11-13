@@ -20,13 +20,13 @@ const NOVIDADES = [
     { tipo: "corrigido", ate: 7, texto: "Notificações antigas não chegam mais ao criar a conta, entrar em outro aparelho ou ativar os avisos: só chegam avisos novos, daquele momento em diante." },
   ] },
   { id: "2026-11-11-fila-visivel", data: "11/11/2026", itens: [
-    { tipo: "novo", ate: 7, texto: "Faixa de registros guardados: sem internet (ou enquanto algo ainda não foi enviado), o app mostra quantos registros (e conferências de ronda) estão neste aparelho, atualiza na hora e tem o botão \"Enviar agora\" para os registros." },
+    { tipo: "adicionado", ate: 7, texto: "Faixa de registros guardados: sem internet (ou enquanto algo ainda não foi enviado), o app mostra quantos registros (e conferências de ronda) estão neste aparelho, atualiza na hora e tem o botão \"Enviar agora\" para os registros." },
   ] },
   { id: "2026-11-11-verificar-banco", data: "11/11/2026", itens: [
-    { tipo: "novo", ate: 2, texto: "Gestão do aplicativo → Banco: botão \"Verificar banco\" confere se regras de segurança, funções e rotinas do banco estão como o app espera (use depois de aplicar qualquer SQL)." },
+    { tipo: "adicionado", ate: 2, texto: "Gestão do aplicativo → Banco: botão \"Verificar banco\" confere se regras de segurança, funções e rotinas do banco estão como o app espera (use depois de aplicar qualquer SQL)." },
   ] },
   { id: "2026-11-11-editar-convite", data: "11/11/2026", itens: [
-    { tipo: "novo", ate: 5, texto: "Convite de promotor agora pode ser editado: mudar a data de vencimento, trocar acesso total por marcas específicas (ou o contrário) e ajustar as marcas. Fica em Funcionários → Promotores → ⋯ → Editar validade e marcas. A mudança já vale no servidor para quem já entrou (a tela dele atualiza ao recarregar) e tudo fica na auditoria." },
+    { tipo: "adicionado", ate: 5, texto: "Convite de promotor agora pode ser editado: mudar a data de vencimento, trocar acesso total por marcas específicas (ou o contrário) e ajustar as marcas. Fica em Funcionários → Promotores → ⋯ → Editar validade e marcas. A mudança já vale no servidor para quem já entrou (a tela dele atualiza ao recarregar) e tudo fica na auditoria." },
     { tipo: "corrigido", ate: 5, texto: "Gerar convite com duração \"Permanente\" voltou a funcionar." },
   ] },
   { id: "2026-11-11-link-logado", data: "11/11/2026", itens: [
