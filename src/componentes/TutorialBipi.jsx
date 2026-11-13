@@ -62,8 +62,8 @@ export function etapasDoTutorial({ nivel, promotor, pc }) {
   e.push({ id: "telegram", titulo: "Pelo Telegram, comigo", fala: "Você também pode lançar conversando comigo no Telegram. Eu pergunto tudo e confirmo antes.", Icone: Send, cor: "#2AA3E0",
     itens: [[promotor ? "Use o código do seu convite" : `Vincule em ${mais} → Conta`, Send], ["Mande o código de barras ou o nome", Hash], ["Nada é lançado sem você confirmar", Check]] });
   if (!promotor) {
-    e.push({ id: "pedido", titulo: "Pedido de campanha", fala: encarregado ? "Perto de vencer? Abra o lote e registre o pedido de promoção ou preço direto, com o valor sugerido." : "Perto de vencer? Nos lotes que você lançou, registre o pedido de promoção ou preço direto. Nos outros, avise o encarregado.", Icone: Tag, cor: "#C2570C",
-      itens: [["Número da campanha (opcional)", Hash], ["Valor sugerido: a central libera", Tag], ["Com pedido, o lote fica travado", Check]] });
+    e.push({ id: "pedido", titulo: "Pedido de campanha", fala: encarregado ? "Perto de vencer? Abra o lote e registre o pedido de promoção ou preço direto, com o valor sugerido." : "Perto de vencer? Só o encarregado do setor lança o pedido de promoção ou preço direto. Avise o encarregado.", Icone: Tag, cor: "#C2570C",
+      itens: [["Número da campanha (obrigatório)", Hash], ["Valor sugerido: a central libera", Tag], ["Com pedido, o lote fica travado", Check]] });
   }
   if (encarregado) {
     e.push({ id: "aprovar", titulo: "Aprovar produtos novos", fala: "Produto que não existe no app e foi lançado pelo Telegram espera a sua aprovação.", Icone: Package, cor: "#1F7A4D",

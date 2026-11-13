@@ -1,5 +1,5 @@
 // Testes das funções puras que saíram do App.jsx (rodam com: npm test)
-import { eanValido, limiteSomaLote, textoLote } from "../src/lib/produto";
+import { campanhaValida, normalizarCampanha, eanValido, limiteSomaLote, textoLote } from "../src/lib/produto";
 import { diasRestantes, getStatus, sugestaoDesconto } from "../src/lib/formatos";
 import { parseCodigoBalanca, celulaCSV, celulaPlanilha } from "../src/lib/utilidades";
 import { textoFaixaOffline, textoFaixaPendente, contarFilaRonda, CHAVE_FILA_RONDA, contarFilaDaPessoa, filaEnviando, erroDeRede, definirUsuarioFila, enfileirar, lerFila, gravarFila, processarFila, limparFilaOrfa } from "../src/lib/fila";
@@ -25,6 +25,14 @@ igual("vazio", eanValido(""), false);
 // lote
 igual("limite soma lote mínimo 10", limiteSomaLote(4), 10);
 igual("limite soma lote metade", limiteSomaLote(41), 21);
+igual("campanha A1 vale", campanhaValida("A1"), true);
+igual("campanha so simbolo", campanhaValida("-"), false);
+igual("campanha ///", campanhaValida("///"), false);
+igual("campanha vazia", campanhaValida("  "), false);
+igual("campanha minuscula", campanhaValida("ab-12"), true);
+igual("campanha acento", campanhaValida("promoção"), false);
+igual("campanha espacos colapsados", normalizarCampanha("a   1"), "A 1");
+igual("campanha longa", campanhaValida("A".repeat(21)), false);
 igual("texto lote", textoLote({ lote: "L2410A" }), "L2410A");
 igual("sem lote", textoLote({ semLote: true }), "Sem lote");
 igual("lote ausente", textoLote(null), "");

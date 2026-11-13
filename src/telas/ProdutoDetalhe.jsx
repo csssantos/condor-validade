@@ -8,6 +8,7 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, MOTIVOS_BAIXA, MOTIVOS_EXCLUSAO, RED, RED_D
 import { supaFetchAlteracoesValidade } from "../lib/dados";
 import { descontoSugerido, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, statusStyles, useValoresVisiveis } from "../lib/formatos";
 import { clampNumero } from "../lib/utilidades";
+import { campanhaValida, normalizarCampanha } from "../lib/produto";
 import { useTelaLarga } from "../lib/tela";
 import { InfoTile } from "./Analises";
 
@@ -33,7 +34,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   const valorTxt0 = (v) => (v != null ? String(v).replace(".", ",") : "");
   const [pedidoValor, setPedidoValor] = useState(valorTxt0(item.pedidoValor));
   const pedidoValorNum = (() => { const n = Number(String(pedidoValor).replace(",", ".")); return /^\d{1,4}([.,]\d{1,2})?$/.test(String(pedidoValor).trim()) && n >= 0.01 && n <= 5000 ? n : null; })();
-  const campanhaOk = pedidoCampanha.trim().length > 0;
+  const campanhaOk = campanhaValida(pedidoCampanha);
   useEffect(() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); setPedidoValor(valorTxt0(item.pedidoValor)); }, [item.id, item.pedidoTipo, item.pedidoCampanha, item.pedidoValor]);
   async function salvarPedido(tipo, campanha, valor) {
     if (salvandoPedidoRef.current) return;
@@ -179,7 +180,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                   <input value={pedidoValor} onChange={(e) => setPedidoValor(e.target.value.replace(/[^0-9.,]/g, "").slice(0, 8))}
                     placeholder="Valor pedido em R$ (obrigatório)" inputMode="decimal" maxLength={8} aria-label="Valor pedido em reais"
                     style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full min-w-0 mt-2 border rounded-xl px-3 py-2 text-xs outline-none" />
-                  {pedidoTipo && !campanhaOk && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o número da campanha.</p>}
+                  {pedidoTipo && !campanhaOk && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o número da campanha (com pelo menos uma letra ou número).</p>}
                   {pedidoTipo && pedidoValorNum == null && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o valor pedido (de 0,01 a 5000, com até 2 casas, ex.: 5,90).</p>}
                   <p style={{ color: T.subtext }} className="text-[10px] mt-1">O valor é só uma sugestão: depende da central liberar. Campanha (obrigatória): letras sem acento, números, . / - e até 20 caracteres.{!item.pedidoTipo && " Atenção: depois de salvar, este lote fica travado (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
                   <div className="flex gap-2 mt-2.5">
@@ -187,7 +188,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                     {item.pedidoTipo && podeGerirPedido && (confirmandoRemoverPedido
                       ? <button onClick={() => salvarPedido(null, null, null)} disabled={salvandoPedido} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">Confirmar remoção</button>
                       : <button onClick={() => setConfirmandoRemoverPedido(true)} style={{ color: RED_DARK }} className="flex-1 text-[11px] font-semibold py-1.5">Remover</button>)}
-                    <button onClick={() => salvarPedido(pedidoTipo, pedidoCampanha.trim(), pedidoValorNum)} disabled={salvandoPedido || !pedidoTipo || !campanhaOk || pedidoValorNum == null} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : "Salvar"}</button>
+                    <button onClick={() => salvarPedido(pedidoTipo, normalizarCampanha(pedidoCampanha), pedidoValorNum)} disabled={salvandoPedido || !pedidoTipo || !campanhaOk || pedidoValorNum == null} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : "Salvar"}</button>
                   </div>
                 </div>
               )}
@@ -347,8 +348,8 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
               <div className="flex gap-2 mt-2.5">
                 <button onClick={() => { setConfirmandoExclusao(false); setMotivoExclusao(null); setMotivoExclusaoOutro(""); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
                 <button
-                  onClick={() => onExcluir(item, motivoExclusao === "Outro" ? (motivoExclusaoOutro.trim() || "Outro") : motivoExclusao)}
-                  disabled={!motivoExclusao || (motivoExclusao === "Outro" && !motivoExclusaoOutro.trim())}
+                  onClick={() => onExcluir && onExcluir(item, motivoExclusao === "Outro" ? (motivoExclusaoOutro.trim() || "Outro") : motivoExclusao)}
+                  disabled={!onExcluir || !motivoExclusao || (motivoExclusao === "Outro" && !motivoExclusaoOutro.trim())}
                   style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">
                   Sim, excluir
                 </button>
@@ -364,7 +365,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
     <div className="fixed inset-0 z-40 flex items-center justify-center">
       <div onClick={onClose} className="absolute inset-0 bg-black/55" />
       <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.18 }}
-        style={{ background: T.card }} className="relative w-[94vw] max-w-[1320px] min-h-[640px] max-h-[88vh] grid grid-cols-[400px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] rounded-[30px] overflow-hidden ring-1 ring-black/10 shadow-2xl">
+        style={{ background: T.card }} className="relative w-[94vw] max-w-[1320px] min-h-[min(640px,88vh)] max-h-[88vh] grid grid-cols-[400px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] rounded-[30px] overflow-hidden ring-1 ring-black/10 shadow-2xl">
         <div style={{ background: FUNDO_MARCA }} className="relative min-h-0 flex flex-col items-center px-8 pt-20 pb-8 overflow-hidden text-white">
           <span aria-hidden className="absolute -right-24 -top-20 h-80 w-80 rounded-full bg-white/10" />
           <span aria-hidden className="absolute -left-12 bottom-10 h-32 w-32 rounded-full bg-white/10" />
@@ -399,22 +400,8 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-8 py-6 flex flex-col gap-5">
-            <div className={`grid gap-4 ${!!item.precoUnitario && podeVerValores ? "grid-cols-4" : "grid-cols-3"}`}>
-              {[
-                [CalendarDays, "Validade", formatarData(item.validade), corKpi],
-                [Clock, "Situação", status.label, corKpi],
-                [Layers, "Quantidade", item.porPeso ? `${item.quantidade || 0} kg` : `${item.quantidade || 1} un`, null],
-                ...(!!item.precoUnitario && podeVerValores ? [[DollarSign, item.porPeso ? "Valor total (kg)" : "Valor total", formatarMoeda((item.quantidade || 1) * item.precoUnitario), null]] : []),
-              ].map(([Ico, rot, val, cor]) => (
-                <div key={rot} style={{ background: T.chipBg }} className="rounded-2xl px-5 py-4 min-w-0">
-                  <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5"><Ico size={13} /> {rot}</p>
-                  <p style={cor ? { color: cor } : undefined} className="text-[24px] font-extrabold mt-1.5 leading-tight break-words">{val}</p>
-                </div>
-              ))}
-            </div>
-
-            {confirmandoExclusao && (
+          {confirmandoExclusao && onExcluir && (
+            <div className="shrink-0 px-8 pt-4">
             <div style={{ background: RED_SOFT }} className="rounded-2xl p-4">
               <p style={{ color: RED_DARK }} className="text-[11px] font-medium text-center mb-2">Excluir sem registrar no histórico. Qual o motivo?</p>
               <div className="grid grid-cols-2 gap-1.5">
@@ -435,14 +422,30 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
               <div className="flex gap-2 mt-2.5">
                 <button onClick={() => { setConfirmandoExclusao(false); setMotivoExclusao(null); setMotivoExclusaoOutro(""); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
                 <button
-                  onClick={() => onExcluir(item, motivoExclusao === "Outro" ? (motivoExclusaoOutro.trim() || "Outro") : motivoExclusao)}
-                  disabled={!motivoExclusao || (motivoExclusao === "Outro" && !motivoExclusaoOutro.trim())}
+                  onClick={() => onExcluir && onExcluir(item, motivoExclusao === "Outro" ? (motivoExclusaoOutro.trim() || "Outro") : motivoExclusao)}
+                  disabled={!onExcluir || !motivoExclusao || (motivoExclusao === "Outro" && !motivoExclusaoOutro.trim())}
                   style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">
                   Sim, excluir
                 </button>
               </div>
             </div>
+            </div>
           )}
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-8 py-6 flex flex-col gap-5">
+            <div className={`grid gap-4 ${!!item.precoUnitario && podeVerValores ? "grid-cols-4" : "grid-cols-3"}`}>
+              {[
+                [CalendarDays, "Validade", formatarData(item.validade), corKpi],
+                [Clock, "Situação", status.label, corKpi],
+                [Layers, "Quantidade", item.porPeso ? `${item.quantidade || 0} kg` : `${item.quantidade || 1} un`, null],
+                ...(!!item.precoUnitario && podeVerValores ? [[DollarSign, item.porPeso ? "Valor total (kg)" : "Valor total", formatarMoeda((item.quantidade || 1) * item.precoUnitario), null]] : []),
+              ].map(([Ico, rot, val, cor]) => (
+                <div key={rot} style={{ background: T.chipBg }} className="rounded-2xl px-5 py-4 min-w-0">
+                  <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5"><Ico size={13} /> {rot}</p>
+                  <p style={cor ? { color: cor } : undefined} className="text-[24px] font-extrabold mt-1.5 leading-tight break-words">{val}</p>
+                </div>
+              ))}
+            </div>
+
 
             {alertaCampanha(true)}
 
@@ -493,7 +496,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                   <input value={pedidoValor} onChange={(e) => setPedidoValor(e.target.value.replace(/[^0-9.,]/g, "").slice(0, 8))}
                     placeholder="Valor pedido em R$ (obrigatório)" inputMode="decimal" maxLength={8} aria-label="Valor pedido em reais"
                     style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full min-w-0 mt-2 border rounded-xl px-3 py-2 text-xs outline-none" />
-                  {pedidoTipo && !campanhaOk && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o número da campanha.</p>}
+                  {pedidoTipo && !campanhaOk && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o número da campanha (com pelo menos uma letra ou número).</p>}
                   {pedidoTipo && pedidoValorNum == null && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o valor pedido (de 0,01 a 5000, com até 2 casas, ex.: 5,90).</p>}
                   <p style={{ color: T.subtext }} className="text-[10px] mt-1">O valor é só uma sugestão: depende da central liberar. Campanha (obrigatória): letras sem acento, números, . / - e até 20 caracteres.{!item.pedidoTipo && " Atenção: depois de salvar, este lote fica travado (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
                   <div className="flex gap-2 mt-2.5">
@@ -501,7 +504,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                     {item.pedidoTipo && podeGerirPedido && (confirmandoRemoverPedido
                       ? <button onClick={() => salvarPedido(null, null, null)} disabled={salvandoPedido} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">Confirmar remoção</button>
                       : <button onClick={() => setConfirmandoRemoverPedido(true)} style={{ color: RED_DARK }} className="flex-1 text-[11px] font-semibold py-1.5">Remover</button>)}
-                    <button onClick={() => salvarPedido(pedidoTipo, pedidoCampanha.trim(), pedidoValorNum)} disabled={salvandoPedido || !pedidoTipo || !campanhaOk || pedidoValorNum == null} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : "Salvar"}</button>
+                    <button onClick={() => salvarPedido(pedidoTipo, normalizarCampanha(pedidoCampanha), pedidoValorNum)} disabled={salvandoPedido || !pedidoTipo || !campanhaOk || pedidoValorNum == null} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : "Salvar"}</button>
                   </div>
                 </div>
               )}

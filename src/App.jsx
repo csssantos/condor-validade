@@ -21,7 +21,7 @@ import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRo
 import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
 import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, isIOS, isStandalone, planejarNotificacoes, chaveListaNotif, limparNotifDaPessoa } from "./lib/notificacoes";
-import { eanValido, limiteSomaLote, textoLote } from "./lib/produto";
+import { campanhaValida, eanValido, limiteSomaLote, normalizarCampanha, textoLote } from "./lib/produto";
 import { usarDadosGerenciais } from "./lib/relatoriosPDF";
 import { useDesktop, useTelaLarga } from "./lib/tela";
 import { CONFIG_BALANCA_PADRAO, apenasNumeros, parseCodigoBalanca, playBeep, sanitizarTexto } from "./lib/utilidades";
@@ -1176,7 +1176,7 @@ function AppInner() {
 
   // Pedido de promoção / preço direto: só pela função do banco (permissão, auditoria e quem pediu ficam no servidor)
   async function registrarPedido(item, tipo, campanha, valor) {
-    if (tipo && !String(campanha || "").trim()) { showToast("Não foi possível registrar o pedido: informe o número da campanha.", "erro"); return false; }
+    if (tipo && !campanhaValida(campanha)) { showToast("Não foi possível registrar o pedido: informe o número da campanha.", "erro"); return false; }
     try {
       await supaRegistrarPedido(item.id, tipo, campanha, valor);
     } catch (e) {
@@ -1184,7 +1184,7 @@ function AppInner() {
       showToast(`Não foi possível registrar o pedido: ${motivo}.`, "erro");
       return false;
     }
-    const camp = tipo ? (String(campanha || "").trim().toUpperCase() || null) : null;
+    const camp = tipo ? (normalizarCampanha(campanha) || null) : null;
     // mexe SÓ nos campos do pedido (o item aberto pode estar velho: quantidade/validade mudaram por outra pessoa)
     const campos = { pedidoTipo: tipo || null, pedidoCampanha: camp, pedidoValor: tipo ? Number(valor) : null, pedidoEm: tipo ? new Date().toISOString() : null, pedidoPor: tipo ? (usuario || null) : null };
     if (tipo) supabase.functions.invoke("telegram-avisar-pedido", { body: { id: item.id } }).catch(() => {}); // se o lote veio do Telegram, avisa lá quem lançou (o servidor decide)
@@ -1473,7 +1473,7 @@ function AppInner() {
       </main>
 
       {detalheItem && (
-        <ProductDetailModal T={T} item={items.find((i) => i.id === detalheItem.id) || detalheItem}
+        <ProductDetailModal key={detalheItem.id} T={T} item={items.find((i) => i.id === detalheItem.id) || detalheItem}
           outrosLotes={items.filter((i) => i.barcode === detalheItem.barcode && i.setor === detalheItem.setor && i.id !== detalheItem.id)}
           onTrocarLote={setDetalheItem}
           onClose={() => setDetalheItem(null)}
