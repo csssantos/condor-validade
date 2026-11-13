@@ -1479,7 +1479,7 @@ function AppInner() {
           onClose={() => setDetalheItem(null)}
           onEdit={ehDesktop || detalheItem.pedidoTipo || !podeEditarProduto(detalheItem) ? null : startEdit} onDuplicate={ehDesktop || !podeEditarProduto(detalheItem) ? null : duplicarItem}
           onBaixa={podeGerirProduto(detalheItem) ? darBaixa : null} onShare={compartilharItem}
-          onAplicarPromocao={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? aplicarPromocao : null} onPedido={nivelUsuario <= 6 && podeEditarProduto(detalheItem) ? registrarPedido : null} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? excluirProduto : null} />
+          onAplicarPromocao={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? aplicarPromocao : null} onPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedido : null} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? excluirProduto : null} />
       )}
 
       {perfil?.id && <RondaAvisosHost T={T} usuarioId={perfil.id} showToast={showToast} onIrParaRondas={() => { setFlow(null); setSetorAtivo(null); setTab("rondas"); }} />}
