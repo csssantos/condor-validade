@@ -8,7 +8,8 @@ begin
   select pg_get_functiondef(p.oid) into d from pg_proc p join pg_namespace n on n.oid=p.pronamespace
    where n.nspname='public' and p.proname='registrar_pedido_promocao' and p.pronargs=4;
   if d is null then raise exception 'registrar_pedido_promocao (4 parâmetros) não encontrada'; end if;
-  if d like '%campanha_obrigatoria%' then raise notice 'já aplicado'; return; end if;
+  if d like '%campanha_obrigatoria%' and d like '%nivel > 5%' then raise notice 'já aplicado'; return; end if;
+  if d like '%campanha_obrigatoria%' then raise exception 'campanha já aplicada: rode só supabase-pedido-so-encarregado.sql'; end if;
   novo := replace(d, 'if p_tipo is null then camp := null; end if;',
     'if p_tipo is null then camp := null; end if;' || E'\n  ' || 'if p_tipo is not null and camp is null then raise exception ''campanha_obrigatoria''; end if;');
   if novo = d then raise exception 'trecho não encontrado: a função mudou, revisar antes de aplicar'; end if;
