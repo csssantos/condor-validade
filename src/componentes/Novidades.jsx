@@ -10,6 +10,11 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-13-modal-produto-pc", data: "13/11/2026", itens: [
+    { tipo: "adicionado", ate: 6, texto: "Produto com 10 dias ou menos para vencer: o detalhe do produto mostra um alerta com o botão \"Lançar campanha\" (pedido de promoção ou preço direto)." },
+    { tipo: "melhorado", ate: 6, texto: "Detalhe do produto no computador refeito: tela mais ampla, com as ações no topo, números principais em destaque e os dados do produto organizados." },
+    { tipo: "melhorado", ate: 6, texto: "O número da campanha agora é obrigatório ao registrar pedido de promoção ou preço direto." },
+  ] },
   { id: "2026-11-13-tutorial-e-avisos", data: "13/11/2026", itens: [
     { tipo: "corrigido", ate: 7, texto: "O tutorial do Bipi não abre mais a cada login: depois de visto, fica marcado na sua conta (vale em outro aparelho e no computador)." },
     { tipo: "corrigido", ate: 7, texto: "Notificações antigas não chegam mais ao criar a conta, entrar em outro aparelho ou ativar os avisos: só chegam avisos novos, daquele momento em diante." },

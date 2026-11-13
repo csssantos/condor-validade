@@ -1176,6 +1176,7 @@ function AppInner() {
 
   // Pedido de promoção / preço direto: só pela função do banco (permissão, auditoria e quem pediu ficam no servidor)
   async function registrarPedido(item, tipo, campanha, valor) {
+    if (tipo && !String(campanha || "").trim()) { showToast("Não foi possível registrar o pedido: informe o número da campanha.", "erro"); return false; }
     try {
       await supaRegistrarPedido(item.id, tipo, campanha, valor);
     } catch (e) {

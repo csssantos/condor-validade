@@ -78,6 +78,7 @@ function mensagemErroGravacao(e) {
   if (/produto_travado_pedido/.test(m)) return "esse lote tem pedido de promoção ou preço direto registrado e está travado: o encarregado do setor precisa remover o pedido antes de alterar";
   if (/valor_pedido_obrigatorio/.test(m)) return "informe o valor pedido";
   if (/valor_pedido_invalido/.test(m)) return "valor pedido inválido (de R$ 0,01 a R$ 5.000,00)";
+  if (/campanha_obrigatoria/.test(m)) return "informe o número da campanha";
   if (/campanha_invalida/.test(m)) return "número da campanha inválido (use letras, números, . / - e até 20 caracteres)";
   if (/pedido_promocao_invalido/.test(m)) return "tipo de pedido inválido";
   if (/pedido_so_pela_funcao/.test(m)) return "esse campo só muda pelo botão de pedido";
