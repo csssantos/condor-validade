@@ -8,8 +8,23 @@ import { FUNDO_MARCA } from "../TelasEntrada";
 
 const CHAVE = "avdc_tutorial_visto"; // lista dos ids de quem já viu neste aparelho (sem outros dados)
 const lerVistos = () => { try { const v = JSON.parse(localStorage.getItem(CHAVE) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
-export const tutorialJaVisto = (uid) => !!uid && lerVistos().includes(uid);
-export const marcarTutorialVisto = (uid) => { if (!uid) return; try { localStorage.setItem(CHAVE, JSON.stringify([uid, ...lerVistos().filter((x) => x !== uid)].slice(0, 20))); } catch { /* sem armazenamento */ } };
+// "Visto" vale por PESSOA, não só por aparelho (2026-11-13): além da lista local, vale a marca na conta (user_metadata,
+// acompanha a pessoa em outro aparelho/PWA/PC) e, para promotor (conta anônima nova a cada link), a marca do aparelho.
+const CHAVE_ANONIMO = "avdc_tutorial_visto_anonimo";
+const lerFlag = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return false; } };
+export const tutorialJaVisto = (uid, user) => {
+  if (!uid) return false;
+  if (lerVistos().includes(uid)) return true;
+  if (user?.user_metadata?.tutorial_visto === true) return true;
+  return !!user?.is_anonymous && lerFlag(CHAVE_ANONIMO);
+};
+export const marcarTutorialVisto = (uid, user, supabase) => {
+  if (!uid) return;
+  try { localStorage.setItem(CHAVE, JSON.stringify([uid, ...lerVistos().filter((x) => x !== uid)].slice(0, 20))); } catch { /* sem armazenamento */ }
+  if (user?.is_anonymous) { try { localStorage.setItem(CHAVE_ANONIMO, "1"); } catch { /* sem armazenamento */ } return; }
+  // grava na conta sem esperar (falha de rede não atrapalha: a marca local já vale)
+  try { supabase?.auth?.updateUser?.({ data: { tutorial_visto: true } })?.catch?.(() => {}); } catch { /* sem rede */ }
+};
 export const abrirTutorial = () => { try { window.dispatchEvent(new CustomEvent("condor-abrir-tutorial")); } catch { /* sem janela */ } };
 
 // cada etapa: o que o Bipi fala, um título curto e os "cartões" de apoio (ícone + texto)

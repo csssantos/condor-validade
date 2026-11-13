@@ -25,6 +25,21 @@ async function inscreverPush(usuario) {
   } catch (e) { console.error("Falha ao inscrever push:", e); }
 }
 
+// ---------- Só notificações FUTURAS (2026-11-13) ----------
+// Antes, a lista de "já avisados" era uma só por aparelho: conta nova, aparelho novo ou notificação recém-ativada
+// disparava de uma vez TUDO que já estava no prazo (notificação tardia). Agora cada pessoa tem a sua lista e,
+// na primeira vez (sem "linha de base"), tudo que já existe é registrado em silêncio; só o que mudar depois avisa.
+const prefixoNotif = (uid) => `condor-validade:notificados:${uid}`;
+const chaveBaseNotif = (uid) => `condor-validade:notif-base:${uid}`;
+const chaveNotifItem = (item, nivel) => `${item.id}:${nivel}`;
+/** items já filtrados por precisaNotificar: [{ chave }]. Devolve o que avisar agora e o que só marcar. */
+function planejarNotificacoes({ candidatos, jaAvisadas, temBase }) {
+  const vistas = new Set(jaAvisadas || []);
+  const novos = (candidatos || []).filter((c) => !vistas.has(c.chave));
+  if (!temBase) return { avisar: [], marcar: novos.map((c) => c.chave), criarBase: true };
+  return { avisar: novos, marcar: novos.map((c) => c.chave), criarBase: false };
+}
+
 function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
@@ -87,4 +102,4 @@ async function buscarProdutoPorCodigo(barcode) {
   return null;
 }
 
-export { buscarProdutoPorCodigo, dispararNotificacao, inscreverPush, isIOS, isStandalone, urlBase64ToUint8Array };
+export { buscarProdutoPorCodigo, chaveBaseNotif, chaveNotifItem, planejarNotificacoes, prefixoNotif, dispararNotificacao, inscreverPush, isIOS, isStandalone, urlBase64ToUint8Array };

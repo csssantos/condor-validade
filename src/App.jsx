@@ -16,11 +16,11 @@ import { Header } from "./componentes/Header";
 import { BottomNav, SideNav } from "./componentes/Navegacao";
 import { FaixaFila } from "./componentes/FaixaFila";
 import { AtualizacaoModal, NOVIDADES, gravarNovidadeVista, lerNovidadeVista, novidadesParaCargo } from "./componentes/Novidades";
-import { BLUE, BLUE_SOFT, LOGO_SRC, NOTIF_KEY, PREFS_KEY, RED, RED_DARK, RED_SOFT, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, setorPrincipal } from "./lib/constantes";
+import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, setorPrincipal } from "./lib/constantes";
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
 import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
-import { dispararNotificacao, inscreverPush, isIOS, isStandalone } from "./lib/notificacoes";
+import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, isIOS, isStandalone, planejarNotificacoes, prefixoNotif } from "./lib/notificacoes";
 import { eanValido, limiteSomaLote, textoLote } from "./lib/produto";
 import { usarDadosGerenciais } from "./lib/relatoriosPDF";
 import { useDesktop, useTelaLarga } from "./lib/tela";
@@ -579,7 +579,7 @@ function AppInner() {
   const uidTutorial = sessao?.user?.id;
   const outroModal = !!avisoAtual || (mostrarAtualizacao && novidadesDoCargo.length > 0);
   useEffect(() => {
-    if (!uidTutorial || !perfil || aceiteOk !== true || !dadosProntos || outroModal || flow !== null || tab !== "home" || tutorialJaVisto(uidTutorial)) return undefined;
+    if (!uidTutorial || !perfil || aceiteOk !== true || !dadosProntos || outroModal || flow !== null || tab !== "home" || tutorialJaVisto(uidTutorial, sessao?.user)) return undefined;
     const t = setTimeout(() => setTutorialAberto(true), 900);
     return () => clearTimeout(t);
   }, [uidTutorial, perfil, aceiteOk, dadosProntos, outroModal, flow, tab]);
@@ -678,34 +678,25 @@ function AppInner() {
   useEffect(() => { if (!loading) saveLocal(PREFS_KEY, prefs); }, [prefs, loading]);
 
   useEffect(() => {
-    if (loading || notifPermission !== "granted") return;
+    // só depois dos dados reais da loja (não do cache) e só para a pessoa logada; a 1ª vez só registra o que já existe
+    if (loading || !dadosProntos || !idDoUsuario || notifPermission !== "granted") return;
     (async () => {
-      const notified = loadLocal(NOTIF_KEY, []);
-      const novas = [];
-      for (const it of items) {
-        const st = getStatus(it);
-        // chave por item+nível: assim um produto notificado ao entrar na janela de 15 dias
-        // recebe um novo aviso quando de fato vence, em vez de ficar mudo pro resto da vida.
-        const chave = `${it.id}:${st.level}`;
-        if (precisaNotificar(it) && !notified.includes(chave)) {
-          const desconto = sugestaoDesconto(st.d, it.precoUnitario);
-          const corpoLinhas = [
-            st.level === "expired" ? "Produto vencido — retire de venda e registre a baixa." : `Vence em ${st.d} dia(s) · Setor ${it.setor}`,
-            desconto ? `💡 Sugestão: ${desconto.pct}% OFF (${desconto.label})` : null
-          ].filter(Boolean);
-          await dispararNotificacao(`⚠️ ${it.nome}`, {
-            corpo: corpoLinhas.join("\n"),
-            imagem: it.foto || null,
-            tag: `produto-${it.id}`,
-            dados: { itemId: it.id, url: `/?produto=${it.id}` }
-          });
-          novas.push(chave);
-        }
+      const kLista = prefixoNotif(idDoUsuario), kBase = chaveBaseNotif(idDoUsuario);
+      const candidatos = items.filter((it) => precisaNotificar(it)).map((it) => ({ it, st: getStatus(it), chave: chaveNotifItem(it, getStatus(it).level) }));
+      const plano = planejarNotificacoes({ candidatos, jaAvisadas: loadLocal(kLista, []), temBase: !!loadLocal(kBase, null) });
+      if (plano.criarBase) saveLocal(kBase, Date.now());
+      if (plano.marcar.length) saveLocal(kLista, [...loadLocal(kLista, []), ...plano.marcar].slice(-2000));
+      for (const { it, st } of plano.avisar) {
+        const desconto = sugestaoDesconto(st.d, it.precoUnitario);
+        const corpoLinhas = [
+          st.level === "expired" ? "Produto vencido — retire de venda e registre a baixa." : `Vence em ${st.d} dia(s) · Setor ${it.setor}`,
+          desconto ? `💡 Sugestão: ${desconto.pct}% OFF (${desconto.label})` : null
+        ].filter(Boolean);
+        await dispararNotificacao(`⚠️ ${it.nome}`, { corpo: corpoLinhas.join("\n"), imagem: it.foto || null, tag: `produto-${it.id}`, dados: { itemId: it.id, url: `/?produto=${it.id}` } });
       }
-      if (novas.length) saveLocal(NOTIF_KEY, [...notified, ...novas]);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, loading, notifPermission]);
+  }, [items, loading, dadosProntos, idDoUsuario, notifPermission]);
 
   const toastTimerRef = useRef(null);
   const toastIdRef = useRef(0);
@@ -775,6 +766,8 @@ function AppInner() {
     }
     if (notifPermission === "granted") { showToast("As notificações já estão ativas."); return; }
     const perm = await Notification.requestPermission();
+    // ao ativar, o que já existe vira "linha de base" em silêncio: só avisos futuros chegam
+    if (perm === "granted" && idDoUsuario) { try { localStorage.removeItem(chaveBaseNotif(idDoUsuario)); } catch { /* sem armazenamento */ } }
     setNotifPermission(perm);
     if (perm === "granted") await inscreverPush(usuario);
     showToast(perm === "granted" ? "Notificações ativadas — você vai receber avisos mesmo com o app fechado." : "Permissão não concedida.", perm === "granted" ? "ok" : "warn");
@@ -952,15 +945,17 @@ function AppInner() {
     const st = getStatus(item);
     if (!precisaNotificar(item)) return;
     if (notifPermission !== "granted") return;
-    const notified = loadLocal(NOTIF_KEY, []);
-    if (notified.includes(item.id)) return;
+    if (!idDoUsuario) return;
+    const kLista = prefixoNotif(idDoUsuario), chave = chaveNotifItem(item, st.level);
+    const notified = loadLocal(kLista, []);
+    if (notified.includes(chave)) return;
     const desconto = sugestaoDesconto(st.d, item.precoUnitario);
     const corpoLinhas = [
       st.level === "expired" ? "Produto vencido — retire de venda e registre a baixa." : `Vence em ${st.d} dia(s) · Setor ${item.setor}`,
       desconto ? `💡 Sugestão: ${desconto.pct}% OFF (${desconto.label})` : null
     ].filter(Boolean);
     await dispararNotificacao(`⚠️ ${item.nome}`, { corpo: corpoLinhas.join("\n"), imagem: item.foto || null, tag: `produto-${item.id}`, dados: { itemId: item.id, url: `/?produto=${item.id}` } });
-    saveLocal(NOTIF_KEY, [...notified, item.id]);
+    saveLocal(kLista, [...notified, chave].slice(-2000));
   }
 
   function saveAlertItem(dados) {
@@ -1532,7 +1527,7 @@ function AppInner() {
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
       <AnimatePresence>
         {avisoAtual && <AvisoModal T={T} aviso={avisoAtual} onFechar={() => marcarAvisoVisto(avisoAtual.id)} />}
-        {tutorialAberto && !outroModal && <TutorialBipi key="tutorial" etapas={etapasTutorial} onFechar={(concluiu) => { marcarTutorialVisto(uidTutorial); setTutorialAberto(false); if (!concluiu) showToast(`Para rever o tutorial: ${ehDesktop ? "Configurações" : "Mais"} → Sobre o app → Ver o tutorial do Bipi.`, "info"); }} />}
+        {tutorialAberto && !outroModal && <TutorialBipi key="tutorial" etapas={etapasTutorial} onFechar={(concluiu) => { marcarTutorialVisto(uidTutorial, sessao?.user, supabase); setTutorialAberto(false); if (!concluiu) showToast(`Para rever o tutorial: ${ehDesktop ? "Configurações" : "Mais"} → Sobre o app → Ver o tutorial do Bipi.`, "info"); }} />}
         {!avisoAtual && mostrarAtualizacao && novidadesDoCargo.length > 0 && <AtualizacaoModal T={T} novidades={novidadesDoCargo} cargoNome={perfil?.cargos?.nome} onFechar={() => { gravarNovidadeVista(NOVIDADES[0].id); setMostrarAtualizacao(false); }} />}
       </AnimatePresence>
     </div>

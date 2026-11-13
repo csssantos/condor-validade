@@ -117,5 +117,29 @@ igual("offline com ronda", /conferência de ronda guardada/.test(textoFaixaOffli
 igual("pendente plural", textoFaixaPendente(3, 0), "3 registros ainda não foram enviados.");
 igual("pendente misto", textoFaixaPendente(1, 2), "1 registro ainda não foi enviado · 2 conferências de ronda aguardando (abra a ronda para enviar).");
 
+
+// ---- 2026-11-13: só notificações futuras + tutorial por pessoa ----
+{
+  const { planejarNotificacoes } = await import("../src/lib/notificacoes.js");
+  const cand = [{ chave: "a:warn" }, { chave: "b:expired" }];
+  const p1 = planejarNotificacoes({ candidatos: cand, jaAvisadas: [], temBase: false });
+  igual("1ª vez (sem base): nada é avisado, tudo é marcado", !!(p1.avisar.length === 0 && p1.marcar.length === 2 && p1.criarBase === true), true);
+  const p2 = planejarNotificacoes({ candidatos: [...cand, { chave: "c:warn" }], jaAvisadas: p1.marcar, temBase: true });
+  igual("depois da base: só o item novo avisa", !!(p2.avisar.length === 1 && p2.avisar[0].chave === "c:warn" && p2.criarBase === false), true);
+  const p3 = planejarNotificacoes({ candidatos: cand, jaAvisadas: p1.marcar, temBase: true });
+  igual("nada novo: não repete", !!(p3.avisar.length === 0 && p3.marcar.length === 0), true);
+  const { tutorialJaVisto, marcarTutorialVisto } = await import("../src/componentes/TutorialBipi.jsx");
+  igual("sem uid nunca está visto", !!(tutorialJaVisto(null) === false), true);
+  igual("marca na conta vale em aparelho novo", !!(tutorialJaVisto("u-novo", { user_metadata: { tutorial_visto: true } }) === true), true);
+  igual("conta sem marca ainda mostra", !!(tutorialJaVisto("u-novo2", { user_metadata: {} }) === false), true);
+  marcarTutorialVisto("u-novo2", { is_anonymous: true }, null);
+  igual("promotor (anônimo) visto vale para o próximo link no aparelho", !!(tutorialJaVisto("outro-uid", { is_anonymous: true }) === true), true);
+  igual("anônimo visto não vale para quem tem conta", !!(tutorialJaVisto("u-conta", { is_anonymous: false }) === false), true);
+  let chamou = null;
+  marcarTutorialVisto("u-conta", { is_anonymous: false }, { auth: { updateUser: (d) => { chamou = d; return Promise.resolve({}); } } });
+  igual("conta real grava tutorial_visto na conta", !!(chamou?.data?.tutorial_visto === true), true);
+}
+
 console.log(`teste-lib: ${ok} ok, ${falhas} falha(s)`);
 if (falhas) process.exit(1);
+
