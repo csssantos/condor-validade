@@ -140,6 +140,18 @@ igual("pendente misto", textoFaixaPendente(1, 2), "1 registro ainda não foi env
   igual("conta real grava tutorial_visto na conta", !!(chamou?.data?.tutorial_visto === true), true);
 }
 
+{
+  const { sincronizarTutorialVisto, marcarTutorialVisto } = await import("../src/componentes/TutorialBipi.jsx");
+  const { chaveListaNotif, chaveBaseNotif } = await import("../src/lib/notificacoes.js");
+  igual("chave por pessoa e loja", [chaveListaNotif("u", 79), chaveBaseNotif("u", 79)], ["condor-validade:notificados:u:79", "condor-validade:notif-base:u:79"]);
+  marcarTutorialVisto("u-sinc", { is_anonymous: true }, null);
+  let n = 0; const sb = { auth: { updateUser: () => { n++; return Promise.resolve({}); } } };
+  sincronizarTutorialVisto("u-sinc", { is_anonymous: false, user_metadata: {} }, sb);
+  igual("quem já viu só no aparelho é sincronizado com a conta", n, 1);
+  sincronizarTutorialVisto("u-sinc", { is_anonymous: false, user_metadata: { tutorial_visto: true } }, sb);
+  sincronizarTutorialVisto("nunca-viu", { is_anonymous: false, user_metadata: {} }, sb);
+  igual("não sincroniza se já está na conta ou nunca viu", n, 1);
+}
 console.log(`teste-lib: ${ok} ok, ${falhas} falha(s)`);
 if (falhas) process.exit(1);
 

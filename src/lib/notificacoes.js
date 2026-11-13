@@ -29,8 +29,20 @@ async function inscreverPush(usuario) {
 // Antes, a lista de "já avisados" era uma só por aparelho: conta nova, aparelho novo ou notificação recém-ativada
 // disparava de uma vez TUDO que já estava no prazo (notificação tardia). Agora cada pessoa tem a sua lista e,
 // na primeira vez (sem "linha de base"), tudo que já existe é registrado em silêncio; só o que mudar depois avisa.
-const chaveListaNotif = (uid) => `condor-validade:notificados:${uid}`;
-const chaveBaseNotif = (uid) => `condor-validade:notif-base:${uid}`;
+const chaveListaNotif = (uid, loja) => `condor-validade:notificados:${uid}${loja ? ":" + loja : ""}`;
+const chaveBaseNotif = (uid, loja) => `condor-validade:notif-base:${uid}${loja ? ":" + loja : ""}`;
+/** apaga lista e base da pessoa (todas as lojas) — ao sair ou ao perder a permissão */
+function limparNotifDaPessoa(uid, apenasBase = false) {
+  if (!uid) return;
+  try {
+    const apagar = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i) || "";
+      if (k.startsWith(`condor-validade:notif-base:${uid}`) || (!apenasBase && k.startsWith(`condor-validade:notificados:${uid}`))) apagar.push(k);
+    }
+    apagar.forEach((k) => localStorage.removeItem(k));
+  } catch { /* sem armazenamento */ }
+}
 const chaveNotifItem = (item, nivel) => `${item.id}:${nivel}`;
 /** items já filtrados por precisaNotificar: [{ chave }]. Devolve o que avisar agora e o que só marcar. */
 function planejarNotificacoes({ candidatos, jaAvisadas, temBase }) {
@@ -102,4 +114,4 @@ async function buscarProdutoPorCodigo(barcode) {
   return null;
 }
 
-export { buscarProdutoPorCodigo, chaveBaseNotif, chaveNotifItem, planejarNotificacoes, chaveListaNotif, dispararNotificacao, inscreverPush, isIOS, isStandalone, urlBase64ToUint8Array };
+export { buscarProdutoPorCodigo, limparNotifDaPessoa, chaveBaseNotif, chaveNotifItem, planejarNotificacoes, chaveListaNotif, dispararNotificacao, inscreverPush, isIOS, isStandalone, urlBase64ToUint8Array };

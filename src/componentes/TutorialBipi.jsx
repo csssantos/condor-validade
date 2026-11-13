@@ -26,6 +26,11 @@ export const marcarTutorialVisto = (uid, user, supabase) => {
   // grava na conta sem esperar (falha de rede não atrapalha: a marca local já vale)
   try { supabase?.auth?.updateUser?.({ data: { tutorial_visto: true } })?.catch?.(() => {}); } catch { /* sem rede */ }
 };
+// quem já tinha visto neste aparelho (antes da marca na conta) passa a valer em qualquer aparelho
+export const sincronizarTutorialVisto = (uid, user, supabase) => {
+  if (!uid || !user || user.is_anonymous || user.user_metadata?.tutorial_visto === true || !lerVistos().includes(uid)) return;
+  try { supabase?.auth?.updateUser?.({ data: { tutorial_visto: true } })?.catch?.(() => {}); } catch { /* sem rede */ }
+};
 export const abrirTutorial = () => { try { window.dispatchEvent(new CustomEvent("condor-abrir-tutorial")); } catch { /* sem janela */ } };
 
 // cada etapa: o que o Bipi fala, um título curto e os "cartões" de apoio (ícone + texto)

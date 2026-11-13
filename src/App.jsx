@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { TutorialBipi, etapasDoTutorial, marcarTutorialVisto, tutorialJaVisto } from "./componentes/TutorialBipi";
+import { TutorialBipi, etapasDoTutorial, marcarTutorialVisto, sincronizarTutorialVisto, tutorialJaVisto } from "./componentes/TutorialBipi";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase, abriuPorRecuperacao, linkComErro, limparRecuperacao, temLinkPendente, descartarLinkPendente, usarLinkPendente, emailDoLinkPendente } from "./supabaseClient";
 import { Ticket, Barcode, Package, Calendar, Mic, ShieldAlert, AlertTriangle, Megaphone, Lock } from "lucide-react";
@@ -20,7 +20,7 @@ import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SNAPSHOT
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
 import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
-import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, isIOS, isStandalone, planejarNotificacoes, chaveListaNotif } from "./lib/notificacoes";
+import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, isIOS, isStandalone, planejarNotificacoes, chaveListaNotif, limparNotifDaPessoa } from "./lib/notificacoes";
 import { eanValido, limiteSomaLote, textoLote } from "./lib/produto";
 import { usarDadosGerenciais } from "./lib/relatoriosPDF";
 import { useDesktop, useTelaLarga } from "./lib/tela";
@@ -130,6 +130,12 @@ function AppInner() {
     typeof Notification !== "undefined" ? Notification.permission : "unsupported"
   );
   const [toast, setToast] = useState(null);
+  useEffect(() => { // permissão mudada pelas configurações do navegador também vale na hora
+    let st = null; const ler = () => { if (typeof Notification !== "undefined") setNotifPermission(Notification.permission); };
+    try { navigator.permissions?.query({ name: "notifications" }).then((r) => { st = r; r.addEventListener("change", ler); }).catch(() => {}); } catch { /* sem API */ }
+    window.addEventListener("focus", ler);
+    return () => { window.removeEventListener("focus", ler); try { st?.removeEventListener("change", ler); } catch { /* ok */ } };
+  }, []);
   const [desfazer, setDesfazer] = useState(null); // { id, mensagem, onDesfazer }
   const [detalheItem, setDetalheItem] = useState(null);
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -147,7 +153,7 @@ function AppInner() {
       if (event === "SIGNED_OUT") {
         // nada da pessoa que saiu fica na tela nem no aparelho
         setItems([]); setCatalog({}); setHistorico([]); setAuditoria([]); setRondas([]); setDadosDoUid(null);
-        try { const u = sessaoRef.current; if (u) { localStorage.removeItem(chaveListaNotif(u)); localStorage.removeItem(chaveBaseNotif(u)); } } catch { /* sem armazenamento */ }
+        limparNotifDaPessoa(sessaoRef.current);
         setLojaAtivaOverride(null); setFlow(null); setTab("home"); setDetalheItem(null); // a próxima pessoa não herda a loja trocada nem a tela aberta
         try { localStorage.removeItem(SNAPSHOT_KEY); } catch { /* sem armazenamento */ }
       }
@@ -585,6 +591,7 @@ function AppInner() {
     const t = setTimeout(() => setTutorialAberto(true), 900);
     return () => clearTimeout(t);
   }, [uidTutorial, perfil, aceiteOk, dadosProntos, outroModal, flow, tab]);
+  useEffect(() => { if (uidTutorial && sessao?.user) sincronizarTutorialVisto(uidTutorial, sessao.user, supabase); }, [uidTutorial]); // eslint-disable-line react-hooks/exhaustive-deps
   const etapasTutorial = useMemo(() => etapasDoTutorial({ nivel: perfil?.cargos?.nivel, promotor: !!perfil?.promotor, pc: ehDesktop }), [perfil?.cargos?.nivel, perfil?.promotor, ehDesktop]);
   useEffect(() => { if (mostrarAtualizacao && perfil && novidadesDoCargo.length === 0) { gravarNovidadeVista(NOVIDADES[0].id); setMostrarAtualizacao(false); } }, [mostrarAtualizacao, perfil, novidadesDoCargo.length]);
   // Chamado pelo login/cadastro antes de enviar a senha: confere na hora se existe versão nova e, se existir, trava a entrada.
@@ -682,9 +689,10 @@ function AppInner() {
 
   useEffect(() => {
     // só depois dos dados reais da loja (não do cache) e só para a pessoa logada; a 1ª vez só registra o que já existe
-    if (loading || !dadosProntos || !idDoUsuario || dadosDoUid !== idDoUsuario || notifPermission !== "granted") return;
+    if (idDoUsuario && notifPermission !== "granted") { limparNotifDaPessoa(idDoUsuario, true); return; } // sem permissão: ao reativar (aqui ou pelo navegador) nasce nova linha de base silenciosa
+    if (loading || !dadosProntos || !idDoUsuario || !lojaAtiva?.id || dadosDoUid !== idDoUsuario) return;
     (async () => {
-      const kLista = chaveListaNotif(idDoUsuario), kBase = chaveBaseNotif(idDoUsuario);
+      const kLista = chaveListaNotif(idDoUsuario, lojaAtiva.id), kBase = chaveBaseNotif(idDoUsuario, lojaAtiva.id);
       const candidatos = items.filter((it) => precisaNotificar(it)).map((it) => ({ it, st: getStatus(it), chave: chaveNotifItem(it, getStatus(it).level) }));
       const temBase = !!loadLocal(kBase, null);
       if (!temBase && items.length === 0) return; // lista vazia pode ser falha de carga: não cria a linha de base ainda
@@ -701,7 +709,7 @@ function AppInner() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, loading, dadosProntos, dadosDoUid, idDoUsuario, notifPermission]);
+  }, [items, loading, dadosProntos, dadosDoUid, idDoUsuario, notifPermission, lojaAtiva?.id]);
 
   const toastTimerRef = useRef(null);
   const toastIdRef = useRef(0);
@@ -772,7 +780,7 @@ function AppInner() {
     if (notifPermission === "granted") { showToast("As notificações já estão ativas."); return; }
     const perm = await Notification.requestPermission();
     // ao ativar, o que já existe vira "linha de base" em silêncio: só avisos futuros chegam
-    if (perm === "granted" && idDoUsuario) { try { localStorage.removeItem(chaveBaseNotif(idDoUsuario)); } catch { /* sem armazenamento */ } }
+    if (perm === "granted" && idDoUsuario) limparNotifDaPessoa(idDoUsuario, true);
     setNotifPermission(perm);
     if (perm === "granted") await inscreverPush(usuario);
     showToast(perm === "granted" ? "Notificações ativadas — você vai receber avisos mesmo com o app fechado." : "Permissão não concedida.", perm === "granted" ? "ok" : "warn");
@@ -951,7 +959,7 @@ function AppInner() {
     if (!precisaNotificar(item)) return;
     if (notifPermission !== "granted") return;
     if (!idDoUsuario) return;
-    const kLista = chaveListaNotif(idDoUsuario), chave = chaveNotifItem(item, st.level);
+    const kLista = chaveListaNotif(idDoUsuario, lojaAtiva?.id), chave = chaveNotifItem(item, st.level);
     const notified = loadLocal(kLista, []);
     if (notified.includes(chave)) return;
     saveLocal(kLista, [...notified, chave].slice(-2000)); // marca ANTES de avisar: o efeito não repete o mesmo item
