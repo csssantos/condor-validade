@@ -22,6 +22,7 @@ export const marcarTutorialVisto = (uid, user, supabase) => {
   if (!uid) return;
   try { localStorage.setItem(CHAVE, JSON.stringify([uid, ...lerVistos().filter((x) => x !== uid)].slice(0, 20))); } catch { /* sem armazenamento */ }
   if (user?.is_anonymous) { try { localStorage.setItem(CHAVE_ANONIMO, "1"); } catch { /* sem armazenamento */ } return; }
+  if (user?.user_metadata?.tutorial_visto === true) return; // já está na conta: não mexe na sessão à toa
   // grava na conta sem esperar (falha de rede não atrapalha: a marca local já vale)
   try { supabase?.auth?.updateUser?.({ data: { tutorial_visto: true } })?.catch?.(() => {}); } catch { /* sem rede */ }
 };

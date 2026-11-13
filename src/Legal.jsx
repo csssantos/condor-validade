@@ -264,7 +264,7 @@ export const DOCUMENTOS = [
         "Cópia offline (condor-validade:instantaneo-offline): produtos, catálogo e histórico da loja para o app abrir sem internet. Atualizada a cada sincronização e apagada ao sair da conta.",
         "Ações sem internet (condor-validade:fila-offline e avdc_ronda_fila): lançamentos, baixas e conferências feitas sem conexão. Apagadas assim que enviadas; só são enviadas com a conta de quem as fez.",
         "Preferências (condor-validade:preferencias): tema, som e opções de tela. Ficam até você limpar os dados do site.",
-        "Alertas já avisados (condor-validade:notificados e condor-validade:notif-base, uma lista por pessoa): evita repetir a mesma notificação e garante que só avisos novos cheguem.",
+        "Alertas já avisados (condor-validade:notificados:<id> e condor-validade:notif-base:<id>, um par por pessoa; apagados ao sair): evita repetir a mesma notificação e garante que só avisos novos cheguem.",
         "Aceite dos termos (avdc_aceite_termos e avdc_aceite_pendente): versão dos termos que você aceitou neste aparelho (o aceite oficial fica no servidor).",
         "Novidades e avisos já vistos (avdc_novidade_vista e avdc_avisos_vistos), tutorial do Bipi visto (avdc_tutorial_visto e avdc_tutorial_visto_anonimo; para quem tem conta, a marca \"tutorial visto\" também fica na própria conta) e aviso de armazenamento visto (avdc_aviso_armazenamento): para não mostrar de novo.",
         "Microfone liberado (condor_mic_liberado): só um sinal de que você já autorizou, para não pedir toda hora.",

@@ -29,7 +29,7 @@ async function inscreverPush(usuario) {
 // Antes, a lista de "já avisados" era uma só por aparelho: conta nova, aparelho novo ou notificação recém-ativada
 // disparava de uma vez TUDO que já estava no prazo (notificação tardia). Agora cada pessoa tem a sua lista e,
 // na primeira vez (sem "linha de base"), tudo que já existe é registrado em silêncio; só o que mudar depois avisa.
-const prefixoNotif = (uid) => `condor-validade:notificados:${uid}`;
+const chaveListaNotif = (uid) => `condor-validade:notificados:${uid}`;
 const chaveBaseNotif = (uid) => `condor-validade:notif-base:${uid}`;
 const chaveNotifItem = (item, nivel) => `${item.id}:${nivel}`;
 /** items já filtrados por precisaNotificar: [{ chave }]. Devolve o que avisar agora e o que só marcar. */
@@ -102,4 +102,4 @@ async function buscarProdutoPorCodigo(barcode) {
   return null;
 }
 
-export { buscarProdutoPorCodigo, chaveBaseNotif, chaveNotifItem, planejarNotificacoes, prefixoNotif, dispararNotificacao, inscreverPush, isIOS, isStandalone, urlBase64ToUint8Array };
+export { buscarProdutoPorCodigo, chaveBaseNotif, chaveNotifItem, planejarNotificacoes, chaveListaNotif, dispararNotificacao, inscreverPush, isIOS, isStandalone, urlBase64ToUint8Array };

@@ -20,7 +20,7 @@ import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SNAPSHOT
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
 import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
-import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, isIOS, isStandalone, planejarNotificacoes, prefixoNotif } from "./lib/notificacoes";
+import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, isIOS, isStandalone, planejarNotificacoes, chaveListaNotif } from "./lib/notificacoes";
 import { eanValido, limiteSomaLote, textoLote } from "./lib/produto";
 import { usarDadosGerenciais } from "./lib/relatoriosPDF";
 import { useDesktop, useTelaLarga } from "./lib/tela";
@@ -146,7 +146,8 @@ function AppInner() {
       definirUsuarioFila(session?.user?.id || null); // antes de qualquer envio da fila: ação de uma pessoa nunca vai com a sessão de outra
       if (event === "SIGNED_OUT") {
         // nada da pessoa que saiu fica na tela nem no aparelho
-        setItems([]); setCatalog({}); setHistorico([]); setAuditoria([]); setRondas([]);
+        setItems([]); setCatalog({}); setHistorico([]); setAuditoria([]); setRondas([]); setDadosDoUid(null);
+        try { const u = sessaoRef.current; if (u) { localStorage.removeItem(chaveListaNotif(u)); localStorage.removeItem(chaveBaseNotif(u)); } } catch { /* sem armazenamento */ }
         setLojaAtivaOverride(null); setFlow(null); setTab("home"); setDetalheItem(null); // a próxima pessoa não herda a loja trocada nem a tela aberta
         try { localStorage.removeItem(SNAPSHOT_KEY); } catch { /* sem armazenamento */ }
       }
@@ -356,14 +357,15 @@ function AppInner() {
   // Dados da loja só carregam depois que sabemos QUAL loja (login concluído, perfil carregado —
   // ou o dev trocou de loja em Gestão do Aplicativo). Sem isso, todo mundo lia sempre a loja 79.
   const [dadosProntos, setDadosProntos] = useState(false);
+  const [dadosDoUid, setDadosDoUid] = useState(null); // dono dos dados carregados PELO SERVIDOR (nunca cache/offline): só então as notificações locais podem avaliar
   useEffect(() => {
     if (!lojaAtiva?.id) return;
-    setDadosProntos(false);
+    setDadosProntos(false); setDadosDoUid(null);
     (async () => {
       let cat, its, hist;
       if (navigator.onLine) {
         [cat, its, hist] = await Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]);
-        if (sessaoRef.current) saveLocal(SNAPSHOT_KEY, { uid: sessaoRef.current, cat, its, hist });
+        if (sessaoRef.current) { saveLocal(SNAPSHOT_KEY, { uid: sessaoRef.current, cat, its, hist }); setDadosDoUid(sessaoRef.current); }
       } else {
         const snap = loadLocal(SNAPSHOT_KEY, { cat: {}, its: [], hist: [] });
         const minha = snap && snap.uid && snap.uid === sessaoRef.current; // cópia de outra pessoa (ou sem dono) não abre
@@ -639,6 +641,7 @@ function AppInner() {
     const canalProdutos = supabase
       .channel("realtime-produtos")
       .on("postgres_changes", { event: "*", schema: "public", table: "produtos" }, (payload) => {
+        setDadosDoUid((u) => u || sessaoRef.current || null);
         if (payload.eventType === "DELETE") {
           setItems((prev) => prev.filter((i) => i.id !== payload.old.id));
         } else {
@@ -679,11 +682,13 @@ function AppInner() {
 
   useEffect(() => {
     // só depois dos dados reais da loja (não do cache) e só para a pessoa logada; a 1ª vez só registra o que já existe
-    if (loading || !dadosProntos || !idDoUsuario || notifPermission !== "granted") return;
+    if (loading || !dadosProntos || !idDoUsuario || dadosDoUid !== idDoUsuario || notifPermission !== "granted") return;
     (async () => {
-      const kLista = prefixoNotif(idDoUsuario), kBase = chaveBaseNotif(idDoUsuario);
+      const kLista = chaveListaNotif(idDoUsuario), kBase = chaveBaseNotif(idDoUsuario);
       const candidatos = items.filter((it) => precisaNotificar(it)).map((it) => ({ it, st: getStatus(it), chave: chaveNotifItem(it, getStatus(it).level) }));
-      const plano = planejarNotificacoes({ candidatos, jaAvisadas: loadLocal(kLista, []), temBase: !!loadLocal(kBase, null) });
+      const temBase = !!loadLocal(kBase, null);
+      if (!temBase && items.length === 0) return; // lista vazia pode ser falha de carga: não cria a linha de base ainda
+      const plano = planejarNotificacoes({ candidatos, jaAvisadas: loadLocal(kLista, []), temBase });
       if (plano.criarBase) saveLocal(kBase, Date.now());
       if (plano.marcar.length) saveLocal(kLista, [...loadLocal(kLista, []), ...plano.marcar].slice(-2000));
       for (const { it, st } of plano.avisar) {
@@ -696,7 +701,7 @@ function AppInner() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, loading, dadosProntos, idDoUsuario, notifPermission]);
+  }, [items, loading, dadosProntos, dadosDoUid, idDoUsuario, notifPermission]);
 
   const toastTimerRef = useRef(null);
   const toastIdRef = useRef(0);
@@ -946,16 +951,16 @@ function AppInner() {
     if (!precisaNotificar(item)) return;
     if (notifPermission !== "granted") return;
     if (!idDoUsuario) return;
-    const kLista = prefixoNotif(idDoUsuario), chave = chaveNotifItem(item, st.level);
+    const kLista = chaveListaNotif(idDoUsuario), chave = chaveNotifItem(item, st.level);
     const notified = loadLocal(kLista, []);
     if (notified.includes(chave)) return;
+    saveLocal(kLista, [...notified, chave].slice(-2000)); // marca ANTES de avisar: o efeito não repete o mesmo item
     const desconto = sugestaoDesconto(st.d, item.precoUnitario);
     const corpoLinhas = [
       st.level === "expired" ? "Produto vencido — retire de venda e registre a baixa." : `Vence em ${st.d} dia(s) · Setor ${item.setor}`,
       desconto ? `💡 Sugestão: ${desconto.pct}% OFF (${desconto.label})` : null
     ].filter(Boolean);
     await dispararNotificacao(`⚠️ ${item.nome}`, { corpo: corpoLinhas.join("\n"), imagem: item.foto || null, tag: `produto-${item.id}`, dados: { itemId: item.id, url: `/?produto=${item.id}` } });
-    saveLocal(kLista, [...notified, chave].slice(-2000));
   }
 
   function saveAlertItem(dados) {
