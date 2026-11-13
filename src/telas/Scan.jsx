@@ -3,6 +3,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { Flashlight, FlashlightOff, SwitchCamera, Loader2, AlertTriangle, RotateCcw } from "lucide-react";
 import TelaBiparCracha from "../TelaBiparCracha";
 import { BLUE, RED, RED_DARK, RED_SOFT } from "../lib/constantes";
+import { FUNDO_MARCA } from "../TelasEntrada";
 import { apenasNumeros } from "../lib/utilidades";
 
 // ============ Scan (câmera com leitor nativo + ZXing de reforço) ============
@@ -20,6 +21,11 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
   const [torchOn, setTorchOn] = useState(false);
   const [torchDisponivel, setTorchDisponivel] = useState(false);
   const tentativasRef = useRef(0);
+  const [recusado, setRecusado] = useState(false);
+  const recusadoTimerRef = useRef(null);
+  const bloqueioRef = useRef({ codigo: null, ate: 0 });
+  const onDetectedRef = useRef(onDetected);
+  onDetectedRef.current = onDetected; // sempre a versão mais nova (a leitura continua ligada depois de um código recusado)
 
   // Leitura em múltiplos ângulos: o código pode estar na vertical (etiqueta virada, embalagem
   // cilíndrica etc). A cada tentativa giramos o frame pra um ângulo diferente (0°/90°/270°/180°),
@@ -48,6 +54,26 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
     if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
   }, []);
 
+  // Código lido: avisa a tela de fora. Se ela devolver `false` (código recusado: curto, EAN inválido…), a câmera
+  // CONTINUA ligada e lendo (antes a câmera era desligada antes de perguntar e a tela ficava preta).
+  // O mesmo código recusado é ignorado por 3 s para não repetir o aviso a cada quadro.
+  const aoLer = useCallback((codigo) => {
+    const agora = Date.now();
+    if (bloqueioRef.current.codigo === codigo && agora < bloqueioRef.current.ate) return false;
+    let resposta;
+    try { resposta = onDetectedRef.current(codigo); } catch (e) { pararTudo(); throw e; }
+    if (resposta === false) {
+      bloqueioRef.current = { codigo, ate: agora + 3000 };
+      setRecusado(true);
+      clearTimeout(recusadoTimerRef.current);
+      recusadoTimerRef.current = setTimeout(() => setRecusado(false), 2800);
+      return false;
+    }
+    pararTudo();
+    return true;
+  }, [pararTudo]);
+  useEffect(() => () => clearTimeout(recusadoTimerRef.current), []);
+
   // Correção do bug do iPhone: antes, cada frame tentava só 1 ângulo do ciclo [0,90,270,180],
   // então o ângulo 0° (leitura normal, sem rotação) só era testado 1 a cada 4 frames — na prática
   // isso "diluiu" a leitura normal em 75% e, somado ao custo de rotacionar o canvas a cada frame,
@@ -58,7 +84,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
       if (videoRef.current && detectorRef.current && videoRef.current.readyState >= 2) {
         try {
           const codes = await detectorRef.current.detect(videoRef.current);
-          if (codes && codes.length > 0) { pararTudo(); onDetected(codes[0].rawValue); return; }
+          if (codes && codes.length > 0 && aoLer(codes[0].rawValue)) return;
         } catch (e) {
           // erro pontual de detecção num frame — segue tentando
         }
@@ -69,7 +95,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
             try {
               const fonte = obterFonteRotacionada(videoRef.current, angulo);
               const codes = await detectorRef.current.detect(fonte);
-              if (codes && codes.length > 0) { pararTudo(); onDetected(codes[0].rawValue); return; }
+              if (codes && codes.length > 0 && aoLer(codes[0].rawValue)) return;
             } catch (e) {
               // idem — segue tentando
             }
@@ -78,7 +104,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
       }
       scanLoopNativo();
     });
-  }, [onDetected, pararTudo, obterFonteRotacionada]);
+  }, [aoLer, obterFonteRotacionada]);
 
   // Leitor alternativo (Safari/iOS, que não tem BarcodeDetector nativo): em vez de depender do método
   // "contínuo" da própria lib (que tem se mostrado instável no Safari), controlamos o loop nós mesmos —
@@ -134,12 +160,12 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
         let resultado = null;
         if (nucleo) resultado = tentar(() => lerRecorte(video, n % 2 === 0 ? 90 : 0));
         if (!resultado && (!nucleo || n % 5 === 0)) resultado = tentar(() => lerQuadroInteiro(video));
-        if (resultado) { pararTudo(); onDetected(resultado.getText()); return; }
+        if (resultado && aoLer(resultado.getText())) return;
       }
       rafRef.current = requestAnimationFrame(tentarFrame);
     }
     tentarFrame();
-  }, [onDetected, pararTudo, recorteCentral]);
+  }, [aoLer, recorteCentral]);
 
   // O leitor (ZXing) vem empacotado no app (antes era baixado de um site externo na hora de bipar)
   function carregarZXing() { return import("@zxing/library"); }
@@ -264,38 +290,56 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
   return (
     <div className="px-4 pt-4">
       {!manualMode && (
-        <div className="relative rounded-[28px] overflow-hidden bg-black" style={{ aspectRatio: "3/4" }}>
-          <video ref={videoRef} className="w-full h-full object-cover" muted autoPlay playsInline webkit-playsinline="true" />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-[78%] h-40 relative">
-              <CornerGuide pos="tl" />
-              <CornerGuide pos="tr" />
-              <CornerGuide pos="bl" />
-              <CornerGuide pos="br" />
-              <div style={{ background: RED }} className="absolute left-0 right-0 top-1/2 h-0.5 animate-pulse" />
-              <div style={{ background: RED }} className="absolute top-0 bottom-0 left-1/2 w-0.5 animate-pulse opacity-70" />
-            </div>
-          </div>
+        <div style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative rounded-[28px] overflow-hidden px-4 pt-3 pb-7 flex flex-col items-center">
+          <span aria-hidden className="absolute -right-16 -top-14 h-52 w-52 rounded-full bg-white/10" />
+          <span aria-hidden className="absolute -left-10 bottom-16 h-28 w-28 rounded-full bg-white/10" />
+          {/* O Bipi segura o celular: a cabeça aparece por cima, as mãos nas laterais e os pés embaixo; a câmera é a tela do celular */}
+          <BipiCabeca alerta={recusado} />
+          <div className="relative w-[82%] -mt-3">
+            <span aria-hidden className="absolute left-[22%] -bottom-3 h-6 w-12 rounded-full" style={{ background: "#E31E24" }} />
+            <span aria-hidden className="absolute right-[22%] -bottom-3 h-6 w-12 rounded-full" style={{ background: "#E31E24" }} />
+            <div className="relative rounded-[30px] p-2 shadow-2xl shadow-black/40" style={{ background: "#0A1B33", border: "1px solid rgba(255,255,255,.18)" }}>
+              <div className="relative rounded-[23px] overflow-hidden bg-black" style={{ aspectRatio: "3/4", WebkitMaskImage: "-webkit-radial-gradient(white,black)" }}>
+                <video ref={videoRef} className="w-full h-full object-cover" muted autoPlay playsInline webkit-playsinline="true" />
+                <span aria-hidden className="absolute top-2 left-1/2 -translate-x-1/2 h-1.5 w-12 rounded-full bg-black/60" />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-[78%] h-32 relative">
+                    <CornerGuide pos="tl" />
+                    <CornerGuide pos="tr" />
+                    <CornerGuide pos="bl" />
+                    <CornerGuide pos="br" />
+                    <div style={{ background: RED }} className="absolute left-0 right-0 top-1/2 h-0.5 animate-pulse" />
+                    <div style={{ background: RED }} className="absolute top-0 bottom-0 left-1/2 w-0.5 animate-pulse opacity-70" />
+                  </div>
+                </div>
 
-          <div className="absolute top-3 right-3 flex flex-col gap-2">
-            {torchDisponivel && (
-              <button onClick={alternarTorch} className="h-9 w-9 rounded-full bg-black/50 flex items-center justify-center">
-                {torchOn ? <Flashlight size={16} color="#FFD34D" /> : <FlashlightOff size={16} color="#fff" />}
-              </button>
-            )}
-            <button onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))} className="h-9 w-9 rounded-full bg-black/50 flex items-center justify-center">
-              <SwitchCamera size={16} color="#fff" />
-            </button>
-          </div>
+                <div className="absolute top-3 right-3 flex flex-col gap-2">
+                  {torchDisponivel && (
+                    <button onClick={alternarTorch} aria-label={torchOn ? "Desligar a lanterna" : "Ligar a lanterna"} className="h-9 w-9 rounded-full bg-black/50 flex items-center justify-center">
+                      {torchOn ? <Flashlight size={16} color="#FFD34D" /> : <FlashlightOff size={16} color="#fff" />}
+                    </button>
+                  )}
+                  <button onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))} aria-label="Trocar de câmera" className="h-9 w-9 rounded-full bg-black/50 flex items-center justify-center">
+                    <SwitchCamera size={16} color="#fff" />
+                  </button>
+                </div>
 
-          {status === "iniciando" && (
-            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2">
-              <Loader2 className="animate-spin" color="#fff" size={26} />
-              <p className="text-white text-xs">Abrindo câmera...</p>
+                {status === "iniciando" && (
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" color="#fff" size={26} />
+                    <p className="text-white text-xs">Abrindo câmera...</p>
+                  </div>
+                )}
+                <div className="absolute bottom-3 left-2 right-2 text-center" role="status" aria-live="polite">
+                  {recusado
+                    ? <p className="text-[11px] font-semibold inline-block px-3 py-1.5 rounded-2xl leading-snug" style={{ background: "#FFF4E0", color: "#7A4B00" }}>Esse código não foi aceito. Pode apontar para outro: a câmera continua ligada.</p>
+                    : <p className="text-white/90 text-[11px] font-medium bg-black/45 inline-block px-3 py-1 rounded-full">Código em pé ou deitado</p>}
+                </div>
+              </div>
             </div>
-          )}
-          <div className="absolute bottom-3 left-0 right-0 text-center">
-            <p className="text-white/90 text-xs font-medium bg-black/40 inline-block px-3 py-1 rounded-full">Aponte para o código — na horizontal ou na vertical</p>
+            {/* mãos do Bipi segurando o celular (por cima da moldura) */}
+            <span aria-hidden className="absolute -left-3 top-[46%] h-9 w-9 rounded-full bg-white shadow-md" style={{ border: "3px solid #7DB4F0" }} />
+            <span aria-hidden className="absolute -right-3 top-[46%] h-9 w-9 rounded-full bg-white shadow-md" style={{ border: "3px solid #7DB4F0" }} />
           </div>
         </div>
       )}
@@ -343,6 +387,29 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
 
       <button onClick={() => { pararTudo(); onCancel(); }} style={{ color: T.subtext }} className="w-full mt-3 text-xs py-2">Cancelar</button>
     </div>
+  );
+}
+
+// Cabeça do Bipi (cópia fiel de public/bipi-acenando.svg: antena, orelhas, cabeça e rosto; só o recorte muda).
+// `alerta` = expressão oficial de atenção (olhos âmbar e boca em "o") quando um código é recusado.
+function BipiCabeca({ alerta }) {
+  const olho = alerta ? "#F5A524" : "#2ECC71";
+  return (
+    <svg aria-hidden viewBox="78 20 244 212" className="relative w-[168px] h-auto shrink-0">
+      <path d="M200 74 V46" stroke="#7DB4F0" strokeWidth="7" strokeLinecap="round" />
+      <circle cx="200" cy="38" r="12" fill="#E31E24" /><circle cx="196" cy="34" r="3.5" fill="#fff" opacity=".8" />
+      <rect x="86" y="118" width="22" height="62" rx="11" fill="#0B4F9E" /><rect x="292" y="118" width="22" height="62" rx="11" fill="#0B4F9E" />
+      <rect x="104" y="72" width="192" height="152" rx="48" fill="#EAF1FB" stroke="#7DB4F0" strokeWidth="4" />
+      <rect x="124" y="94" width="152" height="108" rx="32" fill="#082F5E" />
+      <rect x="152" y="112" width="28" height="36" rx="14" fill={olho} /><rect x="220" y="112" width="28" height="36" rx="14" fill={olho} />
+      <circle cx="163" cy="124" r="5" fill="#fff" opacity=".85" /><circle cx="231" cy="124" r="5" fill="#fff" opacity=".85" />
+      <path d="M116 166 H284" stroke="#E31E24" strokeWidth="16" strokeLinecap="round" opacity=".22" />
+      <path d="M120 166 H280" stroke="#FF4A50" strokeWidth="5" strokeLinecap="round" />
+      {alerta
+        ? <circle cx="200" cy="187" r="6" fill="none" stroke="#fff" strokeWidth="4" />
+        : <path d="M186 184 Q200 194 214 184" fill="none" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" />}
+      <circle cx="262" cy="84" r="5" fill="#2ECC71" /><circle cx="262" cy="84" r="9" fill="#2ECC71" opacity=".3" />
+    </svg>
   );
 }
 

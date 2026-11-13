@@ -10,6 +10,10 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-13-bipar-com-bipi", data: "13/11/2026", itens: [
+    { tipo: "melhorado", ate: 7, texto: "Tela de bipar refeita: agora o Bipi segura o celular e a câmera aparece na tela dele." },
+    { tipo: "corrigido", ate: 7, texto: "Ao ler um código que o app não aceita, a câmera não fica mais preta: ela continua ligada para você apontar para outro código." },
+  ] },
   { id: "2026-11-13-baixa-total-leitor", data: "13/11/2026", itens: [
     { tipo: "melhorado", ate: 5, texto: "A baixa agora é sempre do lote inteiro: o app não pergunta mais a quantidade e mostra o que vai sair do estoque antes de confirmar." },
     { tipo: "melhorado", ate: 7, texto: "O leitor de código de barras agora vem dentro do app (não depende mais de um site externo) e tenta ler o código em pé e deitado." },

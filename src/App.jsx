@@ -790,7 +790,7 @@ function AppInner() {
     const clean = apenasNumeros(codeRaw, 14);
     if (clean.length < 4) {
       showToast("Código lido muito curto. Tente novamente ou digite manualmente.", "warn");
-      return;
+      return false; // false = recusado: a câmera continua lendo
     }
     playBeep(prefs.som);
 
@@ -820,7 +820,7 @@ function AppInner() {
     const known = catalog[clean];
     if (!known && !eanValido(clean)) {
       showToast(`Código de barras inválido (${clean.length} dígitos): precisa ser EAN-8 (8), UPC-A (12) ou EAN-13 (13), com o último dígito de verificação certo. Confira e tente de novo.`, "warn");
-      return;
+      return false;
     }
     setPendingBarcode(clean);
     if (known) {
