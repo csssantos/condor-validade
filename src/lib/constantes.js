@@ -128,7 +128,6 @@ const MOTIVOS_EXCLUSAO = [
   "Cadastrado no setor errado", "Teste/experimento", "Outro"
 ];
 
-const ZXING_CDN = "https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js";
 
 const CATALOG_KEY = "condor-validade:catalogo";
 
@@ -148,4 +147,4 @@ const SNAPSHOT_KEY = "condor-validade:instantaneo-offline";
 // (ex: https://seu-app.vercel.app) pra nunca depender do localhost. Cai no endereço atual se não estiver definida.
 const SITE_URL = String(import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, "");
 
-export { BG, BLUE, BLUE_DARK, BLUE_SOFT, CATALOG_KEY, CATEGORIAS_GIRO, CONDOR_LOGO_BASE64, DIAS_ALERTA_BASE, HIST_KEY, INK, ITEMS_KEY, LOGO_SRC, MOTIVOS_BAIXA, MOTIVOS_EXCLUSAO, NOTIF_KEY, POLITICAS_TROCA, PREFS_KEY, RED, RED_DARK, RED_SOFT, SETORES, SETORES_PERECIVEIS, SETORES_PERECIVEIS_EXTRA, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, USER_KEY, ZXING_CDN, agruparItensPorProduto, definirSetoresPereciveisExtra, ehPerecivel, gerarCodigoLocalizacao, setorPrincipal, subsetorEfetivo };
+export { BG, BLUE, BLUE_DARK, BLUE_SOFT, CATALOG_KEY, CATEGORIAS_GIRO, CONDOR_LOGO_BASE64, DIAS_ALERTA_BASE, HIST_KEY, INK, ITEMS_KEY, LOGO_SRC, MOTIVOS_BAIXA, MOTIVOS_EXCLUSAO, NOTIF_KEY, POLITICAS_TROCA, PREFS_KEY, RED, RED_DARK, RED_SOFT, SETORES, SETORES_PERECIVEIS, SETORES_PERECIVEIS_EXTRA, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, USER_KEY, agruparItensPorProduto, definirSetoresPereciveisExtra, ehPerecivel, gerarCodigoLocalizacao, setorPrincipal, subsetorEfetivo };

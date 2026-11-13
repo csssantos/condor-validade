@@ -1126,17 +1126,18 @@ function AppInner() {
     setFlow("confirm");
   }
 
-  function darBaixa(item, motivo, quantidadeOverride) {
+  // Baixa é SEMPRE do lote inteiro (decisão do dono, 2026-11-13): não existe baixa parcial
+  function darBaixa(item, motivo) {
     setDetalheItem(null);
     const st = getStatus(item);
-    const quantidadeFinal = quantidadeOverride != null ? quantidadeOverride : item.quantidade;
+    const quantidadeFinal = item.quantidade;
     setItems((prev) => prev.filter((i) => i.id !== item.id));
     const registro = { ...item, quantidade: quantidadeFinal, motivo, dataBaixa: new Date().toISOString(), registradoPor: usuario || null, vencidoAntes: st.level === "expired" };
     setHistorico((prev) => [registro, ...prev]);
     // baixa = uma RPC só: o servidor grava o histórico a partir do produto real e apaga o produto na mesma transação (funcionário não consegue apagar de outro jeito)
-    gravarComFila("baixarProduto", { id: item.id, motivo, quantidade: quantidadeOverride != null ? quantidadeOverride : null, nome: item.nome }); // nome só serve para o aviso de erro (a RPC ignora)
+    gravarComFila("baixarProduto", { id: item.id, motivo, quantidade: null, nome: item.nome }); // nome só serve para o aviso de erro (a RPC ignora)
     logAuditoria(usuario, `deu baixa (${motivo})`, item.nome, item.barcode);
-    showToast(`Baixa registrada: ${motivo}${quantidadeOverride != null ? ` (${quantidadeOverride} un. remanescente da promoção)` : ""}.`, st.level === "expired" ? "warn" : "ok");
+    showToast(`Baixa total registrada: ${motivo}.`, st.level === "expired" ? "warn" : "ok");
   }
 
   // Produto encontrado JÁ vencido (ou vencendo hoje): não faz sentido criar um alerta de validade pra ele,

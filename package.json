@@ -19,7 +19,8 @@
     "jspdf": "^3.0.0",
     "tesseract.js": "^7.0.0",
     "framer-motion": "^13.1.1",
-    "@heroicons/react": "^2.2.0"
+    "@heroicons/react": "^2.2.0",
+    "@zxing/library": "^0.20.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

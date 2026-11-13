@@ -2,7 +2,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Flashlight, FlashlightOff, SwitchCamera, Loader2, AlertTriangle, RotateCcw } from "lucide-react";
 import TelaBiparCracha from "../TelaBiparCracha";
-import { BLUE, RED, RED_DARK, RED_SOFT, ZXING_CDN } from "../lib/constantes";
+import { BLUE, RED, RED_DARK, RED_SOFT } from "../lib/constantes";
 import { apenasNumeros } from "../lib/utilidades";
 
 // ============ Scan (câmera com leitor nativo + ZXing de reforço) ============
@@ -88,62 +88,61 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
   // aparecia como erro no diagnóstico do iPhone). O método público e confirmado nessa versão é
   // "decode(elemento)", que aceita o próprio <video> direto — ele mesmo cuida do canvas interno.
   const canvasZXingRef = useRef(null);
-  const scanLoopZXing = useCallback((codeReader) => {
-    function decodeUmFrame(video, angulo) {
-      const fonte = obterFonteRotacionada(video, angulo);
-      if (typeof codeReader.decode === "function") return codeReader.decode(fonte);
-      // fallback pra builds antigas que só tenham decodeFromCanvas
+  const roiCanvasRef = useRef(null);
+  // Recorte central quadrado do vídeo (até 960 px), já girado no ângulo pedido: o código fica grande e a leitura
+  // não depende de como o iPhone entrega o quadro (em pé ou deitado).
+  const recorteCentral = useCallback((video, angulo) => {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const lado = Math.min(vw, vh), destino = Math.min(lado, 960);
+    if (!roiCanvasRef.current) roiCanvasRef.current = document.createElement("canvas");
+    const canvas = roiCanvasRef.current;
+    if (canvas.width !== destino) canvas.width = destino;
+    if (canvas.height !== destino) canvas.height = destino;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.save();
+    ctx.translate(destino / 2, destino / 2);
+    if (angulo) ctx.rotate((angulo * Math.PI) / 180);
+    ctx.drawImage(video, (vw - lado) / 2, (vh - lado) / 2, lado, lado, -destino / 2, -destino / 2, destino, destino);
+    ctx.restore();
+    return canvas;
+  }, []);
+  const scanLoopZXing = useCallback((codeReader, ZXing, hints) => {
+    // Caminho principal: nós mesmos montamos a imagem (recorte central) e pedimos a leitura em pé e deitado, alternando.
+    const temNucleo = !!(ZXing && ZXing.MultiFormatReader && ZXing.BinaryBitmap && ZXing.HybridBinarizer && ZXing.HTMLCanvasElementLuminanceSource);
+    const nucleo = temNucleo ? new ZXing.MultiFormatReader() : null;
+    if (nucleo && hints) nucleo.setHints(hints);
+    function lerRecorte(video, angulo) {
+      const canvas = recorteCentral(video, angulo);
+      const bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(canvas)));
+      try { return nucleo.decodeWithState(bitmap); } finally { nucleo.reset(); }
+    }
+    // Caminho antigo (quadro inteiro pela própria biblioteca): fica de reforço a cada 5 quadros
+    function lerQuadroInteiro(video) {
+      if (typeof codeReader.decode === "function") return codeReader.decode(video);
       if (!canvasZXingRef.current) canvasZXingRef.current = document.createElement("canvas");
       const canvas = canvasZXingRef.current;
-      const largura = fonte.videoWidth || fonte.width, altura = fonte.videoHeight || fonte.height;
-      canvas.width = largura;
-      canvas.height = altura;
-      canvas.getContext("2d", { willReadFrequently: true }).drawImage(fonte, 0, 0, largura, altura);
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.getContext("2d", { willReadFrequently: true }).drawImage(video, 0, 0, canvas.width, canvas.height);
       return codeReader.decodeFromCanvas(canvas);
     }
-    // Mesma correção do leitor nativo: no Safari/iPhone (que cai nesse caminho, sem BarcodeDetector),
-    // o ciclo de ângulos fazia o app só tentar a leitura "normal" (0°) 1 a cada 4 frames, e cada
-    // rotação de canvas tem custo alto de CPU no iOS — juntos, isso derrubava a taxa de leitura a
-    // ponto de nunca bipar. Agora todo frame tenta 0° primeiro (direto no vídeo, sem canvas) e só
-    // testa um ângulo rotacionado a cada 3 frames, como reforço pra código na vertical/de lado.
+    function tentar(fn) { try { return fn(); } catch (e) { return null; } } // "não achou neste quadro" é o normal
     function tentarFrame() {
       const video = videoRef.current;
       if (video && video.readyState >= 2 && video.videoWidth > 0) {
-        try {
-          const resultado = decodeUmFrame(video, 0);
-          if (resultado) { pararTudo(); onDetected(resultado.getText()); return; }
-        } catch (e) {
-          // "não encontrou código neste frame" é esperado na maioria das tentativas — segue tentando
-        }
         tentativasRef.current += 1;
-        if (tentativasRef.current % 3 === 0) {
-          const angulo = ANGULOS_TENTATIVA[(tentativasRef.current / 3) % ANGULOS_TENTATIVA.length];
-          if (angulo !== 0) {
-            try {
-              const resultado = decodeUmFrame(video, angulo);
-              if (resultado) { pararTudo(); onDetected(resultado.getText()); return; }
-            } catch (e) {
-              // idem — segue tentando
-            }
-          }
-        }
+        const n = tentativasRef.current;
+        let resultado = null;
+        if (nucleo) resultado = tentar(() => lerRecorte(video, n % 2 === 0 ? 90 : 0));
+        if (!resultado && (!nucleo || n % 5 === 0)) resultado = tentar(() => lerQuadroInteiro(video));
+        if (resultado) { pararTudo(); onDetected(resultado.getText()); return; }
       }
       rafRef.current = requestAnimationFrame(tentarFrame);
     }
     tentarFrame();
-  }, [onDetected, pararTudo, obterFonteRotacionada]);
+  }, [onDetected, pararTudo, recorteCentral]);
 
-  function carregarZXing() {
-    return new Promise((resolve, reject) => {
-      if (window.ZXing) { resolve(window.ZXing); return; }
-      const script = document.createElement("script");
-      script.src = ZXING_CDN;
-      script.async = true;
-      script.onload = () => resolve(window.ZXing);
-      script.onerror = () => reject(new Error("zxing-load-fail"));
-      document.head.appendChild(script);
-    });
-  }
+  // O leitor (ZXing) vem empacotado no app (antes era baixado de um site externo na hora de bipar)
+  function carregarZXing() { return import("@zxing/library"); }
   function comTimeout(promessa, ms) {
     return Promise.race([
       promessa,
@@ -213,7 +212,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
         clearTimeout(timeoutGeral);
         setStatus("ok");
         // espera 1 frame real de vídeo chegar antes de começar a tentar ler (evita ler tela preta no início)
-        requestAnimationFrame(() => scanLoopZXing(codeReader));
+        requestAnimationFrame(() => scanLoopZXing(codeReader, ZXing, hints));
       } catch (e) {
         clearTimeout(timeoutGeral);
         setStatus("sem-suporte");

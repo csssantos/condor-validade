@@ -21,7 +21,6 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   const [subEtapa, setSubEtapa] = useState(null); // null | 'promocao' | 'quantidadeFinal'
   const [motivoPendente, setMotivoPendente] = useState(null);
   const [precoPromoInput, setPrecoPromoInput] = useState(item.precoPromocional ? String(item.precoPromocional) : "");
-  const [quantidadeFinalInput, setQuantidadeFinalInput] = useState(String(item.quantidade || 1));
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [motivoExclusao, setMotivoExclusao] = useState(null);
   const [motivoExclusaoOutro, setMotivoExclusaoOutro] = useState("");
@@ -57,7 +56,6 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   function escolherMotivo(m) {
     if (m === "Promoção aplicada" && !item.emPromocao) { setSubEtapa("promocao"); return; }
     setMotivoPendente(m);
-    setQuantidadeFinalInput(String(item.quantidade || 1));
     setSubEtapa("quantidade");
   }
 
@@ -494,20 +492,17 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 
           {subEtapa === "quantidade" && (
             <>
-              <p className="text-[11px] font-medium mb-1.5">
-                Quantas {item.porPeso ? "kg" : "unidade(s)"} de <b>{motivoPendente === "Vencido" || (motivoPendente || "").toLowerCase().includes("venc") ? "vencido" : "baixa"}</b> vão ser dadas?
-              </p>
-              <p style={{ color: T.subtext }} className="text-[10px] mb-1.5">A quantidade que venceu pode ser diferente da que foi cadastrada/vendida — confira antes de confirmar.</p>
-              <input type="number" inputMode="decimal" min={item.porPeso ? 0.001 : 1} step={item.porPeso ? "0.001" : "1"} max={item.quantidade || 99999} autoFocus value={quantidadeFinalInput}
-                onChange={(e) => setQuantidadeFinalInput(item.porPeso ? e.target.value.replace(/[^\d.]/g, "") : e.target.value.replace(/[^\d]/g, ""))}
-                style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-3 text-sm outline-none focus:ring-2" />
-              <p style={{ color: T.subtext }} className="text-[10px] mt-1">de {item.quantidade}{item.porPeso ? "kg" : " unidade(s)"} cadastrada(s)</p>
+              <p className="text-[12px] font-semibold mb-1.5">Baixa total do lote</p>
+              <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2.5">
+                <p className="text-sm font-bold">{item.quantidade || 1}{item.porPeso ? " kg" : " unidade(s)"} · {motivoPendente}</p>
+                <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">Validade {formatarData(item.validade)}{item.lote ? ` · lote ${item.lote}` : ""}</p>
+              </div>
+              <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 leading-snug">A baixa é sempre do lote inteiro: ele sai do estoque e vai para o histórico. Se ainda sobrou produto bom, lance de novo como outro lote.</p>
               <div className="flex gap-2 mt-3">
                 <button onClick={() => setSubEtapa(null)} style={{ color: T.subtext }} className="flex-1 text-xs py-2.5">Voltar</button>
-                <button onClick={() => onBaixa(item, motivoPendente, item.porPeso ? clampNumero(quantidadeFinalInput, 0.001, item.quantidade || 9999) : clampNumero(quantidadeFinalInput, 1, item.quantidade || 99999))}
-                  disabled={!quantidadeFinalInput || Number(quantidadeFinalInput) <= 0}
-                  style={{ background: RED_DARK, color: "#fff" }} className="flex-[2] text-sm font-semibold py-2.5 rounded-xl disabled:opacity-40">
-                  Confirmar baixa
+                <button onClick={() => onBaixa(item, motivoPendente)}
+                  style={{ background: RED_DARK, color: "#fff" }} className="flex-[2] text-sm font-semibold py-2.5 rounded-xl">
+                  Confirmar baixa total
                 </button>
               </div>
             </>
