@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 
 import { BLUE, BLUE_DARK, BLUE_SOFT, RED, RED_DARK, RED_SOFT } from "./lib/constantes";
-import { hojeISOLocal as hojeISO } from "./lib/formatos";
 const VERDE = "#1F9D55", VERDE_SOFT = "#E6F7ED", LARANJA = "#C2760C", LARANJA_SOFT = "#FCF0DD";
 
 export const MOTIVOS_PERDA = [
