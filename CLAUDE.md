@@ -457,3 +457,7 @@ Retrato do banco no dia: 2 lojas, 5 usuários (3 ativos), 45 lotes, 169 produtos
 - Fila offline que passa a ≤2 dias: NÃO some em silêncio: o banco recusa (`validade_muito_proxima`), a op sai da fila e o app avisa "Não foi possível gravar <produto>: o produto vence em até 2 dias: leve ao gerente…" (`mensagemErroGravacao`). Aceito.
 - Duplicados do Graphify (32 locais) = espelho `src/voz.js` x `telegram-bot/voz.js`; dono decidiu MANTER a cópia (guardada por `scripts/checar-copias.mjs`).
 - Faltam da lista: 5 (redirect do sw.js), 15: tamanho do App.jsx (já dividido; AppInner ainda grande); menores: duas somas seguidas offline no mesmo lote, tela da baixa otimista, reenvio após resposta perdida mostra produto_nao_encontrado (já tratado em `jaFeita` só no processarFila).
+
+## LOJA NA IMAGEM DE COMPARTILHAR + FECHAMENTO DOS GUARDADOS (2026-11-14, pedido do dono) — sem SQL
+- Rodapé da imagem mostra "Loja N" e o endereço (rua, número, complemento, bairro, cidade-UF, até 2 linhas). `lojaDados` (AppInner) = loja trocada pelo dev (de `todasLojas`) ou `perfil.lojas`; o select do perfil agora traz rua/numero/complemento/bairro/cidade/estado (colunas de `lojas`; se faltar alguma, o login quebra). Dev trocando de loja sem `todasLojas` carregada sai só com "Loja N". Sem teste unitário do canvas.
+- Guardados: "tela da baixa otimista" já é desfeita pelo evento `condor-erro-gravacao` (recarrega os dados reais); "duas somas offline": a soma ao lote não usa a fila (avisa e volta o número); sw.js redirect: sem pendência. AppInner grande = dívida aceita.

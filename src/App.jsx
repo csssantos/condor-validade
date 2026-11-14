@@ -109,6 +109,8 @@ function AppInner() {
   const [lojaAtivaOverride, setLojaAtivaOverride] = useState(null); // { id, numero_loja } — só usado por dev/central trocando de loja
   const lojaAtiva = lojaAtivaOverride || { id: perfil?.loja_id, numero_loja: perfil?.lojas?.numero_loja };
   const [todasLojas, setTodasLojas] = useState([]);
+  // Dados da loja para a imagem de compartilhar (da troca de loja, da lista de lojas ou do perfil)
+  const lojaDados = (lojaAtivaOverride && (todasLojas.find((l) => l.id === lojaAtivaOverride.id) || lojaAtivaOverride)) || perfil?.lojas || null;
   const recarregarLojas = async () => { const { data } = await supabase.from("lojas").select("*").order("numero_loja"); setTodasLojas(data || []); };
   useEffect(() => { if (ehDev) recarregarLojas(); }, [ehDev]);
   // Toda leitura/escrita da camada de dados (supaFetch*/supaUpsert*) filtra pela loja aqui — é a
@@ -185,7 +187,7 @@ function AppInner() {
     let cancelado = false;
     (async () => {
       const { data, error } = await supabase.from("usuarios")
-        .select("nome, ativo, matricula, cargo_nome_loja, loja_id, setor, promotor, marca, acesso_expira_em, cargos(nome, nivel, cargos_subordinados), lojas(numero_loja)")
+        .select("nome, ativo, matricula, cargo_nome_loja, loja_id, setor, promotor, marca, acesso_expira_em, cargos(nome, nivel, cargos_subordinados), lojas(numero_loja, rua, numero, complemento, bairro, cidade, estado)")
         .eq("id", sessao.user.id)
         .maybeSingle();
       if (cancelado) return;
@@ -1308,6 +1310,10 @@ function AppInner() {
         destaque: { rotulo: "Validade", valor: fmtVal(temVal ? item.validade : null), sub: diasTxt ? diasTxt.charAt(0).toUpperCase() + diasTxt.slice(1) : "" },
         tiles, lotes: lotes.length > 1 ? lotes : [], maisLotes: Math.max(0, todos.length - mostrados.length),
         codigo: interno ? "" : item.barcode,
+        loja: lojaDados ? {
+          codigo: lojaDados.numero_loja != null ? String(lojaDados.numero_loja) : "",
+          endereco: [[lojaDados.rua, lojaDados.numero].filter(Boolean).join(", "), lojaDados.complemento, lojaDados.bairro, [lojaDados.cidade, lojaDados.estado].filter(Boolean).join(" - ")].filter(Boolean).join(" · "),
+        } : null,
         geradoEm,
       };
       const blob = await gerarImagemProduto(dados);

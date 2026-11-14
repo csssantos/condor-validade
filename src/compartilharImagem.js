@@ -126,6 +126,7 @@ export async function gerarImagemProduto(entrada) {
     status: cortar(entrada.status, 24),
     corStatus: entrada.corStatus || "#6B7C93",
     corTextoStatus: entrada.corTextoStatus || "#FFFFFF",
+    loja: entrada.loja && (entrada.loja.codigo || entrada.loja.endereco) ? { codigo: cortar(entrada.loja.codigo, 8), endereco: cortar(entrada.loja.endereco, 140) } : null,
     geradoEm: cortar(entrada.geradoEm, 40) || new Date().toLocaleString("pt-BR"),
     destaque: d && (d.rotulo || d.valor) ? { rotulo: cortar(d.rotulo, 20), valor: cortar(d.valor, 24), sub: cortar(d.sub, 48) } : null,
     tiles: (entrada.tiles || []).slice(0, 9).map((l) => [cortar(l && l[0], 24), cortar(l && l[1], 40)]).filter((l) => l[1] !== ""),
@@ -161,7 +162,8 @@ export async function gerarImagemProduto(entrada) {
   const yBarras = yLotes + altLotes + (exibeLotes ? 30 : 0);
   const altBarras = barras ? 360 : 0;
   const yRodape = yBarras + altBarras + (barras ? 30 : 10);
-  const A = yRodape + 250;
+  const altLoja = dados.loja ? (dados.loja.endereco ? 122 : 50) : 0;
+  const A = yRodape + 250 + altLoja;
 
   const canvas = document.createElement("canvas");
   canvas.width = L; canvas.height = A;
@@ -304,6 +306,25 @@ export async function gerarImagemProduto(entrada) {
   c.fillStyle = CINZA; c.font = `500 26px ${fonte}`;
   c.fillText("Confira sempre a validade no app", 64, yRodape + 130);
   c.fillText(`Imagem gerada em ${dados.geradoEm}`, 64, yRodape + 174);
+  if (dados.loja) {
+    const yL = yRodape + 230;
+    const titulo = dados.loja.codigo ? `Loja ${dados.loja.codigo}` : "Loja";
+    c.fillStyle = AZUL; c.font = `800 30px ${fonte}`;
+    c.fillText(titulo, 64, yL);
+    if (dados.loja.endereco) {
+      c.fillStyle = CINZA; c.font = `500 24px ${fonte}`;
+      // até 2 linhas, quebrando em " · " ou espaço; a cidade (fim do texto) nunca some sem aviso
+      const larg = L - 128; let resto = dados.loja.endereco, y = yL + 38;
+      for (let i = 0; i < 2 && resto; i++) {
+        if (c.measureText(resto).width <= larg || i === 1) { c.fillText(cortarLinha(c, resto, larg), 64, y); resto = ""; break; }
+        let k = resto.length; while (k > 1 && c.measureText(resto.slice(0, k)).width > larg) k--;
+        const q = Math.max(resto.lastIndexOf(" · ", k), resto.lastIndexOf(" ", k));
+        const corte = q > 8 ? q : k;
+        c.fillText(resto.slice(0, corte).trimEnd(), 64, y);
+        resto = resto.slice(corte).replace(/^[\s·]+/, ""); y += 32;
+      }
+    }
+  }
   if (bipi) {
     const bs = 210;
     c.drawImage(bipi, L - 50 - bs, yRodape + 20, bs, bs);
