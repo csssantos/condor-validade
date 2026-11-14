@@ -10,6 +10,9 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-14-resumo-diario", data: "14/11/2026", itens: [
+    { tipo: "adicionado", ate: 5, texto: "Resumo diário às 7h: em Mais → Notificações, encarregados podem ligar (por Telegram, notificação ou e-mail) um resumo com o que está vencido, o que vence em até 10 dias, quantos lotes ainda estão sem campanha e os 5 mais urgentes do seu setor. Só chega se houver algo a avisar e começa desligado." },
+  ] },
   { id: "2026-11-14-campanha-lotes", data: "14/11/2026", itens: [
     { tipo: "adicionado", ate: 5, texto: "Ao lançar uma campanha num produto com mais de um lote, dá para marcar quais outros lotes entram na mesma campanha (os que vencem em até 30 dias vêm marcados; você pode marcar ou desmarcar)." },
     { tipo: "melhorado", ate: 7, texto: "A imagem de compartilhar o produto agora mostra a campanha (tipo, número e valor sugerido) quando o lote tem pedido." },

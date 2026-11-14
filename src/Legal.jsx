@@ -7,10 +7,20 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-11-11";
+export const TERMOS_VERSAO = "2026-11-14";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-14", docs: {
+    privacidade: [
+      "Novo recurso opcional, só para encarregados e cargos acima: o resumo diário. Se você ligar (começa sempre desligado), todo dia às 7h o app envia a você, só se houver algo a avisar, o resumo dos produtos do seu setor (ou da sua loja, se você não tem setor): quantos lotes estão vencidos ou vencem em até 10 dias, quantos estão sem pedido de campanha, quantos produtos novos esperam aprovação e os 5 mais urgentes, com nome do produto, validade, lote e quantidade.",
+      "Você escolhe o canal: Telegram (se estiver vinculado), notificação do aparelho ou e-mail da sua conta (enviado pelo Resend). Pode desligar quando quiser em Mais → Notificações.",
+      "Guardamos a sua escolha de canais e, por 30 dias, o registro de que o resumo foi enviado (pessoa, dia e canal) para nunca mandar duas vezes no mesmo dia. A escolha entra na exportação dos seus dados.",
+    ],
+    termos: [
+      "Ligar ou alterar o resumo diário fica registrado na auditoria da loja, como as outras ações do app.",
+    ],
+  } },
   { versao: "2026-11-11", docs: {
     privacidade: [
       "Novo fornecedor: Resend (envio dos e-mails do app: confirmação de cadastro e recuperação de senha). Ele recebe só o seu e-mail, o primeiro nome do cadastro e o link de uso único daquela mensagem. Os e-mails saem de endereços @mail.usebipi.com.",
@@ -130,6 +140,7 @@ export const DOCUMENTOS = [
       { t: "5. Registros e auditoria", p: [
         "As ações feitas no app (cadastros, baixas, rondas, alterações de validade, pedidos de promoção ou preço direto, exclusões, logins) ficam registradas com seu nome, data e hora, para controle operacional, prevenção de perdas e segurança. Esses registros não podem ser apagados por quem os fez.",
         "O mesmo vale para o que é feito pelo Telegram: vincular e desvincular, gerar código, lançamentos, cancelamentos, tentativas barradas pelo sistema, consultas de produto na internet e cadastro de produto novo aparecem na auditoria da loja, com seu nome, data e hora.",
+        "Ligar ou alterar o resumo diário (Telegram, notificação ou e-mail) também fica registrado na auditoria da loja.",
       ] },
       { t: "6. Conteúdo que você envia", p: [
         "Fotos, observações e dados enviados continuam sendo de seus titulares, mas você autoriza o uso deles dentro do app e na operação da sua loja. Não envie fotos de pessoas, documentos pessoais ou informações sensíveis que não sejam necessárias ao trabalho.",
@@ -193,6 +204,7 @@ export const DOCUMENTOS = [
           "Dentro da sua loja/empresa: gestores e pessoas autorizadas no app, de acordo com o cargo e a loja. Os valores financeiros podem ser ocultados de alguns cargos.",
           "Fornecedores de tecnologia (operadores), que tratam os dados só para prestar o serviço, sob os termos de uso e de proteção de dados de cada um:",
           "• Supabase: banco de dados, login, funções do servidor e armazenamento de arquivos (todos os dados do app; as fotos de produto ficam em arquivos com link público, sem lista aberta: por isso não fotografe pessoas nem documentos). • Vercel: hospedagem do site (endereço IP e dados técnicos de acesso). • Resend: envio dos e-mails de confirmação de cadastro e recuperação de senha (recebe só o seu e-mail, o primeiro nome do cadastro e o link de uso único da mensagem). • Serviço de notificações do seu aparelho (Apple, Google ou Microsoft): só o identificador de inscrição e o texto do aviso, se você ativar. • Telegram: só se você vincular (identificador da conversa e mensagens ao bot). • Open Food Facts: só o código de barras de produto novo. • Google Gemini: as perguntas feitas ao assistente de IA e os dados da loja necessários para responder. • Reconhecimento de voz do seu navegador ou aparelho: o que você fala, só quando usa a voz.",
+          "Resumo diário (opcional, só se você ligar): o conteúdo do resumo (nomes de produtos, validades, lotes e quantidades do seu setor ou da sua loja) é enviado a você pelo canal que escolher: Telegram, notificação do aparelho ou e-mail (pelo Resend). Nada disso é enviado a outras pessoas.",
           "Autoridades públicas e judiciais, quando houver obrigação legal ou ordem válida.",
           "Não vendemos nem alugamos dados pessoais.",
         ] },
@@ -205,6 +217,7 @@ export const DOCUMENTOS = [
           "Registros de login e aceite dos termos: mantidos por pelo menos 6 meses (Marco Civil da Internet) e enquanto necessários para comprovar o aceite.",
           "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos; o registro de erros de código (identificador da conversa e contagem) é apagado em até 2 dias; pedidos de produto novo (com decisão e motivo) são apagados 90 dias após a decisão. O valor pedido, o número da campanha e quem fez o pedido de promoção ou preço direto ficam no lote até a baixa dele e na auditoria da loja (até 5 anos); o controle do aviso enviado pelo Telegram some junto com o lote.",
           "Conversas com o assistente de IA: mantidas pelo tempo necessário à operação e ao suporte e eliminadas quando não forem mais úteis.",
+          "Resumo diário: a sua escolha de canais fica até você desligar ou o seu acesso acabar; o registro de envio (pessoa, dia e canal) é apagado em 30 dias.",
           "Pedidos de direitos (LGPD) e a resposta dada: 5 anos depois de respondidos, para comprovar o atendimento.",
           "Neste aparelho: ao sair da conta, apagamos a cópia offline dos produtos e do histórico. Ações feitas sem internet ficam guardadas até a conexão voltar e só são enviadas com a conta de quem as fez.",
         ] },

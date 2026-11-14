@@ -13,6 +13,7 @@ import { formatarMoeda } from "../../lib/formatos";
 import { isIOS, isStandalone } from "../../lib/notificacoes";
 import { useTelaLarga } from "../../lib/tela";
 import { apenasNumeros, parseCodigoBalanca, sanitizarTexto } from "../../lib/utilidades";
+import { ResumoDiarioControles } from "./ResumoDiario";
 import { APP_VERSAO, COR_MAIS, COR_TEMA, MOLA, MOLA_SUAVE, MaisAviso, MaisBloco, MaisBolha, MaisBotao, MaisCampo, MaisCheck, MaisLinha, MaisSwitch, clarearCor } from "./MaisUI";
 
 function PaginaAparencia({ T, dark, tema, onTema }) {
@@ -86,7 +87,7 @@ function PaginaAparencia({ T, dark, tema, onTema }) {
   );
 }
 
-function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNotif }) {
+function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNotif, ehEncarregado, perfil, showToast }) {
   const iosSemInstalar = isIOS() && !isStandalone();
   const ativa = notifPermission === "granted";
   const bloqueada = notifPermission === "denied";
@@ -96,6 +97,7 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
             ativa ? <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 14 }} className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#E3F4EA", color: "#14573A" }}>Ligadas</motion.span>
             : suportada && !bloqueada && !iosSemInstalar ? <motion.button whileTap={{ scale: 0.94 }} onClick={onToggleNotif} style={{ background: BLUE, color: "#fff" }} className="text-[12px] font-bold px-4 py-2 rounded-full">Ativar</motion.button> : null
   );
+  const resumo = ehEncarregado && perfil?.id ? <ResumoDiarioControles T={T} dark={dark} usuarioId={perfil.id} showToast={showToast} notifAtiva={ativa} temEmail={!!perfil?.email} /> : null;
   if (pc) {
     return (
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
@@ -113,6 +115,7 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
           {bloqueada && <div className="px-4 pb-4"><MaisAviso tipo="erro">Você bloqueou as notificações. Para ativar, libere nas configurações do navegador (ícone do cadeado ao lado do endereço) e abra o app de novo.</MaisAviso></div>}
         </AnimatePresence>
         </DashCard>
+        {resumo && <DashCard T={T} title="Resumo diário" subtitle="O que vence e o que precisa de campanha, todo dia às 7h">{resumo}</DashCard>}
         <DashCard T={T} title="Som" subtitle="Feedback ao escanear com a câmera do celular">
           <div className="flex items-center gap-4">
             <MaisBolha cor="#C2570C" dark={dark} tamanho={52}>{som ? <Volume2 size={22} /> : <VolumeX size={22} />}</MaisBolha>
@@ -137,7 +140,8 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
           {bloqueada && <div className="px-4 pb-4"><MaisAviso tipo="erro">Você bloqueou as notificações. Para ativar, libere nas configurações do navegador (ícone do cadeado ao lado do endereço) e abra o app de novo.</MaisAviso></div>}
         </AnimatePresence>
       </MaisBloco>
-      <MaisBloco T={T} titulo="Som" i={1}>
+      {resumo && <MaisBloco T={T} titulo="Resumo diário (7h)" i={1}>{resumo}</MaisBloco>}
+      <MaisBloco T={T} titulo="Som" i={2}>
         <MaisLinha T={T} dark={dark} icon={som ? Volume2 : VolumeX} cor="#C2570C" titulo="Som ao bipar" desc="Toca um beep e vibra ao escanear"
           direita={<MaisSwitch ativo={som} onClick={() => setSom(!som)} label="Som ao bipar" />} ultima />
       </MaisBloco>

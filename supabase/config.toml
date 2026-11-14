@@ -2,3 +2,7 @@
 # a segurança dele é a assinatura Standard Webhooks do corpo (veja supabase/functions/auth-email/index.ts).
 [functions.auth-email]
 verify_jwt = false
+
+# resumo-diario é chamada só pelo agendador do banco (cabeçalho x-resumo-segredo, conferido pelo banco via RPC resumo_diario_validar).
+[functions.resumo-diario]
+verify_jwt = false
