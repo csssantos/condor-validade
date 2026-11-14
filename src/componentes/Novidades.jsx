@@ -12,7 +12,9 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 const NOVIDADES = [
   { id: "2026-11-14-gestos", data: "14/11/2026", itens: [
     { tipo: "adicionado", ate: 7, texto: "Puxe a tela para baixo, no topo, para atualizar os dados na hora (celular e tablet)." },
-    { tipo: "adicionado", ate: 7, texto: "Botão voltar do celular e gesto de deslizar da borda esquerda agora voltam uma tela dentro do app, em vez de fechá-lo." },
+    { tipo: "adicionado", ate: 7, texto: "Botão voltar do celular e o gesto de voltar do sistema (deslizar da borda) agora voltam uma tela dentro do app, em vez de fechá-lo." },
+    { tipo: "melhorado", ate: 7, texto: "Novo ícone do app com o Bipi e o nome \"Bipi\" na tela de início (para ver, reinstale o app na tela de início)." },
+    { tipo: "corrigido", ate: 7, texto: "Ao puxar a tela para atualizar, o indicador agora é um spinner girando." },
     { tipo: "melhorado", ate: 7, texto: "Tocar de novo na aba em que você já está leva a tela de volta ao topo." },
   ] },
   { id: "2026-11-14-compartilhar-bipar", data: "14/11/2026", itens: [

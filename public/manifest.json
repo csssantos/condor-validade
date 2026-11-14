@@ -1,6 +1,6 @@
 {
-  "name": "Condor · Alerta de Validade",
-  "short_name": "Alerta Validade",
+  "name": "Bipi · Alerta de Validade",
+  "short_name": "Bipi",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

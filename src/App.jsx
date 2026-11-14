@@ -1671,7 +1671,7 @@ function AppInner() {
       {vozAberta && <VozSheet T={T} accent={RED} accentDark={RED_DARK} catalog={catalog} onCancel={() => setVozAberta(false)} onConfirmar={aplicarVoz} />}
 
       {!ehDesktop && perfil && dadosProntos && !recuperandoSenha && aceiteOk !== false && (
-        <Gestos T={T} ligado={flow !== "scan" && !vozAberta} podeVoltar={nCamadas > 0 && flow !== "scan"} onVoltar={() => voltarRef.current && voltarRef.current()} onAtualizar={atualizarDadosAgora} />
+        <Gestos T={T} ligado={flow !== "scan" && !vozAberta} onAtualizar={atualizarDadosAgora} />
       )}
 
       {showBottomNav && <BottomNav T={T} tab={tab} setTab={(t) => { setSetorAtivo(null); setTab(t); }} alertCount={alertCount} onScan={() => setFlow("scan")} />}
