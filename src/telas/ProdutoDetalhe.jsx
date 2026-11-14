@@ -34,7 +34,18 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   const [pedidoValor, setPedidoValor] = useState(valorTxt0(item.pedidoValor));
   const pedidoValorNum = (() => { const n = Number(String(pedidoValor).replace(",", ".")); return /^\d{1,4}([.,]\d{1,2})?$/.test(String(pedidoValor).trim()) && n >= 0.01 && n <= 5000 ? n : null; })();
   const campanhaOk = campanhaValida(pedidoCampanha);
-  useEffect(() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); setPedidoValor(valorTxt0(item.pedidoValor)); }, [item.id, item.pedidoTipo, item.pedidoCampanha, item.pedidoValor]);
+  // Formulário do pedido x tempo real: se o pedido mudar em OUTRO aparelho enquanto a pessoa digita, o formulário
+  // NÃO é zerado (antes ela perdia o que digitou); só aparece um aviso para conferir antes de salvar.
+  const [pedidoMudouFora, setPedidoMudouFora] = useState(false);
+  const editandoRef = useRef(false);
+  editandoRef.current = editandoPedido;
+  function sincronizarPedido() { setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); setPedidoValor(valorTxt0(item.pedidoValor)); }
+  useEffect(() => {
+    if (editandoRef.current) { if (!salvandoPedidoRef.current) setPedidoMudouFora(true); return; }
+    sincronizarPedido();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id, item.pedidoTipo, item.pedidoCampanha, item.pedidoValor]);
+  useEffect(() => { if (!editandoPedido) { sincronizarPedido(); setPedidoMudouFora(false); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [editandoPedido]);
   async function salvarPedido(tipo, campanha, valor) {
     if (salvandoPedidoRef.current) return;
     salvandoPedidoRef.current = true; setSalvandoPedido(true);
@@ -83,7 +94,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
         </div>
       </div>
   ) : null;
-  const bPedido = (item.pedidoTipo || onPedido) ? (
+  const bPedido = (item.pedidoTipo || (onPedido && status.level !== "expired")) ? (
       <div ref={pedidoRef} style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-3">
         <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-1.5 flex items-center gap-1"><Tag size={11} /> Pedido de promoção ou preço direto</p>
         {item.pedidoTipo && !editandoPedido && (
@@ -119,7 +130,8 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             <input value={pedidoValor} onChange={(e) => setPedidoValor(e.target.value.replace(/[^0-9.,]/g, "").slice(0, 8))}
               placeholder="Valor pedido em R$ (obrigatório)" inputMode="decimal" maxLength={8} aria-label="Valor pedido em reais"
               style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full min-w-0 mt-2 border rounded-xl px-3 py-2 text-xs outline-none" />
-            {pedidoTipo && !campanhaOk && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o número da campanha (só números).</p>}
+            {pedidoMudouFora && <p role="alert" style={{ color: "#7A4B00", background: "#FFF4E0" }} className="text-[10.5px] font-semibold mt-1 rounded-lg px-2 py-1">Este pedido foi alterado em outro aparelho enquanto você editava. Confira antes de salvar.</p>}
+                  {pedidoTipo && !campanhaOk && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o número da campanha (só números).</p>}
             {pedidoTipo && pedidoValorNum == null && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o valor pedido (de 0,01 a 5000, com até 2 casas, ex.: 5,90).</p>}
             <p style={{ color: T.subtext }} className="text-[10px] mt-1">O valor é só uma sugestão: depende da central liberar. Campanha (obrigatória): só números, até 20 dígitos.{!item.pedidoTipo && " Atenção: depois de salvar, este lote fica travado (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
             <div className="flex gap-2 mt-2.5">
@@ -195,6 +207,22 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
         )}
       </div>
   ) : null;
+  const temEsquerdaPC = !!(bPromo || bPedido || bDesconto || bOutros); // sem nada à esquerda, os dados ocupam a largura toda
+  // Orientação: produto vencido (o que fazer) e, para quem não tem os botões, por que eles não aparecem
+  const bOrientacao = (status.level === "expired" || !onBaixa) ? (
+    <div className="flex flex-col gap-2">
+      {status.level === "expired" && (
+        <div role="alert" style={{ background: RED_SOFT, color: RED_DARK }} className="rounded-2xl px-3.5 py-2.5 text-[12px] font-semibold leading-snug">
+          Produto vencido: retire da área de venda agora. {onBaixa ? "Depois registre a baixa em \"Registrar ação\"." : "Avise o encarregado do setor para registrar a baixa."}
+        </div>
+      )}
+      {!onBaixa && (
+        <p style={{ background: T.chipBg, color: T.subtext }} className="rounded-2xl px-3.5 py-2.5 text-[11.5px] leading-snug">
+          Baixa, exclusão e pedido de campanha deste produto são feitos pelo encarregado do setor (ou cargo acima). Você pode consultar e compartilhar.
+        </p>
+      )}
+    </div>
+  ) : null;
   const bExclusao = (
     <div style={{ background: RED_SOFT }} className={pc ? "rounded-2xl p-4" : "rounded-xl p-2.5"}>
       <p style={{ color: RED_DARK }} className="text-[11px] font-medium text-center mb-2">Excluir sem registrar no histórico. Qual o motivo?</p>
@@ -264,6 +292,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 
           {bPromo && <div className="mt-3">{bPromo}</div>}
 
+          {bOrientacao && <div className="mt-3">{bOrientacao}</div>}
           {alertaCampanha(false)}
           {bPedido && <div className="mt-3">{bPedido}</div>}
 
@@ -406,10 +435,11 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             </div>
 
 
+            {bOrientacao}
             {alertaCampanha(true)}
 
-            <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-5 items-start">
-              <div className="flex flex-col gap-4 min-w-0">
+            <div className={`grid gap-5 items-start ${temEsquerdaPC ? "grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]" : "grid-cols-1"}`}>
+              <div className={`flex-col gap-4 min-w-0 ${temEsquerdaPC ? "flex" : "hidden"}`}>
           {bPromo}
           {bPedido}
           {bDesconto}

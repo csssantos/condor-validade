@@ -10,6 +10,11 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-14-orientacoes-produto", data: "14/11/2026", itens: [
+    { tipo: "melhorado", ate: 7, texto: "Detalhe do produto: produto vencido mostra o que fazer, e quem não pode dar baixa vê o aviso de que isso é com o encarregado do setor (antes os botões só sumiam)." },
+    { tipo: "corrigido", ate: 5, texto: "Pedido de campanha: se outra pessoa alterar o pedido enquanto você digita, o formulário não apaga mais o que você escreveu." },
+    { tipo: "melhorado", ate: 7, texto: "O aviso de produto vencido agora manda avisar o encarregado quando você não é quem registra a baixa." },
+  ] },
   { id: "2026-11-13-fotos-leves", data: "13/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "O app abre mais leve: as fotos dos produtos saem de dentro das listas e passam a ser carregadas como imagens normais. Lojas com muitos produtos também passam a carregar a lista inteira (antes havia um corte em 1000)." },
   ] },

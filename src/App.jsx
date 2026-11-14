@@ -721,7 +721,7 @@ function AppInner() {
       for (const { it, st } of plano.avisar) {
         const desconto = sugestaoDesconto(st.d, it.precoUnitario);
         const corpoLinhas = [
-          st.level === "expired" ? "Produto vencido — retire de venda e registre a baixa." : `Vence em ${st.d} dia(s) · Setor ${it.setor}`,
+          st.level === "expired" ? (podeGerirProduto(it) ? "Produto vencido — retire de venda e registre a baixa." : "Produto vencido — retire de venda e avise o encarregado do setor.") : `Vence em ${st.d} dia(s) · Setor ${it.setor}`,
           desconto ? `💡 Sugestão: ${desconto.pct}% OFF (${desconto.label})` : null
         ].filter(Boolean);
         await dispararNotificacao(`⚠️ ${it.nome}`, { corpo: corpoLinhas.join("\n"), imagem: it.foto || null, tag: `produto-${it.id}`, dados: { itemId: it.id, url: `/?produto=${it.id}` } });
@@ -985,7 +985,7 @@ function AppInner() {
     saveLocal(kLista, [...notified, chave].slice(-2000)); // marca ANTES de avisar: o efeito não repete o mesmo item
     const desconto = sugestaoDesconto(st.d, item.precoUnitario);
     const corpoLinhas = [
-      st.level === "expired" ? "Produto vencido — retire de venda e registre a baixa." : `Vence em ${st.d} dia(s) · Setor ${item.setor}`,
+      st.level === "expired" ? (podeGerirProduto(item) ? "Produto vencido — retire de venda e registre a baixa." : "Produto vencido — retire de venda e avise o encarregado do setor.") : `Vence em ${st.d} dia(s) · Setor ${item.setor}`,
       desconto ? `💡 Sugestão: ${desconto.pct}% OFF (${desconto.label})` : null
     ].filter(Boolean);
     await dispararNotificacao(`⚠️ ${item.nome}`, { corpo: corpoLinhas.join("\n"), imagem: item.foto || null, tag: `produto-${item.id}`, dados: { itemId: item.id, url: `/?produto=${item.id}` } });
