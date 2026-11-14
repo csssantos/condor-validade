@@ -1196,12 +1196,16 @@ function AppInner() {
   }
 
   // Pedido de promoção / preço direto: só pela função do banco (permissão, auditoria e quem pediu ficam no servidor)
+  const itemsRef = useRef(items); itemsRef.current = items; // versão mais nova da lista (o laço de vários lotes confere de novo)
+  const erroPedidoRede = useRef(false);
   async function registrarPedido(item, tipo, campanha, valor, silencioso = false) {
+    erroPedidoRede.current = false;
     if (tipo && !campanhaValida(campanha)) { if (!silencioso) showToast("Não foi possível registrar o pedido: informe o número da campanha.", "erro"); return false; }
     try {
       await supaRegistrarPedido(item.id, tipo, campanha, valor);
     } catch (e) {
       const motivo = erroDeRede(e) ? "sem internet agora, tente de novo" : /PGRST202|registrar_pedido_promocao/.test(String((e && e.message) || "") + (e && e.code)) ? "o banco ainda não foi atualizado para esse recurso" : mensagemErroGravacao(e);
+      erroPedidoRede.current = erroDeRede(e);
       if (!silencioso) showToast(`Não foi possível registrar o pedido: ${motivo}.`, "erro");
       return false;
     }
@@ -1220,14 +1224,17 @@ function AppInner() {
   async function registrarPedidoLotes(item, extras, tipo, campanha, valor) {
     if (!tipo || !extras || !extras.length) return registrarPedido(item, tipo, campanha, valor);
     const ok1 = await registrarPedido(item, tipo, campanha, valor, true);
-    if (!ok1) { showToast("Não foi possível registrar o pedido neste lote. Nenhum outro lote foi alterado.", "erro"); return false; }
+    if (!ok1) { showToast(erroPedidoRede.current ? "Não foi possível registrar o pedido: sem internet agora, tente de novo. Nenhum lote foi alterado." : "Não foi possível registrar o pedido neste lote. Nenhum outro lote foi alterado.", "erro"); return false; }
     let feitos = 1, falhas = 0; const falhou = [];
     const lista = extras.slice(0, 10); // teto por vez (cada lote gera auditoria e aviso no Telegram)
+    const nome = (l) => `${formatarData(l.validade)}${l.lote ? ` (lote ${l.lote})` : ""}`;
+    let semRede = false;
     for (const l of lista) {
-      if (l.pedidoTipo) { falhas++; falhou.push(formatarData(l.validade)); continue; } // alguém travou o lote enquanto a tela estava aberta: não sobrescreve
-      try { if (await registrarPedido(l, tipo, campanha, valor, true)) feitos++; else { falhas++; falhou.push(formatarData(l.validade)); } } catch { falhas++; falhou.push(formatarData(l.validade)); }
+      const atual = itemsRef.current.find((i) => i.id === l.id); // lê o lote de novo: se alguém travou enquanto a tela estava aberta, não sobrescreve
+      if (semRede || !atual || atual.pedidoTipo) { falhas++; falhou.push(nome(l)); continue; }
+      try { if (await registrarPedido(l, tipo, campanha, valor, true)) feitos++; else { falhas++; falhou.push(nome(l)); if (erroPedidoRede.current) semRede = true; } } catch { falhas++; falhou.push(nome(l)); }
     }
-    showToast(falhas ? `Pedido registrado em ${feitos} lote${feitos === 1 ? "" : "s"}. Não foi possível registrar nos lotes de validade ${falhou.join(", ")}: abra cada um e tente de novo.` : `Pedido de ${tipo === "preco_direto" ? "preço direto" : "promoção"} registrado em ${feitos} lotes (campanha ${normalizarCampanha(campanha)}).`, falhas ? "aviso" : "ok");
+    showToast(falhas ? `Pedido registrado em ${feitos} lote${feitos === 1 ? "" : "s"}. Não foi possível registrar nestes lotes (validade): ${falhou.join(", ")}: abra cada um e tente de novo.` : `Pedido de ${tipo === "preco_direto" ? "preço direto" : "promoção"} registrado em ${feitos} lotes (campanha ${normalizarCampanha(campanha)}).`, falhas ? "aviso" : "ok");
     return true;
   }
 
@@ -1516,7 +1523,7 @@ function AppInner() {
           onClose={() => setDetalheItem(null)}
           onEdit={ehDesktop || detalheItem.pedidoTipo || !podeEditarProduto(detalheItem) ? null : startEdit} onDuplicate={ehDesktop || !podeEditarProduto(detalheItem) ? null : duplicarItem}
           onBaixa={podeGerirProduto(detalheItem) ? darBaixa : null} onShare={compartilharItem}
-          onAplicarPromocao={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? aplicarPromocao : null} onPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedido : null} onPedidoLotes={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedidoLotes : null} lotesParaPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? items.filter((i) => i.barcode === detalheItem.barcode && i.setor === detalheItem.setor && i.id !== detalheItem.id && !i.pedidoTipo && !!i.validade && getStatus(i).level !== "expired" && podeGerirProduto(i)).slice(0, 10) : []} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? excluirProduto : null} />
+          onAplicarPromocao={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? aplicarPromocao : null} onPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedido : null} onPedidoLotes={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedidoLotes : null} lotesParaPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? items.filter((i) => i.barcode === detalheItem.barcode && i.setor === detalheItem.setor && i.id !== detalheItem.id && !i.pedidoTipo && !!i.validade && getStatus(i).level !== "expired" && podeGerirProduto(i)).sort((a, b) => String(a.validade).localeCompare(String(b.validade))).slice(0, 10) : []} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? excluirProduto : null} />
       )}
 
       {perfil?.id && <RondaAvisosHost T={T} usuarioId={perfil.id} showToast={showToast} onIrParaRondas={() => { setFlow(null); setSetorAtivo(null); setTab("rondas"); }} />}

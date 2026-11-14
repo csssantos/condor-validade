@@ -146,7 +146,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                 <p className="text-[11.5px] font-bold mb-1">Lançar esta campanha também nos outros lotes?</p>
                 {lotesParaPedido.map((l) => (
                   <label key={l.id} className="flex items-center gap-2 py-1 text-[11.5px]">
-                    <input type="checkbox" checked={!desmarcados.includes(l.id)} onChange={(e) => setDesmarcados((d) => e.target.checked ? d.filter((x) => x !== l.id) : [...d, l.id])} className="h-4 w-4 shrink-0" />
+                    <input type="checkbox" disabled={salvandoPedido} checked={!desmarcados.includes(l.id)} onChange={(e) => setDesmarcados((d) => e.target.checked ? d.filter((x) => x !== l.id) : [...d, l.id])} className="h-4 w-4 shrink-0" />
                     <span className="min-w-0">Validade {formatarData(l.validade)}{l.lote ? ` · Lote ${l.lote}` : ""} · {l.quantidade || 1}{l.porPeso ? "kg" : "un"}</span>
                   </label>
                 ))}
