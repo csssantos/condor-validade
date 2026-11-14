@@ -11,7 +11,8 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-11-14-compartilhar-bipar", data: "14/11/2026", itens: [
-    { tipo: "melhorado", ate: 7, texto: "Nova imagem para compartilhar o produto: foto em destaque, validade grande na cor da situação e os dados (lote, quantidade, setor, campanha) em cartões, com o Bipi no rodapé." },
+    { tipo: "melhorado", ate: 7, texto: "Nova imagem para compartilhar o produto: foto em destaque, validade grande na cor da situação, cartões com lote, quantidade, número da campanha, setor, gramagem, preço e troca, lista dos lotes do produto e o código de barras desenhado com o número." },
+    { tipo: "adicionado", ate: 7, texto: "Link de produto de outra loja: ao abrir, o app avisa que o link é da loja X e que você está na loja Y." },
     { tipo: "adicionado", ate: 7, texto: "Ao compartilhar um produto, o link dele vai junto com a imagem: quem tem acesso à loja abre o app direto no produto." },
     { tipo: "corrigido", ate: 7, texto: "Tela de bipar: agora cabe inteira na tela do celular, sem rolar e sem espaço vazio embaixo." },
   ] },

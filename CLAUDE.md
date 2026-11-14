@@ -440,3 +440,8 @@ Retrato do banco no dia: 2 lojas, 5 usuários (3 ativos), 45 lotes, 169 produtos
 - Ordem de deploy: SQL → função → merge/app. NÃO reaplicar supabase-lgpd-respostas/seguranca sem rodar este SQL de novo.
 - Depois do SQL: conferir com execute_sql, rodar "Verificar banco" e disparar `resumo_diario_disparar()` à mão com conta de teste.
 - Pendências aceitas: reserva presa se a função morrer; `limit 500`; canal quebrado (410/403) continua ligado; quantidade por peso sai como "un"; interruptor clicável com bloqueio; prefs sobrevivem a rebaixamento; sem limite por IP; incluir no manifesto `diagnostico_schema`; testes de SQL/index.ts só por regex.
+
+
+## COMPARTILHAR V3 (2026-11-14, pedido do dono) — branch `layout-compartilhar2`, sem SQL
+- `gerarImagemProduto` refeito: foto à esquerda + nome à direita na faixa azul, bloco VALIDADE (cor do status), cartões 3 por linha (`tiles`: lote, quantidade, campanha nº, setor, subcategoria, gramagem, preço, troca), tabela "Lotes deste produto" (`lotes`, até 6 + `maisLotes`; vem dos itens com o mesmo código de barras) e CÓDIGO DE BARRAS desenhado (`barrasDoCodigo`: EAN-13/UPC-A/EAN-8 com dígito válido; `int:`/`bal:` não desenham). Campanha = só o número (sem valor). Sem dado pessoal.
+- Link: `/?produto=<id>&loja=<numero_loja>`. Deep link: se o produto não está na lista e `loja` difere da loja ativa, toast "Esse link é da loja X e você está na loja Y"; sem `loja` (links antigos) mantém o aviso genérico. Pendências: loja sem nenhum produto não mostra aviso; o pedido cortado do dono ("com marc…") ficou sem resposta (talvez "com marca").

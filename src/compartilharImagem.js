@@ -71,7 +71,8 @@ function quebrar(c, texto, larguraMax, maxLinhas) {
   return linhas;
 }
 
-// dados: { nome, foto, status, corStatus, corTextoStatus, destaque: {rotulo, valor, sub}, linhas: [[rótulo, valor], ...], geradoEm }
+// dados: { nome, subtitulo, foto, status, corStatus, corTextoStatus, destaque: {rotulo, valor, sub},
+//          tiles: [[rótulo, valor], ...], lotes: [{lote, validade, quantidade, campanha, cor, atual}], codigo, geradoEm }
 const cortar = (v, n) => String(v ?? "").replace(/[\u202A-\u202E\u2066-\u2069]/g, "").slice(0, n);
 
 const AZUL = "#0B4F9E", MARINHO = "#0B2447", CINZA = "#5B6B82", PAPEL = "#F2F6FC";
@@ -83,37 +84,83 @@ function cortarLinha(c, v, larg) {
   return t + "…";
 }
 
+// ---- código de barras (EAN-13, UPC-A como EAN-13 com 0 na frente, EAN-8) desenhado de verdade ----
+const COD_L = ["0001101", "0011001", "0010011", "0111101", "0100011", "0110001", "0101111", "0111011", "0110111", "0001011"];
+const COD_G = ["0100111", "0110011", "0011011", "0100001", "0011101", "0111001", "0000101", "0010001", "0001001", "0010111"];
+const COD_R = ["1110010", "1100110", "1101100", "1000010", "1011100", "1001110", "1010000", "1000100", "1001000", "1110100"];
+const PARIDADE = ["LLLLLL", "LLGLGG", "LLGGLG", "LLGGGL", "LGLLGG", "LGGLLG", "LGGGLL", "LGLGLG", "LGLGGL", "LGGLGL"];
+// devolve { bits, digitos, tipo } ou null (código interno "int:"/"bal:", tamanho estranho ou dígito verificador errado)
+export function barrasDoCodigo(codigo) {
+  let c = String(codigo ?? "").trim();
+  if (!/^\d+$/.test(c)) return null;
+  const tipo = c.length === 12 ? "UPC-A" : c.length === 13 ? "EAN-13" : c.length === 8 ? "EAN-8" : null;
+  if (!tipo) return null;
+  if (c.length === 12) c = "0" + c;
+  const d = c.split("").map(Number);
+  const n = d.length - 1; // dígitos sem o verificador
+  let soma = 0;
+  for (let k = 0; k < n; k++) soma += d[k] * ((n - k) % 2 === 1 ? 3 : 1);
+  if ((10 - (soma % 10)) % 10 !== d[n]) return null;
+  if (d.every((x) => x === 0)) return null;
+  let bits = "101";
+  if (d.length === 13) {
+    const par = PARIDADE[d[0]];
+    for (let k = 0; k < 6; k++) bits += (par[k] === "L" ? COD_L : COD_G)[d[1 + k]];
+    bits += "01010";
+    for (let k = 0; k < 6; k++) bits += COD_R[d[7 + k]];
+  } else {
+    for (let k = 0; k < 4; k++) bits += COD_L[d[k]];
+    bits += "01010";
+    for (let k = 0; k < 4; k++) bits += COD_R[d[4 + k]];
+  }
+  bits += "101";
+  return { bits, digitos: c, tipo };
+}
+
 export async function gerarImagemProduto(entrada) {
   const d = entrada.destaque || null;
   const dados = {
     ...entrada,
     nome: cortar(entrada.nome, 120) || "Produto",
+    subtitulo: cortar(entrada.subtitulo, 90),
     status: cortar(entrada.status, 24),
     corStatus: entrada.corStatus || "#6B7C93",
     corTextoStatus: entrada.corTextoStatus || "#FFFFFF",
     geradoEm: cortar(entrada.geradoEm, 40) || new Date().toLocaleString("pt-BR"),
-    destaque: d ? { rotulo: cortar(d.rotulo, 20), valor: cortar(d.valor, 24), sub: cortar(d.sub, 48) } : null,
-    linhas: (entrada.linhas || []).slice(0, 8).map((l) => [cortar(l && l[0], 24), cortar(l && l[1], 80)]),
+    destaque: d && (d.rotulo || d.valor) ? { rotulo: cortar(d.rotulo, 20), valor: cortar(d.valor, 24), sub: cortar(d.sub, 48) } : null,
+    tiles: (entrada.tiles || []).slice(0, 9).map((l) => [cortar(l && l[0], 24), cortar(l && l[1], 40)]).filter((l) => l[1] !== ""),
+    lotes: (entrada.lotes || []).slice(0, 6).map((l) => ({
+      lote: cortar(l && l.lote, 24), validade: cortar(l && l.validade, 12), quantidade: cortar(l && l.quantidade, 16),
+      campanha: cortar(l && l.campanha, 20), cor: /^#[0-9A-Fa-f]{6}$/.test(l && l.cor) ? l.cor : "#6B7C93", atual: !!(l && l.atual),
+    })),
+    maisLotes: Math.max(0, Math.min(99, Number(entrada.maisLotes) || 0)),
   };
+  const barras = barrasDoCodigo(entrada.codigo);
   const fonte = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-  const linhas = dados.linhas.filter((l) => l[1] !== "");
-  const largos = linhas.filter((l) => /^campanha$/i.test(l[0]));
-  const pares = linhas.filter((l) => !/^campanha$/i.test(l[0]));
-  const nLinhasGrade = Math.ceil(pares.length / 2) + largos.length;
+  const mono = "ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
   const medidor = document.createElement("canvas").getContext("2d");
-  medidor.font = `800 62px ${fonte}`;
-  const nome = quebrar(medidor, dados.nome, L - 140, 3);
 
+  // ---- medidas ----
   const [img, bipi] = await Promise.all([carregarImagem(dados.foto), carregarBipi()]);
-  const fh = img ? 520 : 300; // sem foto: cartão menor (não parece erro)
-  const yNome = 160 + fh + 110;
-  const yDest = yNome + nome.length * 72 + 10;
-  if (dados.destaque && !dados.destaque.rotulo && !dados.destaque.valor) dados.destaque = null;
-  const altDest = dados.destaque ? 200 : 0;
-  const yGrade = yDest + altDest + (dados.destaque ? 30 : 0);
-  const altTile = 136, gap = 22;
-  const altGrade = nLinhasGrade ? nLinhasGrade * (altTile + gap) : 0;
-  const yRodape = yGrade + altGrade + 20;
+  const fx = 56, fy = 150, fw = 380, fh = img ? 380 : 300;
+  const colX = fx + fw + 44, colW = L - 56 - colX;
+  medidor.font = `800 52px ${fonte}`;
+  const nome = quebrar(medidor, dados.nome, colW, 4);
+  const yNome = fy + 60;
+  const faixaAlt = Math.max(fy + fh + 60, yNome + nome.length * 62 + 110);
+  const yDest = faixaAlt - 30;
+  const altDest = dados.destaque ? 240 : 0;
+  const gap = 22, cols = 3, tw = (L - 100 - gap * (cols - 1)) / cols, altTile = 132;
+  const yTiles = yDest + (dados.destaque ? altDest + 34 : 60);
+  const linhasTiles = Math.ceil(dados.tiles.length / cols);
+  const altTiles = linhasTiles ? linhasTiles * (altTile + gap) : 0;
+  const yLotes = yTiles + altTiles + (altTiles ? 8 : 0);
+  const altLinhaLote = 74;
+  const exibeLotes = dados.lotes.length > 1;
+  const altLotes = exibeLotes ? 120 + dados.lotes.length * altLinhaLote + (dados.maisLotes ? 56 : 0) : 0;
+  const yBarras = yLotes + altLotes + (exibeLotes ? 30 : 0);
+  const altBarras = barras ? 360 : 0;
+  const yRodape = yBarras + altBarras + (barras ? 30 : 10);
   const A = yRodape + 250;
 
   const canvas = document.createElement("canvas");
@@ -121,101 +168,142 @@ export async function gerarImagemProduto(entrada) {
   const c = canvas.getContext("2d");
   c.textBaseline = "alphabetic";
 
-  // fundo claro + faixa azul da marca no topo
+  // ---- fundo + faixa azul ----
   c.fillStyle = PAPEL; c.fillRect(0, 0, L, A);
-  const topo = c.createLinearGradient(0, 0, L, 480);
+  const topo = c.createLinearGradient(0, 0, L, faixaAlt);
   topo.addColorStop(0, "#1B6FD1"); topo.addColorStop(0.55, AZUL); topo.addColorStop(1, "#061C3A");
-  c.fillStyle = topo; c.fillRect(0, 0, L, 470);
+  c.fillStyle = topo; c.fillRect(0, 0, L, faixaAlt);
   c.fillStyle = "rgba(255,255,255,0.09)";
-  c.beginPath(); c.arc(L - 120, 120, 260, 0, Math.PI * 2); c.fill();
-  c.beginPath(); c.arc(90, 430, 120, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(L - 100, faixaAlt - 40, 230, 0, Math.PI * 2); c.fill();
+  c.beginPath(); c.arc(40, 80, 130, 0, Math.PI * 2); c.fill();
 
-  c.fillStyle = "rgba(255,255,255,0.92)"; c.font = `700 26px ${fonte}`;
-  c.fillText("C O N D O R  ·  A L E R T A  D E  V A L I D A D E", 64, 92);
+  c.fillStyle = "rgba(255,255,255,0.92)"; c.font = `700 24px ${fonte}`;
+  const marca = "C O N D O R  ·  A L E R T A  D E  V A L I D A D E";
+  c.fillText(marca, 56, 84);
+  const larguraMarca = c.measureText(marca).width;
 
-  // selo de status no canto
+  // selo de status (nunca encosta na marca)
   const rot = dados.status.toUpperCase();
   if (rot) {
-    c.font = `700 26px ${fonte}`;
-    const larguraTitulo = c.measureText("C O N D O R  ·  A L E R T A  D E  V A L I D A D E").width;
-    const livre = L - 64 - (64 + larguraTitulo + 28);
-    c.font = `800 30px ${fonte}`;
-    let rotTxt = rot;
-    while (rotTxt.length > 3 && c.measureText(rotTxt).width + 56 > livre) rotTxt = rotTxt.slice(0, -1);
-    if (rotTxt !== rot) rotTxt += "…";
-    const sw = c.measureText(rotTxt).width + 56;
-    c.fillStyle = dados.corStatus; retArredondado(c, L - 64 - sw, 54, sw, 60, 30); c.fill();
-    c.fillStyle = dados.corTextoStatus; c.fillText(rotTxt, L - 64 - sw + 28, 94);
+    const livre = L - 56 - (56 + larguraMarca + 24);
+    c.font = `800 28px ${fonte}`;
+    let t = rot;
+    while (t.length > 3 && c.measureText(t).width + 52 > livre) t = t.slice(0, -1);
+    if (t !== rot) t += "…";
+    const sw = c.measureText(t).width + 52;
+    c.fillStyle = dados.corStatus; retArredondado(c, L - 56 - sw, 48, sw, 56, 28); c.fill();
+    c.fillStyle = dados.corTextoStatus; c.fillText(t, L - 56 - sw + 26, 86);
   }
 
-  // cartão da foto, centralizado e cruzando a faixa azul
-  const fw = 600, fx = (L - fw) / 2, fy = 160;
+  // ---- foto à esquerda, nome à direita ----
   c.save();
-  c.shadowColor = "rgba(6,28,58,0.35)"; c.shadowBlur = 50; c.shadowOffsetY = 22;
-  c.fillStyle = "#FFFFFF"; retArredondado(c, fx, fy, fw, fh, 60); c.fill();
+  c.shadowColor = "rgba(6,28,58,0.35)"; c.shadowBlur = 44; c.shadowOffsetY = 20;
+  c.fillStyle = "#FFFFFF"; retArredondado(c, fx, fy, fw, fh, 52); c.fill();
   c.restore();
   if (img && img.width && img.height) {
     c.save();
-    retArredondado(c, fx, fy, fw, fh, 60); c.clip();
-    const k = Math.min((fw - 70) / img.width, (fh - 70) / img.height);
+    retArredondado(c, fx, fy, fw, fh, 52); c.clip();
+    const k = Math.min((fw - 56) / img.width, (fh - 56) / img.height);
     const w = img.width * k, h = img.height * k;
     c.drawImage(img, fx + (fw - w) / 2, fy + (fh - h) / 2, w, h);
     c.restore();
   } else {
-    c.fillStyle = "#C9D9EF"; c.font = `800 52px ${fonte}`; c.textAlign = "center";
-    c.fillText("SEM FOTO", fx + fw / 2, fy + fh / 2 + 18); c.textAlign = "left";
+    c.fillStyle = "#C9D9EF"; c.font = `800 44px ${fonte}`; c.textAlign = "center";
+    c.fillText("SEM FOTO", fx + fw / 2, fy + fh / 2 + 15); c.textAlign = "left";
+  }
+  c.fillStyle = "#FFFFFF"; c.font = `800 52px ${fonte}`;
+  nome.forEach((t, i) => c.fillText(t, colX, yNome + i * 62));
+  if (dados.subtitulo) {
+    c.fillStyle = "rgba(255,255,255,0.80)"; c.font = `600 28px ${fonte}`;
+    c.fillText(cortarLinha(c, dados.subtitulo, colW), colX, yNome + nome.length * 62 + 22);
   }
 
-  // nome
-  c.fillStyle = MARINHO; c.font = `800 62px ${fonte}`; c.textAlign = "center";
-  nome.forEach((t, i) => c.fillText(t, L / 2, yNome + i * 72));
-  c.textAlign = "left";
-
-  // destaque: validade (a informação principal), na cor do status
+  // ---- validade em destaque (cor do status) ----
   if (dados.destaque) {
     c.save();
-    c.shadowColor = "rgba(6,28,58,0.22)"; c.shadowBlur = 30; c.shadowOffsetY = 12;
+    c.shadowColor = "rgba(6,28,58,0.25)"; c.shadowBlur = 30; c.shadowOffsetY = 12;
     c.fillStyle = dados.corStatus; retArredondado(c, 50, yDest, L - 100, altDest, 48); c.fill();
     c.restore();
     c.fillStyle = dados.corTextoStatus;
-    c.globalAlpha = 0.85; c.font = `700 28px ${fonte}`;
-    c.fillText(dados.destaque.rotulo.toUpperCase(), 96, yDest + 62); c.globalAlpha = 1;
-    c.font = `800 88px ${fonte}`;
-    c.fillText(cortarLinha(c, dados.destaque.valor, L - 192), 96, yDest + 148);
+    c.globalAlpha = 0.85; c.font = `700 26px ${fonte}`;
+    c.fillText(dados.destaque.rotulo.toUpperCase(), 92, yDest + 58); c.globalAlpha = 1;
+    c.font = `800 92px ${fonte}`;
+    c.fillText(cortarLinha(c, dados.destaque.valor, L - 184), 92, yDest + 150);
     if (dados.destaque.sub) {
       c.font = `700 32px ${fonte}`; c.textAlign = "right";
-      c.fillText(cortarLinha(c, dados.destaque.sub, 420), L - 96, yDest + 62); c.textAlign = "left";
+      c.fillText(cortarLinha(c, dados.destaque.sub, 440), L - 92, yDest + 58); c.textAlign = "left";
     }
-    // a imagem circula parada: deixa claro de quando é a situação
-    c.globalAlpha = 0.85; c.font = `600 24px ${fonte}`; c.textAlign = "right";
-    c.fillText(`Situação em ${dados.geradoEm}`, L - 96, yDest + 160); c.textAlign = "left"; c.globalAlpha = 1;
+    c.globalAlpha = 0.85; c.font = `600 23px ${fonte}`;
+    c.fillText(`Situação em ${dados.geradoEm}`, 92, yDest + 206); c.globalAlpha = 1;
   }
 
-  // grade de informações (2 colunas; campanha ocupa a linha toda)
-  const tw = (L - 100 - gap) / 2;
-  const tile = (x, y, w, [r, v], accent) => {
+  // ---- cartões de informação (3 por linha) ----
+  const tile = (x, y, w, [r, v]) => {
     c.save();
-    c.shadowColor = "rgba(6,28,58,0.10)"; c.shadowBlur = 18; c.shadowOffsetY = 6;
-    c.fillStyle = "#FFFFFF"; retArredondado(c, x, y, w, altTile, 36); c.fill();
+    c.shadowColor = "rgba(6,28,58,0.10)"; c.shadowBlur = 16; c.shadowOffsetY = 5;
+    c.fillStyle = "#FFFFFF"; retArredondado(c, x, y, w, altTile, 32); c.fill();
     c.restore();
-    if (accent) { c.fillStyle = accent; retArredondado(c, x, y + 28, 10, altTile - 56, 5); c.fill(); }
-    c.fillStyle = CINZA; c.font = `700 24px ${fonte}`; c.fillText(r.toUpperCase(), x + 40, y + 52);
-    c.fillStyle = MARINHO; c.font = `800 40px ${fonte}`; c.fillText(cortarLinha(c, v, w - 80), x + 40, y + 104);
+    c.fillStyle = CINZA; c.font = `700 22px ${fonte}`; c.fillText(cortarLinha(c, r.toUpperCase(), w - 56), x + 28, y + 46);
+    c.fillStyle = MARINHO; c.font = `800 38px ${fonte}`; c.fillText(cortarLinha(c, v, w - 56), x + 28, y + 100);
   };
-  let yy = yGrade;
-  largos.forEach((l) => { tile(50, yy, L - 100, l, "#E8A317"); yy += altTile + gap; });
-  for (let i = 0; i < pares.length; i += 2) {
-    tile(50, yy, tw, pares[i]);
-    if (pares[i + 1]) tile(50 + tw + gap, yy, tw, pares[i + 1]);
-    yy += altTile + gap;
+  dados.tiles.forEach((t, i) => tile(50 + (i % cols) * (tw + gap), yTiles + Math.floor(i / cols) * (altTile + gap), tw, t));
+
+  // ---- lotes do produto ----
+  if (exibeLotes) {
+    c.save();
+    c.shadowColor = "rgba(6,28,58,0.10)"; c.shadowBlur = 16; c.shadowOffsetY = 5;
+    c.fillStyle = "#FFFFFF"; retArredondado(c, 50, yLotes, L - 100, altLotes, 36); c.fill();
+    c.restore();
+    c.fillStyle = CINZA; c.font = `700 24px ${fonte}`;
+    c.fillText("LOTES DESTE PRODUTO", 88, yLotes + 56);
+    dados.lotes.forEach((l, i) => {
+      const y = yLotes + 90 + i * altLinhaLote;
+      if (l.atual) { c.fillStyle = "#EAF1FB"; retArredondado(c, 70, y - 6, L - 140, altLinhaLote - 8, 24); c.fill(); }
+      c.fillStyle = l.cor; c.beginPath(); c.arc(106, y + 30, 11, 0, Math.PI * 2); c.fill();
+      c.fillStyle = MARINHO; c.font = `800 32px ${fonte}`;
+      c.fillText(cortarLinha(c, l.lote ? `Lote ${l.lote}` : "Sem lote", 330), 134, y + 42);
+      c.font = `700 30px ${fonte}`; c.fillText(l.validade, 484, y + 42);
+      c.fillStyle = CINZA; c.font = `700 28px ${fonte}`; c.textAlign = "right";
+      c.fillText(l.campanha ? `Campanha ${l.campanha}` : l.quantidade, L - 94, y + 42); c.textAlign = "left";
+    });
+    if (dados.maisLotes) {
+      c.fillStyle = CINZA; c.font = `600 26px ${fonte}`;
+      c.fillText(`+ ${dados.maisLotes} outro${dados.maisLotes === 1 ? "" : "s"} lote${dados.maisLotes === 1 ? "" : "s"}`, 88, yLotes + altLotes - 28);
+    }
   }
 
-  // rodapé: Bipi + origem da imagem
-  c.fillStyle = "#D6E2F3"; c.fillRect(50, yRodape + 10, L - 100, 3);
-  c.fillStyle = AZUL; c.font = `800 34px ${fonte}`; c.fillText("Condor · Alerta de Validade", 64, yRodape + 90);
+  // ---- código de barras ----
+  if (barras) {
+    c.save();
+    c.shadowColor = "rgba(6,28,58,0.10)"; c.shadowBlur = 16; c.shadowOffsetY = 5;
+    c.fillStyle = "#FFFFFF"; retArredondado(c, 50, yBarras, L - 100, altBarras, 36); c.fill();
+    c.restore();
+    c.fillStyle = CINZA; c.font = `700 24px ${fonte}`;
+    c.fillText(`CÓDIGO DE BARRAS · ${barras.tipo}`, 88, yBarras + 56);
+    const mod = Math.floor(640 / barras.bits.length);
+    const larg = mod * barras.bits.length;
+    const x0 = Math.round((L - larg) / 2), y0 = yBarras + 86, hb = 170;
+    c.fillStyle = "#000000";
+    for (let k = 0; k < barras.bits.length; k++) if (barras.bits[k] === "1") c.fillRect(x0 + k * mod, y0, mod, hb);
+    const dg = barras.digitos;
+    c.fillStyle = "#000000"; c.font = `600 40px ${mono}`; c.textAlign = "center";
+    if (dg.length === 13) {
+      c.fillText(dg[0], x0 - 30, y0 + hb + 50);
+      c.fillText(dg.slice(1, 7).split("").join(" "), x0 + mod * 3 + mod * 21, y0 + hb + 50);
+      c.fillText(dg.slice(7).split("").join(" "), x0 + mod * 50 + mod * 21, y0 + hb + 50);
+    } else {
+      c.fillText(dg.slice(0, 4).split("").join(" "), x0 + mod * 3 + mod * 14, y0 + hb + 50);
+      c.fillText(dg.slice(4).split("").join(" "), x0 + mod * 36 + mod * 14, y0 + hb + 50);
+    }
+    c.textAlign = "left";
+  }
+
+  // ---- rodapé ----
+  c.fillStyle = "#D6E2F3"; c.fillRect(50, yRodape + 6, L - 100, 3);
+  c.fillStyle = AZUL; c.font = `800 34px ${fonte}`; c.fillText("Condor · Alerta de Validade", 64, yRodape + 86);
   c.fillStyle = CINZA; c.font = `500 26px ${fonte}`;
-  c.fillText("Confira o produto e a validade no app", 64, yRodape + 134);
-  c.fillText(`Imagem gerada em ${dados.geradoEm}`, 64, yRodape + 178);
+  c.fillText("Abra o link enviado junto para ver no app", 64, yRodape + 130);
+  c.fillText(`Imagem gerada em ${dados.geradoEm}`, 64, yRodape + 174);
   if (bipi) {
     const bs = 210;
     c.drawImage(bipi, L - 50 - bs, yRodape + 20, bs, bs);
