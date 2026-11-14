@@ -1,7 +1,7 @@
 -- LIMPEZA SEGURA DO BANCO (item A5 da auditoria, 2026-11-14). Nada aqui apaga dado de usuário. Tudo dá para desfazer.
 --  1) 10 funções de regra ganham "search_path" fixo (aviso de segurança do Supabase): o comportamento não muda.
 --  2) Sai o índice duplicado de ronda_itens (existem dois iguais; fica o ronda_itens_ronda_idx).
---  3) Para a rotina `whatsapp_limpar`, que roda a cada 5 minutos para um recurso pausado (as tabelas do WhatsApp ficam como estão).
+--  3) A rotina `whatsapp_limpar` (apaga mensagens antigas do WhatsApp, recurso pausado) passa de a cada 5 minutos para 1 vez por dia; a retenção continua valendo.
 -- Fora deste arquivo, de propósito: apagar a cópia `backup_20261030` (35 tabelas com dados de 30/10) — isso é irreversível e só
 -- deve ser feito depois de o dono confirmar que o backup diário do GitHub está funcionando (ver bloco comentado no fim).
 -- Auto-teste: se algo falhar, nada é aplicado.
@@ -16,7 +16,8 @@ begin
 
   drop index if exists public.ronda_itens_ronda_id_idx;
 
-  if exists (select 1 from cron.job where jobname = 'whatsapp_limpar') then perform cron.unschedule('whatsapp_limpar'); end if;
+  -- a rotina apaga mensagens antigas (retenção): não some, só passa de a cada 5 min para 1x por dia
+  if exists (select 1 from cron.job where jobname = 'whatsapp_limpar') then perform cron.schedule('whatsapp_limpar', '17 6 * * *', 'select public.whatsapp_limpar()'); end if;
 
   -- auto-teste: as regras continuam funcionando
   if not public.ean_valido('7891000100103') or public.ean_valido('7891000100104') then raise exception 'auto-teste: ean_valido'; end if;
@@ -30,7 +31,7 @@ begin
   if v_bc is not null then update public.catalogo set nome = nome where barcode = v_bc and loja_id = v_loja; end if;
   perform set_config('app.via_rpc', '', true);
   if not exists (select 1 from pg_indexes where schemaname = 'public' and indexname = 'ronda_itens_ronda_idx') then raise exception 'auto-teste: índice da ronda sumiu'; end if;
-  if exists (select 1 from cron.job where jobname = 'whatsapp_limpar') then raise exception 'auto-teste: rotina do WhatsApp continua'; end if;
+  if exists (select 1 from cron.job where jobname = 'whatsapp_limpar' and schedule <> '17 6 * * *') then raise exception 'auto-teste: rotina do WhatsApp continua a cada 5 min'; end if;
 end $$;
 
 commit;

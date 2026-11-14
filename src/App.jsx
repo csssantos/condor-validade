@@ -1196,13 +1196,13 @@ function AppInner() {
   }
 
   // Pedido de promoção / preço direto: só pela função do banco (permissão, auditoria e quem pediu ficam no servidor)
-  async function registrarPedido(item, tipo, campanha, valor) {
-    if (tipo && !campanhaValida(campanha)) { showToast("Não foi possível registrar o pedido: informe o número da campanha.", "erro"); return false; }
+  async function registrarPedido(item, tipo, campanha, valor, silencioso = false) {
+    if (tipo && !campanhaValida(campanha)) { if (!silencioso) showToast("Não foi possível registrar o pedido: informe o número da campanha.", "erro"); return false; }
     try {
       await supaRegistrarPedido(item.id, tipo, campanha, valor);
     } catch (e) {
       const motivo = erroDeRede(e) ? "sem internet agora, tente de novo" : /PGRST202|registrar_pedido_promocao/.test(String((e && e.message) || "") + (e && e.code)) ? "o banco ainda não foi atualizado para esse recurso" : mensagemErroGravacao(e);
-      showToast(`Não foi possível registrar o pedido: ${motivo}.`, "erro");
+      if (!silencioso) showToast(`Não foi possível registrar o pedido: ${motivo}.`, "erro");
       return false;
     }
     const camp = tipo ? (normalizarCampanha(campanha) || null) : null;
@@ -1212,7 +1212,18 @@ function AppInner() {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, ...campos } : i)));
     setDetalheItem((d) => (d && d.id === item.id ? { ...d, ...campos } : d));
     const rotulo = (tipo || item.pedidoTipo) === "preco_direto" ? "preço direto" : "promoção";
-    showToast(tipo ? `Pedido de ${rotulo} registrado${camp ? ` (campanha ${camp})` : ""}.` : `Pedido de ${rotulo} removido.`, "ok");
+    if (!silencioso) showToast(tipo ? `Pedido de ${rotulo} registrado${camp ? ` (campanha ${camp})` : ""}.` : `Pedido de ${rotulo} removido.`, "ok");
+    return true;
+  }
+
+  // Mesma campanha para vários lotes do mesmo produto: cada lote passa pela função do banco (permissão e auditoria por lote)
+  async function registrarPedidoLotes(item, extras, tipo, campanha, valor) {
+    if (!extras || !extras.length) return registrarPedido(item, tipo, campanha, valor);
+    const ok1 = await registrarPedido(item, tipo, campanha, valor, true);
+    if (!ok1) { showToast("Não foi possível registrar o pedido neste lote. Nenhum outro lote foi alterado.", "erro"); return false; }
+    let feitos = 1, falhas = 0;
+    for (const l of extras.slice(0, 20)) { if (await registrarPedido(l, tipo, campanha, valor, true)) feitos++; else falhas++; }
+    showToast(falhas ? `Pedido registrado em ${feitos} lote${feitos === 1 ? "" : "s"}. Não foi possível registrar em ${falhas}: abra o lote e tente de novo.` : `Pedido de ${tipo === "preco_direto" ? "preço direto" : "promoção"} registrado em ${feitos} lotes (campanha ${normalizarCampanha(campanha)}).`, falhas ? "aviso" : "ok");
     return true;
   }
 
@@ -1248,7 +1259,7 @@ function AppInner() {
       const diasTxt = dias === null ? "" : dias < 0 ? `venceu há ${-dias} dia${-dias === 1 ? "" : "s"}` : dias === 0 ? "vence hoje" : `falta${dias === 1 ? "" : "m"} ${dias} dia${dias === 1 ? "" : "s"}`;
       const qtd = item.quantidade ? `${String(item.quantidade).replace(".", ",")} ${item.porPeso ? "kg" : "un"}` : "";
       const interno = /^(int|bal):/.test(String(item.barcode || ""));
-      texto = `${item.nome}\nSetor: ${item.setor}${interno ? "" : `\nCódigo: ${item.barcode}`}${temVal ? `\nValidade: ${formatarData(item.validade)} (${st.label})` : ""}${textoLote(item) ? `\nLote: ${textoLote(item)}` : ""}\nGerado em ${geradoEm}`;
+      texto = `${item.nome}\nSetor: ${item.setor}${interno ? "" : `\nCódigo: ${item.barcode}`}${temVal ? `\nValidade: ${formatarData(item.validade)} (${st.label})` : ""}${textoLote(item) ? `\nLote: ${textoLote(item)}` : ""}${item.pedidoTipo ? `\nCampanha: ${item.pedidoTipo === "preco_direto" ? "preço direto" : "promoção"}${item.pedidoCampanha ? ` nº ${item.pedidoCampanha}` : ""}${item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")} (sugestão)` : ""}` : ""}\nGerado em ${geradoEm}`;
       const dados = {
         nome: item.nome, foto: item.foto, status: st.label,
         corStatus: { expired: "#B3141A", alert: "#E31E24", warning: "#E8A317", none: "#6B7C93" }[st.level] || "#1F9D55",
@@ -1257,6 +1268,7 @@ function AppInner() {
           ["Validade", temVal ? `${formatarData(item.validade)}${diasTxt ? " · " + diasTxt : ""}` : "Sem validade"],
           ["Lote", textoLote(item) || ""],
           ["Quantidade", qtd],
+          ["Campanha", item.pedidoTipo ? `${item.pedidoTipo === "preco_direto" ? "Preço direto" : "Promoção"}${item.pedidoCampanha ? ` · nº ${item.pedidoCampanha}` : ""}${item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")}` : ""}` : ""],
           ["Setor", item.setor],
           ["Código", interno ? "" : item.barcode],
         ],
@@ -1500,7 +1512,7 @@ function AppInner() {
           onClose={() => setDetalheItem(null)}
           onEdit={ehDesktop || detalheItem.pedidoTipo || !podeEditarProduto(detalheItem) ? null : startEdit} onDuplicate={ehDesktop || !podeEditarProduto(detalheItem) ? null : duplicarItem}
           onBaixa={podeGerirProduto(detalheItem) ? darBaixa : null} onShare={compartilharItem}
-          onAplicarPromocao={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? aplicarPromocao : null} onPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedido : null} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? excluirProduto : null} />
+          onAplicarPromocao={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? aplicarPromocao : null} onPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedido : null} onPedidoLotes={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedidoLotes : null} lotesParaPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? items.filter((i) => i.barcode === detalheItem.barcode && i.setor === detalheItem.setor && i.id !== detalheItem.id && !i.pedidoTipo && !!i.validade && getStatus(i).level !== "expired" && podeGerirProduto(i)) : []} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? excluirProduto : null} />
       )}
 
       {perfil?.id && <RondaAvisosHost T={T} usuarioId={perfil.id} showToast={showToast} onIrParaRondas={() => { setFlow(null); setSetorAtivo(null); setTab("rondas"); }} />}

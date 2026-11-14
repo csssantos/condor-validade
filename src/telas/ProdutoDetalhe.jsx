@@ -13,7 +13,7 @@ import { useTelaLarga } from "../lib/tela";
 import { InfoTile } from "./Analises";
 
 // ============ Modal de detalhe do produto ============
-function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdit, onDuplicate, onBaixa, onShare, onAplicarPromocao, onPedido, podeGerirPedido, onExcluir }) {
+function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdit, onDuplicate, onBaixa, onShare, onAplicarPromocao, onPedido, onPedidoLotes, lotesParaPedido, podeGerirPedido, onExcluir }) {
   const podeVerValores = useValoresVisiveis();
   const pc = useTelaLarga();
   const pedidoRef = useRef(null);
@@ -28,6 +28,8 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   const [pedidoTipo, setPedidoTipo] = useState(item.pedidoTipo || null);
   const [confirmandoRemoverPedido, setConfirmandoRemoverPedido] = useState(false);
   const salvandoPedidoRef = useRef(false);
+  const [desmarcados, setDesmarcados] = useState([]); // lotes que a pessoa tirou da campanha (por padrão todos entram)
+  const lotesExtra = (!item.pedidoTipo && lotesParaPedido) ? lotesParaPedido.filter((l) => !desmarcados.includes(l.id)) : [];
   const [pedidoCampanha, setPedidoCampanha] = useState(item.pedidoCampanha || "");
   const [salvandoPedido, setSalvandoPedido] = useState(false);
   const valorTxt0 = (v) => (v != null ? String(v).replace(".", ",") : "");
@@ -49,7 +51,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   async function salvarPedido(tipo, campanha, valor) {
     if (salvandoPedidoRef.current) return;
     salvandoPedidoRef.current = true; setSalvandoPedido(true);
-    const ok = await onPedido(item, tipo, campanha, valor);
+    const ok = tipo && onPedidoLotes && lotesExtra.length ? await onPedidoLotes(item, lotesExtra, tipo, campanha, valor) : await onPedido(item, tipo, campanha, valor);
     salvandoPedidoRef.current = false; setSalvandoPedido(false);
     if (ok) { setEditandoPedido(false); setConfirmandoRemoverPedido(false); }
   }
@@ -133,6 +135,18 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             {pedidoMudouFora && <p role="alert" style={{ color: "#7A4B00", background: "#FFF4E0" }} className="text-[10.5px] font-semibold mt-1 rounded-lg px-2 py-1">Este pedido foi alterado em outro aparelho enquanto você editava. Confira antes de salvar.</p>}
                   {pedidoTipo && !campanhaOk && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o número da campanha (só números).</p>}
             {pedidoTipo && pedidoValorNum == null && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o valor pedido (de 0,01 a 5000, com até 2 casas, ex.: 5,90).</p>}
+            {!item.pedidoTipo && lotesParaPedido && lotesParaPedido.length > 0 && (
+              <div style={{ background: T.card }} className="mt-2 rounded-xl px-3 py-2">
+                <p className="text-[11.5px] font-bold mb-1">Lançar esta campanha também nos outros lotes?</p>
+                {lotesParaPedido.map((l) => (
+                  <label key={l.id} className="flex items-center gap-2 py-1 text-[11.5px]">
+                    <input type="checkbox" checked={!desmarcados.includes(l.id)} onChange={(e) => setDesmarcados((d) => e.target.checked ? d.filter((x) => x !== l.id) : [...d, l.id])} className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0">Validade {formatarData(l.validade)}{l.lote ? ` · Lote ${l.lote}` : ""} · {l.quantidade || 1}{l.porPeso ? "kg" : "un"}</span>
+                  </label>
+                ))}
+                <p style={{ color: T.subtext }} className="text-[10px] mt-0.5">Marcados ficam travados como este. Lotes vencidos ou que já têm pedido não aparecem.</p>
+              </div>
+            )}
             <p style={{ color: T.subtext }} className="text-[10px] mt-1">O valor é só uma sugestão: depende da central liberar. Campanha (obrigatória): só números, até 20 dígitos.{!item.pedidoTipo && " Atenção: depois de salvar, este lote fica travado (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
             <div className="flex gap-2 mt-2.5">
               <button onClick={() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); setPedidoValor(valorTxt0(item.pedidoValor)); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
