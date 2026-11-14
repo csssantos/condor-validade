@@ -1512,7 +1512,7 @@ function AppInner() {
             onAbrirPrioridade={() => setFlow("prioridade")} onAbrirTorre={() => setFlow("torre")} onAbrirRelatorios={() => setFlow("relatorios")}
             ehCorporativo={ehCorporativo} onAbrirRede={() => setFlow("rede")} ehEncarregado={ehEncarregado}
             configBalanca={configBalanca} onBalancaSalva={(cfg) => setConfigBalanca(cfg)}
-            ehDev={ehDev} aprovPendentes={aprovPendentes} subsetoresExtra={subsetoresExtra} paginaInicial={maisPagina} onPaginaMais={setMaisPagina} onAbrirGestao={() => setFlow("gestao")} perfil={perfil} onAbrirConvites={() => setFlow("convites")} onAbrirModulo={(f) => setFlow(f)} />
+            ehDev={ehDev} aprovPendentes={aprovPendentes} subsetoresExtra={subsetoresExtra} paginaInicial={maisPagina} onPaginaMais={setMaisPagina} onAbrirGestao={() => setFlow("gestao")} perfil={perfil} usuarioId={sessao?.user?.id || null} emailConta={sessao?.user?.email || ""} onAbrirConvites={() => setFlow("convites")} onAbrirModulo={(f) => setFlow(f)} />
         )}
       </main>
 

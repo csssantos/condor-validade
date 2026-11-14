@@ -55,7 +55,7 @@ function MaisView(props) {
     switch (id) {
       case "conta": return <PaginaConta T={T} dark={dark} perfil={perfil} usuario={usuario} showToast={props.showToast} onSair={props.onSair} />;
       case "aparencia": return <PaginaAparencia T={T} dark={dark} tema={tema} onTema={trocarTema} />;
-      case "notificacoes": return <PaginaNotificacoes T={T} dark={dark} som={props.som} setSom={props.setSom} notifPermission={props.notifPermission} onToggleNotif={props.onToggleNotif} ehEncarregado={ehEncarregado} perfil={perfil} showToast={props.showToast} />;
+      case "notificacoes": return <PaginaNotificacoes T={T} dark={dark} som={props.som} setSom={props.setSom} notifPermission={props.notifPermission} onToggleNotif={props.onToggleNotif} ehEncarregado={ehEncarregado} usuarioId={props.usuarioId} emailConta={props.emailConta} showToast={props.showToast} />;
       case "atalhos": return !ehEncarregado ? null : <PaginaAtalhos T={T} dark={dark} historico={historico} ehEncarregado={ehEncarregado} ehCorporativo={ehCorporativo} ehDev={ehDev} acoes={acoes} />;
       case "aprovacoes": return ehEncarregado ? <PaginaAprovacoes T={T} dark={dark} perfil={perfil} showToast={props.showToast} subsetoresExtra={props.subsetoresExtra || []} /> : null;
       case "avisos": return ehDev ? <PaginaAvisos T={T} dark={dark} perfil={perfil} showToast={props.showToast} /> : null;

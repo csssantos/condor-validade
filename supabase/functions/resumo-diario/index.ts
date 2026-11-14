@@ -23,12 +23,13 @@ const resp = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 
 async function tg(method: string, body: Record<string, unknown>) {
   try { const r = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(8000) }); return await r.json(); }
-  catch { return null; }
+  catch { return { ok: false, semResposta: true }; }
 }
 async function enviarTelegram(chat: number, texto: string) {
   if (!TOKEN) return false;
   let r = await tg("sendPhoto", { chat_id: chat, photo: `${SITE}/bot/resumo.jpg`, caption: texto.slice(0, 1000) });
-  if (!r?.ok) r = await tg("sendMessage", { chat_id: chat, text: texto.slice(0, 3500) }); // sem o banner, manda só o texto
+  // só cai para texto se o Telegram RESPONDEU que não deu; sem resposta (tempo esgotado) pode ter entregue: não repete
+  if (!r?.ok && !r?.semResposta) r = await tg("sendMessage", { chat_id: chat, text: texto.slice(0, 3500) }); // sem o banner, manda só o texto
   return !!r?.ok;
 }
 async function enviarEmail(para: string, m: { subject: string; html: string; text: string }, idem: string) {
@@ -44,7 +45,7 @@ async function enviarPush(usuarioId: string, payload: string) {
   if (!vapidOk) return false;
   const { data: subs, error } = await sb.from("push_subscriptions").select("endpoint, subscription").eq("usuario_id", usuarioId);
   if (error || !subs?.length) return false;
-  const rs = await Promise.allSettled(subs.map((s: any) => webpush.sendNotification(s.subscription, payload).catch(async (e: any) => {
+  const rs = await Promise.allSettled(subs.map((s: any) => webpush.sendNotification(s.subscription, payload, { TTL: 6 * 3600, urgency: "normal", timeout: 8000 }).catch(async (e: any) => {
     if (e?.statusCode === 404 || e?.statusCode === 410) await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
     throw e;
   })));

@@ -3,7 +3,7 @@
 export type Top = { nome: string; dias: number; validade: string; lote: string | null; quantidade: number | null; pedido: boolean };
 export type Resumo = { vencidos: number; hoje: number; amanha: number; ate10: number; sem_pedido: number; aprovacoes: number; top: Top[]; nome: string; setor: string | null; hoje_data: string };
 
-export const limpaTxt = (s: unknown, n: number) => String(s ?? "").replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069]/g, " ").replace(/https?:\/\/\S+|www\.\S+|\S+@\S+/gi, "[removido]").replace(/\s+/g, " ").trim().slice(0, n);
+export const limpaTxt = (s: unknown, n: number) => String(s ?? "").replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069]/g, " ").replace(/https?:\/\/\S+|www\.\S+|\S+@\S+|@\w{3,}|\b[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|br|io|app|me|ly|co|gg|xyz|info|link)\b\S*/gi, "[removido]").replace(/\s+/g, " ").trim().slice(0, n);
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(Math.floor(n), 99999) : 0; };
 export const primeiroNome = (nome: unknown) => limpaTxt(nome, 40).split(" ")[0] || "";
 export const fmtDia = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso)); return m ? `${m[3]}/${m[2]}` : "?"; };

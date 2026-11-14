@@ -87,7 +87,7 @@ function PaginaAparencia({ T, dark, tema, onTema }) {
   );
 }
 
-function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNotif, ehEncarregado, perfil, showToast }) {
+function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNotif, ehEncarregado, usuarioId, emailConta, showToast }) {
   const iosSemInstalar = isIOS() && !isStandalone();
   const ativa = notifPermission === "granted";
   const bloqueada = notifPermission === "denied";
@@ -97,7 +97,7 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
             ativa ? <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 14 }} className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#E3F4EA", color: "#14573A" }}>Ligadas</motion.span>
             : suportada && !bloqueada && !iosSemInstalar ? <motion.button whileTap={{ scale: 0.94 }} onClick={onToggleNotif} style={{ background: BLUE, color: "#fff" }} className="text-[12px] font-bold px-4 py-2 rounded-full">Ativar</motion.button> : null
   );
-  const resumo = ehEncarregado && perfil?.id ? <ResumoDiarioControles T={T} dark={dark} usuarioId={perfil.id} showToast={showToast} notifAtiva={ativa} temEmail={!!perfil?.email} /> : null;
+  const resumo = ehEncarregado && usuarioId ? <ResumoDiarioControles T={T} dark={dark} usuarioId={usuarioId} showToast={showToast} notifAtiva={ativa} temEmail={!!emailConta} /> : null;
   if (pc) {
     return (
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">

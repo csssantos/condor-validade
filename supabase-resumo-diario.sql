@@ -64,11 +64,12 @@ begin
   if not found or not u.ativo or u.anonimo or u.loja_id is null then raise exception 'sem_permissao'; end if;
   if coalesce(public.nivel_do_usuario(), 99) > 5 then raise exception 'sem_permissao'; end if;
   if p_telegram is null or p_push is null or p_email is null then raise exception 'dados_invalidos'; end if;
-  if p_telegram and not exists (select 1 from public.telegram_vinculos v where v.usuario_id = u.id and v.tipo = 'funcionario') then raise exception 'telegram_nao_vinculado'; end if;
-  if p_email and (u.email is null or u.email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') then raise exception 'sem_email'; end if;
-  if p_push and not exists (select 1 from public.push_subscriptions s where s.usuario_id = u.id) then raise exception 'push_nao_ativo'; end if;
   select * into v_ant from public.resumo_diario_prefs where usuario_id = u.id;
   v_tem := found;
+  -- só confere o canal que a pessoa está LIGANDO agora (um canal que já estava ligado e quebrou não trava os outros)
+  if p_telegram and not (v_tem and v_ant.telegram) and not exists (select 1 from public.telegram_vinculos v where v.usuario_id = u.id and v.tipo = 'funcionario') then raise exception 'telegram_nao_vinculado'; end if;
+  if p_email and not (v_tem and v_ant.email) and (u.email is null or u.email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') then raise exception 'sem_email'; end if;
+  if p_push and not (v_tem and v_ant.push) and not exists (select 1 from public.push_subscriptions s where s.usuario_id = u.id) then raise exception 'push_nao_ativo'; end if;
   if v_tem and v_ant.telegram = p_telegram and v_ant.push = p_push and v_ant.email = p_email then
     return jsonb_build_object('telegram', p_telegram, 'push', p_push, 'email', p_email, 'mudou', false);
   end if;
@@ -100,8 +101,8 @@ begin
     'ate10', count(*) filter (where dias between 0 and 10),
     'sem_pedido', count(*) filter (where dias between 0 and 10 and pedido_tipo is null),
     'top', coalesce((select jsonb_agg(jsonb_build_object('nome', left(t.nome, 60), 'dias', t.dias, 'validade', t.validade, 'lote', case when t.sem_lote then null else left(t.lote, 20) end,
-                      'quantidade', t.quantidade, 'pedido', t.pedido_tipo is not null) order by t.validade, t.quantidade desc nulls last)
-                      from (select * from p order by validade, quantidade desc nulls last limit 5) t), '[]'::jsonb))
+                      'quantidade', t.quantidade, 'pedido', t.pedido_tipo is not null) order by (t.dias < 0), (t.pedido_tipo is not null), abs(t.dias), t.quantidade desc nulls last)
+                      from (select * from p order by (dias < 0), (pedido_tipo is not null), abs(dias), quantidade desc nulls last limit 5) t), '[]'::jsonb))
     into r from p;
   select count(*) into v_aprov from public.aprovacoes_produto a
    where a.loja_id = u.loja_id and a.status = 'pendente' and (u.nivel <= 4 or public._setor_casa(a.setor, u.setor));
@@ -159,7 +160,7 @@ begin
   delete from public.resumo_diario_envios where dia < public.hoje_br() - 30; -- retenção de 30 dias
   select net.http_post(url := 'https://fbovltxucooeoldjfckk.supabase.co/functions/v1/resumo-diario',
                        headers := jsonb_build_object('Content-Type', 'application/json', 'x-resumo-segredo', seg),
-                       body := '{}'::jsonb, timeout_milliseconds := 25000) into id;
+                       body := '{}'::jsonb, timeout_milliseconds := 120000) into id;
   return id;
 end $f$;
 
@@ -189,7 +190,7 @@ do $$ declare d text; novo text;
 begin
   d := pg_get_functiondef('public._rl_exportar_meus_dados()'::regprocedure);
   if position('resumo_diario' in d) = 0 then
-    novo := replace(d, E'\'telegram\', (select jsonb_build_object(', E'\'resumo_diario\', (select jsonb_build_object(\'telegram\', r.telegram, \'push\', r.push, \'email\', r.email, \'atualizado_em\', r.atualizado_em) from public.resumo_diario_prefs r where r.usuario_id = auth.uid()),\n    \'telegram\', (select jsonb_build_object(');
+    novo := replace(d, E'\'telegram\', (select jsonb_build_object(', E'\'resumo_diario\', (select jsonb_build_object(\'telegram\', rd.telegram, \'push\', rd.push, \'email\', rd.email, \'atualizado_em\', rd.atualizado_em) from public.resumo_diario_prefs rd where rd.usuario_id = auth.uid()),\n    \'telegram\', (select jsonb_build_object(');
     if novo = d then raise exception 'exportar_meus_dados mudou: não foi possível acrescentar o resumo diário (nada foi aplicado)'; end if;
     execute novo;
   end if;

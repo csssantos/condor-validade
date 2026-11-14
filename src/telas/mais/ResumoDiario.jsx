@@ -13,17 +13,17 @@ const ERROS = {
 };
 const msgErro = (e) => { const t = String(e?.message || ""); for (const k of Object.keys(ERROS)) if (t.includes(k)) return ERROS[k]; return /limite|429/i.test(t) ? "Muitas alterações seguidas. Tente de novo em instantes." : "Não foi possível salvar agora. Tente de novo."; };
 
-export function usarResumoDiario(usuarioId) {
+export function usarResumoDiario(usuarioId, ocupado) {
   const [prefs, setPrefs] = useState({ telegram: false, push: false, email: false });
   const [pronto, setPronto] = useState(false);
   const [tg, setTg] = useState(null); // Telegram vinculado? (null = ainda não sabemos)
   const carregar = useCallback(async () => {
-    if (!usuarioId) return;
+    if (!usuarioId || (ocupado && ocupado.current)) return;
     const { data, error } = await supabase.from("resumo_diario_prefs").select("telegram, push, email").eq("usuario_id", usuarioId).maybeSingle();
     if (!error) { setPrefs({ telegram: !!data?.telegram, push: !!data?.push, email: !!data?.email }); setPronto(true); }
     const st = await supabase.rpc("telegram_status");
     if (!st.error && st.data) setTg(!!st.data.vinculado);
-  }, [usuarioId]);
+  }, [usuarioId, ocupado]);
   useEffect(() => {
     if (!usuarioId) return undefined;
     carregar();
@@ -40,11 +40,10 @@ export function usarResumoDiario(usuarioId) {
   return { prefs, setPrefs, pronto, tg, carregar };
 }
 
-// pc = true usa o espaçamento do cartão do PC (o conteúdo é o mesmo)
 export function ResumoDiarioControles({ T, dark, usuarioId, showToast, notifAtiva, temEmail }) {
-  const { prefs, setPrefs, pronto, tg, carregar } = usarResumoDiario(usuarioId);
-  const [salvando, setSalvando] = useState(null);
   const trava = useRef(false);
+  const { prefs, setPrefs, pronto, tg, carregar } = usarResumoDiario(usuarioId, trava);
+  const [salvando, setSalvando] = useState(null);
   async function alternar(canal) {
     if (trava.current || !pronto) return;
     const novo = { ...prefs, [canal]: !prefs[canal] };
@@ -53,7 +52,9 @@ export function ResumoDiarioControles({ T, dark, usuarioId, showToast, notifAtiv
     const { error } = await supabase.rpc("salvar_resumo_diario", { p_telegram: novo.telegram, p_push: novo.push, p_email: novo.email });
     trava.current = false; setSalvando(null);
     if (error) { setPrefs(anterior); showToast?.(msgErro(error), "erro"); carregar(); return; }
-    showToast?.(novo[canal] ? "Resumo diário ligado. Chega todo dia às 7h, só se houver algo a avisar." : "Resumo diário desligado neste canal.", "ok");
+    carregar();
+    const nomeCanal = { telegram: "Telegram", push: "notificação do app", email: "e-mail" }[canal];
+    showToast?.(novo[canal] ? `Resumo por ${nomeCanal} ligado. Chega todo dia às 7h, só se houver algo a avisar.` : `Resumo por ${nomeCanal} desligado.`, "ok");
   }
   const linha = (canal, Icone, titulo, desc, bloqueio, ultima) => (
     <MaisLinha key={canal} T={T} dark={dark} icon={Icone} cor="#0B4F9E" titulo={titulo} desc={bloqueio || desc}
