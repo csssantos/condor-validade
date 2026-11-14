@@ -28,7 +28,8 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   const [pedidoTipo, setPedidoTipo] = useState(item.pedidoTipo || null);
   const [confirmandoRemoverPedido, setConfirmandoRemoverPedido] = useState(false);
   const salvandoPedidoRef = useRef(false);
-  const [desmarcados, setDesmarcados] = useState([]); // lotes que a pessoa tirou da campanha (por padrão todos entram)
+  const desmarcadosPadrao = () => (lotesParaPedido || []).filter((l) => getStatus(l).d > 30).map((l) => l.id);
+  const [desmarcados, setDesmarcados] = useState(desmarcadosPadrao); // lotes que a pessoa tirou da campanha (por padrão todos entram)
   const lotesExtra = (!item.pedidoTipo && lotesParaPedido) ? lotesParaPedido.filter((l) => !desmarcados.includes(l.id)) : [];
   const [pedidoCampanha, setPedidoCampanha] = useState(item.pedidoCampanha || "");
   const [salvandoPedido, setSalvandoPedido] = useState(false);
@@ -149,16 +150,16 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                     <span className="min-w-0">Validade {formatarData(l.validade)}{l.lote ? ` · Lote ${l.lote}` : ""} · {l.quantidade || 1}{l.porPeso ? "kg" : "un"}</span>
                   </label>
                 ))}
-                <p style={{ color: T.subtext }} className="text-[10px] mt-0.5">Marcados ficam travados como este. Lotes vencidos ou que já têm pedido não aparecem.</p>
+                <p style={{ color: T.subtext }} className="text-[10px] mt-0.5">Marcados ficam travados como este. Lotes que vencem em mais de 30 dias vêm desmarcados; vencidos ou com pedido não aparecem (até 10 lotes).</p>
               </div>
             )}
-            <p style={{ color: T.subtext }} className="text-[10px] mt-1">O valor é só uma sugestão: depende da central liberar. Campanha (obrigatória): só números, até 20 dígitos.{!item.pedidoTipo && " Atenção: depois de salvar, este lote fica travado (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
+            <p style={{ color: T.subtext }} className="text-[10px] mt-1">O valor é só uma sugestão: depende da central liberar. Campanha (obrigatória): só números, até 20 dígitos.{!item.pedidoTipo && " Atenção: depois de salvar, " + (lotesExtra.length ? "este lote e os marcados ficam travados" : "este lote fica travado") + " (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
             <div className="flex gap-2 mt-2.5">
-              <button onClick={() => { setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); setPedidoValor(valorTxt0(item.pedidoValor)); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
+              <button onClick={() => { setDesmarcados(desmarcadosPadrao()); setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); setPedidoValor(valorTxt0(item.pedidoValor)); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
               {item.pedidoTipo && podeGerirPedido && (confirmandoRemoverPedido
                 ? <button onClick={() => salvarPedido(null, null, null)} disabled={salvandoPedido} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">Confirmar remoção</button>
                 : <button onClick={() => setConfirmandoRemoverPedido(true)} style={{ color: RED_DARK }} className="flex-1 text-[11px] font-semibold py-1.5">Remover</button>)}
-              <button onClick={() => salvarPedido(pedidoTipo, normalizarCampanha(pedidoCampanha), pedidoValorNum)} disabled={salvandoPedido || !pedidoTipo || !campanhaOk || pedidoValorNum == null} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : "Salvar"}</button>
+              <button onClick={() => salvarPedido(pedidoTipo, normalizarCampanha(pedidoCampanha), pedidoValorNum)} disabled={salvandoPedido || !pedidoTipo || !campanhaOk || pedidoValorNum == null} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : lotesExtra.length && !item.pedidoTipo ? `Salvar em ${lotesExtra.length + 1} lotes` : "Salvar"}</button>
             </div>
           </div>
         )}

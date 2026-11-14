@@ -1218,12 +1218,16 @@ function AppInner() {
 
   // Mesma campanha para vários lotes do mesmo produto: cada lote passa pela função do banco (permissão e auditoria por lote)
   async function registrarPedidoLotes(item, extras, tipo, campanha, valor) {
-    if (!extras || !extras.length) return registrarPedido(item, tipo, campanha, valor);
+    if (!tipo || !extras || !extras.length) return registrarPedido(item, tipo, campanha, valor);
     const ok1 = await registrarPedido(item, tipo, campanha, valor, true);
     if (!ok1) { showToast("Não foi possível registrar o pedido neste lote. Nenhum outro lote foi alterado.", "erro"); return false; }
-    let feitos = 1, falhas = 0;
-    for (const l of extras.slice(0, 20)) { if (await registrarPedido(l, tipo, campanha, valor, true)) feitos++; else falhas++; }
-    showToast(falhas ? `Pedido registrado em ${feitos} lote${feitos === 1 ? "" : "s"}. Não foi possível registrar em ${falhas}: abra o lote e tente de novo.` : `Pedido de ${tipo === "preco_direto" ? "preço direto" : "promoção"} registrado em ${feitos} lotes (campanha ${normalizarCampanha(campanha)}).`, falhas ? "aviso" : "ok");
+    let feitos = 1, falhas = 0; const falhou = [];
+    const lista = extras.slice(0, 10); // teto por vez (cada lote gera auditoria e aviso no Telegram)
+    for (const l of lista) {
+      if (l.pedidoTipo) { falhas++; falhou.push(formatarData(l.validade)); continue; } // alguém travou o lote enquanto a tela estava aberta: não sobrescreve
+      try { if (await registrarPedido(l, tipo, campanha, valor, true)) feitos++; else { falhas++; falhou.push(formatarData(l.validade)); } } catch { falhas++; falhou.push(formatarData(l.validade)); }
+    }
+    showToast(falhas ? `Pedido registrado em ${feitos} lote${feitos === 1 ? "" : "s"}. Não foi possível registrar nos lotes de validade ${falhou.join(", ")}: abra cada um e tente de novo.` : `Pedido de ${tipo === "preco_direto" ? "preço direto" : "promoção"} registrado em ${feitos} lotes (campanha ${normalizarCampanha(campanha)}).`, falhas ? "aviso" : "ok");
     return true;
   }
 
@@ -1268,7 +1272,7 @@ function AppInner() {
           ["Validade", temVal ? `${formatarData(item.validade)}${diasTxt ? " · " + diasTxt : ""}` : "Sem validade"],
           ["Lote", textoLote(item) || ""],
           ["Quantidade", qtd],
-          ["Campanha", item.pedidoTipo ? `${item.pedidoTipo === "preco_direto" ? "Preço direto" : "Promoção"}${item.pedidoCampanha ? ` · nº ${item.pedidoCampanha}` : ""}${item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")}` : ""}` : ""],
+          ["Campanha", item.pedidoTipo ? `${item.pedidoTipo === "preco_direto" ? "Preço direto" : "Promoção"}${item.pedidoCampanha ? ` · nº ${item.pedidoCampanha}` : ""}${item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")} (sugestão)` : ""}` : ""],
           ["Setor", item.setor],
           ["Código", interno ? "" : item.barcode],
         ],
@@ -1512,7 +1516,7 @@ function AppInner() {
           onClose={() => setDetalheItem(null)}
           onEdit={ehDesktop || detalheItem.pedidoTipo || !podeEditarProduto(detalheItem) ? null : startEdit} onDuplicate={ehDesktop || !podeEditarProduto(detalheItem) ? null : duplicarItem}
           onBaixa={podeGerirProduto(detalheItem) ? darBaixa : null} onShare={compartilharItem}
-          onAplicarPromocao={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? aplicarPromocao : null} onPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedido : null} onPedidoLotes={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedidoLotes : null} lotesParaPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? items.filter((i) => i.barcode === detalheItem.barcode && i.setor === detalheItem.setor && i.id !== detalheItem.id && !i.pedidoTipo && !!i.validade && getStatus(i).level !== "expired" && podeGerirProduto(i)) : []} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? excluirProduto : null} />
+          onAplicarPromocao={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? aplicarPromocao : null} onPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedido : null} onPedidoLotes={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? registrarPedidoLotes : null} lotesParaPedido={nivelUsuario <= 5 && podeGerirProduto(detalheItem) ? items.filter((i) => i.barcode === detalheItem.barcode && i.setor === detalheItem.setor && i.id !== detalheItem.id && !i.pedidoTipo && !!i.validade && getStatus(i).level !== "expired" && podeGerirProduto(i)).slice(0, 10) : []} podeGerirPedido={podeGerirProduto(detalheItem)} onExcluir={podeGerirProduto(detalheItem) && !detalheItem.pedidoTipo ? excluirProduto : null} />
       )}
 
       {perfil?.id && <RondaAvisosHost T={T} usuarioId={perfil.id} showToast={showToast} onIrParaRondas={() => { setFlow(null); setSetorAtivo(null); setTab("rondas"); }} />}

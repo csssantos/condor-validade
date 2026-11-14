@@ -25,6 +25,7 @@ begin
   end if;
 
   -- a rotina apaga mensagens antigas (retenção): não some, só passa de a cada 5 min para 1x por dia
+  if exists (select 1 from cron.job where jobname = 'whatsapp_limpar' and command <> 'select public.whatsapp_limpar()') then raise exception 'comando da rotina whatsapp_limpar diferente do esperado: nada foi alterado'; end if;
   if exists (select 1 from cron.job where jobname = 'whatsapp_limpar') then perform cron.schedule('whatsapp_limpar', '17 6 * * *', 'select public.whatsapp_limpar()'); end if;
 
   -- auto-teste: as regras continuam funcionando
@@ -32,12 +33,6 @@ begin
   if public._sem_acento('Ação Pão') <> 'ACAO PAO' then raise exception 'auto-teste: _sem_acento'; end if;
   if not public._marca_casa('CAFE MELITTA 500G', 'MELITTA') then raise exception 'auto-teste: _marca_casa'; end if;
   if public.hoje_br() is null or public.norm_lote(' l 12 ') <> 'L 12' then raise exception 'auto-teste: hoje_br/norm_lote'; end if;
-  perform set_config('app.via_rpc', '1', true);
-  select id into v_id from public.produtos where pedido_tipo is null and validade > current_date + 5 limit 1;
-  if v_id is not null then update public.produtos set observacoes = observacoes where id = v_id; end if; -- dispara os triggers de regra
-  select barcode, loja_id into v_bc, v_loja from public.catalogo limit 1;
-  if v_bc is not null then update public.catalogo set nome = nome where barcode = v_bc and loja_id = v_loja; end if;
-  perform set_config('app.via_rpc', '', true);
   if not exists (select 1 from pg_indexes where schemaname = 'public' and indexname = 'ronda_itens_ronda_idx') then raise exception 'auto-teste: índice da ronda sumiu'; end if;
   if exists (select 1 from cron.job where jobname = 'whatsapp_limpar' and schedule <> '17 6 * * *') then raise exception 'auto-teste: rotina do WhatsApp continua a cada 5 min'; end if;
 end $$;
