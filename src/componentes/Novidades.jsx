@@ -11,7 +11,7 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-11-14-campanha-lotes", data: "14/11/2026", itens: [
-    { tipo: "adicionado", ate: 5, texto: "Ao lançar uma campanha num produto com mais de um lote, dá para marcar quais outros lotes entram na mesma campanha (todos vêm marcados)." },
+    { tipo: "adicionado", ate: 5, texto: "Ao lançar uma campanha num produto com mais de um lote, dá para marcar quais outros lotes entram na mesma campanha (os que vencem em até 30 dias vêm marcados; você pode marcar ou desmarcar)." },
     { tipo: "melhorado", ate: 7, texto: "A imagem de compartilhar o produto agora mostra a campanha (tipo, número e valor sugerido) quando o lote tem pedido." },
   ] },
   { id: "2026-11-14-orientacoes-produto", data: "14/11/2026", itens: [
