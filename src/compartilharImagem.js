@@ -264,7 +264,7 @@ export async function gerarImagemProduto(entrada) {
       c.fillText(cortarLinha(c, l.lote ? `Lote ${l.lote}` : "Sem lote", 330), 134, y + 42);
       c.font = `700 30px ${fonte}`; c.fillText(l.validade, 484, y + 42);
       c.fillStyle = CINZA; c.font = `700 28px ${fonte}`; c.textAlign = "right";
-      c.fillText(l.campanha ? `Campanha ${l.campanha}` : l.quantidade, L - 94, y + 42); c.textAlign = "left";
+      c.fillText(cortarLinha(c, l.campanha ? `Campanha ${l.campanha}` : l.quantidade, 330), L - 94, y + 42); c.textAlign = "left";
     });
     if (dados.maisLotes) {
       c.fillStyle = CINZA; c.font = `600 26px ${fonte}`;
@@ -302,7 +302,7 @@ export async function gerarImagemProduto(entrada) {
   c.fillStyle = "#D6E2F3"; c.fillRect(50, yRodape + 6, L - 100, 3);
   c.fillStyle = AZUL; c.font = `800 34px ${fonte}`; c.fillText("Condor · Alerta de Validade", 64, yRodape + 86);
   c.fillStyle = CINZA; c.font = `500 26px ${fonte}`;
-  c.fillText("Abra o link enviado junto para ver no app", 64, yRodape + 130);
+  c.fillText("Confira sempre a validade no app", 64, yRodape + 130);
   c.fillText(`Imagem gerada em ${dados.geradoEm}`, 64, yRodape + 174);
   if (bipi) {
     const bs = 210;

@@ -644,7 +644,7 @@ function AppInner() {
     } else {
       const lojaLink = String(params.get("loja") || "").replace(/\D/g, "").slice(0, 6);
       const minha = String(lojaAtiva?.numero_loja ?? "");
-      if (lojaLink && minha && lojaLink !== minha) showToast(`Esse link é da loja ${lojaLink} e você está na loja ${minha}. Só dá para abrir o produto na loja dele.`, "aviso");
+      if (lojaLink && minha && Number(lojaLink) !== Number(minha.replace(/\D/g, ""))) showToast(`Esse link é de um produto da loja ${Number(lojaLink)}, e você está na loja ${Number(minha.replace(/\D/g, ""))}. Peça para alguém da loja ${Number(lojaLink)} abrir.`, "aviso");
       else showToast("Esse produto não está na sua lista: pode ter sido baixado, ou ser de outra loja.", "aviso");
     }
     params.delete("produto"); params.delete("loja");
@@ -1280,19 +1280,20 @@ function AppInner() {
       texto = `${item.nome}\nSetor: ${item.setor}${interno ? "" : `\nCódigo: ${item.barcode}`}${temVal ? `\nValidade: ${formatarData(item.validade)} (${st.label})` : ""}${textoLote(item) ? `\nLote: ${textoLote(item)}` : ""}${item.pedidoTipo ? `\nCampanha: ${item.pedidoTipo === "preco_direto" ? "preço direto" : "promoção"}${item.pedidoCampanha ? ` nº ${item.pedidoCampanha}` : ""}${item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")} (sugestão)` : ""}` : ""}\nGerado em ${geradoEm}`;
       const fmtVal = (v) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? formatarData(v) : "Sem validade");
       const corNivel = (nivel) => ({ expired: "#B3141A", alert: "#E31E24", warning: "#E8A317", none: "#6B7C93" }[nivel] || "#1F9D55");
-      const mesmoCodigo = (items || []).filter((x) => x.barcode === item.barcode);
+      const mesmoCodigo = item.barcode ? (items || []).filter((x) => x.barcode === item.barcode) : [];
       const todos = (mesmoCodigo.some((x) => String(x.id) === String(item.id)) ? mesmoCodigo : [item, ...mesmoCodigo]).sort((a, b) => String(a.validade || "9999").localeCompare(String(b.validade || "9999")));
-      const lotes = todos.slice(0, 6).map((x) => {
+      const mostrados = todos.length > 6 ? [...todos.filter((x) => String(x.id) !== String(item.id)).slice(0, 5), item].sort((a, b) => String(a.validade || "9999").localeCompare(String(b.validade || "9999"))) : todos;
+      const lotes = mostrados.map((x) => {
         const tv = !!x.validade && /^\d{4}-\d{2}-\d{2}/.test(x.validade);
         return { lote: textoLote(x) || "", validade: fmtVal(x.validade), quantidade: x.quantidade ? `${String(x.quantidade).replace(".", ",")} ${x.porPeso ? "kg" : "un"}` : "", campanha: x.pedidoCampanha ? String(x.pedidoCampanha) : "", cor: corNivel(tv ? getStatus(x).level : "none"), atual: String(x.id) === String(item.id) };
       });
       const gram = item.tamanho ? `${String(item.tamanho).replace(".", ",")} ${String(item.unidadeMedida || "g").toLowerCase()}` : "";
-      const preco = item.precoPromocional || item.precoUnitario;
+      const preco = item.emPromocao && item.precoPromocional != null ? item.precoPromocional : item.precoUnitario;
       const reais = (n) => `R$ ${Number(n).toFixed(2).replace(".", ",")}`;
       const tiles = [
         ["Lote", textoLote(item) || ""],
-        ["Quantidade", qtd],
-        ["Campanha nº", item.pedidoTipo ? (item.pedidoCampanha ? String(item.pedidoCampanha) : (item.pedidoTipo === "preco_direto" ? "Preço direto" : "Promoção")) : ""],
+        ["Qtd. do lote", qtd],
+        ["Campanha nº", item.pedidoTipo && item.pedidoCampanha ? String(item.pedidoCampanha) : ""],
         ["Setor", item.setor || ""],
         ["Subcategoria", item.subsetor || ""],
         ["Gramagem", gram],
@@ -1305,7 +1306,7 @@ function AppInner() {
         corStatus: corNivel(st.level),
         corTextoStatus: st.level === "warning" ? "#2A1D00" : "#FFFFFF",
         destaque: { rotulo: "Validade", valor: fmtVal(temVal ? item.validade : null), sub: diasTxt ? diasTxt.charAt(0).toUpperCase() + diasTxt.slice(1) : "" },
-        tiles, lotes: lotes.length > 1 ? lotes : [], maisLotes: Math.max(0, todos.length - 6),
+        tiles, lotes: lotes.length > 1 ? lotes : [], maisLotes: Math.max(0, todos.length - mostrados.length),
         codigo: interno ? "" : item.barcode,
         geradoEm,
       };
@@ -1314,7 +1315,8 @@ function AppInner() {
         const arquivo = new File([blob], `validade-${String(item.barcode || "produto").replace(/[^A-Za-z0-9]/g, "").slice(0, 20) || "produto"}.png`, { type: "image/png" });
         // imagem + link do produto (abre o app direto no produto, para quem tem acesso à loja)
         const link = item.id ? `${SITE_URL}/?produto=${encodeURIComponent(String(item.id))}${lojaAtiva?.numero_loja ? `&loja=${encodeURIComponent(String(lojaAtiva.numero_loja))}` : ""}` : "";
-        const textoLink = `${item.nome}${temVal ? `\nValidade: ${formatarData(item.validade)}${diasTxt ? ` (${diasTxt})` : ""}` : ""}${link ? `\nAbrir no app: ${link}` : ""}`;
+        const nomeSeguro = String(item.nome || "").replace(/[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+        const textoLink = `${nomeSeguro}${temVal ? `\nValidade: ${formatarData(item.validade)}${diasTxt ? ` (${diasTxt})` : ""}` : ""}${link ? `\nAbrir no app: ${link}` : ""}`;
         soltarAviso();
         if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
           try { await navigator.share({ files: [arquivo], text: textoLink }); return; } catch (e) { if (e && e.name === "AbortError") return; }
