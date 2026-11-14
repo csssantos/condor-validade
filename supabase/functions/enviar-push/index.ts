@@ -125,7 +125,7 @@ function montarPayloadProduto(produto: any) {
   const valor = (Number(produto.quantidade) || 1) * (Number(produto.preco_unitario) || 0);
   return JSON.stringify({
     title: `⚠️ ${produto.nome}`,
-    body: dias < 0 ? "Produto vencido — retire de venda. A baixa é registrada pelo encarregado do setor."
+    body: dias < 0 ? "Produto vencido — retire de venda e siga a orientação do encarregado do setor."
       : dias === 0 ? `Vence hoje · Setor ${produto.setor} · Valor estimado ${formatarMoeda(valor)}`
       : `Vence em ${dias} dia(s) · Setor ${produto.setor} · Valor estimado ${formatarMoeda(valor)}`,
     icon: "/icon-192.png", image: produto.foto || undefined, tag: `produto-${produto.id}`,

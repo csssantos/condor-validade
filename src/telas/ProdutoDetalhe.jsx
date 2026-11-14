@@ -74,7 +74,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 
   const corKpi = status.level === "expired" || status.level === "alert" ? s.bg : s.fg;
   const perto10 = status.level !== "expired" && status.d <= 10;
-  const mostrarAlertaCampanha = perto10 && !item.pedidoTipo && !!onPedido && !editandoPedido;
+  const mostrarAlertaCampanha = perto10 && !item.pedidoTipo && !!onPedido;
   function lancarCampanha() { setEditandoPedido(true); setTimeout(() => { try { pedidoRef.current && pedidoRef.current.scrollIntoView({ behavior: "smooth", block: "center" }); } catch { /* sem rolagem */ } }, 60); }
   const alertaCampanha = (grande) => mostrarAlertaCampanha && (
     <div role="alert" style={{ background: "#FFF4E0", borderColor: "#F2C879" }} className={`rounded-2xl border flex items-center gap-3 ${grande ? "px-5 py-4" : "px-3.5 py-3 mt-3"}`}>
@@ -83,7 +83,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
         <p style={{ color: "#7A4B00" }} className={`${grande ? "text-[15px]" : "text-[13px]"} font-extrabold leading-tight`}>{status.d === 0 ? "Vence hoje" : `Faltam ${status.d} dia${status.d === 1 ? "" : "s"} para vencer`}: lance uma campanha</p>
         <p style={{ color: "#8A5A10" }} className={`${grande ? "text-[12.5px]" : "text-[11px]"} mt-0.5 leading-snug`}>Peça promoção ou preço direto e registre aqui o número da campanha. Depois de salvar, o lote fica travado.</p>
       </div>
-      <button onClick={lancarCampanha} style={{ background: "#B86E00", color: "#fff" }} className={`shrink-0 font-bold rounded-full ${grande ? "text-[13px] px-5 py-2.5" : "text-[11.5px] px-3.5 py-2"}`}>Lançar campanha</button>
+      {!editandoPedido && <button onClick={lancarCampanha} style={{ background: "#B86E00", color: "#fff" }} className={`shrink-0 font-bold rounded-full ${grande ? "text-[13px] px-5 py-2.5" : "text-[11.5px] px-3.5 py-2"}`}>Lançar campanha</button>}
     </div>
   );
 
@@ -96,7 +96,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
         </div>
       </div>
   ) : null;
-  const bPedido = (item.pedidoTipo || (onPedido && status.level !== "expired")) ? (
+  const bPedido = (item.pedidoTipo || (onPedido && (status.level !== "expired" || editandoPedido))) ? (
       <div ref={pedidoRef} style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-3">
         <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-1.5 flex items-center gap-1"><Tag size={11} /> Pedido de promoção ou preço direto</p>
         {item.pedidoTipo && !editandoPedido && (
@@ -132,7 +132,12 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             <input value={pedidoValor} onChange={(e) => setPedidoValor(e.target.value.replace(/[^0-9.,]/g, "").slice(0, 8))}
               placeholder="Valor pedido em R$ (obrigatório)" inputMode="decimal" maxLength={8} aria-label="Valor pedido em reais"
               style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full min-w-0 mt-2 border rounded-xl px-3 py-2 text-xs outline-none" />
-            {pedidoMudouFora && <p role="alert" style={{ color: "#7A4B00", background: "#FFF4E0" }} className="text-[10.5px] font-semibold mt-1 rounded-lg px-2 py-1">Este pedido foi alterado em outro aparelho enquanto você editava. Confira antes de salvar.</p>}
+            {pedidoMudouFora && (
+              <div role="alert" style={{ color: "#7A4B00", background: "#FFF4E0" }} className="text-[10.5px] font-semibold mt-1 rounded-lg px-2 py-1.5">
+                Outra pessoa (ou outro aparelho) alterou este pedido enquanto você editava. {item.pedidoTipo ? `Agora: ${item.pedidoTipo === "preco_direto" ? "preço direto" : "promoção"}${item.pedidoCampanha ? ` · campanha ${item.pedidoCampanha}` : ""}${item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")}` : ""}.` : "Agora o lote está sem pedido."}
+                <button onClick={() => { sincronizarPedido(); setPedidoMudouFora(false); }} style={{ color: BLUE }} className="block mt-1 font-bold underline">Usar os valores atuais</button>
+              </div>
+            )}
                   {pedidoTipo && !campanhaOk && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o número da campanha (só números).</p>}
             {pedidoTipo && pedidoValorNum == null && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o valor pedido (de 0,01 a 5000, com até 2 casas, ex.: 5,90).</p>}
             {!item.pedidoTipo && lotesParaPedido && lotesParaPedido.length > 0 && (
@@ -223,16 +228,16 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   ) : null;
   const temEsquerdaPC = !!(bPromo || bPedido || bDesconto || bOutros); // sem nada à esquerda, os dados ocupam a largura toda
   // Orientação: produto vencido (o que fazer) e, para quem não tem os botões, por que eles não aparecem
-  const bOrientacao = (status.level === "expired" || !onBaixa) ? (
+  const bOrientacao = (status.level === "expired" || (!onBaixa && status.d <= 10)) ? (
     <div className="flex flex-col gap-2">
       {status.level === "expired" && (
         <div role="alert" style={{ background: RED_SOFT, color: RED_DARK }} className="rounded-2xl px-3.5 py-2.5 text-[12px] font-semibold leading-snug">
-          Produto vencido: retire da área de venda agora. {onBaixa ? "Depois registre a baixa em \"Registrar ação\"." : "Avise o encarregado do setor para registrar a baixa."}
+          Produto vencido: retire da área de venda agora. {onBaixa ? "Depois toque em \"Registrar ação\" e escolha o motivo da baixa." : "Avise o encarregado do setor para registrar a baixa."}
         </div>
       )}
-      {!onBaixa && (
+      {!onBaixa && (status.level === "expired" || status.d <= 10) && (
         <p style={{ background: T.chipBg, color: T.subtext }} className="rounded-2xl px-3.5 py-2.5 text-[11.5px] leading-snug">
-          Baixa, exclusão e pedido de campanha deste produto são feitos pelo encarregado do setor (ou cargo acima). Você pode consultar e compartilhar.
+          Baixa, exclusão e pedido de campanha deste produto (setor {item.setor}) são feitos pelo encarregado desse setor ou por cargo acima.
         </p>
       )}
     </div>

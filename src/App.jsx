@@ -709,7 +709,7 @@ function AppInner() {
   useEffect(() => {
     // só depois dos dados reais da loja (não do cache) e só para a pessoa logada; a 1ª vez só registra o que já existe
     if (idDoUsuario && notifPermission !== "granted") { limparNotifDaPessoa(idDoUsuario, true); return; } // sem permissão: ao reativar (aqui ou pelo navegador) nasce nova linha de base silenciosa
-    if (loading || !dadosProntos || !idDoUsuario || !lojaAtiva?.id || dadosDoUid !== idDoUsuario) return;
+    if (loading || !dadosProntos || !perfil || !idDoUsuario || !lojaAtiva?.id || dadosDoUid !== idDoUsuario) return;
     (async () => {
       const kLista = chaveListaNotif(idDoUsuario, lojaAtiva.id), kBase = chaveBaseNotif(idDoUsuario, lojaAtiva.id);
       const candidatos = items.filter((it) => precisaNotificar(it)).map((it) => ({ it, st: getStatus(it), chave: chaveNotifItem(it, getStatus(it).level) }));
@@ -728,7 +728,7 @@ function AppInner() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, loading, dadosProntos, dadosDoUid, idDoUsuario, notifPermission, lojaAtiva?.id]);
+  }, [items, loading, dadosProntos, dadosDoUid, idDoUsuario, notifPermission, lojaAtiva?.id, !!perfil]);
 
   const toastTimerRef = useRef(null);
   const toastIdRef = useRef(0);

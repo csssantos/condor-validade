@@ -2,6 +2,8 @@
 --  1) 10 funções de regra ganham "search_path" fixo (aviso de segurança do Supabase): o comportamento não muda.
 --  2) Sai o índice duplicado de ronda_itens (existem dois iguais; fica o ronda_itens_ronda_idx).
 --  3) A rotina `whatsapp_limpar` (apaga mensagens antigas do WhatsApp, recurso pausado) passa de a cada 5 minutos para 1 vez por dia; a retenção continua valendo.
+-- Para desfazer: o search_path anterior era vazio (`alter function <nome> reset search_path`); o cron antigo era `select public.whatsapp_limpar()` a cada 5 min (`*/5 * * * *`); o índice se recria com `create index ronda_itens_ronda_id_idx on public.ronda_itens (ronda_id)`.
+-- Se reaplicar supabase-revisao/promotor-marcas/telegram-regras/lote, rode ESTE arquivo de novo.
 -- Fora deste arquivo, de propósito: apagar a cópia `backup_20261030` (35 tabelas com dados de 30/10) — isso é irreversível e só
 -- deve ser feito depois de o dono confirmar que o backup diário do GitHub está funcionando (ver bloco comentado no fim).
 -- Auto-teste: se algo falhar, nada é aplicado.
@@ -14,7 +16,13 @@ begin
             where n.nspname = 'public' and p.proname in ('_produtos_lote_ck','ean13_valido','_catalogo_ean_ck','hoje_br','norm_lote','ean_valido','_produtos_regras','_sem_acento','_marca_casa','_marca_stop')
   loop execute format('alter function %s set search_path = public, extensions', f.assinatura); end loop;
 
-  drop index if exists public.ronda_itens_ronda_id_idx;
+  -- só apaga se for MESMO duplicata (mesma definição, trocando só o nome)
+  if exists (select 1 from pg_indexes where schemaname='public' and indexname='ronda_itens_ronda_id_idx') then
+    if (select replace(indexdef,'ronda_itens_ronda_id_idx','X') from pg_indexes where schemaname='public' and indexname='ronda_itens_ronda_id_idx')
+       is distinct from (select replace(indexdef,'ronda_itens_ronda_idx','X') from pg_indexes where schemaname='public' and indexname='ronda_itens_ronda_idx')
+    then raise exception 'índices da ronda não são iguais: nada foi apagado'; end if;
+    drop index public.ronda_itens_ronda_id_idx;
+  end if;
 
   -- a rotina apaga mensagens antigas (retenção): não some, só passa de a cada 5 min para 1x por dia
   if exists (select 1 from cron.job where jobname = 'whatsapp_limpar') then perform cron.schedule('whatsapp_limpar', '17 6 * * *', 'select public.whatsapp_limpar()'); end if;
