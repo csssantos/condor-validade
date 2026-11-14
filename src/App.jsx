@@ -811,13 +811,13 @@ function AppInner() {
       showToast("Código lido muito curto. Tente novamente ou digite manualmente.", "warn");
       return false; // false = recusado: a câmera continua lendo
     }
-    playBeep(prefs.som);
 
     // Item 8: código de balança (peso/preço embutido) — cada pesagem gera um código FINAL diferente,
     // então o cadastro é feito por um "código-base" (5 dígitos do meio), compartilhado entre todas as
     // pesagens do mesmo produto, mesmo que o código completo escaneado nunca se repita.
     const balanca = parseCodigoBalanca(clean, configBalanca);
     if (balanca) {
+      playBeep(prefs.som);
       setPendingBarcode(clean);
       const chaveCatalogo = `bal:${balanca.codigoBase}`;
       const known = catalog[chaveCatalogo];
@@ -841,6 +841,7 @@ function AppInner() {
       showToast(`Código de barras inválido (${clean.length} dígitos): precisa ser EAN-8 (8), UPC-A (12) ou EAN-13 (13), com o último dígito de verificação certo. Confira e tente de novo.`, "warn");
       return false;
     }
+    playBeep(prefs.som); // o bip só toca para código ACEITO (antes apitava e depois recusava)
     setPendingBarcode(clean);
     if (known) {
       setDraftProduct({ ...known });

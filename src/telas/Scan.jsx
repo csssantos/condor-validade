@@ -4,6 +4,7 @@ import { Flashlight, FlashlightOff, SwitchCamera, Loader2, AlertTriangle, Rotate
 import TelaBiparCracha from "../TelaBiparCracha";
 import { BLUE, RED, RED_DARK, RED_SOFT } from "../lib/constantes";
 import { FUNDO_MARCA } from "../TelasEntrada";
+import * as ZXingLib from "@zxing/library";
 import { apenasNumeros } from "../lib/utilidades";
 
 // ============ Scan (câmera com leitor nativo + ZXing de reforço) ============
@@ -24,6 +25,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
   const [recusado, setRecusado] = useState(false);
   const recusadoTimerRef = useRef(null);
   const bloqueioRef = useRef({ codigo: null, ate: 0 });
+  const geracaoRef = useRef(0); // muda a cada pararTudo(): leitura antiga (assíncrona) não se reagenda depois de desligar
   const onDetectedRef = useRef(onDetected);
   onDetectedRef.current = onDetected; // sempre a versão mais nova (a leitura continua ligada depois de um código recusado)
 
@@ -49,6 +51,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
   }, []);
 
   const pararTudo = useCallback(() => {
+    geracaoRef.current += 1;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (zxingControlsRef.current) { try { zxingControlsRef.current.stop(); } catch {} zxingControlsRef.current = null; }
     if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
@@ -80,10 +83,13 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
   // o app parava de bipar até código na posição de sempre. Agora TODO frame tenta o ângulo 0°
   // primeiro (rápido, sem canvas) e só usa 1 ângulo extra do ciclo como tentativa secundária.
   const scanLoopNativo = useCallback(() => {
+    const ger = geracaoRef.current;
+    const parou = () => ger !== geracaoRef.current; // a câmera foi desligada (ou a tela fechou) enquanto este quadro esperava
     rafRef.current = requestAnimationFrame(async () => {
       if (videoRef.current && detectorRef.current && videoRef.current.readyState >= 2) {
         try {
           const codes = await detectorRef.current.detect(videoRef.current);
+          if (parou()) return;
           if (codes && codes.length > 0 && aoLer(codes[0].rawValue)) return;
         } catch (e) {
           // erro pontual de detecção num frame — segue tentando
@@ -95,13 +101,15 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
             try {
               const fonte = obterFonteRotacionada(videoRef.current, angulo);
               const codes = await detectorRef.current.detect(fonte);
-              if (codes && codes.length > 0 && aoLer(codes[0].rawValue)) return;
+              if (parou()) return;
+          if (codes && codes.length > 0 && aoLer(codes[0].rawValue)) return;
             } catch (e) {
               // idem — segue tentando
             }
           }
         }
       }
+      if (parou()) return;
       scanLoopNativo();
     });
   }, [aoLer, obterFonteRotacionada]);
@@ -152,7 +160,9 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
       return codeReader.decodeFromCanvas(canvas);
     }
     function tentar(fn) { try { return fn(); } catch (e) { return null; } } // "não achou neste quadro" é o normal
+    const ger = geracaoRef.current;
     function tentarFrame() {
+      if (ger !== geracaoRef.current) return;
       const video = videoRef.current;
       if (video && video.readyState >= 2 && video.videoWidth > 0) {
         tentativasRef.current += 1;
@@ -167,8 +177,9 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
     tentarFrame();
   }, [aoLer, recorteCentral]);
 
-  // O leitor (ZXing) vem empacotado no app (antes era baixado de um site externo na hora de bipar)
-  function carregarZXing() { return import("@zxing/library"); }
+  // O leitor (ZXing) vem empacotado no app, junto com o resto (antes era baixado de um site externo na hora de bipar).
+  // Import fixo de propósito: um pedaço separado não entraria no cache do service worker (falharia offline e após deploy).
+  function carregarZXing() { return Promise.resolve(ZXingLib); }
   function comTimeout(promessa, ms) {
     return Promise.race([
       promessa,
@@ -290,20 +301,20 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
   return (
     <div className="px-4 pt-4">
       {!manualMode && (
-        <div style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative rounded-[28px] overflow-hidden px-4 pt-3 pb-7 flex flex-col items-center">
+        <div style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative rounded-[28px] overflow-hidden px-4 pt-2 pb-6 flex flex-col items-center">
           <span aria-hidden className="absolute -right-16 -top-14 h-52 w-52 rounded-full bg-white/10" />
           <span aria-hidden className="absolute -left-10 bottom-16 h-28 w-28 rounded-full bg-white/10" />
           {/* O Bipi segura o celular: a cabeça aparece por cima, as mãos nas laterais e os pés embaixo; a câmera é a tela do celular */}
           <BipiCabeca alerta={recusado} />
-          <div className="relative w-[82%] -mt-3">
+          <div className="relative w-[74%] -mt-3">
             <span aria-hidden className="absolute left-[22%] -bottom-3 h-6 w-12 rounded-full" style={{ background: "#E31E24" }} />
             <span aria-hidden className="absolute right-[22%] -bottom-3 h-6 w-12 rounded-full" style={{ background: "#E31E24" }} />
             <div className="relative rounded-[30px] p-2 shadow-2xl shadow-black/40" style={{ background: "#0A1B33", border: "1px solid rgba(255,255,255,.18)" }}>
-              <div className="relative rounded-[23px] overflow-hidden bg-black" style={{ aspectRatio: "3/4", WebkitMaskImage: "-webkit-radial-gradient(white,black)" }}>
+              <div className="relative rounded-[23px] overflow-hidden bg-black" style={{ aspectRatio: "4/5", WebkitMaskImage: "-webkit-radial-gradient(white,black)" }}>
                 <video ref={videoRef} className="w-full h-full object-cover" muted autoPlay playsInline webkit-playsinline="true" />
                 <span aria-hidden className="absolute top-2 left-1/2 -translate-x-1/2 h-1.5 w-12 rounded-full bg-black/60" />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-[78%] h-32 relative">
+                  <div className="w-[78%] h-28 relative">
                     <CornerGuide pos="tl" />
                     <CornerGuide pos="tr" />
                     <CornerGuide pos="bl" />
@@ -332,8 +343,8 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
                 )}
                 <div className="absolute bottom-3 left-2 right-2 text-center" role="status" aria-live="polite">
                   {recusado
-                    ? <p className="text-[11px] font-semibold inline-block px-3 py-1.5 rounded-2xl leading-snug" style={{ background: "#FFF4E0", color: "#7A4B00" }}>Esse código não foi aceito. Pode apontar para outro: a câmera continua ligada.</p>
-                    : <p className="text-white/90 text-[11px] font-medium bg-black/45 inline-block px-3 py-1 rounded-full">Código em pé ou deitado</p>}
+                    ? <p className="text-[11px] font-bold inline-block px-3 py-1 rounded-full" style={{ background: "#FFF4E0", color: "#7A4B00" }}>Código não aceito. Aponte para outro.</p>
+                    : <p className="text-white/90 text-[11px] font-medium bg-black/45 inline-block px-3 py-1 rounded-full">Aponte para o código (em pé ou deitado)</p>}
                 </div>
               </div>
             </div>
@@ -395,7 +406,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
 function BipiCabeca({ alerta }) {
   const olho = alerta ? "#F5A524" : "#2ECC71";
   return (
-    <svg aria-hidden viewBox="78 20 244 212" className="relative w-[168px] h-auto shrink-0">
+    <svg aria-hidden viewBox="78 20 244 212" className="relative w-[132px] h-auto shrink-0">
       <path d="M200 74 V46" stroke="#7DB4F0" strokeWidth="7" strokeLinecap="round" />
       <circle cx="200" cy="38" r="12" fill="#E31E24" /><circle cx="196" cy="34" r="3.5" fill="#fff" opacity=".8" />
       <rect x="86" y="118" width="22" height="62" rx="11" fill="#0B4F9E" /><rect x="292" y="118" width="22" height="62" rx="11" fill="#0B4F9E" />

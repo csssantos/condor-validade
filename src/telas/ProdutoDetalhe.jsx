@@ -18,7 +18,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   const pc = useTelaLarga();
   const pedidoRef = useRef(null);
   const [confirmandoBaixa, setConfirmandoBaixa] = useState(false);
-  const [subEtapa, setSubEtapa] = useState(null); // null | 'promocao' | 'quantidadeFinal'
+  const [subEtapa, setSubEtapa] = useState(null); // null | 'promocao' | 'quantidade' (confirmação da baixa total)
   const [motivoPendente, setMotivoPendente] = useState(null);
   const [precoPromoInput, setPrecoPromoInput] = useState(item.precoPromocional ? String(item.precoPromocional) : "");
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
@@ -494,10 +494,10 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             <>
               <p className="text-[12px] font-semibold mb-1.5">Baixa total do lote</p>
               <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2.5">
-                <p className="text-sm font-bold">{item.quantidade || 1}{item.porPeso ? " kg" : " unidade(s)"} · {motivoPendente}</p>
+                <p className="text-sm font-bold">{item.quantidade ? `${item.quantidade}${item.porPeso ? " kg" : " unidade(s)"}` : "Quantidade não informada"} · {motivoPendente}</p>
                 <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">Validade {formatarData(item.validade)}{item.lote ? ` · lote ${item.lote}` : ""}</p>
               </div>
-              <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 leading-snug">A baixa é sempre do lote inteiro: ele sai do estoque e vai para o histórico. Se ainda sobrou produto bom, lance de novo como outro lote.</p>
+              <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 leading-snug">A baixa é sempre do lote inteiro: tudo o que está lançado neste lote sai do estoque e vai para o histórico com este motivo.{item.emPromocao ? " Este lote está em promoção: a baixa registra o lote todo, não só o que sobrou." : ""}</p>
               <div className="flex gap-2 mt-3">
                 <button onClick={() => setSubEtapa(null)} style={{ color: T.subtext }} className="flex-1 text-xs py-2.5">Voltar</button>
                 <button onClick={() => onBaixa(item, motivoPendente)}
