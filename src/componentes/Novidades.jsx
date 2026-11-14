@@ -10,6 +10,11 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-14-gestos", data: "14/11/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Puxe a tela para baixo, no topo, para atualizar os dados na hora (celular e tablet)." },
+    { tipo: "adicionado", ate: 7, texto: "Botão voltar do celular e gesto de deslizar da borda esquerda agora voltam uma tela dentro do app, em vez de fechá-lo." },
+    { tipo: "melhorado", ate: 7, texto: "Tocar de novo na aba em que você já está leva a tela de volta ao topo." },
+  ] },
   { id: "2026-11-14-compartilhar-bipar", data: "14/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "Nova imagem para compartilhar o produto: foto em destaque, validade grande na cor da situação, cartões com lote, quantidade, número da campanha, setor, gramagem, preço e troca, lista dos lotes do produto e o código de barras desenhado com o número." },
     { tipo: "adicionado", ate: 7, texto: "A imagem de compartilhar agora mostra o código e o endereço da loja no rodapé." },

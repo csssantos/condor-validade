@@ -6,6 +6,7 @@ import { Thumb } from "../componentes/ItemCards";
 import { BLUE, BLUE_DARK, BLUE_SOFT, DIAS_ALERTA_BASE, MOTIVOS_BAIXA, RED, RED_DARK, RED_SOFT, ehPerecivel } from "../lib/constantes";
 import { calcularOpcoesAlerta, formatarData, formatarMoeda } from "../lib/formatos";
 import { limiteSomaLote } from "../lib/produto";
+import { guardaVoltar } from "../lib/gestos";
 import { clampNumero, ordemUnidadesPeloSetor, sanitizarTexto } from "../lib/utilidades";
 
 // ============ Validade ============
@@ -60,6 +61,10 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
     : porPeso ? (qtdNum > 9999 ? "O máximo é 9999 kg." : "")
     : !Number.isInteger(qtdNum) ? "Use só números inteiros (sem vírgula nem ponto)." : qtdNum > 99999 ? "O máximo é 99999 unidades." : "";
   const sujo = !editing && (!!validade || !!lote.trim());
+  useEffect(() => { // voltar do sistema / gesto de borda também perguntam antes de descartar
+    guardaVoltar.fn = () => !sujo || window.confirm("Voltar e perder a validade e o lote digitados?");
+    return () => { guardaVoltar.fn = null; };
+  }, [sujo]);
   const cancelar = () => { if (sujo && !window.confirm("Descartar o que você digitou?")) return; onCancel(); };
   const voltar = () => { if (sujo && !window.confirm("Voltar e perder a validade e o lote digitados?")) return; onVoltar(); };
   const loteNorm = lote.trim().toUpperCase();

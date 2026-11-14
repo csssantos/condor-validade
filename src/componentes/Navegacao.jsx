@@ -21,7 +21,7 @@ function BottomNav({ T, tab, setTab, alertCount, onScan }) {
     const ativo = tab === id;
     const Ico = ativo ? IconSolid : Icon;
     return (
-      <button key={id} onClick={() => setTab(id)} className="flex-1 flex flex-col items-center justify-center gap-1 h-full relative" aria-label={label} aria-current={ativo ? "page" : undefined}>
+      <button key={id} onClick={() => { setTab(id); if (ativo) { try { document.getElementById("root")?.scrollTo({ top: 0, behavior: reduzir ? "auto" : "smooth" }); } catch { /* sem scroll */ } } }} className="flex-1 flex flex-col items-center justify-center gap-1 h-full relative" aria-label={label} aria-current={ativo ? "page" : undefined}>
         {badge > 0 && (
           <span style={{ background: RED }} className="absolute top-1.5 right-[26%] text-[9px] text-white font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center z-10">{badge}</span>
         )}

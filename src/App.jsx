@@ -15,10 +15,12 @@ import { ErrorBoundary } from "./componentes/ErrorBoundary";
 import { Header } from "./componentes/Header";
 import { BottomNav, SideNav } from "./componentes/Navegacao";
 import { FaixaFila } from "./componentes/FaixaFila";
+import { Gestos } from "./componentes/Gestos";
+import { profundidade, passoVoltar, reconciliar, guardaVoltar } from "./lib/gestos";
 import { AtualizacaoModal, NOVIDADES, gravarNovidadeVista, lerNovidadeVista, novidadesParaCargo } from "./componentes/Novidades";
 import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, setorPrincipal } from "./lib/constantes";
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
-import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
+import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, contarFilaDaPessoa, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
 import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, isIOS, isStandalone, planejarNotificacoes, chaveListaNotif, limparNotifDaPessoa } from "./lib/notificacoes";
 import { campanhaValida, eanValido, limiteSomaLote, normalizarCampanha, textoLote } from "./lib/produto";
@@ -747,6 +749,46 @@ function AppInner() {
     toastTimerRef.current = setTimeout(() => setToast(null), duracaoAviso(msg, tom));
   }, []);
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
+  // ---- Lei de Jakob: voltar do sistema (botão do Android, gesto do iPhone/Safari) fecha a camada de cima em vez de sair do app ----
+  const camadas = { detalhe: !!detalheItem, flow, setor: setorAtivo, sub: subAtivo, tab };
+  const voltarRef = useRef(null);
+  voltarRef.current = () => {
+    const passo = passoVoltar(camadas);
+    if (passo && guardaVoltar.fn && !guardaVoltar.fn()) return true; // formulário com dados digitados e a pessoa não quis descartar: fica (o histórico é refeito pelo popTick)
+    if (passo === "detalhe") setDetalheItem(null);
+    else if (passo === "flow") { if (flow === "expiry" && !editingItemId) setFlow("confirm"); else resetFlow(); }
+    else if (passo === "sub") setSubAtivo(null);
+    else if (passo === "setor") setSetorAtivo(null);
+    else if (passo === "ajustes") setTab("ajustes");
+    else if (passo === "home") setTab("home");
+    return !!passo;
+  };
+  const ultimaAtualizacaoRef = useRef(0);
+  const histRef = useRef({ n: 0, ignorar: false });
+  const [popTick, setPopTick] = useState(0);
+  const nCamadas = profundidade(camadas);
+  useEffect(() => {
+    const h = histRef.current, { empurrar, desfazer } = reconciliar(h.n, nCamadas);
+    try {
+      for (let i = 0; i < empurrar; i++) window.history.pushState({ avdc: h.n + i + 1 }, "");
+      if (desfazer > 0) { h.ignorar = true; window.history.go(-desfazer); setTimeout(() => { h.ignorar = false; }, 400); }
+    } catch { /* sem histórico: o voltar do sistema só não fecha camadas */ }
+    h.n = nCamadas;
+  }, [nCamadas, popTick]);
+  useEffect(() => {
+    const aoVoltar = (e) => {
+      const h = histRef.current;
+      if (h.ignorar) { h.ignorar = false; return; }
+      const alvo = e && e.state && e.state.avdc ? e.state.avdc : 0;
+      if (h.n <= 0) { if (alvo > 0) { try { window.history.back(); } catch { /* ok */ } } return; } // entrada velha de antes de recarregar: continua voltando; sem nada aberto o sistema segue o caminho normal
+      if (alvo >= h.n) { h.ignorar = true; try { window.history.back(); } catch { h.ignorar = false; } return; } // "avançar" do navegador: desfaz
+      h.n -= 1;
+      voltarRef.current && voltarRef.current();
+      setPopTick((t) => t + 1);
+    };
+    window.addEventListener("popstate", aoVoltar);
+    return () => window.removeEventListener("popstate", aoVoltar);
+  }, []);
   // Aprovação de produto novo (Telegram): encarregado+ é avisado NA HORA quando chega pedido (tempo real) e vê quantos faltam em Mais
   const [aprovPendentes, setAprovPendentes] = useState(0);
   const idLojaAprov = perfil?.loja_id;
@@ -1382,6 +1424,29 @@ function AppInner() {
     );
   }
   // Chegou pelo link de recuperação de senha: mostra "Nova senha / Confirmar" em vez de entrar direto na conta.
+  // Puxar para atualizar: mesma carga do tempo real, sob demanda (sem internet não mexe na tela)
+  async function atualizarDadosAgora() {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) { showToast("Sem internet: não foi possível atualizar agora.", "warn"); return; }
+    if (Date.now() - ultimaAtualizacaoRef.current < 8000) return; // puxar de novo em seguida não refaz tudo
+    ultimaAtualizacaoRef.current = Date.now();
+    if (contarFilaDaPessoa() > 0 || filaEnviando()) { // registros ainda não enviados: manda primeiro, para a tela não apagar o que ainda não subiu
+      try { window.dispatchEvent(new CustomEvent("condor-sincronizar-fila")); } catch { /* sem janela */ }
+      showToast("Enviando os registros guardados neste aparelho. Puxe de novo em instantes.", "info");
+      return;
+    }
+    try {
+      const limite = new Promise((_, rej) => setTimeout(() => rej(new Error("tempo")), 20000));
+      const [cat, its, hist] = await Promise.race([Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]), limite]);
+      // as buscas devolvem vazio quando falham: lista vazia onde havia dados = não troca nada
+      if (!its.length && items.length) { showToast("Não foi possível atualizar agora. Tente de novo.", "warn"); return; }
+      setCatalog(cat); setItems(its); setHistorico(hist);
+      supaFetchRondas().then((r) => { if (Array.isArray(r) && (r.length || !rondas.length)) setRondas(r); }).catch(() => {});
+      supaFetchAuditoria().then((r) => { if (Array.isArray(r) && (r.length || !auditoria.length)) setAuditoria(r); }).catch(() => {});
+      showToast("Tudo atualizado.", "ok");
+    } catch { showToast("Não foi possível atualizar agora. Tente de novo.", "warn"); }
+  }
+
+
   if (recuperandoSenha && sessao) {
     return (
       <AuthScreen T={T} modoInicial="nova-senha" emailConta={sessao?.user?.email || ""} antesDeEntrar={antesDeEntrarNoApp}
@@ -1604,6 +1669,10 @@ function AppInner() {
         </motion.button>
       )}
       {vozAberta && <VozSheet T={T} accent={RED} accentDark={RED_DARK} catalog={catalog} onCancel={() => setVozAberta(false)} onConfirmar={aplicarVoz} />}
+
+      {!ehDesktop && perfil && dadosProntos && !recuperandoSenha && aceiteOk !== false && (
+        <Gestos T={T} ligado={flow !== "scan" && !vozAberta} podeVoltar={nCamadas > 0 && flow !== "scan"} onVoltar={() => voltarRef.current && voltarRef.current()} onAtualizar={atualizarDadosAgora} />
+      )}
 
       {showBottomNav && <BottomNav T={T} tab={tab} setTab={(t) => { setSetorAtivo(null); setTab(t); }} alertCount={alertCount} onScan={() => setFlow("scan")} />}
 
