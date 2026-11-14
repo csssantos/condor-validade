@@ -15,7 +15,7 @@ language sql security definer set search_path = public as $$
           union all select p.loja_id, p.foto from public.produtos p where p.foto like 'data:image/%' and p.pedido_tipo is null
           union all select h.loja_id, h.foto from public.historico h where h.foto like 'data:image/%') x
    where x.loja_id is not null
-     and length(x.foto) <= 680000
+     and length(x.foto) <= 666000
      and x.foto ~ '^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$'
    group by x.loja_id, md5(x.foto)
    order by 1, 2
