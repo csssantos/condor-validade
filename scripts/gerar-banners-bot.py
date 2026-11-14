@@ -51,6 +51,7 @@ ESTADOS = {
  "aprovado":   ("check",    OLHOS_OK, "sorriso", "Produto aprovado!", "Cadastrado no app, com a sua validade.", GREEN, "APROVADO"),
  "rejeitado":  ("x",        "#9FB6D1","reta",    "Produto rejeitado", "O encarregado não aprovou. Veja o motivo abaixo.", RED, "REJEITADO"),
  "campanha":   ("tag",      OLHOS_OK, "sorriso", "Campanha pedida", "Pediram promoção ou preço direto do seu lote.", AMBER, "CAMPANHA"),
+ "resumo":     ("calendar", OLHOS_OK, "sorriso", "Resumo do dia", "O que vence e o que ainda precisa de campanha.", BLUE, "RESUMO"),
  "ajuda":      ("info",     OLHOS_OK, "sorriso", "Como posso ajudar", "Lanço validades com você, passo a passo.", BLUE, "AJUDA"),
 }
 def html(k):
@@ -67,7 +68,8 @@ if __name__ == "__main__":
     with sync_playwright() as p:
         b = p.chromium.launch()
         pg = b.new_page(viewport={"width": 640, "height": 340}, device_scale_factor=1.5)
-        for k in ESTADOS:
+        alvos = [a for a in sys.argv[1:] if a in ESTADOS] or list(ESTADOS)  # python3 scripts/gerar-banners-bot.py resumo = só esse
+        for k in alvos:
             pg.set_content(html(k)); pg.screenshot(path=os.path.join(SAIDA, f"{k}.jpg"), type="jpeg", quality=82)
         b.close()
-    print("ok", len(ESTADOS))
+    print("ok", len(alvos))
