@@ -641,6 +641,8 @@ function AppInner() {
     if (alvo) {
       setDetalheItem(alvo);
       setTab("home");
+    } else {
+      showToast("Esse produto não está na sua lista: pode ter sido baixado, ou ser de outra loja.", "aviso");
     }
     params.delete("produto");
     const novaUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : "");
@@ -1264,6 +1266,8 @@ function AppInner() {
     let texto = `${item.nome}\nSetor: ${item.setor}\nCódigo: ${item.barcode}\nGerado em ${geradoEm}`;
     try {
       showToast("Gerando imagem…");
+      const idGerando = toastIdRef.current;
+      const soltarAviso = () => { if (toastIdRef.current === idGerando) { clearTimeout(toastTimerRef.current); setToast(null); } };
       const temVal = !!item.validade && /^\d{4}-\d{2}-\d{2}/.test(item.validade);
       const st = temVal ? getStatus(item) : { label: "SEM VALIDADE", d: null, level: "none" };
       const dias = st.d;
@@ -1291,16 +1295,18 @@ function AppInner() {
         // imagem + link do produto (abre o app direto no produto, para quem tem acesso à loja)
         const link = item.id ? `${SITE_URL}/?produto=${encodeURIComponent(String(item.id))}` : "";
         const textoLink = `${item.nome}${temVal ? `\nValidade: ${formatarData(item.validade)}${diasTxt ? ` (${diasTxt})` : ""}` : ""}${link ? `\nAbrir no app: ${link}` : ""}`;
+        soltarAviso();
         if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
           try { await navigator.share({ files: [arquivo], text: textoLink }); return; } catch (e) { if (e && e.name === "AbortError") return; }
         }
-        if (link) { try { await navigator.clipboard.writeText(textoLink); } catch { /* sem área de transferência */ } }
+        let copiou = false;
+        if (link) { try { await navigator.clipboard.writeText(textoLink); copiou = true; } catch { /* sem área de transferência */ } }
         // sem compartilhamento de arquivo (computador) ou gesto expirado: baixa a imagem
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url; a.download = arquivo.name; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 60000);
-        showToast(link ? "Imagem salva e link do produto copiado." : "Imagem salva na pasta de downloads.");
+        showToast(copiou ? "Imagem pronta. O link do produto foi copiado: cole na conversa." : "Imagem pronta (baixada neste aparelho).");
         return;
       }
     } catch (e) { console.warn("compartilhar: falha ao gerar imagem", e); }
@@ -1431,7 +1437,7 @@ function AppInner() {
       <FaixaFila online={online} />
 
       <main className={`${larguraMain} mx-auto ${flow === "scan" ? "pb-2" : "pb-32"} lg:pb-10 lg:px-6`}>
-        {flow === "scan" && <ScanView T={T} onDetected={handleBarcodeCaptured} onCancel={resetFlow} />}
+        {flow === "scan" && <ScanView T={T} onDetected={handleBarcodeCaptured} onCancel={resetFlow} encaixar />}
         {flow === "confirm" && (
           <ConfirmProductView T={T} barcode={pendingBarcode} initial={draftProduct} wasKnown={!!catalog[chaveCatalogo(pendingBarcode, draftProduct)]}
             nomesExistentes={nomesExistentesCatalogo}

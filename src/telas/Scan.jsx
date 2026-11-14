@@ -8,7 +8,7 @@ import * as ZXingLib from "@zxing/library";
 import { apenasNumeros } from "../lib/utilidades";
 
 // ============ Scan (câmera com leitor nativo + ZXing de reforço) ============
-function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
+function ScanView({ T, onDetected, onCancel, variante, ocupado, encaixar: querEncaixar }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const detectorRef = useRef(null);
@@ -21,16 +21,19 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
   const raizRef = useRef(null);
   const [altura, setAltura] = useState(null);
   useLayoutEffect(() => {
+    if (!querEncaixar || variante === "cracha") return undefined;
     function medir() {
       const el = raizRef.current; if (!el) return;
-      const topo = el.getBoundingClientRect().top + (document.getElementById("root")?.scrollTop || 0) * 0;
+      // posição da tela no documento (soma a rolagem que a tela anterior deixou: ao encaixar, a rolagem volta a 0)
+      const topo = el.getBoundingClientRect().top + (document.getElementById("root")?.scrollTop || 0);
       const h = Math.floor(window.innerHeight - Math.max(0, topo) - 10);
-      setAltura(h > 380 ? h : null);
+      setAltura(h > 420 ? h : null); // tela baixa demais (celular deitado): volta ao layout normal
     }
     medir();
+    const t = setInterval(medir, 700); // cabeçalho/faixa de aviso que aparecem ou somem mudam o espaço
     window.addEventListener("resize", medir); window.addEventListener("orientationchange", medir);
-    return () => { window.removeEventListener("resize", medir); window.removeEventListener("orientationchange", medir); };
-  }, [manualMode]);
+    return () => { clearInterval(t); window.removeEventListener("resize", medir); window.removeEventListener("orientationchange", medir); };
+  }, [manualMode, querEncaixar, variante]);
   const [manualCode, setManualCode] = useState("");
   const [facing, setFacing] = useState("environment");
   const [torchOn, setTorchOn] = useState(false);
@@ -314,7 +317,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
 
   const encaixar = !manualMode && altura;
   return (
-    <div ref={raizRef} className={`px-4 pt-3 ${encaixar ? "flex flex-col" : ""}`} style={encaixar ? { height: altura } : undefined}>
+    <div ref={raizRef} className={`px-4 pt-3 ${encaixar ? "flex flex-col" : ""}`} style={encaixar ? { height: `calc(${altura}px - env(safe-area-inset-bottom, 0px))` } : undefined}>
       {!manualMode && (
         <div style={{ background: FUNDO_MARCA, isolation: "isolate" }} className={`relative rounded-[28px] overflow-hidden px-4 pt-2 pb-6 flex flex-col items-center ${encaixar ? "flex-1 min-h-0" : ""}`}>
           <span aria-hidden className="absolute -right-16 -top-14 h-52 w-52 rounded-full bg-white/10" />

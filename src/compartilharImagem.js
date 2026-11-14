@@ -104,14 +104,17 @@ export async function gerarImagemProduto(entrada) {
   medidor.font = `800 62px ${fonte}`;
   const nome = quebrar(medidor, dados.nome, L - 140, 3);
 
-  const yNome = 790;
+  const [img, bipi] = await Promise.all([carregarImagem(dados.foto), carregarBipi()]);
+  const fh = img ? 520 : 300; // sem foto: cartão menor (não parece erro)
+  const yNome = 160 + fh + 110;
   const yDest = yNome + nome.length * 72 + 10;
+  if (dados.destaque && !dados.destaque.rotulo && !dados.destaque.valor) dados.destaque = null;
   const altDest = dados.destaque ? 200 : 0;
   const yGrade = yDest + altDest + (dados.destaque ? 30 : 0);
   const altTile = 136, gap = 22;
   const altGrade = nLinhasGrade ? nLinhasGrade * (altTile + gap) : 0;
   const yRodape = yGrade + altGrade + 20;
-  const A = yRodape + 230;
+  const A = yRodape + 250;
 
   const canvas = document.createElement("canvas");
   canvas.width = L; canvas.height = A;
@@ -133,19 +136,24 @@ export async function gerarImagemProduto(entrada) {
   // selo de status no canto
   const rot = dados.status.toUpperCase();
   if (rot) {
+    c.font = `700 26px ${fonte}`;
+    const larguraTitulo = c.measureText("C O N D O R  ·  A L E R T A  D E  V A L I D A D E").width;
+    const livre = L - 64 - (64 + larguraTitulo + 28);
     c.font = `800 30px ${fonte}`;
-    const sw = c.measureText(rot).width + 56;
+    let rotTxt = rot;
+    while (rotTxt.length > 3 && c.measureText(rotTxt).width + 56 > livre) rotTxt = rotTxt.slice(0, -1);
+    if (rotTxt !== rot) rotTxt += "…";
+    const sw = c.measureText(rotTxt).width + 56;
     c.fillStyle = dados.corStatus; retArredondado(c, L - 64 - sw, 54, sw, 60, 30); c.fill();
-    c.fillStyle = dados.corTextoStatus; c.fillText(rot, L - 64 - sw + 28, 94);
+    c.fillStyle = dados.corTextoStatus; c.fillText(rotTxt, L - 64 - sw + 28, 94);
   }
 
   // cartão da foto, centralizado e cruzando a faixa azul
-  const fw = 600, fh = 520, fx = (L - fw) / 2, fy = 160;
+  const fw = 600, fx = (L - fw) / 2, fy = 160;
   c.save();
   c.shadowColor = "rgba(6,28,58,0.35)"; c.shadowBlur = 50; c.shadowOffsetY = 22;
   c.fillStyle = "#FFFFFF"; retArredondado(c, fx, fy, fw, fh, 60); c.fill();
   c.restore();
-  const [img, bipi] = await Promise.all([carregarImagem(dados.foto), carregarBipi()]);
   if (img && img.width && img.height) {
     c.save();
     retArredondado(c, fx, fy, fw, fh, 60); c.clip();
@@ -178,6 +186,9 @@ export async function gerarImagemProduto(entrada) {
       c.font = `700 32px ${fonte}`; c.textAlign = "right";
       c.fillText(cortarLinha(c, dados.destaque.sub, 420), L - 96, yDest + 62); c.textAlign = "left";
     }
+    // a imagem circula parada: deixa claro de quando é a situação
+    c.globalAlpha = 0.85; c.font = `600 24px ${fonte}`; c.textAlign = "right";
+    c.fillText(`Situação em ${dados.geradoEm}`, L - 96, yDest + 160); c.textAlign = "left"; c.globalAlpha = 1;
   }
 
   // grade de informações (2 colunas; campanha ocupa a linha toda)
