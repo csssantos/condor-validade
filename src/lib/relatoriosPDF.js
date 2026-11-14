@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { criarPDF, COR } from "../pdfMarca.js";
 import { supabase } from "../supabaseClient";
 import { CONDOR_LOGO_BASE64 } from "./constantes";
-import { formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus } from "./formatos";
+import { formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, hojeISOLocal } from "./formatos";
 import { textoLote } from "./produto";
 import { calcularPrioridade } from "./utilidades";
 
@@ -112,7 +112,7 @@ const PDF_BASE = (titulo, subtitulo, usuario, lojaNumero) => criarPDF({
   titulo, subtitulo, usuario, lojaNumero, logo: CONDOR_LOGO_BASE64, formatarDataHora: formatarDataHoraExtenso,
 });
 
-const hojeISO = () => new Date().toISOString().slice(0, 10);
+const hojeISO = hojeISOLocal;
 
 const rotuloPedido = (t) => (t === "preco_direto" ? "Preço direto" : t === "promocao" ? "Promoção" : "—");
 

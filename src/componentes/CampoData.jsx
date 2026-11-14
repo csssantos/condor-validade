@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Calendar } from "lucide-react";
 import { RED_DARK } from "../lib/constantes";
+import { hojeISOLocal } from "../lib/formatos";
 
 // ---------- Campo de data: digitar dd/mm/aaaa OU escolher no calendário ----------
 // O seletor nativo do iPhone, ao abrir com o campo vazio, já devolve a data de HOJE sozinho (antes de a pessoa escolher nada).
@@ -18,7 +19,6 @@ function brParaISO(txt) {
 
 function mascaraData(txt) { const n = String(txt || "").replace(/\D/g, "").slice(0, 8); return n.length > 4 ? `${n.slice(0, 2)}/${n.slice(2, 4)}/${n.slice(4)}` : n.length > 2 ? `${n.slice(0, 2)}/${n.slice(2)}` : n; }
 
-function hojeISOLocal() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 
 function CampoData({ value, onChange, style, className = "", T }) {
   const [txt, setTxt] = useState(isoParaBR(value));

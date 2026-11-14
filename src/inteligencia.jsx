@@ -16,8 +16,8 @@ import {
   ImagePlus, History, ListChecks, BarChart3, Trash2,
 } from "lucide-react";
 
-const BLUE = "#0B4F9E", BLUE_DARK = "#082F5E", BLUE_SOFT = "#EAF1FB";
-const RED = "#E31E24", RED_DARK = "#A81419", RED_SOFT = "#FDEBEC";
+import { BLUE, BLUE_DARK, BLUE_SOFT, RED, RED_DARK, RED_SOFT } from "./lib/constantes";
+import { hojeISOLocal as hojeISO } from "./lib/formatos";
 const VERDE = "#1F9D55", VERDE_SOFT = "#E6F7ED", LARANJA = "#C2760C", LARANJA_SOFT = "#FCF0DD";
 
 export const MOTIVOS_PERDA = [
@@ -40,7 +40,6 @@ const STATUS_ACAO = {
 const moeda = (v) => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataBR = (iso) => (iso ? new Date(String(iso).length <= 10 ? iso + "T12:00:00" : iso).toLocaleDateString("pt-BR") : "—");
 const dataHoraBR = (iso) => (iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
-const hojeISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 
 export function erroInteligencia(error) {
   const m = String(error?.message || error || "");

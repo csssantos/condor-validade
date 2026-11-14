@@ -172,4 +172,7 @@ function abreviarNumero(v) {
   return String(Math.round(n));
 }
 
-export { FAIXAS_DESCONTO, MESES_EXTENSO, PermissoesContext, abreviarNumero, calcularOpcoesAlerta, chaveDia, descontoSugerido, diasRestantes, formatarData, formatarDataExtenso, formatarDataHora, formatarDataHoraExtenso, formatarHora, formatarMoeda, getStatus, getTokens, precisaNotificar, saudacaoDoDia, statusStyles, sugestaoDesconto, useFormatarMoedaComCamada, useValoresVisiveis };
+// Data de hoje no fuso do aparelho (AAAA-MM-DD). Única implementação: não usar toISOString (é UTC e vira "amanhã" à noite).
+function hojeISOLocal() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+
+export { hojeISOLocal, FAIXAS_DESCONTO, MESES_EXTENSO, PermissoesContext, abreviarNumero, calcularOpcoesAlerta, chaveDia, descontoSugerido, diasRestantes, formatarData, formatarDataExtenso, formatarDataHora, formatarDataHoraExtenso, formatarHora, formatarMoeda, getStatus, getTokens, precisaNotificar, saudacaoDoDia, statusStyles, sugestaoDesconto, useFormatarMoedaComCamada, useValoresVisiveis };

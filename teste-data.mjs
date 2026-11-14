@@ -1,7 +1,7 @@
 // Testa as funções puras do CampoData (src/componentes/CampoData.jsx): isoParaBR, brParaISO, mascaraData
 import fs from "node:fs";
 const src = fs.readFileSync("src/componentes/CampoData.jsx", "utf8");
-const a = src.indexOf("function isoParaBR"), b = src.indexOf("function hojeISOLocal");
+const a = src.indexOf("function isoParaBR"), b = src.indexOf("function CampoData");
 const f = new Function(src.slice(a, b) + "; return { isoParaBR, brParaISO, mascaraData };")();
 let ok = 0, bad = 0; const t = (n, c) => { c ? ok++ : (bad++, console.log("FALHOU:", n)); };
 t("iso->br", f.isoParaBR("2026-12-15") === "15/12/2026"); t("iso vazio", f.isoParaBR("") === "" && f.isoParaBR(null) === "");
