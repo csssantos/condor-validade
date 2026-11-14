@@ -66,7 +66,7 @@ function GestaoAplicativoView({ T, showToast, lojaAtiva, lojas, onTrocarLoja, on
   return (
     <div className="px-4 pt-4 pb-6 lg:px-0 lg:pt-0">
       <div className="hidden lg:block">
-        <DashPageHeader T={T} title="Gestão do aplicativo" subtitle={`Loja em uso: ${lojaAtiva?.numero_loja || "—"} · área de desenvolvedor e diretoria`}
+        <DashPageHeader T={T} title="Gestão do aplicativo" subtitle={`Loja em uso: ${lojaAtiva?.numero_loja || "—"} · área de desenvolvedor e regional`}
           right={<DashTabs T={T} value={aba} onChange={setAba} options={ABAS} />} />
       </div>
       <div className="lg:hidden">
@@ -111,7 +111,7 @@ function DiagnosticoBanco({ T }) {
         const m = String(error.message || "");
         setErro(error.code === "PGRST202" || /diagnostico_schema/.test(m) && /not find|does not exist/i.test(m)
           ? "Falta rodar o SQL supabase-diagnostico-schema.sql no Supabase."
-          : /sem_permissao/.test(m) ? "Só desenvolvedor e diretoria podem verificar o banco." : "Não foi possível verificar o banco agora. Tente de novo.");
+          : /sem_permissao/.test(m) ? "Só desenvolvedor e regional podem verificar o banco." : "Não foi possível verificar o banco agora. Tente de novo.");
         setRes(null);
       } else if (!data || !Array.isArray(data.itens)) { setErro("A verificação voltou vazia. Rode o SQL supabase-diagnostico-schema.sql de novo e tente outra vez."); setRes(null); }
       else setRes(data);
@@ -491,7 +491,7 @@ function erroAcao(error) {
     m.includes("ja_solicitado") ? "Já existe um pedido de exclusão pendente pra essa pessoa." :
     m.includes("pedido_invalido") ? "Esse pedido já foi resolvido." :
     m.includes("nome_vazio") ? "O nome não pode ficar vazio." :
-    m.includes("acesso_total_exige_gerencia") ? "Só gerência ou diretoria mexe em convite de acesso total." :
+    m.includes("acesso_total_exige_gerencia") ? "Só gerência ou regional mexe em convite de acesso total." :
     m.includes("marcas_demais") ? "No máximo 5 marcas por convite." :
     m.includes("marca_invalida") ? "Informe de 1 a 5 marcas válidas (3 a 30 letras ou números)." :
     m.includes("expira_invalida") ? "A nova data precisa ser no futuro (no máximo 100 anos). Para cortar o acesso agora, use Pausar (volta depois) ou Bloquear (não volta)." :
@@ -534,7 +534,7 @@ function AcoesFuncionarioSheet({ T, u, nivelUsuario, cargos, showToast, onClose,
   }
   const alternar = () => executar(() => supabase.rpc("alternar_acesso_usuario", { p_id: u.id, p_ativo: !u.ativo }), u.ativo ? `${u.nome} foi bloqueado(a).` : `${u.nome} foi desbloqueado(a).`);
   const excluir = () => executar(() => supabase.rpc("excluir_usuario", { p_id: u.id }), `${u.nome} foi excluído(a).`);
-  const pedirExclusao = () => executar(() => supabase.rpc("solicitar_exclusao", { p_id: u.id }), "Pedido enviado. Um gerente, a diretoria ou o dev precisa aprovar.");
+  const pedirExclusao = () => executar(() => supabase.rpc("solicitar_exclusao", { p_id: u.id }), "Pedido enviado. Um gerente, o regional ou o dev precisa aprovar.");
   const redefinir = () => {
     if (!u.email) { showToast("Essa conta não tem e-mail cadastrado.", "warn"); return Promise.resolve(); }
     return executar(() => supabase.auth.resetPasswordForEmail(u.email, { redirectTo: SITE_URL }), `Link de nova senha enviado para ${u.email}.`);
@@ -562,7 +562,7 @@ function AcoesFuncionarioSheet({ T, u, nivelUsuario, cargos, showToast, onClose,
             </>
           )}
           {!admin && (
-            <BotaoAcao T={T} ocupado={ocupado} Icon={Trash2} titulo="Pedir exclusão" desc="Vai para aprovação de gerente, diretoria ou dev." cor={RED_DARK} bg={RED_SOFT} confirmaTexto="Toque de novo para enviar o pedido" onConfirmar={pedirExclusao} />
+            <BotaoAcao T={T} ocupado={ocupado} Icon={Trash2} titulo="Pedir exclusão" desc="Vai para aprovação de gerente, regional ou dev." cor={RED_DARK} bg={RED_SOFT} confirmaTexto="Toque de novo para enviar o pedido" onConfirmar={pedirExclusao} />
           )}
         </div>
       ) : (
@@ -739,7 +739,7 @@ function PedidosExclusaoLista({ T, pedidos, meuId, nivelUsuario, onResolver }) {
   if (pedidos.length === 0) return (
     <div style={{ background: T.card, borderColor: T.border }} className="rounded-3xl border p-8 text-center">
       <p className="font-bold text-sm">Nenhum pedido de exclusão pendente</p>
-      <p style={{ color: T.subtext }} className="text-xs mt-1">Quando um encarregado pedir pra excluir alguém, o pedido aparece aqui pra gerente, diretoria ou dev aprovar.</p>
+      <p style={{ color: T.subtext }} className="text-xs mt-1">Quando um encarregado pedir pra excluir alguém, o pedido aparece aqui pra gerente, regional ou dev aprovar.</p>
     </div>
   );
   const podeAprovar = nivelUsuario != null && nivelUsuario <= 4;
@@ -758,7 +758,7 @@ function PedidosExclusaoLista({ T, pedidos, meuId, nivelUsuario, onResolver }) {
               <BotaoAcao T={T} Icon={Trash2} titulo="Aprovar" cor={RED_DARK} bg={RED_SOFT} confirmaTexto="Confirmar exclusão" onConfirmar={() => onResolver(pd, true)} />
             </div>
           ) : (
-            <p style={{ color: "#C2760C" }} className="text-[11px] font-semibold">{pd.solicitante_id === meuId ? "Aguardando um gerente, a diretoria ou o dev aprovar." : "Só gerente, diretoria ou dev aprovam."}</p>
+            <p style={{ color: "#C2760C" }} className="text-[11px] font-semibold">{pd.solicitante_id === meuId ? "Aguardando um gerente, o regional ou o dev aprovar." : "Só gerente, regional ou dev aprovam."}</p>
           )}
         </div>
       ))}
@@ -905,7 +905,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
     if (error) {
       console.error(error);
       const em = String(error.message || "");
-      showToast(/acesso_total_exige_gerencia/.test(em) ? "Só gerência ou diretoria pode dar acesso total." : /marcas_demais/.test(em) ? "No máximo 5 marcas por convite." : /marca_invalida/.test(em) ? "Marca inválida: use de 3 a 30 letras ou números." : /sem_permissao/.test(em) ? "Você não tem permissão para gerar convites." : "Não foi possível gerar o convite.", "warn");
+      showToast(/acesso_total_exige_gerencia/.test(em) ? "Só gerência ou regional pode dar acesso total." : /marcas_demais/.test(em) ? "No máximo 5 marcas por convite." : /marca_invalida/.test(em) ? "Marca inválida: use de 3 a 30 letras ou números." : /sem_permissao/.test(em) ? "Você não tem permissão para gerar convites." : "Não foi possível gerar o convite.", "warn");
       return;
     }
     setRecente(data);

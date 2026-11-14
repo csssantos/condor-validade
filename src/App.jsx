@@ -102,11 +102,11 @@ function AppInner() {
     return () => { vivo = false; };
   }, [idDoUsuario, !!perfil]);
   const ehEncarregado = (perfil?.cargos?.nivel != null && perfil.cargos.nivel <= 5);
-  // Item 1 (painel corporativo): nível de cargo mais alto (supervisor regional, diretoria) — ajuste o limite
+  // Item 1 (painel corporativo): nível de cargo mais alto (supervisor regional, regional) — ajuste o limite
   // conforme os níveis reais da tabela "cargos" da rede. Assumi aqui que nível <= 3 é corporativo.
   const ehCorporativo = (perfil?.cargos?.nivel != null && perfil.cargos.nivel <= 3);
   // DESENVOLVEDOR (nivel 1) enxerga a "Gestão do Aplicativo" e pode trocar de loja livremente
-  // Gestão do Aplicativo (lojas, pré-cadastro em qualquer loja): DESENVOLVEDOR (1) e DIRETOR (2)
+  // Gestão do Aplicativo (lojas, pré-cadastro em qualquer loja): DESENVOLVEDOR (1) e REGIONAL (2)
   const ehDev = (perfil?.cargos?.nivel != null && perfil.cargos.nivel <= 2);
   const [lojaAtivaOverride, setLojaAtivaOverride] = useState(null); // { id, numero_loja } — só usado por dev/central trocando de loja
   const lojaAtiva = lojaAtivaOverride || { id: perfil?.loja_id, numero_loja: perfil?.lojas?.numero_loja };

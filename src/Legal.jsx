@@ -33,7 +33,7 @@ export const TERMOS_ALTERACOES = [
       "De onde vêm seus dados: parte deles é informada por quem administra a sua loja no pré-cadastro (nome, matrícula, cargo, setor e loja).",
       "Lista de fornecedores com o que cada um recebe e onde fica (alguns fora do Brasil).",
       "O registro de login (data, hora, IP e aparelho) agora é feito pelo servidor; o app deixou de consultar um serviço externo para descobrir o IP.",
-      "Pedidos de direitos (LGPD) ficam guardados por 5 anos depois de respondidos, para comprovar o atendimento. Quem vê e responde é o desenvolvedor do app e quem tem cargo de Diretoria cadastrado no app; a gerência da sua loja (gerente e encarregados) não vê esses pedidos.",
+      "Pedidos de direitos (LGPD) ficam guardados por 5 anos depois de respondidos, para comprovar o atendimento. Quem vê e responde é o desenvolvedor do app e quem tem cargo de Regional cadastrado no app; a gerência da sua loja (gerente e encarregados) não vê esses pedidos.",
       "Ao sair da conta, o app apaga deste aparelho a cópia offline dos produtos e do histórico. Ações feitas sem internet só são enviadas com a conta de quem as fez.",
     ],
     armazenamento: [
@@ -51,8 +51,8 @@ export const TERMOS_ALTERACOES = [
   } },
   { versao: "2026-11-03", docs: {
     termos: [
-      "Permissões por cargo: dar baixa, excluir e editar produtos é função do encarregado do setor (ou da gerência/diretoria). Funcionários e promotores só lançam produtos e editam os que eles mesmos lançaram, sem dar baixa e sem excluir.",
-      "Convite de promotor pode ter de 1 a 5 marcas ou acesso total (concedido só pela gerência/diretoria); o promotor só lança produtos dessas marcas.",
+      "Permissões por cargo: dar baixa, excluir e editar produtos é função do encarregado do setor (ou da gerência/regional). Funcionários e promotores só lançam produtos e editam os que eles mesmos lançaram, sem dar baixa e sem excluir.",
+      "Convite de promotor pode ter de 1 a 5 marcas ou acesso total (concedido só pela gerência/regional); o promotor só lança produtos dessas marcas.",
     ],
   } },
   { versao: "2026-11-01", docs: {
@@ -149,7 +149,7 @@ export const DOCUMENTOS = [
         "O app pode ter recursos de assistente de IA e cadastro por voz. As respostas da IA podem conter erros e são apoio à decisão, não substituem o seu julgamento nem as regras da empresa. Nenhuma ação é criada sem a sua confirmação.",
         "O cadastro por voz usa o reconhecimento de voz do seu navegador/aparelho, que pode ser processado pelo fornecedor dele (por exemplo, Google ou Apple). Você escolhe quando usar.",
         "Telegram (opcional): você pode vincular seu Telegram ao app para lançar validade conversando com um bot. Ao vincular, o app guarda o identificador da sua conversa no Telegram (não o seu número de telefone) e as mensagens que você envia ao bot. O bot só recebe uma foto no cadastro de produto novo, quando a internet não tem a imagem (foto legível do produto, conferida por um encarregado antes de entrar no cadastro). Para um produto que ainda não está no app, o bot consulta o código de barras no Open Food Facts (base pública na internet, que recebe apenas esse número), mostra a imagem encontrada e, se você confirmar, envia o pedido para aprovação de um encarregado ou superior da loja, que pode editar o produto, aprovar (o produto entra no app com essa imagem e a sua validade é lançada) ou recusar com um motivo, que o bot envia a você. O bot também avisa você quando alguém registra pedido de promoção ou preço direto (campanha, com o valor pedido) num lote que você lançou pelo Telegram. O pedido (produto, código, validade, quantidade, seu nome, decisão, motivo e quem decidiu) fica guardado e é apagado 90 dias depois de decidido. O Telegram é um serviço de terceiro, com política própria; não envie dados pessoais seus ou de outras pessoas no chat. Nada é lançado sem a sua confirmação. Gestores da loja podem remover o vínculo.",
-        "Promotores: o código do promotor (ex.: ABC-12345) vale para um único Telegram por vez e permite lançar apenas produtos das marcas definidas no convite (de 1 a 5) enquanto o acesso estiver ativo; a gerência ou diretoria pode criar um convite com acesso total a todas as marcas, e essa criação fica registrada na auditoria.",
+        "Promotores: o código do promotor (ex.: ABC-12345) vale para um único Telegram por vez e permite lançar apenas produtos das marcas definidas no convite (de 1 a 5) enquanto o acesso estiver ativo; a gerência ou regional pode criar um convite com acesso total a todas as marcas, e essa criação fica registrada na auditoria.",
       ] },
       { t: "8. Disponibilidade e mudanças", p: [
         "Nos esforçamos para manter o app disponível, mas ele pode ficar indisponível por manutenção, falhas de internet ou de terceiros. O app guarda algumas ações offline e envia quando a conexão volta.",
@@ -177,7 +177,7 @@ export const DOCUMENTOS = [
       return [
         { t: "1. Quem é o controlador dos dados", p: [
           `Somos ${partes}, o controlador dos dados tratados neste app, nos termos da Lei Geral de Proteção de Dados (Lei 13.709/2018 — LGPD).`,
-          "Este é um aplicativo avulso, mantido por uma pessoa física, sem CNPJ. Como agente de tratamento de pequeno porte (Resolução CD/ANPD nº 2/2022), não indicamos encarregado (DPO) formal e mantemos um canal de comunicação: Mais → Privacidade e termos → Solicitar um direito (Falar com o responsável). Os pedidos são vistos e respondidos pelo desenvolvedor do app e por quem tem cargo de Diretoria cadastrado no app; a gerência da sua loja (gerente e encarregados) não vê esses pedidos.",
+          "Este é um aplicativo avulso, mantido por uma pessoa física, sem CNPJ. Como agente de tratamento de pequeno porte (Resolução CD/ANPD nº 2/2022), não indicamos encarregado (DPO) formal e mantemos um canal de comunicação: Mais → Privacidade e termos → Solicitar um direito (Falar com o responsável). Os pedidos são vistos e respondidos pelo desenvolvedor do app e por quem tem cargo de Regional cadastrado no app; a gerência da sua loja (gerente e encarregados) não vê esses pedidos.",
         ] },
         { t: "2. Quais dados coletamos", p: [
           "Dados de cadastro: nome, matrícula, e-mail, cargo, setor, loja e, quando informado, telefone. Para promotores: nome e marcas (de 1 a 5) ou acesso total.",
@@ -500,7 +500,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
     try {
       const { data: ses } = await supabase.auth.getSession(); const uid = ses?.session?.user?.id;
       if (!uid) { setPedidos([]); return; }
-      // filtra pelo próprio id: quem é responsável (DEV/diretoria) enxerga todos os pedidos pela regra do banco
+      // filtra pelo próprio id: quem é responsável (DEV/regional) enxerga todos os pedidos pela regra do banco
       const { data: p } = await supabase.from("solicitacoes_lgpd").select("id, tipo, detalhe, status, resposta, criado_em, respondido_em").eq("usuario_id", uid).order("criado_em", { ascending: false }).limit(20);
       if (minha === seqPriv.current) setPedidos(p || []); // resposta atrasada não sobrescreve a mais nova
     } catch { setPedidos([]); }
@@ -671,7 +671,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
 }
 
 
-// ───────────────────────── Responder pedidos LGPD (só DEV/diretoria) ─────────────────────────
+// ───────────────────────── Responder pedidos LGPD (só DEV/regional) ─────────────────────────
 const DICA_PEDIDO = {
   acesso: "A pessoa pode baixar uma cópia na hora em Mais → Privacidade e termos → Baixar meus dados. Confirme na resposta e explique o que o arquivo contém.",
   portabilidade: "O arquivo de “Baixar meus dados” já sai em JSON (formato estruturado). Indique esse caminho na resposta.",
@@ -727,7 +727,7 @@ export function PaginaPedidosLGPD({ T, showToast }) {
     setSalvando(false);
     if (error) {
       const m = error.message || "";
-      showToast?.(m.includes("pedido_ja_respondido") ? "Esse pedido já foi respondido por outra pessoa." : m.includes("nao_responde_o_proprio") ? "Você não pode responder um pedido seu. Peça a outra pessoa da diretoria ou ao desenvolvedor." : m.includes("resposta_obrigatoria") ? "Escreva a resposta (mínimo de 10 letras)." : m.includes("sem_permissao") ? "Só o desenvolvedor ou a diretoria respondem pedidos LGPD." : m.includes("limite_excedido") ? "Muitas ações em pouco tempo. Espere um minuto." : "Não foi possível salvar a resposta. Tente de novo.", "erro");
+      showToast?.(m.includes("pedido_ja_respondido") ? "Esse pedido já foi respondido por outra pessoa." : m.includes("nao_responde_o_proprio") ? "Você não pode responder um pedido seu. Peça a outra pessoa do regional ou ao desenvolvedor." : m.includes("resposta_obrigatoria") ? "Escreva a resposta (mínimo de 10 letras)." : m.includes("sem_permissao") ? "Só o desenvolvedor ou o regional respondem pedidos LGPD." : m.includes("limite_excedido") ? "Muitas ações em pouco tempo. Espere um minuto." : "Não foi possível salvar a resposta. Tente de novo.", "erro");
       carregar(); return;
     }
     if (status === "em_analise") { showToast?.("Pedido marcado como em análise. O texto não foi enviado.", "ok"); carregar(); return; }
@@ -769,7 +769,7 @@ export function PaginaPedidosLGPD({ T, showToast }) {
           {fim && p.respondido_em && <span>{p.status === "negada" ? "Negado" : "Respondido"} {fmt(p.respondido_em)}{p.respondido_por_nome ? ` por ${p.respondido_por_nome}` : ""}</span>}
         </div>
         {fim && p.resposta && <p style={{ background: T.chipBg, color: T.text }} className="text-[12.5px] mt-2.5 leading-snug rounded-2xl px-3 py-2.5 whitespace-pre-line break-words"><b>{p.status === "negada" ? "Motivo:" : "Resposta:"}</b> {p.resposta}</p>}
-        {!fim && p.eh_meu && <p style={{ background: T.chipBg, color: T.subtext }} className="text-[12px] mt-3 rounded-2xl px-3 py-2 leading-snug">Este pedido é seu: outra pessoa da diretoria ou o desenvolvedor precisa responder.</p>}
+        {!fim && p.eh_meu && <p style={{ background: T.chipBg, color: T.subtext }} className="text-[12px] mt-3 rounded-2xl px-3 py-2 leading-snug">Este pedido é seu: outra pessoa do regional ou o desenvolvedor precisa responder.</p>}
         {!fim && !p.eh_meu && !ab && (
           <motion.button whileTap={{ scale: 0.97 }} onClick={() => setAberto(p.id)} className="mt-3 w-full rounded-2xl py-2.5 text-[13px] font-extrabold text-white" style={{ background: `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` }}>{temRascunho ? "Continuar atendimento" : "Atender"}</motion.button>
         )}

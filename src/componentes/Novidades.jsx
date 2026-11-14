@@ -7,9 +7,12 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 // ============ Novidades do app (lista mostrada depois de "Atualizar") ============
 // A cada publicação nova: adicione uma entrada NO TOPO de NOVIDADES (a primeira é a versão atual).
 //  - tipo: "adicionado" | "melhorado" | "removido" | "corrigido"
-//  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
+//  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = regional e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-14-regional", data: "14/11/2026", itens: [
+    { tipo: "melhorado", ate: 2, texto: "O cargo de nível 2 agora se chama Regional (antes Diretor). As permissões continuam as mesmas." },
+  ] },
   { id: "2026-11-14-gestos", data: "14/11/2026", itens: [
     { tipo: "adicionado", ate: 7, texto: "Puxe a tela para baixo, no topo, para atualizar os dados na hora (celular e tablet)." },
     { tipo: "adicionado", ate: 7, texto: "Botão voltar do celular e o gesto de voltar do sistema (deslizar da borda) agora voltam uma tela dentro do app, em vez de fechá-lo." },
@@ -233,7 +236,7 @@ const NOVIDADES = [
 const NOVIDADES_CHAVE = "avdc_novidade_vista";
 
 function rotuloPublico(ate) {
-  return ate >= 7 ? "Para todos" : ate === 5 ? "Encarregados e acima" : ate === 4 ? "Gerência e acima" : ate === 2 ? "Diretoria e Dev" : ate === 1 ? "Só Dev" : "Cargos superiores";
+  return ate >= 7 ? "Para todos" : ate === 5 ? "Encarregados e acima" : ate === 4 ? "Gerência e acima" : ate === 2 ? "Regional e Dev" : ate === 1 ? "Só Dev" : "Cargos superiores";
 }
 
 // Novidades que o usuário ainda não viu e que valem para o cargo dele (nível menor = cargo mais alto).
