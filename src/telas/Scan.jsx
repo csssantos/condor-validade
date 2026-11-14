@@ -1,5 +1,5 @@
 // Parte do App (separado de App.jsx em 2026-11-05). Mudanças de comportamento: ver CLAUDE.md.
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useLayoutEffect } from "react";
 import { Flashlight, FlashlightOff, SwitchCamera, Loader2, AlertTriangle, RotateCcw } from "lucide-react";
 import TelaBiparCracha from "../TelaBiparCracha";
 import { BLUE, RED, RED_DARK, RED_SOFT } from "../lib/constantes";
@@ -17,6 +17,20 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
   const [status, setStatus] = useState("iniciando");
   const [erroMsg, setErroMsg] = useState("");
   const [manualMode, setManualMode] = useState(false);
+  // A tela ocupa exatamente o que sobra abaixo do cabeçalho (sem rolar e sem vão embaixo)
+  const raizRef = useRef(null);
+  const [altura, setAltura] = useState(null);
+  useLayoutEffect(() => {
+    function medir() {
+      const el = raizRef.current; if (!el) return;
+      const topo = el.getBoundingClientRect().top + (document.getElementById("root")?.scrollTop || 0) * 0;
+      const h = Math.floor(window.innerHeight - Math.max(0, topo) - 10);
+      setAltura(h > 380 ? h : null);
+    }
+    medir();
+    window.addEventListener("resize", medir); window.addEventListener("orientationchange", medir);
+    return () => { window.removeEventListener("resize", medir); window.removeEventListener("orientationchange", medir); };
+  }, [manualMode]);
   const [manualCode, setManualCode] = useState("");
   const [facing, setFacing] = useState("environment");
   const [torchOn, setTorchOn] = useState(false);
@@ -298,19 +312,20 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
     );
   }
 
+  const encaixar = !manualMode && altura;
   return (
-    <div className="px-4 pt-4">
+    <div ref={raizRef} className={`px-4 pt-3 ${encaixar ? "flex flex-col" : ""}`} style={encaixar ? { height: altura } : undefined}>
       {!manualMode && (
-        <div style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative rounded-[28px] overflow-hidden px-4 pt-2 pb-6 flex flex-col items-center">
+        <div style={{ background: FUNDO_MARCA, isolation: "isolate" }} className={`relative rounded-[28px] overflow-hidden px-4 pt-2 pb-6 flex flex-col items-center ${encaixar ? "flex-1 min-h-0" : ""}`}>
           <span aria-hidden className="absolute -right-16 -top-14 h-52 w-52 rounded-full bg-white/10" />
           <span aria-hidden className="absolute -left-10 bottom-16 h-28 w-28 rounded-full bg-white/10" />
           {/* O Bipi segura o celular: a cabeça aparece por cima, as mãos nas laterais e os pés embaixo; a câmera é a tela do celular */}
           <BipiCabeca alerta={recusado} />
-          <div className="relative w-[74%] -mt-3">
+          <div className={`relative -mt-3 ${encaixar ? "flex-1 min-h-0" : "w-[74%]"}`} style={encaixar ? { aspectRatio: "4/5", maxWidth: "88%" } : undefined}>
             <span aria-hidden className="absolute left-[22%] -bottom-3 h-6 w-12 rounded-full" style={{ background: "#E31E24" }} />
             <span aria-hidden className="absolute right-[22%] -bottom-3 h-6 w-12 rounded-full" style={{ background: "#E31E24" }} />
-            <div className="relative rounded-[30px] p-2 shadow-2xl shadow-black/40" style={{ background: "#0A1B33", border: "1px solid rgba(255,255,255,.18)" }}>
-              <div className="relative rounded-[23px] overflow-hidden bg-black" style={{ aspectRatio: "4/5", WebkitMaskImage: "-webkit-radial-gradient(white,black)" }}>
+            <div className={`relative rounded-[30px] p-2 shadow-2xl shadow-black/40 ${encaixar ? "h-full" : ""}`} style={{ background: "#0A1B33", border: "1px solid rgba(255,255,255,.18)" }}>
+              <div className="relative rounded-[23px] overflow-hidden bg-black" style={{ ...(encaixar ? { height: "100%" } : { aspectRatio: "4/5" }), WebkitMaskImage: "-webkit-radial-gradient(white,black)" }}>
                 <video ref={videoRef} className="w-full h-full object-cover" muted autoPlay playsInline webkit-playsinline="true" />
                 <span aria-hidden className="absolute top-2 left-1/2 -translate-x-1/2 h-1.5 w-12 rounded-full bg-black/60" />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -376,7 +391,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
       )}
 
       {!manualMode ? (
-        <button onClick={() => setManualMode(true)} className="w-full mt-4 flex items-center justify-center gap-2 text-sm font-medium py-3 rounded-2xl border" style={{ borderColor: BLUE, color: BLUE }}>
+        <button onClick={() => setManualMode(true)} className="w-full mt-3 shrink-0 flex items-center justify-center gap-2 text-sm font-medium py-2.5 rounded-2xl border" style={{ borderColor: BLUE, color: BLUE }}>
           Digitar código manualmente
         </button>
       ) : (
@@ -396,7 +411,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado }) {
         </div>
       )}
 
-      <button onClick={() => { pararTudo(); onCancel(); }} style={{ color: T.subtext }} className="w-full mt-3 text-xs py-2">Cancelar</button>
+      <button onClick={() => { pararTudo(); onCancel(); }} style={{ color: T.subtext }} className="w-full mt-1 shrink-0 text-xs py-2">Cancelar</button>
     </div>
   );
 }

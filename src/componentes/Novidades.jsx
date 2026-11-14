@@ -10,6 +10,11 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = diretor e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-14-compartilhar-bipar", data: "14/11/2026", itens: [
+    { tipo: "melhorado", ate: 7, texto: "Nova imagem para compartilhar o produto: foto em destaque, validade grande na cor da situação e os dados (lote, quantidade, setor, campanha) em cartões, com o Bipi no rodapé." },
+    { tipo: "adicionado", ate: 7, texto: "Ao compartilhar um produto, o link dele vai junto com a imagem: quem tem acesso à loja abre o app direto no produto." },
+    { tipo: "corrigido", ate: 7, texto: "Tela de bipar: agora cabe inteira na tela do celular, sem rolar e sem espaço vazio embaixo." },
+  ] },
   { id: "2026-11-14-resumo-diario", data: "14/11/2026", itens: [
     { tipo: "adicionado", ate: 5, texto: "Resumo diário às 7h: em Mais → Notificações, encarregados podem ligar (por Telegram, notificação ou e-mail) um resumo com o que está vencido, o que vence em até 10 dias, quantos lotes ainda estão sem campanha e os 5 mais urgentes do seu setor. Só chega se houver algo a avisar e começa desligado." },
   ] },

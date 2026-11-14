@@ -16,7 +16,7 @@ import { Header } from "./componentes/Header";
 import { BottomNav, SideNav } from "./componentes/Navegacao";
 import { FaixaFila } from "./componentes/FaixaFila";
 import { AtualizacaoModal, NOVIDADES, gravarNovidadeVista, lerNovidadeVista, novidadesParaCargo } from "./componentes/Novidades";
-import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, setorPrincipal } from "./lib/constantes";
+import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, setorPrincipal } from "./lib/constantes";
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
 import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
@@ -1275,8 +1275,8 @@ function AppInner() {
         nome: item.nome, foto: item.foto, status: st.label,
         corStatus: { expired: "#B3141A", alert: "#E31E24", warning: "#E8A317", none: "#6B7C93" }[st.level] || "#1F9D55",
         corTextoStatus: st.level === "warning" ? "#2A1D00" : "#FFFFFF",
+        destaque: { rotulo: "Validade", valor: temVal ? formatarData(item.validade) : "Sem validade", sub: diasTxt ? diasTxt.charAt(0).toUpperCase() + diasTxt.slice(1) : "" },
         linhas: [
-          ["Validade", temVal ? `${formatarData(item.validade)}${diasTxt ? " · " + diasTxt : ""}` : "Sem validade"],
           ["Lote", textoLote(item) || ""],
           ["Quantidade", qtd],
           ["Campanha", item.pedidoTipo ? `${item.pedidoTipo === "preco_direto" ? "Preço direto" : "Promoção"}${item.pedidoCampanha ? ` · nº ${item.pedidoCampanha}` : ""}${item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")} (sugestão)` : ""}` : ""],
@@ -1288,15 +1288,19 @@ function AppInner() {
       const blob = await gerarImagemProduto(dados);
       if (blob) {
         const arquivo = new File([blob], `validade-${String(item.barcode || "produto").replace(/[^A-Za-z0-9]/g, "").slice(0, 20) || "produto"}.png`, { type: "image/png" });
+        // imagem + link do produto (abre o app direto no produto, para quem tem acesso à loja)
+        const link = item.id ? `${SITE_URL}/?produto=${encodeURIComponent(String(item.id))}` : "";
+        const textoLink = `${item.nome}${temVal ? `\nValidade: ${formatarData(item.validade)}${diasTxt ? ` (${diasTxt})` : ""}` : ""}${link ? `\nAbrir no app: ${link}` : ""}`;
         if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
-          try { await navigator.share({ files: [arquivo] }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+          try { await navigator.share({ files: [arquivo], text: textoLink }); return; } catch (e) { if (e && e.name === "AbortError") return; }
         }
+        if (link) { try { await navigator.clipboard.writeText(textoLink); } catch { /* sem área de transferência */ } }
         // sem compartilhamento de arquivo (computador) ou gesto expirado: baixa a imagem
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url; a.download = arquivo.name; document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 60000);
-        showToast("Imagem salva na pasta de downloads.");
+        showToast(link ? "Imagem salva e link do produto copiado." : "Imagem salva na pasta de downloads.");
         return;
       }
     } catch (e) { console.warn("compartilhar: falha ao gerar imagem", e); }
@@ -1426,7 +1430,7 @@ function AppInner() {
 
       <FaixaFila online={online} />
 
-      <main className={`${larguraMain} mx-auto pb-32 lg:pb-10 lg:px-6`}>
+      <main className={`${larguraMain} mx-auto ${flow === "scan" ? "pb-2" : "pb-32"} lg:pb-10 lg:px-6`}>
         {flow === "scan" && <ScanView T={T} onDetected={handleBarcodeCaptured} onCancel={resetFlow} />}
         {flow === "confirm" && (
           <ConfirmProductView T={T} barcode={pendingBarcode} initial={draftProduct} wasKnown={!!catalog[chaveCatalogo(pendingBarcode, draftProduct)]}
