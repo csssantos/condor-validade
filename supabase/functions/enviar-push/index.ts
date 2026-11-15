@@ -2,9 +2,10 @@
 // Aviso: recebe só { avisoId } (criado pela função enviar_aviso) e envia exatamente aquele aviso.
 // Produto (trigger do banco): recebe só { id }; o conteúdo vem do BANCO, nunca do chamador, e só vai para a loja do produto.
 // Limites: 2 pushes/min por produto e 300/min no total (rl_servico). Se o limite não puder ser conferido, o envio é recusado (fail-closed).
-// Segredos: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT.
+// Segredos: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT; FCM_SERVICE_ACCOUNT (opcional: push do APK Android, linhas com subscription {fcm}).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import { enviarFcm } from "../_compartilhado/fcm.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -94,7 +95,13 @@ Deno.serve(async (req) => {
 
     const resultados = await Promise.allSettled(
       inscricoes.map((linha) =>
-        webpush.sendNotification(linha.subscription, payload).catch(async (err) => {
+        (linha.subscription?.fcm
+          ? enviarFcm(String(linha.subscription.fcm), payload).then(async (r) => {
+              if (r.invalido) await supabase.from("push_subscriptions").delete().eq("endpoint", linha.endpoint);
+              if (!r.ok) throw new Error("fcm");
+            })
+          : webpush.sendNotification(linha.subscription, payload)
+        ).catch(async (err) => {
           if (err.statusCode === 404 || err.statusCode === 410) {
             await supabase.from("push_subscriptions").delete().eq("endpoint", linha.endpoint);
           }

@@ -22,7 +22,7 @@ import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SITE_URL
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
 import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, contarFilaDaPessoa, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
-import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, isIOS, isStandalone, planejarNotificacoes, chaveListaNotif, limparNotifDaPessoa } from "./lib/notificacoes";
+import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, ehNativo, permissaoPushNativa, pedirPermissaoPushNativa, inscreverPushNativo, desinscreverPushNativo, isIOS, isStandalone, planejarNotificacoes, chaveListaNotif, limparNotifDaPessoa } from "./lib/notificacoes";
 import { campanhaValida, eanValido, limiteSomaLote, normalizarCampanha, textoLote } from "./lib/produto";
 import { usarDadosGerenciais } from "./lib/relatoriosPDF";
 import { useDesktop, useTelaLarga } from "./lib/tela";
@@ -133,6 +133,12 @@ function AppInner() {
   const [notifPermission, setNotifPermission] = useState(
     typeof Notification !== "undefined" ? Notification.permission : "unsupported"
   );
+  useEffect(() => { // APK Android: sem API Notification; a permissão vem do plugin nativo
+    if (!ehNativo()) return;
+    const ler = () => permissaoPushNativa().then(setNotifPermission);
+    ler(); window.addEventListener("focus", ler);
+    return () => window.removeEventListener("focus", ler);
+  }, []);
   const [toast, setToast] = useState(null);
   useEffect(() => { // permissão mudada pelas configurações do navegador também vale na hora
     let st = null; const ler = () => { if (typeof Notification !== "undefined") setNotifPermission(Notification.permission); };
@@ -158,6 +164,7 @@ function AppInner() {
         // nada da pessoa que saiu fica na tela nem no aparelho
         setItems([]); setCatalog({}); setHistorico([]); setAuditoria([]); setRondas([]); setDadosDoUid(null);
         limparNotifDaPessoa(sessaoRef.current);
+        if (ehNativo()) desinscreverPushNativo(); // APK: o aparelho deixa de receber os avisos da pessoa que saiu
         setLojaAtivaOverride(null); setFlow(null); setTab("home"); setDetalheItem(null); // a próxima pessoa não herda a loja trocada nem a tela aberta
         try { localStorage.removeItem(SNAPSHOT_KEY); } catch { /* sem armazenamento */ }
       }
@@ -299,7 +306,8 @@ function AppInner() {
       setUsuario(identidade);
       // Auditoria de acesso: o SERVIDOR grava nome, loja e IP (o app só informa o aparelho); sem serviço externo de IP
       if (loginRegistradoRef.current !== sessao?.user?.id) { loginRegistradoRef.current = sessao?.user?.id; supabase.rpc("registrar_login", { p_dispositivo: String(navigator.userAgent || "").slice(0, 300) }).then(({ error }) => { if (error) console.warn("registrar_login:", error.message); }, () => {}); }
-      if (typeof Notification !== "undefined" && Notification.permission === "granted") inscreverPush(identidade);
+      if (ehNativo()) { permissaoPushNativa().then((p) => { if (p === "granted") inscreverPushNativo(identidade); }); }
+      else if (typeof Notification !== "undefined" && Notification.permission === "granted") inscreverPush(identidade);
     }
   }, [perfil]);
 
@@ -848,11 +856,11 @@ function AppInner() {
       return;
     }
     if (notifPermission === "granted") { showToast("As notificações já estão ativas."); return; }
-    const perm = await Notification.requestPermission();
+    const perm = ehNativo() ? await pedirPermissaoPushNativa() : await Notification.requestPermission();
     // ao ativar, o que já existe vira "linha de base" em silêncio: só avisos futuros chegam
     if (perm === "granted" && idDoUsuario) limparNotifDaPessoa(idDoUsuario, true);
     setNotifPermission(perm);
-    if (perm === "granted") await inscreverPush(usuario);
+    if (perm === "granted") await (ehNativo() ? inscreverPushNativo(usuario) : inscreverPush(usuario));
     showToast(perm === "granted" ? "Notificações ativadas — você vai receber avisos mesmo com o app fechado." : "Permissão não concedida.", perm === "granted" ? "ok" : "warn");
   }
 

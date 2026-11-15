@@ -1,0 +1,23 @@
+// Testes do push nativo do APK: cliente (src/lib/notificacoes.js), servidor (fcm.ts, enviar-push, resumo-diario) e workflow.
+import { readFileSync } from "node:fs";
+let ok = 0, falhas = 0;
+const t = (n, c) => { if (c) { ok++; console.log("ok  ", n); } else { falhas++; console.log("FALHA", n); } };
+const L = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
+const not = L("./src/lib/notificacoes.js"), app = L("./src/App.jsx"), fcm = L("./supabase/functions/_compartilhado/fcm.ts");
+const ep = L("./supabase/functions/enviar-push/index.ts"), rd = L("./supabase/functions/resumo-diario/index.ts"), wf = L("./.github/workflows/android.yml");
+const gs = JSON.parse(L("./android-config/google-services.json"));
+t("token guardado como fcm:<token> pela RPC salvar_push", /p_endpoint: "fcm:" \+ token, p_subscription: \{ fcm: token \}/.test(not));
+t("token validado (20 a 400) antes de gravar", /token\.length < 20 \|\| token\.length > 400/.test(not));
+t("toque no aviso só abre caminho do próprio app", /u\.startsWith\("\/"\) && !u\.startsWith\("\/\/"\)/.test(not));
+t("ouvintes registrados uma vez", /if \(!ouvintesNativos\)/.test(not));
+t("App usa permissão nativa no APK", /ehNativo\(\) \? await pedirPermissaoPushNativa\(\)/.test(app) && /permissaoPushNativa\(\)\.then\(setNotifPermission\)/.test(app));
+t("ao sair, APK desregistra o aparelho", /if \(ehNativo\(\)\) desinscreverPushNativo\(\)/.test(app));
+t("fcm.ts: só token de serviço no segredo, nada fixo", /Deno\.env\.get\("FCM_SERVICE_ACCOUNT"\)/.test(fcm) && !/BEGIN PRIVATE KEY/.test(fcm));
+t("fcm.ts: caminho do toque só relativo", /startsWith\("\/"\) && !p\.data\.url\.startsWith\("\/\/"\)/.test(fcm));
+t("fcm.ts: token inválido é sinalizado para apagar", /invalido/.test(fcm) && /UNREGISTERED/.test(fcm));
+t("enviar-push envia FCM e apaga token inválido", /enviarFcm\(String\(linha\.subscription\.fcm\)/.test(ep) && /r\.invalido/.test(ep));
+t("resumo-diario aceita só FCM (sem VAPID)", /!vapidOk && !fcmAtivo\(\)/.test(rd) && /enviarFcm\(String\(s\.subscription\.fcm\)/.test(rd));
+t("workflow: plugin de push, Firebase e permissão", /push-notifications@6/.test(wf) && /google-services\.json/.test(wf) && /POST_NOTIFICATIONS/.test(wf));
+t("google-services.json é do pacote do app", gs.client?.[0]?.client_info?.android_client_info?.package_name === "com.usebipi.app");
+t("sem chave privada em arquivos do repo", !/PRIVATE KEY/.test(L("./android-config/google-services.json")));
+console.log(`\n${ok} ok, ${falhas} falhas`); process.exit(falhas ? 1 : 0);

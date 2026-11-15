@@ -25,6 +25,60 @@ async function inscreverPush(usuario) {
   } catch (e) { console.error("Falha ao inscrever push:", e); }
 }
 
+
+// ---------- Push nativo do APK Android (FCM; 2026-11-15) ----------
+// O APK é uma casca (Capacitor) que abre o app publicado. O Android WebView não tem Web Push nem a API Notification,
+// então no APK a permissão e o registro passam pelo plugin nativo PushNotifications (carregado pela ponte do Capacitor,
+// sem pacote no app). O token FCM é guardado na MESMA tabela `push_subscriptions`: endpoint "fcm:<token>" e subscription {"fcm": token}.
+const ehNativo = () => { try { return !!window.Capacitor?.isNativePlatform?.(); } catch { return false; } };
+function pluginPush() {
+  try {
+    const C = window.Capacitor;
+    return C?.Plugins?.PushNotifications || C?.registerPlugin?.("PushNotifications") || null;
+  } catch { return null; }
+}
+const normPerm = (r) => (r === "granted" ? "granted" : r === "denied" ? "denied" : "default");
+async function permissaoPushNativa() {
+  try { const P = pluginPush(); if (!P) return "unsupported"; return normPerm((await P.checkPermissions())?.receive); } catch { return "unsupported"; }
+}
+async function pedirPermissaoPushNativa() {
+  try { const P = pluginPush(); if (!P) return "unsupported"; return normPerm((await P.requestPermissions())?.receive); } catch { return "unsupported"; }
+}
+let ouvintesNativos = false;
+let usuarioNativo = null;
+/** registra o aparelho no FCM e grava o token pelo servidor (RPC salvar_push); precisa de permissão já concedida */
+async function inscreverPushNativo(usuario) {
+  try {
+    const P = pluginPush(); if (!P) return;
+    usuarioNativo = usuario || null;
+    if (!ouvintesNativos) {
+      ouvintesNativos = true;
+      await P.addListener("registration", async (t) => {
+        try {
+          const token = String(t?.value || "");
+          if (token.length < 20 || token.length > 400) return;
+          const { data: au } = await supabase.auth.getUser();
+          if (!au?.user?.id) return;
+          const { error } = await supabase.rpc("salvar_push", { p_endpoint: "fcm:" + token, p_subscription: { fcm: token }, p_usuario: usuarioNativo, p_loja: LOJA_ID_ATIVA });
+          if (error) console.error("Falha ao salvar push nativo:", error.message);
+        } catch (e) { console.error("push nativo:", e); }
+      });
+      await P.addListener("registrationError", (e) => console.error("Falha ao registrar push nativo:", e?.error || e));
+      await P.addListener("pushNotificationActionPerformed", (a) => { // toque no aviso: abre o produto/tela indicado (só caminhos do próprio app)
+        try {
+          const u = String(a?.notification?.data?.url || "");
+          if (u.startsWith("/") && !u.startsWith("//")) window.location.assign(window.location.origin + u);
+        } catch { /* ok */ }
+      });
+    }
+    await P.register();
+  } catch (e) { console.error("Falha ao inscrever push nativo:", e); }
+}
+/** ao sair da conta: apaga o token do aparelho para não receber avisos da pessoa anterior */
+async function desinscreverPushNativo() {
+  try { const P = pluginPush(); if (!P) return; await P.unregister(); } catch { /* ok */ }
+}
+
 // ---------- Só notificações FUTURAS (2026-11-13) ----------
 // Antes, a lista de "já avisados" era uma só por aparelho: conta nova, aparelho novo ou notificação recém-ativada
 // disparava de uma vez TUDO que já estava no prazo (notificação tardia). Agora cada pessoa tem a sua lista e,
@@ -114,4 +168,4 @@ async function buscarProdutoPorCodigo(barcode) {
   return null;
 }
 
-export { buscarProdutoPorCodigo, limparNotifDaPessoa, chaveBaseNotif, chaveNotifItem, planejarNotificacoes, chaveListaNotif, dispararNotificacao, inscreverPush, isIOS, isStandalone, urlBase64ToUint8Array };
+export { buscarProdutoPorCodigo, limparNotifDaPessoa, chaveBaseNotif, chaveNotifItem, planejarNotificacoes, chaveListaNotif, dispararNotificacao, inscreverPush, ehNativo, permissaoPushNativa, pedirPermissaoPushNativa, inscreverPushNativo, desinscreverPushNativo, isIOS, isStandalone, urlBase64ToUint8Array };

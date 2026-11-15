@@ -10,6 +10,9 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = regional e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-15-android", data: "15/11/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Aplicativo Android (APK) com avisos que chegam mesmo com o app fechado: vencimentos, avisos da gerência, produtos novos para aprovar e o resumo diário. Para receber, abra o app, entre na conta e ative as notificações." },
+  ] },
   { id: "2026-11-15-rede", data: "15/11/2026", itens: [
     { tipo: "adicionado", ate: 7, texto: "O app agora funciona em redes que bloqueiam o servidor (como a rede da empresa): se a conexão direta falhar, ele usa um caminho alternativo sozinho. Nessa situação a primeira abertura pode demorar alguns segundos e as telas atualizam a cada poucos segundos, não na hora." },
   ] },

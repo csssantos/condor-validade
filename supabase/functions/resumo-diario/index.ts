@@ -8,6 +8,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import { enviarFcm, fcmAtivo } from "../_compartilhado/fcm.ts";
 import { modeloAviso, REMETENTE } from "../auth-email/templates.ts";
 import { normalizar, temConteudo, textoTelegram, corpoPush, mensagemEmail, detalhesEmail } from "./formato.ts";
 
@@ -42,10 +43,12 @@ async function enviarEmail(para: string, m: { subject: string; html: string; tex
   } catch { return false; }
 }
 async function enviarPush(usuarioId: string, payload: string) {
-  if (!vapidOk) return false;
+  if (!vapidOk && !fcmAtivo()) return false;
   const { data: subs, error } = await sb.from("push_subscriptions").select("endpoint, subscription").eq("usuario_id", usuarioId);
   if (error || !subs?.length) return false;
-  const rs = await Promise.allSettled(subs.map((s: any) => webpush.sendNotification(s.subscription, payload, { TTL: 6 * 3600, urgency: "normal", timeout: 8000 }).catch(async (e: any) => {
+  const rs = await Promise.allSettled(subs.map((s: any) => (s.subscription?.fcm
+    ? enviarFcm(String(s.subscription.fcm), payload).then(async (r) => { if (r.invalido) await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint); if (!r.ok) throw new Error("fcm"); })
+    : webpush.sendNotification(s.subscription, payload, { TTL: 6 * 3600, urgency: "normal", timeout: 8000 })).catch(async (e: any) => {
     if (e?.statusCode === 404 || e?.statusCode === 410) await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
     throw e;
   })));

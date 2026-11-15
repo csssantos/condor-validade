@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "124451502120",
+    "project_id": "usebipi",
+    "storage_bucket": "usebipi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124451502120:android:93eed39d77f32fcf1c5d1d",
+        "android_client_info": {
+          "package_name": "com.usebipi.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCclqvHplY-JlwHFnClzB3rZr5T8aSuHrY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
