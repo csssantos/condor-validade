@@ -17,48 +17,85 @@ let marcas = [], pausaAte = 0;
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // REDE QUE BLOQUEIA O SERVIDOR (ex.: rede da empresa): se o endereço do Supabase não responde mas o próprio app abre, as chamadas passam a ir
-// por "/supa" no endereço do app (a Vercel repassa ao Supabase; ver vercel.json). Só liga depois de a chamada direta FALHAR (erro de rede ou
-// sem resposta em 8 s antes do 1º sucesso) e a mesma chamada funcionar pelo caminho do app; fica lembrado por 6 h e depois testa o direto de novo.
-// O cliente continua criado com o endereço direto (a chave da sessão não muda); só o fetch é reescrito.
-const CHAVE_PROXY = "avdc_via_proxy";
-const VALIDADE_PROXY_MS = 6 * 3600 * 1000;
-const TEMPO_DIRETO_MS = 8000;
-const podeProxy = typeof window !== "undefined" && /^https:$/.test(window.location.protocol) && !!supabaseUrl;
+// por "/supa" no endereço do app (a Vercel repassa ao Supabase; ver vercel.json). Só liga depois de a chamada direta FALHAR e o caminho do app
+// responder. Falha de conexão imediata (ou resposta HTML de página de bloqueio na 1ª chamada) liga por 6 h; só "demorou mais de 12 s" liga por 30 min
+// (pode ser sinal fraco, não bloqueio). Depois o direto é testado de novo, mesmo com o app aberto. O cliente continua criado com o endereço direto
+// (a chave da sessão não muda); só o fetch é reescrito. Chamada que MUDA dado (POST etc.) nunca é repetida por causa de demora (poderia duplicar).
+const CHAVE_PROXY = "avdc_via_proxy"; // guarda até quando o caminho do app vale (milissegundos)
+const VALIDADE_BLOQUEIO_MS = 6 * 3600 * 1000, VALIDADE_DEMORA_MS = 30 * 60 * 1000;
+const TEMPO_DIRETO_MS = 12000;
+const podeProxy = typeof window !== "undefined" && window.location.protocol === "https:" && !!supabaseUrl;
 const BASE_PROXY = podeProxy ? `${window.location.origin}/supa` : "";
-const lerProxy = () => { try { const t = Number(localStorage.getItem(CHAVE_PROXY)); return t > 0 && Date.now() - t < VALIDADE_PROXY_MS; } catch { return false; } };
-let viaProxy = podeProxy && lerProxy();
-let diretoOk = false; // já houve uma resposta direta nesta abertura: sem limite de tempo a partir daí
-export const usandoProxy = () => viaProxy;
-function gravarProxy(ligado) {
-  viaProxy = ligado;
-  try { if (ligado) localStorage.setItem(CHAVE_PROXY, String(Date.now())); else localStorage.removeItem(CHAVE_PROXY); } catch { /* sem armazenamento: vale só nesta abertura */ }
+let proxyAte = 0;
+try { proxyAte = Number(localStorage.getItem(CHAVE_PROXY)) || 0; } catch { /* sem armazenamento */ }
+const viaProxy = () => podeProxy && Date.now() < proxyAte;
+let diretoOk = false; // já houve uma resposta direta de verdade nesta abertura: sem limite de tempo a partir daí
+export const usandoProxy = () => viaProxy();
+function gravarProxy(ms) {
+  proxyAte = Date.now() + ms;
+  try { localStorage.setItem(CHAVE_PROXY, String(proxyAte)); } catch { /* vale só nesta abertura */ }
 }
+// Só reescreve URLs do NOSSO Supabase: o prefixo precisa terminar ali (fim, "/", "?" ou "#"), senão "…supabase.co.outro.com" também casaria.
 function urlPeloProxy(url) {
   const s = typeof url === "string" ? url : (url && typeof url.href === "string" ? url.href : "");
-  return s && s.startsWith(String(supabaseUrl)) ? BASE_PROXY + s.slice(String(supabaseUrl).length) : null;
+  const base = String(supabaseUrl).replace(/\/+$/, "");
+  if (!s) return null;
+  // Algumas versões do supabase-js chamam as funções em <projeto>.functions.supabase.co/<função>: vira /functions/v1/<função> no caminho do app.
+  const f = REF_FUNCOES && s.startsWith(REF_FUNCOES) ? s.slice(REF_FUNCOES.length) : null;
+  if (f !== null) return /^[/?#]/.test(f) ? BASE_PROXY + "/functions/v1" + f : null;
+  if (!s.startsWith(base)) return null;
+  const resto = s.slice(base.length);
+  if (resto && !/^[/?#]/.test(resto)) return null;
+  return BASE_PROXY + resto;
 }
+const REF_FUNCOES = (() => { try { const h = new URL(String(supabaseUrl)).hostname.split("."); return `https://${h[0]}.functions.${h.slice(1).join(".")}`; } catch { return ""; } })();
+const ehLeitura = (opcoes) => { const m = String((opcoes && opcoes.method) || "GET").toUpperCase(); return m === "GET" || m === "HEAD"; };
+const ehApi = (s) => /\/(rest|auth|functions)\/v1\//.test(s);
 function comLimite(url, opcoes, ms) {
   // um sinal próprio por tentativa (e respeita o sinal que o app já mandou)
   const c = new AbortController();
-  const t = setTimeout(() => c.abort(), ms);
+  let estourou = false;
+  const t = setTimeout(() => { estourou = true; c.abort(); }, ms);
   const externo = opcoes && opcoes.signal;
   if (externo) { if (externo.aborted) c.abort(); else externo.addEventListener("abort", () => c.abort(), { once: true }); }
-  return fetch(url, { ...(opcoes || {}), signal: c.signal }).finally(() => clearTimeout(t));
+  return fetch(url, { ...(opcoes || {}), signal: c.signal })
+    .catch((e) => { if (estourou) { const x = new Error("sem_resposta_direta"); x.demora = true; throw x; } throw e; })
+    .finally(() => clearTimeout(t));
 }
 async function buscarComRota(url, opcoes) {
   const viaApp = podeProxy ? urlPeloProxy(url) : null;
   if (!viaApp) return fetch(url, opcoes); // outro endereço (ou sem proxy possível): como sempre
-  if (viaProxy) return fetch(viaApp, opcoes);
+  if (viaProxy()) {
+    try { return await fetch(viaApp, opcoes); }
+    catch (e) {
+      // o caminho do app falhou: se o direto passou a funcionar (a pessoa saiu da rede bloqueada), volta ao direto
+      if ((opcoes && opcoes.signal && opcoes.signal.aborted) || (typeof navigator !== "undefined" && navigator.onLine === false)) throw e;
+      const r = await fetch(url, opcoes); // se também falhar, o erro de rede segue para o app
+      proxyAte = 0; try { localStorage.removeItem(CHAVE_PROXY); } catch { /* ok */ }
+      return r;
+    }
+  }
   if (diretoOk) return fetch(url, opcoes);
   try {
     const r = await comLimite(url, opcoes, TEMPO_DIRETO_MS);
+    // página de bloqueio da rede (HTML) no lugar da resposta da API: conta como bloqueado
+    if (ehApi(String(url)) && /text\/html/i.test(r.headers.get("content-type") || "")) throw new TypeError("bloqueado_por_pagina");
     diretoOk = true;
     return r;
   } catch (e) {
     if (opcoes && opcoes.signal && opcoes.signal.aborted) throw e; // o próprio app cancelou
     if (typeof navigator !== "undefined" && navigator.onLine === false) throw e; // sem internet de verdade
-    const r = await fetch(viaApp, opcoes); // se também falhar, o erro original de rede segue para o app
-    gravarProxy(true);
+    if (e && e.demora) {
+      // demorou: confere se o caminho do app responde. Só repete a chamada se ela não muda dado.
+      let ok = false;
+      try { const h = await fetch(`${BASE_PROXY}/auth/v1/settings`, { headers: { apikey: supabaseAnonKey } }); ok = h.ok; } catch { ok = false; }
+      if (!ok) throw e;
+      gravarProxy(VALIDADE_DEMORA_MS);
+      if (ehLeitura(opcoes)) return fetch(viaApp, opcoes);
+      throw e; // a pessoa tenta de novo e já vai pelo caminho do app
+    }
+    const r = await fetch(viaApp, opcoes); // falha de conexão antes de qualquer resposta: seguro repetir. Se também falhar, o erro de rede segue para o app
+    gravarProxy(VALIDADE_BLOQUEIO_MS);
     return r;
   }
 }
@@ -134,7 +171,7 @@ export const linkComErro = /(^|[#&?])error(_code)?=/.test(hashDoLink) || /(^|[#&
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: { fetch: fetchComFreio },
   auth: { detectSessionInUrl: !ignorarLink },
-  realtime: { reconnectAfterMs: (tentativas) => (viaProxy ? 60000 : [1000, 2000, 5000, 10000][tentativas - 1] || 10000) },
+  realtime: { reconnectAfterMs: (tentativas) => (viaProxy() ? 60000 : [1000, 2000, 5000, 10000][tentativas - 1] || 10000) },
 });
 
 // "Sair e usar o link": confere o link ANTES de sair (se estiver vencido/usado a pessoa continua na conta dela), sai SÓ deste aparelho

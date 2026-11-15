@@ -34,6 +34,20 @@
       ]
     },
     {
+      "source": "/supa/(rest|auth|functions)/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/supa/storage/(.*)",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "sandbox; default-src 'none'" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
       "source": "/sw.js",
       "headers": [
         {
@@ -49,8 +63,20 @@
   ],
   "rewrites": [
     {
-      "source": "/supa/:path*",
-      "destination": "https://fbovltxucooeoldjfckk.supabase.co/:path*"
+      "source": "/supa/rest/v1/:path*",
+      "destination": "https://fbovltxucooeoldjfckk.supabase.co/rest/v1/:path*"
+    },
+    {
+      "source": "/supa/auth/v1/:path*",
+      "destination": "https://fbovltxucooeoldjfckk.supabase.co/auth/v1/:path*"
+    },
+    {
+      "source": "/supa/functions/v1/:path*",
+      "destination": "https://fbovltxucooeoldjfckk.supabase.co/functions/v1/:path*"
+    },
+    {
+      "source": "/supa/storage/v1/object/public/:path*",
+      "destination": "https://fbovltxucooeoldjfckk.supabase.co/storage/v1/object/public/:path*"
     },
     {
       "source": "/promotor/:marca/:codigo",

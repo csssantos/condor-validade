@@ -13,7 +13,7 @@ export const TERMOS_VERSAO = "2026-11-15";
 export const TERMOS_ALTERACOES = [
   { versao: "2026-11-15", docs: {
     privacidade: [
-      "Em redes que bloqueiam o endereço do nosso servidor de dados (por exemplo, a rede de uma empresa), o app passa a enviar as chamadas ao servidor pelo endereço do próprio app, hospedado na Vercel, que apenas repassa o tráfego (login, consultas e fotos de produto) ao Supabase. Nesse caso a Vercel processa o tráfego do app, incluindo o seu e-mail e o seu token de acesso, só para repassá-lo; não guarda o conteúdo. Fora dessas redes, nada muda.",
+      "Em redes que bloqueiam o endereço do nosso servidor de dados (por exemplo, a rede de uma empresa), o app passa a enviar o que você consulta ou grava (incluindo seus dados de login e as fotos de produto) pelo endereço do próprio app, hospedado na Vercel, que só repassa essas chamadas ao Supabase, sem guardar o conteúdo. Fora dessas redes, nada muda.",
     ],
     armazenamento: [
       "O app guarda neste aparelho um aviso temporário (por até 6 horas) de que a rede bloqueou o servidor e que o caminho alternativo deve ser usado.",

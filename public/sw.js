@@ -113,6 +113,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (url.pathname.startsWith("/supa/")) return; // chamadas à API pelo caminho do app: direto na rede, NUNCA no cache
   if (url.pathname === "/" || url.pathname === "/index.html") return; // consulta de versão do app: rede direta, sem cache
 
   // Arquivos do app (hash no nome, nunca mudam): cache primeiro.
