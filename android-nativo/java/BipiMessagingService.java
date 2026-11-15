@@ -40,12 +40,13 @@ public class BipiMessagingService extends FirebaseMessagingService {
             try { Class.forName(PLUGIN).getMethod("sendRemoteMessage", RemoteMessage.class).invoke(null, mensagem); } catch (Throwable t) { /* ok */ }
             return;
         }
-        String corpo = orVazio(d.get("corpo")), selo = orVazio(d.get("selo")), cor = orVazio(d.get("cor")), tag = orVazio(d.get("tag"));
+        String corpo = orVazio(d.get("corpo")), selo = orVazio(d.get("selo")), cor = orVazio(d.get("cor")), tag = orVazio(d.get("tag")), url = orVazio(d.get("url"));
+        if (tag.isEmpty()) tag = "aviso-" + (titulo + corpo).hashCode();
         try {
             if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) return;
-            mostrarCartao(titulo, corpo, selo, cor, tag);
+            mostrarCartao(titulo, corpo, selo, cor, tag, url);
         } catch (Throwable t) {
-            try { mostrarSimples(titulo, corpo, tag); } catch (Throwable t2) { /* sem como mostrar */ }
+            try { mostrarSimples(titulo, corpo, tag, url); } catch (Throwable t2) { /* sem como mostrar */ }
         }
     }
 
@@ -62,11 +63,20 @@ public class BipiMessagingService extends FirebaseMessagingService {
         }
     }
 
-    private PendingIntent abrirApp() {
-        Intent i = getPackageManager().getLaunchIntentForPackage(getPackageName());
-        if (i == null) i = new Intent();
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        return PendingIntent.getActivity(this, 0, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    /** Abre o app. Os extras "google.message_id" e "url" fazem o plugin do Capacitor entregar o toque ao JavaScript
+     *  (pushNotificationActionPerformed), que abre o produto. Cada aviso tem seu próprio requestCode. */
+    private PendingIntent abrirApp(String chave, String url) {
+        Intent i = new Intent(this, MainActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        i.putExtra("google.message_id", chave);
+        i.putExtra("url", url);
+        return PendingIntent.getActivity(this, chave.hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /** versão que aparece na tela bloqueada: sem nome de produto nem valores */
+    private android.app.Notification versaoPublica() {
+        return new NotificationCompat.Builder(this, CANAL).setSmallIcon(R.drawable.ic_stat_bipi).setColor(0xFF0B4F9E)
+                .setContentTitle("Bipi").setContentText("Você tem um novo aviso").build();
     }
 
     private void preencher(RemoteViews v, String titulo, String corpo, String selo, String cor) {
@@ -84,7 +94,7 @@ public class BipiMessagingService extends FirebaseMessagingService {
         }
     }
 
-    private void mostrarCartao(String titulo, String corpo, String selo, String cor, String tag) {
+    private void mostrarCartao(String titulo, String corpo, String selo, String cor, String tag, String url) {
         criarCanal();
         RemoteViews pequena = new RemoteViews(getPackageName(), R.layout.notif_bipi_pequena);
         RemoteViews grande = new RemoteViews(getPackageName(), R.layout.notif_bipi_grande);
@@ -98,20 +108,23 @@ public class BipiMessagingService extends FirebaseMessagingService {
                 .setStyle(new NotificationCompat.DecoratedCustomViewStyle())
                 .setCustomContentView(pequena)
                 .setCustomBigContentView(grande)
-                .setContentIntent(abrirApp())
+                .setContentIntent(abrirApp(tag, url))
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .setPublicVersion(versaoPublica())
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH);
-        NotificationManagerCompat.from(this).notify(tag.isEmpty() ? null : tag, 0, b.build());
+        NotificationManagerCompat.from(this).notify(tag, 0, b.build());
     }
 
-    private void mostrarSimples(String titulo, String corpo, String tag) {
+    private void mostrarSimples(String titulo, String corpo, String tag, String url) {
         criarCanal();
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, CANAL)
                 .setSmallIcon(R.drawable.ic_stat_bipi).setColor(0xFF0B4F9E)
                 .setContentTitle(titulo).setContentText(corpo)
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(corpo))
-                .setContentIntent(abrirApp()).setAutoCancel(true)
+                .setContentIntent(abrirApp(tag, url)).setAutoCancel(true)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(versaoPublica())
                 .setPriority(NotificationCompat.PRIORITY_HIGH);
-        NotificationManagerCompat.from(this).notify(tag.isEmpty() ? null : tag, 0, b.build());
+        NotificationManagerCompat.from(this).notify(tag, 0, b.build());
     }
 }

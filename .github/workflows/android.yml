@@ -40,7 +40,11 @@ jobs:
           cp "$GITHUB_WORKSPACE/android-nativo/java/BipiMessagingService.java" android/app/src/main/java/com/usebipi/app/
           sed -i 's#</application>#    <service android:name=".BipiMessagingService" android:exported="false"><intent-filter android:priority="100"><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter></service>\n    </application>#' "$f"
           grep -q "BipiMessagingService" "$f" || { echo "ERRO: serviço do aviso não entrou no manifesto"; exit 1; }
-          sed -i '0,/^dependencies {/s##dependencies {\n    implementation "com.google.firebase:firebase-messaging:23.4.1"#' android/app/build.gradle
+          sed -i '0,/^dependencies {/s/^dependencies {/dependencies {\n    implementation "com.google.firebase:firebase-messaging:23.4.1"/' android/app/build.gradle
+          # o serviço do Bipi repassa token e mensagens ao plugin por reflexão: confere que os métodos existem (senão o token nunca chegaria ao app)
+          pl=node_modules/@capacitor/push-notifications/android/src/main/java
+          grep -rq "static void onNewToken" $pl || { echo "ERRO: PushNotificationsPlugin.onNewToken(static) não existe nesta versão"; grep -rn "onNewToken\|sendRemoteMessage" $pl; exit 1; }
+          grep -rq "static void sendRemoteMessage" $pl || { echo "ERRO: PushNotificationsPlugin.sendRemoteMessage(static) não existe nesta versão"; grep -rn "onNewToken\|sendRemoteMessage" $pl; exit 1; }
           grep -q "firebase-messaging" android/app/build.gradle || { echo "ERRO: dependência firebase-messaging não entrou"; exit 1; }
           grep -q "google-services" android/build.gradle android/app/build.gradle || { echo "ERRO: plugin google-services não encontrado nos gradle (APK ficaria sem push)"; exit 1; }
       - name: Sincronizar e compilar

@@ -7,7 +7,7 @@
     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
         android:orientation="vertical" android:layout_marginStart="12dp">
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="BIPI · ALERTA DE VALIDADE" android:textColor="#CFE0F7" android:textSize="9sp" android:letterSpacing="0.15" />
+            android:text="BIPI" android:textColor="#CFE0F7" android:textSize="9sp" android:letterSpacing="0.15" />
         <TextView android:id="@+id/selo" android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:layout_marginTop="5dp" android:paddingStart="9dp" android:paddingEnd="9dp" android:paddingTop="2dp" android:paddingBottom="2dp"
             android:textSize="10sp" android:textStyle="bold" android:textColor="#FFFFFF" android:visibility="gone" />
