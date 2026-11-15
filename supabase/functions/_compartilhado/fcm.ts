@@ -1,10 +1,10 @@
 // Envio de push para o APK Android pelo Firebase Cloud Messaging (HTTP v1), sem dependências.
 // Segredo: FCM_SERVICE_ACCOUNT = JSON da chave de serviço do projeto Firebase (só no Supabase → Edge Functions → Secrets).
-// Cópia deste arquivo vive junto de cada função que envia push (função não importa de outra pasta no deploy por commit fixo:
-// aqui o import relativo "../_compartilhado/fcm.ts" funciona porque o wrapper importa o commit inteiro).
+// Usado por enviar-push e resumo-diario via import relativo ("../_compartilhado/fcm.ts"): o commit fixado no wrapper precisa conter este arquivo.
 let conta: { client_email: string; private_key: string; project_id: string } | null = null;
 let carregou = false;
 let tokenAcesso: { valor: string; expira: number } | null = null;
+let pedindo: Promise<string | null> | null = null; // uma só renovação por vez (disparo em massa não assina N vezes)
 
 function lerConta() {
   if (carregou) return conta;
@@ -29,9 +29,13 @@ async function chaveAssinatura(pem: string) {
   const der = Uint8Array.from(atob(corpo), (c) => c.charCodeAt(0));
   return crypto.subtle.importKey("pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
 }
-async function acesso(): Promise<string | null> {
+function acesso(): Promise<string | null> {
+  if (tokenAcesso && tokenAcesso.expira > Date.now() + 60_000) return Promise.resolve(tokenAcesso.valor);
+  if (!pedindo) pedindo = renovar().finally(() => { pedindo = null; });
+  return pedindo;
+}
+async function renovar(): Promise<string | null> {
   const c = lerConta(); if (!c) return null;
-  if (tokenAcesso && tokenAcesso.expira > Date.now() + 60_000) return tokenAcesso.valor;
   const agora = Math.floor(Date.now() / 1000);
   const cab = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const carga = b64url(JSON.stringify({ iss: c.client_email, scope: "https://www.googleapis.com/auth/firebase.messaging", aud: "https://oauth2.googleapis.com/token", iat: agora, exp: agora + 3300 }));
@@ -52,7 +56,7 @@ export async function enviarFcm(token: string, payloadJson: string): Promise<Res
   try {
     const p = JSON.parse(payloadJson);
     const at = await acesso(); if (!at) return { ok: false, invalido: false };
-    const url = typeof p?.data?.url === "string" && p.data.url.startsWith("/") && !p.data.url.startsWith("//") ? p.data.url : "/";
+    const url = typeof p?.data?.url === "string" && /^\/(?![\/\\])[\x21-\x7e]*$/.test(p.data.url) ? p.data.url : "/";
     const r = await fetch(`https://fcm.googleapis.com/v1/projects/${c.project_id}/messages:send`, { method: "POST", signal: AbortSignal.timeout(8000),
       headers: { Authorization: `Bearer ${at}`, "Content-Type": "application/json" },
       body: JSON.stringify({ message: { token,
@@ -61,7 +65,12 @@ export async function enviarFcm(token: string, payloadJson: string): Promise<Res
         android: { priority: "HIGH", ttl: "21600s", notification: { tag: p.tag ? String(p.tag).slice(0, 60) : undefined } } } }) });
     if (r.ok) return { ok: true, invalido: false };
     const t = await r.text();
-    const invalido = r.status === 404 || /UNREGISTERED|INVALID_ARGUMENT.*token|NOT_FOUND/i.test(t);
+    if (r.status === 401) tokenAcesso = null; // token de acesso revogado: pede outro no próximo envio
+    // só apaga o aparelho quando o Google diz que ESTE token morreu (UNREGISTERED ou token malformado);
+    // 404 genérico (projeto errado, API desligada) NÃO apaga ninguém
+    let codigo = "", msg = "", status = "";
+    try { const e = JSON.parse(t)?.error; status = String(e?.status || ""); msg = String(e?.message || ""); codigo = JSON.stringify(e?.details || ""); } catch { /* corpo não é JSON */ }
+    const invalido = /UNREGISTERED/.test(codigo) || (status === "INVALID_ARGUMENT" && /registration token/i.test(msg));
     if (!invalido) console.error("fcm: envio", r.status, t.slice(0, 200));
     return { ok: false, invalido };
   } catch (e) { console.error("fcm: falha", (e as Error)?.message); return { ok: false, invalido: false }; }

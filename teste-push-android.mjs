@@ -14,7 +14,9 @@ t("App usa permissão nativa no APK", /ehNativo\(\) \? await pedirPermissaoPushN
 t("ao sair, APK desregistra o aparelho", /if \(ehNativo\(\)\) desinscreverPushNativo\(\)/.test(app));
 t("fcm.ts: só token de serviço no segredo, nada fixo", /Deno\.env\.get\("FCM_SERVICE_ACCOUNT"\)/.test(fcm) && !/BEGIN PRIVATE KEY/.test(fcm));
 t("fcm.ts: caminho do toque só relativo", /startsWith\("\/"\) && !p\.data\.url\.startsWith\("\/\/"\)/.test(fcm));
-t("fcm.ts: token inválido é sinalizado para apagar", /invalido/.test(fcm) && /UNREGISTERED/.test(fcm));
+t("fcm.ts: só UNREGISTERED apaga (404 genérico não)", /UNREGISTERED/.test(fcm) && !/r\.status === 404/.test(fcm));
+t("botão do sino chega ao ramo nativo", /!ehNativo\(\) && typeof Notification === "undefined"/.test(app) && /notifTrocandoRef/.test(app));
+t("ouvintes prontos antes do register", /await prepararOuvintesNativos\(P\);[\s\S]{0,80}P\.register\(\)/.test(not));
 t("enviar-push envia FCM e apaga token inválido", /enviarFcm\(String\(linha\.subscription\.fcm\)/.test(ep) && /r\.invalido/.test(ep));
 t("resumo-diario aceita só FCM (sem VAPID)", /!vapidOk && !fcmAtivo\(\)/.test(rd) && /enviarFcm\(String\(s\.subscription\.fcm\)/.test(rd));
 t("workflow: plugin de push, Firebase e permissão", /push-notifications@6/.test(wf) && /google-services\.json/.test(wf) && /POST_NOTIFICATIONS/.test(wf));

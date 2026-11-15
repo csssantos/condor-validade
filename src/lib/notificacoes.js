@@ -44,15 +44,12 @@ async function permissaoPushNativa() {
 async function pedirPermissaoPushNativa() {
   try { const P = pluginPush(); if (!P) return "unsupported"; return normPerm((await P.requestPermissions())?.receive); } catch { return "unsupported"; }
 }
-let ouvintesNativos = false;
 let usuarioNativo = null;
-/** registra o aparelho no FCM e grava o token pelo servidor (RPC salvar_push); precisa de permissão já concedida */
-async function inscreverPushNativo(usuario) {
-  try {
-    const P = pluginPush(); if (!P) return;
-    usuarioNativo = usuario || null;
-    if (!ouvintesNativos) {
-      ouvintesNativos = true;
+let iniciandoOuvintes = null;
+const avisarFalhaPush = (m) => { try { window.dispatchEvent(new CustomEvent("condor-aviso-erro", { detail: m })); } catch { /* ok */ } };
+function prepararOuvintesNativos(P) {
+  if (!iniciandoOuvintes) {
+    iniciandoOuvintes = (async () => {
       await P.addListener("registration", async (t) => {
         try {
           const token = String(t?.value || "");
@@ -60,17 +57,26 @@ async function inscreverPushNativo(usuario) {
           const { data: au } = await supabase.auth.getUser();
           if (!au?.user?.id) return;
           const { error } = await supabase.rpc("salvar_push", { p_endpoint: "fcm:" + token, p_subscription: { fcm: token }, p_usuario: usuarioNativo, p_loja: LOJA_ID_ATIVA });
-          if (error) console.error("Falha ao salvar push nativo:", error.message);
-        } catch (e) { console.error("push nativo:", e); }
+          if (error) { console.error("Falha ao salvar push nativo:", error.message); avisarFalhaPush("Não foi possível ativar os avisos neste aparelho. Confira a internet e toque no sino de novo."); }
+        } catch (e) { console.error("push nativo:", e); avisarFalhaPush("Não foi possível ativar os avisos neste aparelho. Confira a internet e toque no sino de novo."); }
       });
-      await P.addListener("registrationError", (e) => console.error("Falha ao registrar push nativo:", e?.error || e));
+      await P.addListener("registrationError", (e) => { console.error("Falha ao registrar push nativo:", e?.error || e); avisarFalhaPush("Não foi possível ativar os avisos neste aparelho. Confira a internet e toque no sino de novo."); });
       await P.addListener("pushNotificationActionPerformed", (a) => { // toque no aviso: abre o produto/tela indicado (só caminhos do próprio app)
         try {
           const u = String(a?.notification?.data?.url || "");
-          if (u.startsWith("/") && !u.startsWith("//")) window.location.assign(window.location.origin + u);
+          if (u.startsWith("/") && !u.startsWith("//") && !u.includes("\\")) window.location.assign(window.location.origin + u);
         } catch { /* ok */ }
       });
-    }
+    })().catch((e) => { iniciandoOuvintes = null; throw e; }); // se falhar, a próxima tentativa refaz
+  }
+  return iniciandoOuvintes;
+}
+/** registra o aparelho no FCM e grava o token pelo servidor (RPC salvar_push); precisa de permissão já concedida */
+async function inscreverPushNativo(usuario) {
+  try {
+    const P = pluginPush(); if (!P) return;
+    usuarioNativo = usuario || null;
+    await prepararOuvintesNativos(P); // os ouvintes existem ANTES do register (o evento do token não se perde)
     await P.register();
   } catch (e) { console.error("Falha ao inscrever push nativo:", e); }
 }

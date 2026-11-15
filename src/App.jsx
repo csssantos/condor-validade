@@ -139,9 +139,10 @@ function AppInner() {
     ler(); window.addEventListener("focus", ler);
     return () => window.removeEventListener("focus", ler);
   }, []);
+  const notifTrocandoRef = useRef(false);
   const [toast, setToast] = useState(null);
   useEffect(() => { // permissão mudada pelas configurações do navegador também vale na hora
-    let st = null; const ler = () => { if (typeof Notification !== "undefined") setNotifPermission(Notification.permission); };
+    let st = null; const ler = () => { if (ehNativo()) return; if (typeof Notification !== "undefined") setNotifPermission(Notification.permission); };
     try { navigator.permissions?.query({ name: "notifications" }).then((r) => { st = r; r.addEventListener("change", ler); }).catch(() => {}); } catch { /* sem API */ }
     window.addEventListener("focus", ler);
     return () => { window.removeEventListener("focus", ler); try { st?.removeEventListener("change", ler); } catch { /* ok */ } };
@@ -850,18 +851,25 @@ function AppInner() {
   }
 
   async function toggleNotificacoes() {
-    if (typeof Notification === "undefined") { showToast("Seu navegador não suporta notificações.", "warn"); return; }
+    if (notifTrocandoRef.current) return; // toque duplo durante o pedido de permissão
+    if (!ehNativo() && typeof Notification === "undefined") { showToast("Seu navegador não suporta notificações.", "warn"); return; }
     if (isIOS() && !isStandalone()) {
       showToast("No iPhone, adicione o app à Tela de Início primeiro (Compartilhar → Adicionar à Tela de Início) para poder ativar notificações.", "warn");
       return;
     }
     if (notifPermission === "granted") { showToast("As notificações já estão ativas."); return; }
-    const perm = ehNativo() ? await pedirPermissaoPushNativa() : await Notification.requestPermission();
-    // ao ativar, o que já existe vira "linha de base" em silêncio: só avisos futuros chegam
-    if (perm === "granted" && idDoUsuario) limparNotifDaPessoa(idDoUsuario, true);
-    setNotifPermission(perm);
-    if (perm === "granted") await (ehNativo() ? inscreverPushNativo(usuario) : inscreverPush(usuario));
-    showToast(perm === "granted" ? "Notificações ativadas — você vai receber avisos mesmo com o app fechado." : "Permissão não concedida.", perm === "granted" ? "ok" : "warn");
+    notifTrocandoRef.current = true;
+    try {
+      const perm = ehNativo() ? await pedirPermissaoPushNativa() : await Notification.requestPermission();
+      if (perm === "unsupported") { showToast("Atualize o aplicativo Android para ativar as notificações.", "warn"); return; }
+      // ao ativar, o que já existe vira "linha de base" em silêncio: só avisos futuros chegam
+      if (perm === "granted" && idDoUsuario) limparNotifDaPessoa(idDoUsuario, true);
+      setNotifPermission(perm);
+      if (perm === "granted") await (ehNativo() ? inscreverPushNativo(usuario) : inscreverPush(usuario));
+      showToast(perm === "granted" ? "Notificações ativadas — você vai receber avisos mesmo com o app fechado."
+        : ehNativo() ? "Permissão não concedida. Para ativar depois, abra Configurações do Android → Apps → Bipi → Notificações."
+        : "Permissão não concedida.", perm === "granted" ? "ok" : "warn");
+    } finally { notifTrocandoRef.current = false; }
   }
 
   function handleBarcodeCaptured(codeRaw) {

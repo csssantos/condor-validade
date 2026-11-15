@@ -10,7 +10,7 @@ import { DashCard } from "../../componentes/dash";
 import { BLUE, LOGO_SRC, RED_DARK, RED_SOFT, SETORES } from "../../lib/constantes";
 import { supaFetchFuncionariosVisiveis } from "../../lib/dados";
 import { formatarMoeda } from "../../lib/formatos";
-import { isIOS, isStandalone } from "../../lib/notificacoes";
+import { ehNativo, isIOS, isStandalone } from "../../lib/notificacoes";
 import { useTelaLarga } from "../../lib/tela";
 import { apenasNumeros, parseCodigoBalanca, sanitizarTexto } from "../../lib/utilidades";
 import { ResumoDiarioControles } from "./ResumoDiario";
@@ -106,13 +106,13 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
             <MaisBolha cor={COR_MAIS.notificacoes} dark={dark} tamanho={52}>{ativa ? <Bell size={22} /> : <BellOff size={22} />}</MaisBolha>
             <div className="flex-1 min-w-0">
               <p style={{ color: T.text }} className="text-[15px] font-bold">Notificações do app</p>
-              <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">{ativa ? "Ativadas neste aparelho" : bloqueada ? "Bloqueadas no navegador" : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta"}</p>
+              <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">{ativa ? "Ativadas neste aparelho" : bloqueada ? (ehNativo() ? "Bloqueadas no Android" : "Bloqueadas no navegador") : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta"}</p>
             </div>
             {controleNotif}
           </div>
           <AnimatePresence>
           {iosSemInstalar && !ativa && <div className="px-4 pb-4"><MaisAviso>No iPhone, as notificações só funcionam depois de instalar o app: toque em <strong>Compartilhar</strong> no Safari → <strong>Adicionar à Tela de Início</strong> → abra pelo ícone criado e volte aqui para ativar.</MaisAviso></div>}
-          {bloqueada && <div className="px-4 pb-4"><MaisAviso tipo="erro">Você bloqueou as notificações. Para ativar, libere nas configurações do navegador (ícone do cadeado ao lado do endereço) e abra o app de novo.</MaisAviso></div>}
+          {bloqueada && <div className="px-4 pb-4"><MaisAviso tipo="erro">{ehNativo() ? "Você bloqueou as notificações. Para ativar, abra Configurações do Android → Apps → Bipi → Notificações e volte ao app." : "Você bloqueou as notificações. Para ativar, libere nas configurações do navegador (ícone do cadeado ao lado do endereço) e abra o app de novo."}</MaisAviso></div>}
         </AnimatePresence>
         </DashCard>
         {resumo && <DashCard T={T} title="Resumo diário" subtitle="O que vence e o que precisa de campanha, todo dia às 7h">{resumo}</DashCard>}
@@ -133,11 +133,11 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
     <>
       <MaisBloco T={T} titulo="Alertas" i={0}>
         <MaisLinha T={T} dark={dark} icon={ativa ? Bell : BellOff} cor={COR_MAIS.notificacoes} titulo="Notificações do app"
-          desc={ativa ? "Ativadas neste aparelho" : bloqueada ? "Bloqueadas no navegador" : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta"}
+          desc={ativa ? "Ativadas neste aparelho" : bloqueada ? (ehNativo() ? "Bloqueadas no Android" : "Bloqueadas no navegador") : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta"}
           direita={controleNotif} ultima />
         <AnimatePresence>
           {iosSemInstalar && !ativa && <div className="px-4 pb-4"><MaisAviso>No iPhone, as notificações só funcionam depois de instalar o app: toque em <strong>Compartilhar</strong> no Safari → <strong>Adicionar à Tela de Início</strong> → abra pelo ícone criado e volte aqui para ativar.</MaisAviso></div>}
-          {bloqueada && <div className="px-4 pb-4"><MaisAviso tipo="erro">Você bloqueou as notificações. Para ativar, libere nas configurações do navegador (ícone do cadeado ao lado do endereço) e abra o app de novo.</MaisAviso></div>}
+          {bloqueada && <div className="px-4 pb-4"><MaisAviso tipo="erro">{ehNativo() ? "Você bloqueou as notificações. Para ativar, abra Configurações do Android → Apps → Bipi → Notificações e volte ao app." : "Você bloqueou as notificações. Para ativar, libere nas configurações do navegador (ícone do cadeado ao lado do endereço) e abra o app de novo."}</MaisAviso></div>}
         </AnimatePresence>
       </MaisBloco>
       {resumo && <MaisBloco T={T} titulo="Resumo diário (7h)" i={1}>{resumo}</MaisBloco>}
