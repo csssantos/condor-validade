@@ -50,6 +50,8 @@ function urlPeloProxy(url) {
 }
 const REF_FUNCOES = (() => { try { const h = new URL(String(supabaseUrl)).hostname.split("."); return `https://${h[0]}.functions.${h.slice(1).join(".")}`; } catch { return ""; } })();
 const ehLeitura = (opcoes) => { const m = String((opcoes && opcoes.method) || "GET").toUpperCase(); return m === "GET" || m === "HEAD"; };
+// Repetir pelo outro caminho só o que não duplica efeito: leitura e login/renovação de sessão (auth). POST de dados (RPC, insert) não.
+const podeRepetir = (url, opcoes) => ehLeitura(opcoes) || /\/auth\/v1\//.test(String(url));
 const ehApi = (s) => /\/(rest|auth|functions)\/v1\//.test(s);
 function comLimite(url, opcoes, ms) {
   // um sinal próprio por tentativa (e respeita o sinal que o app já mandou)
@@ -70,6 +72,7 @@ async function buscarComRota(url, opcoes) {
     catch (e) {
       // o caminho do app falhou: se o direto passou a funcionar (a pessoa saiu da rede bloqueada), volta ao direto
       if ((opcoes && opcoes.signal && opcoes.signal.aborted) || (typeof navigator !== "undefined" && navigator.onLine === false)) throw e;
+      if (!podeRepetir(url, opcoes)) throw e; // pode ter chegado ao servidor: não repete gravação
       const r = await fetch(url, opcoes); // se também falhar, o erro de rede segue para o app
       proxyAte = 0; try { localStorage.removeItem(CHAVE_PROXY); } catch { /* ok */ }
       return r;
@@ -94,7 +97,14 @@ async function buscarComRota(url, opcoes) {
       if (ehLeitura(opcoes)) return fetch(viaApp, opcoes);
       throw e; // a pessoa tenta de novo e já vai pelo caminho do app
     }
-    const r = await fetch(viaApp, opcoes); // falha de conexão antes de qualquer resposta: seguro repetir. Se também falhar, o erro de rede segue para o app
+    if (!podeRepetir(url, opcoes)) {
+      // gravação: a falha pode ter vindo depois de o servidor receber; não repete. Se o caminho do app responde, liga e a pessoa tenta de novo.
+      let ok = false;
+      try { const h = await fetch(`${BASE_PROXY}/auth/v1/settings`, { headers: { apikey: supabaseAnonKey } }); ok = h.ok; } catch { ok = false; }
+      if (ok) gravarProxy(VALIDADE_BLOQUEIO_MS);
+      throw e;
+    }
+    const r = await fetch(viaApp, opcoes); // leitura/login: seguro repetir. Se também falhar, o erro de rede segue para o app
     gravarProxy(VALIDADE_BLOQUEIO_MS);
     return r;
   }
