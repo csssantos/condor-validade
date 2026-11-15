@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       const { data, error } = await supabase.from("push_subscriptions").select("*").in("usuario_id", ids);
       if (error) throw error;
       inscricoes = data || [];
-      payload = JSON.stringify({ title: "📦 Produto novo para aprovar", body: `${String(ap.nome).slice(0, 80)} · lançado por ${String(ap.solicitante).slice(0, 40)} pelo Telegram`, icon: "/icon-192.png", tag: `aprovacao-${ap.id}`, data: { url: "/" } });
+      payload = JSON.stringify({ selo: "PARA APROVAR", cor: "azul", title: "📦 Produto novo para aprovar", body: `${String(ap.nome).slice(0, 80)} · lançado por ${String(ap.solicitante).slice(0, 40)} pelo Telegram`, icon: "/icon-192.png", tag: `aprovacao-${ap.id}`, data: { url: "/" } });
     } else if (corpoReq.aviso) {
       return resposta(req, { ok: false, erro: "formato_antigo_nao_aceito" }, 400);
     } else {
@@ -135,6 +135,8 @@ function montarPayloadProduto(produto: any) {
     body: dias < 0 ? "Produto vencido — retire de venda e siga a orientação do encarregado do setor."
       : dias === 0 ? `Vence hoje · Setor ${produto.setor} · Valor estimado ${formatarMoeda(valor)}`
       : `Vence em ${dias} dia(s) · Setor ${produto.setor} · Valor estimado ${formatarMoeda(valor)}`,
+    selo: dias < 0 ? "VENCIDO" : dias === 0 ? "VENCE HOJE" : dias === 1 ? "VENCE AMANHÃ" : `VENCE EM ${dias} DIAS`,
+    cor: dias <= 3 ? "vermelho" : "ambar",
     icon: "/icon-192.png", image: produto.foto || undefined, tag: `produto-${produto.id}`,
     data: { itemId: produto.id, url: `/?produto=${produto.id}` },
   });
@@ -142,7 +144,7 @@ function montarPayloadProduto(produto: any) {
 const EMOJI_TIPO: Record<string, string> = { info: "📣", aviso: "⚠️", urgente: "🚨" };
 function montarPayloadAviso(aviso: any) {
   const emoji = EMOJI_TIPO[aviso.tipo] || EMOJI_TIPO.info;
-  return JSON.stringify({ title: `${emoji} ${aviso.titulo}`, body: aviso.mensagem, icon: "/icon-192.png", tag: `aviso-${aviso.id}`,
+  return JSON.stringify({ title: `${emoji} ${aviso.titulo}`, body: aviso.mensagem, selo: aviso.tipo === "urgente" ? "URGENTE" : "AVISO", cor: aviso.tipo === "urgente" ? "vermelho" : aviso.tipo === "aviso" ? "ambar" : "azul", icon: "/icon-192.png", tag: `aviso-${aviso.id}`,
     requireInteraction: aviso.tipo === "urgente", data: { avisoId: aviso.id, url: "/" } });
 }
 function formatarMoeda(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }

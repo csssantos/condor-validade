@@ -22,4 +22,10 @@ t("resumo-diario aceita só FCM (sem VAPID)", /!vapidOk && !fcmAtivo\(\)/.test(r
 t("workflow: plugin de push, Firebase e permissão", /push-notifications@6/.test(wf) && /google-services\.json/.test(wf) && /POST_NOTIFICATIONS/.test(wf));
 t("google-services.json é do pacote do app", gs.client?.[0]?.client_info?.android_client_info?.package_name === "com.usebipi.app");
 t("sem chave privada em arquivos do repo", !/PRIVATE KEY/.test(L("./android-config/google-services.json")));
+const jv = L("./android-nativo/java/BipiMessagingService.java");
+t("aviso próprio: serviço lê só dados e cai no plugin se não for do Bipi", /d\.get\("titulo"\)/.test(jv) && /sendRemoteMessage/.test(jv) && /onNewToken/.test(jv) && /getMethod\("onNewToken"/.test(jv));
+t("aviso próprio: respeita notificações desligadas e tem plano B simples", /areNotificationsEnabled/.test(jv) && /mostrarSimples/.test(jv));
+t("aviso próprio: layout, selos e Bipi existem", ["layout/notif_bipi_grande.xml","layout/notif_bipi_pequena.xml","drawable/pill_vermelho.xml","drawable/pill_ambar.xml","drawable/pill_azul.xml","drawable/pill_verde.xml","drawable/ic_stat_bipi.xml","drawable/notif_fundo.xml","drawable-nodpi/bipi_notif.png"].every((f) => { try { readFileSync(new URL("./android-nativo/res/" + f, import.meta.url)); return true; } catch { return false; } }));
+t("workflow copia o serviço, registra no manifesto e põe firebase-messaging", /android-nativo\/java\/BipiMessagingService\.java/.test(wf) && /MESSAGING_EVENT/.test(wf) && /firebase-messaging/.test(wf));
+t("selos de cor só dos 4 aceitos e título sem emoji no servidor", /vermelho\|ambar\|azul\|verde/.test(fcm) && /\\p\{L\}/.test(fcm));
 console.log(`\n${ok} ok, ${falhas} falhas`); process.exit(falhas ? 1 : 0);

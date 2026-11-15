@@ -60,9 +60,13 @@ export async function enviarFcm(token: string, payloadJson: string): Promise<Res
     const r = await fetch(`https://fcm.googleapis.com/v1/projects/${c.project_id}/messages:send`, { method: "POST", signal: AbortSignal.timeout(8000),
       headers: { Authorization: `Bearer ${at}`, "Content-Type": "application/json" },
       body: JSON.stringify({ message: { token,
-        notification: { title: String(p.title || "Bipi").slice(0, 120), body: String(p.body || "").slice(0, 300) },
-        data: { url },
-        android: { priority: "HIGH", ttl: "21600s", notification: { tag: p.tag ? String(p.tag).slice(0, 60) : undefined } } } }) });
+        // SÓ dados (sem bloco "notification"): quem desenha o aviso é o BipiMessagingService do APK (cartão do Bipi).
+        data: {
+          titulo: String(p.title || "Bipi").replace(/^[^\p{L}\p{N}]+/u, "").slice(0, 120) || "Bipi",
+          corpo: String(p.body || "").slice(0, 300),
+          selo: String(p.selo || "").slice(0, 30), cor: /^(vermelho|ambar|azul|verde)$/.test(String(p.cor)) ? String(p.cor) : "azul",
+          tag: p.tag ? String(p.tag).slice(0, 60) : "", url },
+        android: { priority: "HIGH", ttl: "21600s" } } }) });
     if (r.ok) return { ok: true, invalido: false };
     const t = await r.text();
     if (r.status === 401) tokenAcesso = null; // token de acesso revogado: pede outro no próximo envio

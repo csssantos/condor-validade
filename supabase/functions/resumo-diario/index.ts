@@ -90,7 +90,7 @@ Deno.serve(async (req: Request) => {
       const marca = { assets: "https://app.usebipi.com/email", nome: "Bipi Tech", suporte: "" };
       const tarefas: [string, boolean, () => Promise<boolean>][] = [
         ["telegram", !!(d.quer_telegram && d.chat_id), () => enviarTelegram(Number(d.chat_id), textoTelegram(r))],
-        ["push", !!d.quer_push, () => enviarPush(d.usuario_id, JSON.stringify({ title: "🗓️ Resumo do dia", body: corpoPush(r), icon: "/icon-192.png", tag: `resumo-${r.hoje_data}`, data: { url: "/" } }))],
+        ["push", !!d.quer_push, () => enviarPush(d.usuario_id, JSON.stringify({ selo: "RESUMO DO DIA", cor: "azul", title: "🗓️ Resumo do dia", body: corpoPush(r), icon: "/icon-192.png", tag: `resumo-${r.hoje_data}`, data: { url: "/" } }))],
         ["email", !!(d.quer_email && d.email), () => enviarEmail(d.email, modeloAviso({ titulo: "Resumo do dia", mensagem: mensagemEmail(r), detalhes: detalhesEmail(r), botao: { texto: "Abrir o Bipi", url: "https://app.usebipi.com" } }, marca), `resumo-${d.usuario_id}-${r.hoje_data}`)],
       ];
       for (const [canal, quer, fn] of tarefas) {

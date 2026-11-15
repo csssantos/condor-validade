@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="horizontal" android:gravity="center_vertical"
+    android:background="@drawable/notif_fundo" android:padding="12dp">
+    <ImageView android:layout_width="72dp" android:layout_height="72dp" android:src="@drawable/bipi_notif" android:contentDescription="@null" />
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:orientation="vertical" android:layout_marginStart="12dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="BIPI · ALERTA DE VALIDADE" android:textColor="#CFE0F7" android:textSize="9sp" android:letterSpacing="0.15" />
+        <TextView android:id="@+id/selo" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="5dp" android:paddingStart="9dp" android:paddingEnd="9dp" android:paddingTop="2dp" android:paddingBottom="2dp"
+            android:textSize="10sp" android:textStyle="bold" android:textColor="#FFFFFF" android:visibility="gone" />
+        <TextView android:id="@+id/titulo" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" android:maxLines="2" android:ellipsize="end" />
+        <TextView android:id="@+id/corpo" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="2dp" android:textColor="#E6EEF9" android:textSize="13sp" android:maxLines="4" android:ellipsize="end" />
+    </LinearLayout>
+</LinearLayout>

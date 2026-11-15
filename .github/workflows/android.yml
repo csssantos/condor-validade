@@ -34,6 +34,14 @@ jobs:
           res=android/app/src/main/res
           rm -f $res/mipmap-anydpi-v26/ic_launcher.xml $res/mipmap-anydpi-v26/ic_launcher_round.xml
           for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do cp android-icones/mipmap-$d/*.png $res/mipmap-$d/; done
+          # Aviso próprio do Bipi (cartão com o mascote): serviço que recebe o push e desenha a notificação
+          cp -r "$GITHUB_WORKSPACE/android-nativo/res/." $res/
+          mkdir -p android/app/src/main/java/com/usebipi/app
+          cp "$GITHUB_WORKSPACE/android-nativo/java/BipiMessagingService.java" android/app/src/main/java/com/usebipi/app/
+          sed -i 's#</application>#    <service android:name=".BipiMessagingService" android:exported="false"><intent-filter android:priority="100"><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter></service>\n    </application>#' "$f"
+          grep -q "BipiMessagingService" "$f" || { echo "ERRO: serviço do aviso não entrou no manifesto"; exit 1; }
+          sed -i '0,/^dependencies {/s##dependencies {\n    implementation "com.google.firebase:firebase-messaging:23.4.1"#' android/app/build.gradle
+          grep -q "firebase-messaging" android/app/build.gradle || { echo "ERRO: dependência firebase-messaging não entrou"; exit 1; }
           grep -q "google-services" android/build.gradle android/app/build.gradle || { echo "ERRO: plugin google-services não encontrado nos gradle (APK ficaria sem push)"; exit 1; }
       - name: Sincronizar e compilar
         working-directory: /tmp/apk

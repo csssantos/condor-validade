@@ -55,12 +55,13 @@ for (const [u, esp] of [["//evil", "/"], ["https://evil.com", "/"], ["javascript
 // truncamento
 calls.length = 0; await m.enviarFcm("t", pl({ title: "a".repeat(500), body: "b".repeat(1000), tag: "c".repeat(200) }));
 const b2 = JSON.parse(calls.at(-1).o.body).message;
-t("título 120", b2.notification.title.length === 120);
-t("corpo 300", b2.notification.body.length === 300);
-t("tag 60", b2.android.notification.tag.length === 60);
+t("título 120", b2.data.titulo.length === 120);
+t("corpo 300", b2.data.corpo.length === 300);
+t("tag 60", b2.data.tag.length === 60);
+t("mensagem só de dados (sem bloco notification)", !("notification" in b2));
 calls.length = 0; await m.enviarFcm("t", pl({}));
 const b3 = JSON.parse(calls.at(-1).o.body).message;
-t("título padrão Bipi, corpo vazio, sem tag", b3.notification.title === "Bipi" && b3.notification.body === "" && !("tag" in b3.android.notification));
+t("título padrão Bipi, corpo vazio, sem tag", b3.data.titulo === "Bipi" && b3.data.corpo === "" && b3.data.tag === "" && b3.data.cor === "azul");
 // invalido
 for (const [st, txt, inv] of [[404, "{}", false], [400, '{"error":{"status":"INVALID_ARGUMENT","message":"The registration token is not a valid FCM registration token"}}', true], [404, '{"error":{"details":[{"errorCode":"UNREGISTERED"}]}}', true], [500, "boom", false], [403, '{"error":{"status":"PERMISSION_DENIED"}}', false], [401, '{"error":{"status":"UNAUTHENTICATED"}}', false], [400, '{"error":{"status":"INVALID_ARGUMENT","message":"Invalid value at message.android.ttl"}}', false], [400, '{"error":{"status":"INVALID_ARGUMENT","message":"Invalid JSON payload ... token field"}}', false], [404, '{"error":{"status":"NOT_FOUND","message":"Requested entity was not found (projeto errado)"}}', false]]) {
   fcmResp = () => new Response(txt, { status: st }); r = await m.enviarFcm("t", pl({}));
