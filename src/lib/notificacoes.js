@@ -46,7 +46,7 @@ async function pedirPermissaoPushNativa() {
 }
 let usuarioNativo = null;
 let iniciandoOuvintes = null;
-const avisarFalhaPush = (m) => { try { window.dispatchEvent(new CustomEvent("condor-aviso-erro", { detail: m })); } catch { /* ok */ } };
+const avisarFalhaPush = (m) => { try { window.dispatchEvent(new CustomEvent("condor-aviso-erro", { detail: { mensagem: m } })); } catch { /* ok */ } };
 function prepararOuvintesNativos(P) {
   if (!iniciandoOuvintes) {
     iniciandoOuvintes = (async () => {

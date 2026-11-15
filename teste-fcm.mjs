@@ -82,3 +82,4 @@ r = await m.enviarFcm("t", "não json"); t("payload não-JSON -> ok false", !r.o
 env = { FCM_SERVICE_ACCOUNT: conta() }; m = await load(); calls = [];
 r = await m.enviarFcm("t", pl({ title: "x" })); t("chave PEM de JSON.stringify lida", r.ok);
 console.log(pass, "ok", fail, "falhas");
+process.exit(fail ? 1 : 0);

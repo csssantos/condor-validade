@@ -48,6 +48,7 @@ async function enviarPush(usuarioId: string, payload: string) {
   if (error || !subs?.length) return false;
   const rs = await Promise.allSettled(subs.map((s: any) => (s.subscription?.fcm
     ? enviarFcm(String(s.subscription.fcm), payload).then(async (r) => { if (r.invalido) await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint); if (!r.ok) throw new Error("fcm"); })
+    : !vapidOk ? Promise.reject(new Error("sem-vapid"))
     : webpush.sendNotification(s.subscription, payload, { TTL: 6 * 3600, urgency: "normal", timeout: 8000 })).catch(async (e: any) => {
     if (e?.statusCode === 404 || e?.statusCode === 410) await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
     throw e;
