@@ -66,10 +66,32 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+const HOST_SUPABASE = "fbovltxucooeoldjfckk.supabase.co";
+let diretoBloqueadoAte = 0; // depois de uma falha, as próximas fotos vão direto pelo caminho do app por 10 min
+async function buscarFoto(request, url) {
+  const pelaCasa = () => fetch(`${self.location.origin}/supa${url.pathname}${url.search}`, { mode: request.mode === "cors" ? "cors" : "same-origin" });
+  if (Date.now() < diretoBloqueadoAte) { try { return await pelaCasa(); } catch { /* tenta o direto abaixo */ } }
+  try {
+    return await Promise.race([
+      fetch(request),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("sem_resposta")), 6000)),
+    ]);
+  } catch {
+    diretoBloqueadoAte = Date.now() + 10 * 60 * 1000;
+    try { return await pelaCasa(); } catch { return new Response("", { status: 504 }); }
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
+  // Fotos de produto (Storage do Supabase): em rede que bloqueia o Supabase (ex.: rede da empresa) pedem pelo caminho /supa do próprio app
+  // (a Vercel repassa; ver vercel.json). Se o direto funciona, nada muda; se falhar ou não responder em 6 s, usa o caminho do app.
+  if (url.hostname === HOST_SUPABASE && request.destination === "image" && url.pathname.startsWith("/storage/v1/object/public/")) {
+    event.respondWith(buscarFoto(request, url));
+    return;
+  }
   if (url.origin !== self.location.origin) return; // Supabase, fontes etc.: direto na rede
 
   // Abrir o app (navegação): serve a versão já instalada. Sem cache ainda → rede.

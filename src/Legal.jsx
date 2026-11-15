@@ -7,10 +7,18 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-11-14";
+export const TERMOS_VERSAO = "2026-11-15";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-15", docs: {
+    privacidade: [
+      "Em redes que bloqueiam o endereço do nosso servidor de dados (por exemplo, a rede de uma empresa), o app passa a enviar as chamadas ao servidor pelo endereço do próprio app, hospedado na Vercel, que apenas repassa o tráfego (login, consultas e fotos de produto) ao Supabase. Nesse caso a Vercel processa o tráfego do app, incluindo o seu e-mail e o seu token de acesso, só para repassá-lo; não guarda o conteúdo. Fora dessas redes, nada muda.",
+    ],
+    armazenamento: [
+      "O app guarda neste aparelho um aviso temporário (por até 6 horas) de que a rede bloqueou o servidor e que o caminho alternativo deve ser usado.",
+    ],
+  } },
   { versao: "2026-11-14", docs: {
     privacidade: [
       "Novo recurso opcional, só para encarregados e cargos acima: o resumo diário. Se você ligar (começa sempre desligado), todo dia às 7h o app envia a você, só se houver algo a avisar, o resumo dos produtos do seu setor (ou da sua loja, se você não tem setor): quantos lotes estão vencidos ou vencem em até 10 dias, quantos estão sem pedido de campanha, quantos produtos novos esperam aprovação e os 5 mais urgentes, com nome do produto, validade, lote e quantidade.",
@@ -203,7 +211,7 @@ export const DOCUMENTOS = [
         { t: "5. Com quem compartilhamos", p: [
           "Dentro da sua loja/empresa: gestores e pessoas autorizadas no app, de acordo com o cargo e a loja. Os valores financeiros podem ser ocultados de alguns cargos.",
           "Fornecedores de tecnologia (operadores), que tratam os dados só para prestar o serviço, sob os termos de uso e de proteção de dados de cada um:",
-          "• Supabase: banco de dados, login, funções do servidor e armazenamento de arquivos (todos os dados do app; as fotos de produto ficam em arquivos com link público, sem lista aberta: por isso não fotografe pessoas nem documentos). • Vercel: hospedagem do site (endereço IP e dados técnicos de acesso). • Resend: envio dos e-mails de confirmação de cadastro e recuperação de senha (recebe só o seu e-mail, o primeiro nome do cadastro e o link de uso único da mensagem). • Serviço de notificações do seu aparelho (Apple, Google ou Microsoft): só o identificador de inscrição e o texto do aviso, se você ativar. • Telegram: só se você vincular (identificador da conversa e mensagens ao bot). • Open Food Facts: só o código de barras de produto novo. • Google Gemini: as perguntas feitas ao assistente de IA e os dados da loja necessários para responder. • Reconhecimento de voz do seu navegador ou aparelho: o que você fala, só quando usa a voz.",
+          "• Supabase: banco de dados, login, funções do servidor e armazenamento de arquivos (todos os dados do app; as fotos de produto ficam em arquivos com link público, sem lista aberta: por isso não fotografe pessoas nem documentos). • Vercel: hospedagem do site (endereço IP e dados técnicos de acesso) e, quando a rede bloqueia o servidor de dados, repasse do tráfego do app ao Supabase (sem guardar o conteúdo). • Resend: envio dos e-mails de confirmação de cadastro e recuperação de senha (recebe só o seu e-mail, o primeiro nome do cadastro e o link de uso único da mensagem). • Serviço de notificações do seu aparelho (Apple, Google ou Microsoft): só o identificador de inscrição e o texto do aviso, se você ativar. • Telegram: só se você vincular (identificador da conversa e mensagens ao bot). • Open Food Facts: só o código de barras de produto novo. • Google Gemini: as perguntas feitas ao assistente de IA e os dados da loja necessários para responder. • Reconhecimento de voz do seu navegador ou aparelho: o que você fala, só quando usa a voz.",
           "Resumo diário (opcional, só se você ligar): o conteúdo do resumo (nomes de produtos, validades, lotes e quantidades do seu setor ou da sua loja) é enviado a você pelo canal que escolher: Telegram, notificação do aparelho ou e-mail (pelo Resend). Nada disso é enviado a outras pessoas.",
           "Autoridades públicas e judiciais, quando houver obrigação legal ou ordem válida.",
           "Não vendemos nem alugamos dados pessoais.",

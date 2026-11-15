@@ -15,6 +15,53 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const JANELA_MS = 10000, MAX_JANELA = 150;
 let marcas = [], pausaAte = 0;
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// REDE QUE BLOQUEIA O SERVIDOR (ex.: rede da empresa): se o endereço do Supabase não responde mas o próprio app abre, as chamadas passam a ir
+// por "/supa" no endereço do app (a Vercel repassa ao Supabase; ver vercel.json). Só liga depois de a chamada direta FALHAR (erro de rede ou
+// sem resposta em 8 s antes do 1º sucesso) e a mesma chamada funcionar pelo caminho do app; fica lembrado por 6 h e depois testa o direto de novo.
+// O cliente continua criado com o endereço direto (a chave da sessão não muda); só o fetch é reescrito.
+const CHAVE_PROXY = "avdc_via_proxy";
+const VALIDADE_PROXY_MS = 6 * 3600 * 1000;
+const TEMPO_DIRETO_MS = 8000;
+const podeProxy = typeof window !== "undefined" && /^https:$/.test(window.location.protocol) && !!supabaseUrl;
+const BASE_PROXY = podeProxy ? `${window.location.origin}/supa` : "";
+const lerProxy = () => { try { const t = Number(localStorage.getItem(CHAVE_PROXY)); return t > 0 && Date.now() - t < VALIDADE_PROXY_MS; } catch { return false; } };
+let viaProxy = podeProxy && lerProxy();
+let diretoOk = false; // já houve uma resposta direta nesta abertura: sem limite de tempo a partir daí
+export const usandoProxy = () => viaProxy;
+function gravarProxy(ligado) {
+  viaProxy = ligado;
+  try { if (ligado) localStorage.setItem(CHAVE_PROXY, String(Date.now())); else localStorage.removeItem(CHAVE_PROXY); } catch { /* sem armazenamento: vale só nesta abertura */ }
+}
+function urlPeloProxy(url) {
+  const s = typeof url === "string" ? url : (url && typeof url.href === "string" ? url.href : "");
+  return s && s.startsWith(String(supabaseUrl)) ? BASE_PROXY + s.slice(String(supabaseUrl).length) : null;
+}
+function comLimite(url, opcoes, ms) {
+  // um sinal próprio por tentativa (e respeita o sinal que o app já mandou)
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  const externo = opcoes && opcoes.signal;
+  if (externo) { if (externo.aborted) c.abort(); else externo.addEventListener("abort", () => c.abort(), { once: true }); }
+  return fetch(url, { ...(opcoes || {}), signal: c.signal }).finally(() => clearTimeout(t));
+}
+async function buscarComRota(url, opcoes) {
+  const viaApp = podeProxy ? urlPeloProxy(url) : null;
+  if (!viaApp) return fetch(url, opcoes); // outro endereço (ou sem proxy possível): como sempre
+  if (viaProxy) return fetch(viaApp, opcoes);
+  if (diretoOk) return fetch(url, opcoes);
+  try {
+    const r = await comLimite(url, opcoes, TEMPO_DIRETO_MS);
+    diretoOk = true;
+    return r;
+  } catch (e) {
+    if (opcoes && opcoes.signal && opcoes.signal.aborted) throw e; // o próprio app cancelou
+    if (typeof navigator !== "undefined" && navigator.onLine === false) throw e; // sem internet de verdade
+    const r = await fetch(viaApp, opcoes); // se também falhar, o erro original de rede segue para o app
+    gravarProxy(true);
+    return r;
+  }
+}
 async function fetchComFreio(url, opcoes) {
   for (let i = 0; i < 40; i++) {
     const agora = Date.now();
@@ -23,7 +70,7 @@ async function fetchComFreio(url, opcoes) {
     await dormir(Math.max(200, Math.min(2000, pausaAte - agora, JANELA_MS - (agora - (marcas[0] || agora)))));
   }
   marcas.push(Date.now());
-  const resp = await fetch(url, opcoes);
+  const resp = await buscarComRota(url, opcoes);
   if (resp.status === 429 || resp.status === 503) pausaAte = Date.now() + 5000;
   return resp;
 }
@@ -82,7 +129,13 @@ export const abriuPorRecuperacao = veioDoLink || lerFlag();
 export const limparRecuperacao = () => { try { localStorage.removeItem(CHAVE_RECUPERANDO); } catch { /* ok */ } };
 export const linkComErro = /(^|[#&?])error(_code)?=/.test(hashDoLink) || /(^|[#&?])error(_code)?=/.test(buscaDoLink); // ex.: otp_expired (link vencido ou já usado)
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, { global: { fetch: fetchComFreio }, auth: { detectSessionInUrl: !ignorarLink } });
+// Tempo real não passa pelo caminho do app (a Vercel não repassa conexão contínua): em rede bloqueada ele tenta de novo só a cada 60 s
+// e as telas seguem atualizando pelas consultas periódicas que já existem.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { fetch: fetchComFreio },
+  auth: { detectSessionInUrl: !ignorarLink },
+  realtime: { reconnectAfterMs: (tentativas) => (viaProxy ? 60000 : [1000, 2000, 5000, 10000][tentativas - 1] || 10000) },
+});
 
 // "Sair e usar o link": confere o link ANTES de sair (se estiver vencido/usado a pessoa continua na conta dela), sai SÓ deste aparelho
 // (escopo local), entra com a sessão do link e, se for recuperação, liga a tela "Nova senha" (flag gravada ANTES de entrar).
