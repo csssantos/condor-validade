@@ -1,4 +1,5 @@
 // Parte do App (separado de App.jsx em 2026-11-05). Mudanças de comportamento: ver CLAUDE.md.
+import { comTempo } from "./carregar.js";
 import { getStatus } from "./formatos";
 
 // ---------- Validação / sanitização de inputs ----------
@@ -171,9 +172,18 @@ function downloadCSV(rows, header, filename) {
   URL.revokeObjectURL(url);
 }
 
+let gerandoPlanilha = false;
 async function downloadPlanilha(linhas, filename, sheetName = "Dados") {
+  if (gerandoPlanilha) return false; // toque duplo: já está gerando
+  gerandoPlanilha = true;
   try {
-    const XLSX = await import("xlsx"); // biblioteca pesada: só baixa quando alguém exporta uma planilha
+    let XLSX;
+    try { XLSX = await comTempo(import("xlsx")); } // biblioteca pesada: só baixa quando alguém exporta uma planilha
+    catch (e) {
+      console.error("Erro ao carregar o módulo de planilha", e);
+      avisarErro("Não foi possível carregar o gerador de planilha. Conecte-se à internet e tente de novo.");
+      return false;
+    }
     const ws = XLSX.utils.json_to_sheet(linhas.map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) => [k, celulaPlanilha(v)]))));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
@@ -181,9 +191,15 @@ async function downloadPlanilha(linhas, filename, sheetName = "Dados") {
     return true;
   } catch (e) {
     console.error("Erro ao gerar planilha", e);
-    try { window.dispatchEvent(new CustomEvent("condor-aviso-erro", { detail: { mensagem: "Não foi possível gerar a planilha agora. Conecte-se à internet e tente de novo." } })); } catch { /* ok */ }
+    avisarErro("Não foi possível gerar a planilha agora. Tente de novo.");
     return false;
+  } finally {
+    gerandoPlanilha = false;
   }
+}
+
+function avisarErro(mensagem) {
+  try { window.dispatchEvent(new CustomEvent("condor-aviso-erro", { detail: { mensagem } })); } catch { /* ok */ }
 }
 
 function downloadJSON(obj, filename) {

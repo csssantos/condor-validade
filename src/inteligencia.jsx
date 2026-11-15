@@ -9,6 +9,7 @@
 // ============================================================================
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "./supabaseClient";
+import { comTempo } from "./lib/carregar";
 import {
   Loader2, X, AlertTriangle, TrendingUp, TrendingDown, Minus, ShieldCheck, Sparkles, Send, Camera, Barcode,
   ClipboardList, Target, Radar, Flame, PackageX, ChevronRight, MessageSquare, Plus, CheckCircle2, Info, RefreshCw,
@@ -163,25 +164,39 @@ function BarraRisco({ score }) {
 }
 
 // gráfico simples (barras/linha) a partir de dados reais vindos do banco
-const GraficoRecharts = React.lazy(() => import("./GraficoRecharts"));
+// O carregamento guarda só o sucesso: se falhar (sem internet), o botão "Tentar de novo" refaz o import.
+let promessaGrafico = null;
+function carregarGrafico() {
+  if (!promessaGrafico) promessaGrafico = comTempo(import("./GraficoRecharts")).catch((e) => { promessaGrafico = null; throw e; });
+  return promessaGrafico;
+}
 
 export function GraficoSimples({ T, tipo = "barras", dados, formato, altura = 210, cor = BLUE }) {
+  const [tentativa, setTentativa] = useState(0);
+  const Grafico = useMemo(() => React.lazy(carregarGrafico), [tentativa]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!dados?.length) return <Vazio T={T} texto="Sem dados para o gráfico." />;
   return (
-    <ErroGrafico T={T} altura={altura}>
+    <ErroGrafico T={T} altura={altura} onTentar={() => setTentativa((n) => n + 1)} chave={tentativa}>
       <React.Suspense fallback={<div style={{ height: altura }} className="flex items-center justify-center"><Loader2 size={20} className="animate-spin" style={{ color: T.subtext }} /></div>}>
-        <GraficoRecharts T={T} tipo={tipo} dados={dados} formato={formato} altura={altura} cor={cor} />
+        <Grafico T={T} tipo={tipo} dados={dados} formato={formato} altura={altura} cor={cor} />
       </React.Suspense>
     </ErroGrafico>
   );
 }
 
-// Se o arquivo do gráfico não carregar (sem internet na 1ª vez), mostra aviso em vez de derrubar a tela.
+// Se o arquivo do gráfico não carregar (sem internet na 1ª vez), mostra aviso com botão em vez de derrubar a tela.
 class ErroGrafico extends React.Component {
   state = { erro: false };
   static getDerivedStateFromError() { return { erro: true }; }
+  componentDidUpdate(prev) { if (prev.chave !== this.props.chave && this.state.erro) this.setState({ erro: false }); }
   render() {
-    if (this.state.erro) return <div style={{ height: this.props.altura, color: this.props.T.subtext }} className="flex items-center justify-center text-[12px] text-center px-4">Não foi possível carregar o gráfico agora. Conecte-se à internet e feche e abra o app de novo.</div>;
+    const { T, altura, onTentar } = this.props;
+    if (this.state.erro) return (
+      <div style={{ height: altura, color: T.subtext }} className="flex flex-col items-center justify-center gap-2 text-[12px] text-center px-4">
+        <span>Não foi possível carregar o gráfico. Confira a internet.</span>
+        <button type="button" onClick={onTentar} style={{ background: T.chipBg, color: T.text }} className="px-3 py-1.5 rounded-xl font-semibold active:scale-95">Tentar de novo</button>
+      </div>
+    );
     return this.props.children;
   }
 }

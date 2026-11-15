@@ -103,7 +103,7 @@ function protegerPDF(fn) {
     const opc = args.find((x) => x && typeof x === "object" && typeof x.showToast === "function");
     opc?.showToast?.("Gerando o PDF…", "carregando");
     try { await fn(...args); }
-    catch (e) { console.error("Erro ao gerar PDF", e); opc?.showToast?.("Não foi possível gerar o PDF. Tente de novo.", "erro"); }
+    catch (e) { console.error("Erro ao gerar PDF", e); opc?.showToast?.("Não foi possível gerar o PDF. Confira a internet e tente de novo.", "erro"); }
     finally { gerandoPDF = false; }
   };
 }
