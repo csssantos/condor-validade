@@ -181,7 +181,7 @@ class ErroGrafico extends React.Component {
   state = { erro: false };
   static getDerivedStateFromError() { return { erro: true }; }
   render() {
-    if (this.state.erro) return <div style={{ height: this.props.altura, color: this.props.T.subtext }} className="flex items-center justify-center text-[12px] text-center px-4">Não foi possível carregar o gráfico agora. Conecte-se à internet e abra a tela de novo.</div>;
+    if (this.state.erro) return <div style={{ height: this.props.altura, color: this.props.T.subtext }} className="flex items-center justify-center text-[12px] text-center px-4">Não foi possível carregar o gráfico agora. Conecte-se à internet e feche e abra o app de novo.</div>;
     return this.props.children;
   }
 }
