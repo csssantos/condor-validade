@@ -1,0 +1,11 @@
+{
+  "appId": "com.usebipi.app",
+  "appName": "Bipi",
+  "webDir": "www",
+  "server": {
+    "url": "https://app.usebipi.com",
+    "cleartext": false,
+    "allowNavigation": ["app.usebipi.com"]
+  },
+  "android": { "allowMixedContent": false }
+}
