@@ -94,6 +94,7 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname === "/" || url.pathname === "/index.html") return; // consulta de versão do app: rede direta, sem cache
 
   // Arquivos do app (hash no nome, nunca mudam): cache primeiro.
+  // Inclui os pedaços carregados sob demanda (PDF, planilha, gráficos): entram no cache na 1ª vez que alguém usa (precisa de internet nessa vez).
   if (url.pathname.startsWith("/assets/")) {
     event.respondWith((async () => {
       const cacheAssets = await caches.open(CACHE_ASSETS);

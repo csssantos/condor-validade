@@ -2,7 +2,6 @@
 // degradê azul da marca, círculo claro translúcido, bolinhas, logo em cartão branco e o Bipi.
 // Todas as tabelas medem o texto (splitTextToSize) e quebram/cortam dentro da coluna:
 // nada passa por cima da coluna vizinha.
-import jsPDF from "jspdf";
 
 export const COR = {
   azul: [11, 79, 158], azulEscuro: [8, 47, 94], azulClaro: [27, 111, 209], fundoEscuro: [6, 28, 58],
@@ -47,6 +46,7 @@ function degrade(doc, x, y, w, h) {
 }
 
 export async function criarPDF({ titulo, subtitulo, usuario, lojaNumero, logo, logoProporcao = 199 / 900, formatarDataHora, bipi = true }) {
+  const { default: jsPDF } = await import("jspdf"); // biblioteca pesada: só baixa quando alguém gera um PDF
   const doc = new jsPDF();
   const bipiImg = bipi ? await carregarBipiDataUrl() : null;
   const loja = lojaNumero || "79";

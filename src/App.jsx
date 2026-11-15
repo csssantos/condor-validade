@@ -397,9 +397,11 @@ function AppInner() {
       showToast((ev.detail && ev.detail.mensagem) || "Não foi possível gravar.", "warn");
       recarregar();
     }
+    function aoAviso(ev) { if (ev.detail && ev.detail.mensagem) showToast(ev.detail.mensagem, "erro"); }
     window.addEventListener("condor-erro-gravacao", aoErroGravacao);
     window.addEventListener("condor-recarregar-dados", recarregar);
-    return () => { window.removeEventListener("condor-erro-gravacao", aoErroGravacao); window.removeEventListener("condor-recarregar-dados", recarregar); };
+    window.addEventListener("condor-aviso-erro", aoAviso);
+    return () => { window.removeEventListener("condor-erro-gravacao", aoErroGravacao); window.removeEventListener("condor-recarregar-dados", recarregar); window.removeEventListener("condor-aviso-erro", aoAviso); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

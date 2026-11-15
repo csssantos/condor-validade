@@ -472,3 +472,7 @@ Retrato do banco no dia: 2 lojas, 5 usuários (3 ativos), 45 lotes, 169 produtos
 
 ## CARGO REGIONAL (2026-11-14, pedido do dono) — `supabase-cargo-regional.sql` (JÁ APLICADO)
 - O cargo de nível 2 (antes DIRETOR) agora é REGIONAL: só mudou o nome (mesmo id, nível e permissões; o código usa NÍVEL, nunca o nome). Textos "diretoria" → "regional" em Gestao.jsx, Legal.jsx, Novidades (rótulo "Regional e Dev"). Entradas antigas do histórico de Novidades ficaram com "diretoria" de propósito. Nova pessoa com cargo nível 2 → escolher REGIONAL.
+
+## CARREGAMENTO SOB DEMANDA (2026-11-14, pedido do dono) — sem SQL
+- jsPDF (`criarPDF` em pdfMarca.js: `await import("jspdf")`), xlsx (`downloadPlanilha` agora async, `import("xlsx")`; falha dispara o evento `condor-aviso-erro` que o AppInner mostra como toast) e recharts (`src/GraficoRecharts.jsx`, `React.lazy` + `ErroGrafico` em `GraficoSimples`) saem do pacote principal. Na 1ª vez que alguém usa cada um precisa de internet (o sw.js guarda o pedaço depois; não houve troca de CACHE_SHELL). Não dá para conferir o tamanho do bundle aqui (sem npm/vite): conferir no build do CI/Vercel.
+- NÃO FEITO por limite do sandbox: `package-lock.json` (npm sem rede; gerar no PC do dono com `npm install` e commitar). Graphify reindexa sozinho a cada push em main. Item "lista de trocas por fornecedor" CANCELADO pelo dono.

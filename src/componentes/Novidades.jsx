@@ -10,6 +10,9 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = regional e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-14-leve", data: "14/11/2026", itens: [
+    { tipo: "melhorado", ate: 7, texto: "O app abre mais rápido: PDF, planilha e gráficos só são carregados quando você usa. Na primeira vez que usar um deles, precisa de internet." },
+  ] },
   { id: "2026-11-14-regional", data: "14/11/2026", itens: [
     { tipo: "melhorado", ate: 2, texto: "O cargo de nível 2 agora se chama Regional (antes Diretor). As permissões continuam as mesmas." },
   ] },

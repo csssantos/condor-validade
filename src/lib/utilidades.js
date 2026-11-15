@@ -1,5 +1,4 @@
 // Parte do App (separado de App.jsx em 2026-11-05). Mudanças de comportamento: ver CLAUDE.md.
-import * as XLSX from "xlsx";
 import { getStatus } from "./formatos";
 
 // ---------- Validação / sanitização de inputs ----------
@@ -172,8 +171,9 @@ function downloadCSV(rows, header, filename) {
   URL.revokeObjectURL(url);
 }
 
-function downloadPlanilha(linhas, filename, sheetName = "Dados") {
+async function downloadPlanilha(linhas, filename, sheetName = "Dados") {
   try {
+    const XLSX = await import("xlsx"); // biblioteca pesada: só baixa quando alguém exporta uma planilha
     const ws = XLSX.utils.json_to_sheet(linhas.map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) => [k, celulaPlanilha(v)]))));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
@@ -181,6 +181,7 @@ function downloadPlanilha(linhas, filename, sheetName = "Dados") {
     return true;
   } catch (e) {
     console.error("Erro ao gerar planilha", e);
+    try { window.dispatchEvent(new CustomEvent("condor-aviso-erro", { detail: { mensagem: "Não foi possível gerar a planilha agora. Conecte-se à internet e tente de novo." } })); } catch { /* ok */ }
     return false;
   }
 }
