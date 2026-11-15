@@ -727,7 +727,7 @@ export function PaginaPedidosLGPD({ T, showToast }) {
     setSalvando(false);
     if (error) {
       const m = error.message || "";
-      showToast?.(m.includes("pedido_ja_respondido") ? "Esse pedido já foi respondido por outra pessoa." : m.includes("nao_responde_o_proprio") ? "Você não pode responder um pedido seu. Peça a outra pessoa do regional ou ao desenvolvedor." : m.includes("resposta_obrigatoria") ? "Escreva a resposta (mínimo de 10 letras)." : m.includes("sem_permissao") ? "Só o desenvolvedor ou o regional respondem pedidos LGPD." : m.includes("limite_excedido") ? "Muitas ações em pouco tempo. Espere um minuto." : "Não foi possível salvar a resposta. Tente de novo.", "erro");
+      showToast?.(m.includes("pedido_ja_respondido") ? "Esse pedido já foi respondido por outra pessoa." : m.includes("nao_responde_o_proprio") ? "Você não pode responder um pedido seu. Peça a outra pessoa com cargo de Regional ou ao desenvolvedor." : m.includes("resposta_obrigatoria") ? "Escreva a resposta (mínimo de 10 letras)." : m.includes("sem_permissao") ? "Só o desenvolvedor ou o regional respondem pedidos LGPD." : m.includes("limite_excedido") ? "Muitas ações em pouco tempo. Espere um minuto." : "Não foi possível salvar a resposta. Tente de novo.", "erro");
       carregar(); return;
     }
     if (status === "em_analise") { showToast?.("Pedido marcado como em análise. O texto não foi enviado.", "ok"); carregar(); return; }
@@ -769,7 +769,7 @@ export function PaginaPedidosLGPD({ T, showToast }) {
           {fim && p.respondido_em && <span>{p.status === "negada" ? "Negado" : "Respondido"} {fmt(p.respondido_em)}{p.respondido_por_nome ? ` por ${p.respondido_por_nome}` : ""}</span>}
         </div>
         {fim && p.resposta && <p style={{ background: T.chipBg, color: T.text }} className="text-[12.5px] mt-2.5 leading-snug rounded-2xl px-3 py-2.5 whitespace-pre-line break-words"><b>{p.status === "negada" ? "Motivo:" : "Resposta:"}</b> {p.resposta}</p>}
-        {!fim && p.eh_meu && <p style={{ background: T.chipBg, color: T.subtext }} className="text-[12px] mt-3 rounded-2xl px-3 py-2 leading-snug">Este pedido é seu: outra pessoa do regional ou o desenvolvedor precisa responder.</p>}
+        {!fim && p.eh_meu && <p style={{ background: T.chipBg, color: T.subtext }} className="text-[12px] mt-3 rounded-2xl px-3 py-2 leading-snug">Este pedido é seu: outra pessoa com cargo de Regional ou o desenvolvedor precisa responder.</p>}
         {!fim && !p.eh_meu && !ab && (
           <motion.button whileTap={{ scale: 0.97 }} onClick={() => setAberto(p.id)} className="mt-3 w-full rounded-2xl py-2.5 text-[13px] font-extrabold text-white" style={{ background: `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` }}>{temRascunho ? "Continuar atendimento" : "Atender"}</motion.button>
         )}

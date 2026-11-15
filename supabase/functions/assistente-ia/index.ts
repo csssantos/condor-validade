@@ -382,7 +382,7 @@ Deno.serve(async (req) => {
   const auth = req.headers.get("Authorization") || "";
   const sb = createClient(url, anon, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
 
-  // segurança: nada abaixo roda sem usuário logado; diagnósticos só para DEV/DIRETOR; máx. 8 chamadas/min por usuário
+  // segurança: nada abaixo roda sem usuário logado; diagnósticos só para DEV/REGIONAL; máx. 8 chamadas/min por usuário
   {
     const { data: uu } = await sb.auth.getUser();
     if (!uu?.user) return json({ erro: "Faça login novamente." }, 401);

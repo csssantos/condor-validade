@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
   if (usuario) q = q.eq("usuario_id", usuario); else if (convite) q = q.eq("convite_id", convite); else q = q.eq("usuario_id", u.user.id);
   const { data: alvo } = await q.maybeSingle();
 
-  // a remoção em si: RPC com o login de quem chamou (a permissão é decidida lá: própria pessoa, DEV/Diretor, gerência, encarregado do setor)
+  // a remoção em si: RPC com o login de quem chamou (a permissão é decidida lá: própria pessoa, DEV/Regional, gerência, encarregado do setor)
   const sbUser = createClient(URL_, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
   const { error } = await sbUser.rpc("remover_telegram", { p_usuario: usuario, p_convite: convite });
   if (error) return resp({ erro: String(error.message || "erro").slice(0, 120) }, /sem_permissao/.test(error.message || "") ? 403 : 400);

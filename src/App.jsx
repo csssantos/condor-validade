@@ -102,7 +102,7 @@ function AppInner() {
     return () => { vivo = false; };
   }, [idDoUsuario, !!perfil]);
   const ehEncarregado = (perfil?.cargos?.nivel != null && perfil.cargos.nivel <= 5);
-  // Item 1 (painel corporativo): nível de cargo mais alto (supervisor regional, regional) — ajuste o limite
+  // Item 1 (painel corporativo): nível de cargo mais alto (regional e acima) — ajuste o limite
   // conforme os níveis reais da tabela "cargos" da rede. Assumi aqui que nível <= 3 é corporativo.
   const ehCorporativo = (perfil?.cargos?.nivel != null && perfil.cargos.nivel <= 3);
   // DESENVOLVEDOR (nivel 1) enxerga a "Gestão do Aplicativo" e pode trocar de loja livremente

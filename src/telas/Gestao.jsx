@@ -534,7 +534,7 @@ function AcoesFuncionarioSheet({ T, u, nivelUsuario, cargos, showToast, onClose,
   }
   const alternar = () => executar(() => supabase.rpc("alternar_acesso_usuario", { p_id: u.id, p_ativo: !u.ativo }), u.ativo ? `${u.nome} foi bloqueado(a).` : `${u.nome} foi desbloqueado(a).`);
   const excluir = () => executar(() => supabase.rpc("excluir_usuario", { p_id: u.id }), `${u.nome} foi excluído(a).`);
-  const pedirExclusao = () => executar(() => supabase.rpc("solicitar_exclusao", { p_id: u.id }), "Pedido enviado. Um gerente, o regional ou o dev precisa aprovar.");
+  const pedirExclusao = () => executar(() => supabase.rpc("solicitar_exclusao", { p_id: u.id }), "Pedido enviado. Um gerente, um Regional ou o dev precisa aprovar.");
   const redefinir = () => {
     if (!u.email) { showToast("Essa conta não tem e-mail cadastrado.", "warn"); return Promise.resolve(); }
     return executar(() => supabase.auth.resetPasswordForEmail(u.email, { redirectTo: SITE_URL }), `Link de nova senha enviado para ${u.email}.`);
@@ -758,7 +758,7 @@ function PedidosExclusaoLista({ T, pedidos, meuId, nivelUsuario, onResolver }) {
               <BotaoAcao T={T} Icon={Trash2} titulo="Aprovar" cor={RED_DARK} bg={RED_SOFT} confirmaTexto="Confirmar exclusão" onConfirmar={() => onResolver(pd, true)} />
             </div>
           ) : (
-            <p style={{ color: "#C2760C" }} className="text-[11px] font-semibold">{pd.solicitante_id === meuId ? "Aguardando um gerente, o regional ou o dev aprovar." : "Só gerente, regional ou dev aprovam."}</p>
+            <p style={{ color: "#C2760C" }} className="text-[11px] font-semibold">{pd.solicitante_id === meuId ? "Aguardando um gerente, um Regional ou o dev aprovar." : "Só gerente, regional ou dev aprovam."}</p>
           )}
         </div>
       ))}

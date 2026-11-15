@@ -75,7 +75,7 @@ function setLojaIdAtiva(id) { LOJA_ID_ATIVA = id || null; }
 
 // Lista de funcionários que o cargo de "perfil" pode enxergar/gerenciar — usa a hierarquia real
 // (cargos.cargos_subordinados) em vez de comparar texto de setor, que é menos confiável.
-// DESENVOLVEDOR/DIRETOR/GERENTE (nivel <= 4) vê todo mundo da loja; ENCARREGADO só vê quem tem um
+// DESENVOLVEDOR/REGIONAL/GERENTE (nivel <= 4) vê todo mundo da loja; ENCARREGADO só vê quem tem um
 // cargo listado como subordinado ao dele (ex: "ENCARREGADO DE AÇOUGUE" só vê "AÇOUGUEIRO").
 async function supaFetchFuncionariosVisiveis(perfil) {
   let query = supabase.from("usuarios").select("id, nome, matricula, setor, cargos(nome, nivel)").eq("ativo", true).eq("loja_id", LOJA_ID_ATIVA);
