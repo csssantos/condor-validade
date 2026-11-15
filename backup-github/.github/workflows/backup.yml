@@ -51,7 +51,7 @@ jobs:
             | gpg --batch --yes --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/pp" \
                   --symmetric --cipher-algo AES256 -o "backups/$DATA.sql.gz.gpg"
           # confere: abre o arquivo de volta e procura uma tabela do app (se falhar, o job falha e o GitHub avisa por e-mail)
-          gpg --batch --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/pp" -d "backups/$DATA.sql.gz.gpg" | gunzip | grep -q "CREATE TABLE public.produtos"
+          gpg --batch --pinentry-mode loopback --passphrase-file "$RUNNER_TEMP/pp" -d "backups/$DATA.sql.gz.gpg" | gunzip | grep -c "CREATE TABLE public.produtos" > /dev/null
           shred -u "$RUNNER_TEMP/pp"
           TAM=$(stat -c %s "backups/$DATA.sql.gz.gpg")
           [ "$TAM" -gt 10000 ] || { echo "Backup pequeno demais ($TAM bytes)"; exit 1; }
