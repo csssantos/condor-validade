@@ -39,10 +39,10 @@ function pluginPush() {
 }
 const normPerm = (r) => (r === "granted" ? "granted" : r === "denied" ? "denied" : "default");
 async function permissaoPushNativa() {
-  try { const P = pluginPush(); if (!P) return "unsupported"; return normPerm((await P.checkPermissions())?.receive); } catch { return "unsupported"; }
+  try { const P = pluginPush(); if (!P) return "unsupported"; return normPerm((await P.checkPermissions())?.receive); } catch { return "default"; }
 }
 async function pedirPermissaoPushNativa() {
-  try { const P = pluginPush(); if (!P) return "unsupported"; return normPerm((await P.requestPermissions())?.receive); } catch { return "unsupported"; }
+  try { const P = pluginPush(); if (!P) return "unsupported"; return normPerm((await P.requestPermissions())?.receive); } catch { return "default"; }
 }
 let usuarioNativo = null;
 let iniciandoOuvintes = null;

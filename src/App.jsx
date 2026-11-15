@@ -131,7 +131,7 @@ function AppInner() {
   const [subsetoresExtra, setSubsetoresExtra] = useState([]);
   const [rondaIntent, setRondaIntent] = useState(null);
   const [notifPermission, setNotifPermission] = useState(
-    typeof Notification !== "undefined" ? Notification.permission : "unsupported"
+    typeof Notification !== "undefined" ? Notification.permission : ehNativo() ? "default" : "unsupported"
   );
   useEffect(() => { // APK Android: sem API Notification; a permissão vem do plugin nativo
     if (!ehNativo()) return;
