@@ -80,7 +80,8 @@ async function buscarComRota(url, opcoes) {
   }
   if (diretoOk) return fetch(url, opcoes);
   try {
-    const r = await comLimite(url, opcoes, TEMPO_DIRETO_MS);
+    // gravação (POST de dados) vai sem limite de tempo: abortar depois de o servidor receber poderia duplicar o efeito na repetição
+    const r = podeRepetir(url, opcoes) ? await comLimite(url, opcoes, TEMPO_DIRETO_MS) : await fetch(url, opcoes);
     // página de bloqueio da rede (HTML) no lugar da resposta da API: conta como bloqueado
     if (ehApi(String(url)) && /text\/html/i.test(r.headers.get("content-type") || "")) throw new TypeError("bloqueado_por_pagina");
     diretoOk = true;
