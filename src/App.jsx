@@ -1521,12 +1521,12 @@ function AppInner() {
   const showBottomNav = flow === null;
   // Desktop (lg+): telas de formulário/ajustes ficam estreitas e legíveis; listas e painéis usam mais largura.
   const larguraMain =
-    flow === null && tab.startsWith("cfg-") ? "max-w-md lg:max-w-[1600px]" :
-    (flow === null && tab === "ajustes") || flow === "scan" ? "max-w-md lg:max-w-2xl" :
-    flow === "confirm" ? "max-w-md lg:max-w-5xl" :
-    flow === "expiry" ? "max-w-md lg:max-w-5xl" :
-    ["torre", "relatorios", "historico", "auditoria", "rede", "gestao", "convites"].includes(flow) ? "max-w-md lg:max-w-[1600px]" :
-    "max-w-md lg:max-w-[1600px]";
+    flow === null && tab.startsWith("cfg-") ? "max-w-none lg:max-w-[1600px]" :
+    (flow === null && tab === "ajustes") || flow === "scan" ? "max-w-none lg:max-w-2xl" :
+    flow === "confirm" ? "max-w-none lg:max-w-5xl" :
+    flow === "expiry" ? "max-w-none lg:max-w-5xl" :
+    ["torre", "relatorios", "historico", "auditoria", "rede", "gestao", "convites"].includes(flow) ? "max-w-none lg:max-w-[1600px]" :
+    "max-w-none lg:max-w-[1600px]";
   const alertCount = items.filter((i) => ["alert", "expired"].includes(getStatus(i).level)).length;
 
   return (

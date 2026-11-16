@@ -50,7 +50,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
       style={{ background: "radial-gradient(130% 160% at 50% -30%, #1B6FD1 0%, #0B4F9E 45%, #061C3A 100%)" }}
       className="sticky top-0 z-20 shadow-lg shadow-black/15 rounded-b-[30px] lg:rounded-b-none pt-[env(safe-area-inset-top)] overflow-hidden">
       <div aria-hidden className="absolute inset-0 opacity-[.12] pointer-events-none" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
-      <div className="relative max-w-md lg:max-w-[1600px] mx-auto px-4 lg:px-6 pt-4 pb-5 lg:pt-3 lg:pb-3">
+      <div className="relative max-w-none lg:max-w-[1600px] mx-auto px-4 lg:px-6 pt-4 pb-5 lg:pt-3 lg:pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             {flow && (
