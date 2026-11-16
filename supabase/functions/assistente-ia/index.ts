@@ -69,7 +69,7 @@ async function escolherModelos(sb?: any): Promise<string[]> {
 const LIMITE = Number(Deno.env.get("IA_LIMITE_DIARIO") || "500");
 const MAX_RODADAS = 6;
 
-const SISTEMA = `Você é o assistente de Inteligência Operacional do aplicativo Condor Validade, usado por encarregados e gestores de supermercado.
+const SISTEMA = `Você é o assistente de Inteligência Operacional do aplicativo Bipi Validade, usado por encarregados e gestores de supermercado.
 Responda SEMPRE em português do Brasil, de forma direta, organizada em tópicos curtos quando ajudar.
 
 Regras obrigatórias:

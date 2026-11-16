@@ -918,11 +918,11 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
     catch { showToast("Não deu pra copiar. Segure o link pra copiar manualmente.", "warn"); }
   }
   function mensagem(c) {
-    return `Olá, ${c.nome}! Este é seu acesso ao app da Condor (${marcasConvite(c)}). Abra o link pra entrar — ${validadeConvite(c)}.${c.codigo ? ` Seu código do promotor: ${c.codigo} (envie no Telegram do bot para lançar validade).` : ""}\n${linkDoConvite(c)}`;
+    return `Olá, ${c.nome}! Este é seu acesso ao app Bipi Validade (${marcasConvite(c)}). Abra o link pra entrar — ${validadeConvite(c)}.${c.codigo ? ` Seu código do promotor: ${c.codigo} (envie no Telegram do bot para lançar validade).` : ""}\n${linkDoConvite(c)}`;
   }
   async function compartilhar(c) {
     if (navigator.share) {
-      try { await navigator.share({ title: "Convite Condor", text: mensagem(c) }); return; } catch { return; }
+      try { await navigator.share({ title: "Convite Bipi", text: mensagem(c) }); return; } catch { return; }
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(mensagem(c))}`, "_blank", "noopener");
   }

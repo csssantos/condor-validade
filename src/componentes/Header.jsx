@@ -59,7 +59,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
               </button>
             )}
             <div style={{ background: "rgba(255,255,255,0.97)" }} className="rounded-xl px-2.5 py-1.5 flex items-center shadow-lg shadow-black/5 lg:hidden">
-              <img src={LOGO_SRC} alt="Condor Supermercados" className="h-5 w-auto" />
+              <img src={LOGO_SRC} alt="Bipi Validade" className="h-6 w-auto" />
             </div>
             <h1 className="text-white font-bold text-[15px] lg:text-lg leading-none">{title}</h1>
           </div>

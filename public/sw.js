@@ -1,4 +1,4 @@
-// Condor · Alerta de Validade — service worker v10.1
+// Bipi Validade — service worker v10.1
 // Modelo de atualização: o app instalado SEMPRE abre a versão que está em cache (rápido e funciona offline).
 // Quem descobre que existe versão nova é o próprio app (compara com o que está publicado) e mostra o aviso
 // "Atualizar". Só quando a pessoa toca no botão o app baixa a versão nova para o cache e reinicia.
@@ -145,8 +145,8 @@ self.addEventListener("fetch", (event) => {
 // Recebe o push de verdade (mandado pela Edge Function enviar-push) e exibe a notificação com som/vibração
 self.addEventListener("push", (event) => {
   let dados = {};
-  try { dados = event.data ? event.data.json() : {}; } catch { dados = { title: "Condor · Alerta de Validade", body: event.data ? event.data.text() : "" }; }
-  const titulo = dados.title || "Condor · Alerta de Validade";
+  try { dados = event.data ? event.data.json() : {}; } catch { dados = { title: "Bipi Validade", body: event.data ? event.data.text() : "" }; }
+  const titulo = dados.title || "Bipi Validade";
   const opcoes = {
     body: dados.body,
     icon: dados.icon || "/icon-192.png",

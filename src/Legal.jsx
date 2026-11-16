@@ -7,10 +7,18 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-11-15";
+export const TERMOS_VERSAO = "2026-11-16";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-16", docs: {
+    termos: [
+      "O aplicativo mudou de nome: o que antes se chamava “Condor · Alerta de Validade” agora é “Bipi Validade”, com logo nova. Só o nome e a aparência mudaram; as regras de uso continuam as mesmas, e o app segue avulso e independente, sem vínculo com nenhuma rede de supermercados.",
+    ],
+    privacidade: [
+      "O responsável pelo tratamento dos dados é o desenvolvedor do aplicativo Bipi Validade (antigo Condor · Alerta de Validade). Nenhum dado novo é coletado com essa mudança.",
+    ],
+  } },
   { versao: "2026-11-15", docs: {
     privacidade: [
       "Em redes que bloqueiam o endereço do nosso servidor de dados (por exemplo, a rede de uma empresa), o app passa a enviar o que você consulta ou grava (incluindo seus dados de login e as fotos de produto) pelo endereço do próprio app, hospedado na Vercel, que só repassa essas chamadas ao Supabase, sem guardar o conteúdo. Fora dessas redes, nada muda.",
@@ -93,7 +101,7 @@ const CHAVE_ACEITE_PENDENTE = "avdc_aceite_pendente";
 
 // Aplicativo avulso: sem CNPJ e sem encarregado (DPO). O contato é pelo canal de solicitações dentro do app.
 export const LEGAL_CONTATO = {
-  controlador: "o desenvolvedor do aplicativo Condor · Alerta de Validade",
+  controlador: "o desenvolvedor do aplicativo Bipi Validade",
 };
 
 const AZUL = "#0B4F9E", AZUL_ESC = "#061C3A", VERM = "#E31E24";
@@ -129,7 +137,7 @@ export const DOCUMENTOS = [
     id: "termos", titulo: "Termos de Uso", resumo: "Regras para usar o app", Icone: ScrollText, cor: "#6D4FC2",
     secoes: () => [
       { t: "1. Quem somos e o que é o app", p: [
-        "O Condor · Alerta de Validade (“app”) é um aplicativo avulso e independente, criado para ajudar a controlar datas de validade, rondas, ocorrências e perdas de produtos em lojas. Ele não tem vínculo, parceria, patrocínio ou aprovação de nenhuma empresa, rede de supermercados ou marca, e o nome “Condor” é só o nome do aplicativo.",
+        "O Bipi Validade (“app”) é um aplicativo avulso e independente, criado para ajudar a controlar datas de validade, rondas, ocorrências e perdas de produtos em lojas. Ele não tem vínculo, parceria, patrocínio ou aprovação de nenhuma empresa, rede de supermercados ou marca, e o nome “Bipi Validade” é só o nome do aplicativo.",
         "Quem oferece o app é o seu desenvolvedor (“nós”). Qualquer loja ou empresa que decida usar o app o faz por conta própria e responde por suas próprias regras internas.",
         "Ao criar sua conta ou entrar no app você declara que leu e concorda com estes Termos de Uso e com a Política de Privacidade. Se não concordar, não use o app.",
       ] },
@@ -531,7 +539,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `meus-dados-condor-${new Date().toISOString().slice(0, 10)}.json`;
+      a.href = url; a.download = `meus-dados-bipi-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
       showToast?.("Arquivo com seus dados baixado.");

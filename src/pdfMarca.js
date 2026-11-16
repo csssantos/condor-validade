@@ -1,4 +1,4 @@
-// Identidade visual dos PDFs do Condor = a mesma da tela de carregamento:
+// Identidade visual dos PDFs do Bipi = a mesma da tela de carregamento:
 // degradê azul da marca, círculo claro translúcido, bolinhas, logo em cartão branco e o Bipi.
 // Todas as tabelas medem o texto (splitTextToSize) e quebram/cortam dentro da coluna:
 // nada passa por cima da coluna vizinha.
@@ -74,12 +74,12 @@ export async function criarPDF({ titulo, subtitulo, usuario, lojaNumero, logo, l
   if (bipiImg) { try { doc.addImage(bipiImg, "PNG", PAG_W - 54, 4, 42, 42); } catch { /* sem Bipi */ } }
   if (logo) {
     doc.setFillColor(255, 255, 255);
-    doc.roundedRect(MARG, 9, 52, 14, 3, 3, "F");
-    const lw = 46, lh = lw * logoProporcao;
-    try { doc.addImage(logo, "PNG", MARG + 3, 9 + (14 - lh) / 2, lw, lh); } catch { /* sem logo */ }
+    doc.roundedRect(MARG, 9, 30, 14, 3, 3, "F");
+    const lh = 10.4, lw = lh / logoProporcao;
+    try { doc.addImage(logo, "PNG", MARG + (30 - lw) / 2, 9 + (14 - lh) / 2, lw, lh); } catch { /* sem logo */ }
   }
   doc.setTextColor(190, 214, 245); doc.setFont(undefined, "bold"); doc.setFontSize(7);
-  doc.text("CONDOR · ALERTA DE VALIDADE", MARG, 31, { charSpace: 0.6 });
+  doc.text("BIPI VALIDADE", MARG, 31, { charSpace: 0.6 });
   doc.setTextColor(255, 255, 255); doc.setFontSize(17);
   const tl = quebrar(titulo, bipiImg ? 120 : 170).slice(0, 2);
   doc.text(tl, MARG, 38.5);
@@ -95,7 +95,7 @@ export async function criarPDF({ titulo, subtitulo, usuario, lojaNumero, logo, l
     degrade(doc, 0, 0, PAG_W, 9);
     doc.setFillColor(...COR.vermelho); doc.rect(0, 9, PAG_W, 0.9, "F");
     doc.setTextColor(255, 255, 255); doc.setFont(undefined, "bold"); doc.setFontSize(7.5);
-    doc.text("CONDOR · ALERTA DE VALIDADE", MARG, 6, { charSpace: 0.4 });
+    doc.text("BIPI VALIDADE", MARG, 6, { charSpace: 0.4 });
     doc.setFont(undefined, "normal");
     doc.text(quebrar(titulo, 110)[0], PAG_W - MARG, 6, { align: "right" });
     S.y = 20;
@@ -190,7 +190,7 @@ export async function criarPDF({ titulo, subtitulo, usuario, lojaNumero, logo, l
       doc.setPage(p);
       degrade(doc, 0, PAG_H - 9, PAG_W, 9);
       doc.setTextColor(255, 255, 255); doc.setFont(undefined, "normal"); doc.setFontSize(7.2);
-      doc.text(caber(`Condor Validade · Loja ${loja}`, 120), MARG, PAG_H - 3.4);
+      doc.text(caber(`Bipi Validade · Loja ${loja}`, 120), MARG, PAG_H - 3.4);
       doc.text(`Página ${p} de ${total}`, PAG_W - MARG, PAG_H - 3.4, { align: "right" });
     }
     doc.save(arquivo);

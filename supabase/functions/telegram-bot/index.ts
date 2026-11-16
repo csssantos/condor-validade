@@ -77,7 +77,7 @@ async function baixarImagem(url: string): Promise<string | null> {
 async function buscarNaInternet(bc: string) {
   try {
     const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${bc}.json?fields=product_name,brands,image_front_url,image_front_small_url`, {
-      headers: { "User-Agent": "CondorValidade/1.0" }, signal: AbortSignal.timeout(7000),
+      headers: { "User-Agent": "BipiValidade/1.0" }, signal: AbortSignal.timeout(7000),
     });
     if (!r.ok) return null;
     const j = await r.json();

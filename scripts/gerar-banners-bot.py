@@ -36,7 +36,7 @@ def mascote(glifo, olhos=OLHOS_OK, boca="sorriso"):
 # chave: (glifo, olhos, boca, título, subtítulo, cor do selo, texto do selo)
 ESTADOS = {
  "codigo":     ("lock",     OLHOS_OK, "sorriso", "Me envie o seu código", "Funcionário: código gerado no app. Promotor: código da sua marca.", BLUE, "ACESSO"),
- "vinculado":  ("check",    OLHOS_OK, "sorriso", "Tudo certo!", "Seu Telegram está vinculado ao Condor Validade.", GREEN, "VINCULADO"),
+ "vinculado":  ("check",    OLHOS_OK, "sorriso", "Tudo certo!", "Seu Telegram está vinculado ao Bipi Validade.", GREEN, "VINCULADO"),
  "produto":    ("barcode",  OLHOS_OK, "sorriso", "Qual é o produto?", "Envie o código de barras ou o nome do produto.", BLUE, "PRODUTO"),
  "validade":   ("calendar", OLHOS_OK, "sorriso", "Qual a validade?", "Escreva a data, por exemplo 15/12/2026.", BLUE, "VALIDADE"),
  "quantidade": ("qty",      OLHOS_OK, "sorriso", "Quantas unidades?", "Se for peso, diga os quilos, por exemplo 2,5.", BLUE, "QUANTIDADE"),
@@ -60,7 +60,7 @@ def html(k):
     return f'''<html><body style="margin:0;width:640px;height:340px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;background:radial-gradient(120% 130% at 20% 0%,#1B6FD1 0%,#0B4F9E 45%,#061C3A 100%);position:relative;color:#fff">
 <div style="position:absolute;right:14px;top:22px;width:290px;height:290px;border-radius:50%;background:rgba(255,255,255,.13)"></div>
 <div style="position:absolute;right:8px;top:-2px;width:330px;height:330px">{mascote(g, ol, bo)}</div>
-<div style="position:absolute;left:34px;top:38px;font-size:11.5px;letter-spacing:3px;font-weight:700;opacity:.8">CONDOR · ALERTA DE VALIDADE</div>
+<div style="position:absolute;left:34px;top:38px;font-size:11.5px;letter-spacing:3px;font-weight:700;opacity:.8">BIPI VALIDADE</div>
 <div style="position:absolute;left:34px;top:74px;font-size:12px;font-weight:800;letter-spacing:1.5px;background:{cor};color:{txt};padding:6px 12px;border-radius:20px">{selo}</div>
 <div style="position:absolute;left:34px;top:122px;font-size:31px;font-weight:800;line-height:1.1;width:290px">{t}</div>
 <div style="position:absolute;left:34px;top:214px;font-size:15.5px;line-height:1.35;opacity:.92;width:270px">{sub}</div></body></html>'''

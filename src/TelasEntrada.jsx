@@ -77,7 +77,7 @@ export function TelaCarregando({ logo, mensagem }) {
         {/* logo */}
         <motion.div initial={{ scale: 0, rotate: -12 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.1 }}
           className="relative h-[92px] w-[196px] rounded-[28px] bg-white flex items-center justify-center shadow-[0_18px_40px_-10px_rgba(0,0,0,.5)]">
-          <motion.img src={logo} alt="Condor" className="w-[158px] h-auto" animate={reduzir ? undefined : { y: [0, -3, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }} />
+          <motion.img src={logo} alt="Bipi Validade" className="h-[64px] w-auto" animate={reduzir ? undefined : { y: [0, -3, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }} />
         </motion.div>
       </div>
 
@@ -94,7 +94,7 @@ export function TelaCarregando({ logo, mensagem }) {
         <motion.div className="h-full w-2/5 rounded-full" style={{ background: "linear-gradient(90deg, transparent, #fff, transparent)" }}
           animate={reduzir ? { x: "60%" } : { x: ["-110%", "280%"] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} />
       </div>
-      <p className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] text-[11px] text-white/55 font-medium tracking-widest uppercase">Condor · Alerta de Validade</p>
+      <p className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] text-[11px] text-white/55 font-medium tracking-widest uppercase">Bipi Validade</p>
     </div>
   );
 }
@@ -138,7 +138,7 @@ export function AuthPalco({ logo, compacto }) {
       <div className="absolute inset-0 flex flex-col items-center justify-center px-6 pb-8 pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-0 text-center">
         <motion.div initial={{ scale: 0, rotate: -14 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 280, damping: 16, delay: 0.1 }}
           className={`bg-white flex items-center justify-center shadow-[0_16px_36px_-10px_rgba(0,0,0,.55)] ${compacto ? "h-[58px] w-[156px] rounded-[20px]" : "h-[80px] w-[210px] rounded-[26px] lg:h-[120px] lg:w-[320px] lg:rounded-[34px]"} transition-all duration-500`}>
-          <img src={logo} alt="Condor" className={`${compacto ? "w-[122px]" : "w-[170px] lg:w-[256px]"} h-auto transition-all duration-500`} />
+          <img src={logo} alt="Bipi Validade" className={`${compacto ? "h-[38px]" : "h-[52px] lg:h-[84px]"} w-auto transition-all duration-500`} />
         </motion.div>
         <div className={`overflow-hidden transition-all duration-500 ${compacto ? "max-h-0 opacity-0" : "max-h-48 opacity-100 mt-4"}`}>
           <h2 className="text-[28px] lg:text-5xl font-extrabold leading-tight tracking-tight">

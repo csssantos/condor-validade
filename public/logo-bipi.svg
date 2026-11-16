@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="12 4 296 176" width="296" height="176"><defs>
+<linearGradient id="gCab" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#2B86E6"/><stop offset="0.5" stop-color="#0B4F9E"/><stop offset="1" stop-color="#083A78"/></linearGradient>
+<linearGradient id="gFeixe" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#E31E24" stop-opacity="0"/><stop offset="0.15" stop-color="#E31E24"/><stop offset="0.85" stop-color="#E31E24"/><stop offset="1" stop-color="#E31E24" stop-opacity="0"/></linearGradient>
+<radialGradient id="gBola" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#FF7B7F"/><stop offset="0.5" stop-color="#E31E24"/><stop offset="1" stop-color="#A8121A"/></radialGradient>
+<linearGradient id="gBrilho" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.32"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<linearGradient id="gHead" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#CFE2F8"/></linearGradient>
+<linearGradient id="gFundo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1B6FD1"/><stop offset="0.55" stop-color="#0B4F9E"/><stop offset="1" stop-color="#061C3A"/></linearGradient>
+</defs><g fill="none" stroke="#0B4F9E" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+<path d="M26 14 V132"/><rect x="26" y="60" width="72" height="72" rx="36"/><path d="M142 60 V132"/>
+<path d="M186 60 V164"/><rect x="186" y="60" width="72" height="72" rx="36"/><path d="M290 60 V132"/></g>
+<rect x="132" y="12" width="20" height="32" rx="10" fill="#2ECC71"/><rect x="280" y="12" width="20" height="32" rx="10" fill="#2ECC71"/></svg>

@@ -43,7 +43,7 @@ function ContaSemVinculo({ T, onVinculado, onSair }) {
         <div style={{ background: FUNDO_MARCA, color: "#fff" }} className="relative overflow-hidden flex flex-col justify-between p-12">
           <div aria-hidden style={{ background: "rgba(255,255,255,0.07)" }} className="absolute -right-32 -bottom-32 w-[520px] h-[520px] rounded-full" />
           <div aria-hidden style={{ background: "rgba(255,255,255,0.05)" }} className="absolute -left-24 top-1/3 w-72 h-72 rounded-full" />
-          <img src={LOGO_SRC} alt="Condor" className="h-11 w-auto self-start relative" />
+          <img src={LOGO_SRC} alt="Bipi Validade" className="h-11 w-auto self-start relative" />
           <div className="relative">
             <p className="text-[11px] font-bold tracking-[0.28em] opacity-70 mb-3">QUASE LÁ</p>
             <h1 className="text-4xl font-extrabold leading-tight mb-8">Vincule sua conta<br />ao seu cadastro de funcionário</h1>
@@ -56,7 +56,7 @@ function ContaSemVinculo({ T, onVinculado, onSair }) {
               ))}
             </ol>
           </div>
-          <p className="relative text-xs opacity-60">Condor · Alerta de Validade</p>
+          <p className="relative text-xs opacity-60">Bipi Validade</p>
         </div>
         <div className="flex items-center justify-center p-12">
           <div style={{ background: T.card, color: T.text }} className="w-full max-w-md rounded-3xl p-9 shadow-sm">
@@ -77,7 +77,7 @@ function ContaSemVinculo({ T, onVinculado, onSair }) {
   }
   return (
     <div style={{ background: T.bg }} className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center">
-      <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
+      <img src={LOGO_SRC} alt="Bipi Validade" className="h-10 w-auto" />
       <p className="text-sm font-semibold">Falta vincular sua conta a um funcionário.</p>
       <p style={{ color: T.subtext }} className="text-xs max-w-xs">Digite ou bipe a matrícula do seu crachá. Ela precisa já estar pré-cadastrada em "Gestão de Funcionários".</p>
       <input value={matricula} onChange={(e) => setMatricula(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Matrícula"

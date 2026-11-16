@@ -478,10 +478,10 @@ function PaginaSobre({ T, dark, perfil }) {
           <section style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative overflow-hidden rounded-3xl text-white p-7 shadow-sm text-center">
             <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
             <div className="relative flex flex-col items-center">
-              <div className="bg-white rounded-2xl h-14 px-5 flex items-center shadow-lg shadow-black/20"><img src={LOGO_SRC} alt="Condor Supermercados" className="h-8 w-auto" /></div>
+              <div className="bg-white rounded-2xl h-14 px-5 flex items-center shadow-lg shadow-black/20"><img src={LOGO_SRC} alt="Bipi Validade" className="h-8 w-auto" /></div>
               <p className="text-2xl font-extrabold mt-5">Alerta de Validade</p>
               <span className="text-[12px] font-bold px-3 py-1 rounded-full mt-2" style={{ background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.28)" }}>Versão {APP_VERSAO}{loja ? ` · Loja ${loja}` : ""}</span>
-              <p className="text-[13px] text-white/80 mt-4 leading-relaxed">Controle de validade, rondas e prevenção de perdas para as lojas Condor — com câmera, alertas, histórico de baixas e análise por setor.</p>
+              <p className="text-[13px] text-white/80 mt-4 leading-relaxed">Controle de validade, rondas e prevenção de perdas para lojas de supermercado — com câmera, alertas, histórico de baixas e análise por setor.</p>
               <button type="button" onClick={abrirTutorial} className="mt-4 h-10 px-4 rounded-full bg-white text-[#0B2A55] text-[13px] font-extrabold flex items-center gap-2"><img src="/bipi-acenando.png" alt="" className="h-7 w-7 -ml-1" />Ver o tutorial do Bipi</button>
             </div>
           </section>
@@ -512,10 +512,10 @@ function PaginaSobre({ T, dark, perfil }) {
     <>
       <MaisBloco T={T} i={0}>
         <div className="p-6 flex flex-col items-center text-center">
-          <motion.img src={LOGO_SRC} alt="Condor Supermercados" initial={{ scale: 0.4, opacity: 0, rotate: -8 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 220, damping: 14 }} className="h-12 w-auto" />
+          <motion.img src={LOGO_SRC} alt="Bipi Validade" initial={{ scale: 0.4, opacity: 0, rotate: -8 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 220, damping: 14 }} className="h-12 w-auto" />
           <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} style={{ color: T.text }} className="text-[19px] font-extrabold mt-4">Alerta de Validade</motion.p>
           <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} style={{ background: T.chipBg, color: T.subtext }} className="text-[12px] font-bold px-3 py-1 rounded-full mt-2">Versão {APP_VERSAO}{loja ? ` · Loja ${loja}` : ""}</motion.span>
-          <p style={{ color: T.subtext }} className="text-[13px] mt-4 leading-relaxed">Controle de validade, rondas e prevenção de perdas para as lojas Condor — com câmera, alertas, histórico de baixas e análise por setor.</p>
+          <p style={{ color: T.subtext }} className="text-[13px] mt-4 leading-relaxed">Controle de validade, rondas e prevenção de perdas para lojas de supermercado — com câmera, alertas, histórico de baixas e análise por setor.</p>
           <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={abrirTutorial} style={{ background: BLUE }} className="mt-4 h-11 px-5 rounded-full text-white text-[13.5px] font-extrabold flex items-center gap-2"><img src="/bipi-acenando.png" alt="" className="h-7 w-7 -ml-1" />Ver o tutorial do Bipi</motion.button>
         </div>
       </MaisBloco>
