@@ -47,7 +47,7 @@ function degrade(doc, x, y, w, h) {
 
 import { comTempo } from "./lib/carregar.js";
 
-export async function criarPDF({ titulo, subtitulo, usuario, lojaNumero, logo, logoProporcao = 199 / 900, formatarDataHora, bipi = true }) {
+export async function criarPDF({ titulo, subtitulo, usuario, lojaNumero, logo, logoProporcao = 176 / 296, formatarDataHora, bipi = true }) {
   const { default: jsPDF } = await comTempo(import("jspdf")); // biblioteca pesada: só baixa quando alguém gera um PDF
   const doc = new jsPDF();
   const bipiImg = bipi ? await carregarBipiDataUrl() : null;
