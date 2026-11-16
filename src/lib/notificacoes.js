@@ -83,9 +83,10 @@ async function inscreverPushNativo(usuario) {
 // ---------- Desligar notificações neste aparelho (2026-11-16) ----------
 // A permissão do sistema continua concedida; quem desliga é o app: tira a inscrição do aparelho (o servidor apaga a linha
 // no próximo envio, quando o serviço de push responde "inscrição inválida") e guarda a escolha para não registrar de novo.
-const CHAVE_NOTIF_OFF = "avdc_notif_off";
-function notifDesligadas() { try { return localStorage.getItem(CHAVE_NOTIF_OFF) === "1"; } catch { return false; } }
-function definirNotifDesligadas(v) { try { if (v) localStorage.setItem(CHAVE_NOTIF_OFF, "1"); else localStorage.removeItem(CHAVE_NOTIF_OFF); } catch { /* sem armazenamento */ } }
+// A escolha vale POR PESSOA (chave com o id da conta): quem entra depois no mesmo aparelho não herda o "desligado".
+const chaveNotifOff = (uid) => `avdc_notif_off:${uid}`;
+function notifDesligadas(uid) { if (!uid) return false; try { return localStorage.getItem(chaveNotifOff(uid)) === "1"; } catch { return false; } }
+function definirNotifDesligadas(uid, v) { if (!uid) return; try { if (v) localStorage.setItem(chaveNotifOff(uid), "1"); else localStorage.removeItem(chaveNotifOff(uid)); } catch { /* sem armazenamento */ } }
 async function desativarPushDoAparelho() {
   try {
     if (ehNativo()) { await desinscreverPushNativo(); return; }

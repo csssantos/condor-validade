@@ -133,7 +133,8 @@ function AppInner() {
   const [permissaoSistema, setNotifPermission] = useState(
     typeof Notification !== "undefined" ? Notification.permission : ehNativo() ? "default" : "unsupported"
   );
-  const [notifOff, setNotifOff] = useState(() => notifDesligadas()); // desligadas pelo usuário neste aparelho
+  const [notifOff, setNotifOff] = useState(() => notifDesligadas(idDoUsuario)); // desligadas por esta pessoa neste aparelho
+  useEffect(() => { setNotifOff(notifDesligadas(idDoUsuario)); }, [idDoUsuario]);
   // "off" = permissão do sistema concedida, mas o usuário desligou os avisos no app (nada de "granted" para o resto do app)
   const notifPermission = permissaoSistema === "granted" && notifOff ? "off" : permissaoSistema;
   useEffect(() => { // APK Android: sem API Notification; a permissão vem do plugin nativo
@@ -310,8 +311,8 @@ function AppInner() {
       setUsuario(identidade);
       // Auditoria de acesso: o SERVIDOR grava nome, loja e IP (o app só informa o aparelho); sem serviço externo de IP
       if (loginRegistradoRef.current !== sessao?.user?.id) { loginRegistradoRef.current = sessao?.user?.id; supabase.rpc("registrar_login", { p_dispositivo: String(navigator.userAgent || "").slice(0, 300) }).then(({ error }) => { if (error) console.warn("registrar_login:", error.message); }, () => {}); }
-      if (ehNativo()) { permissaoPushNativa().then((p) => { if (p === "granted" && !notifDesligadas()) inscreverPushNativo(identidade); }); }
-      else if (typeof Notification !== "undefined" && Notification.permission === "granted" && !notifDesligadas()) inscreverPush(identidade);
+      if (ehNativo()) { permissaoPushNativa().then((p) => { if (p === "granted" && !notifDesligadas(sessao?.user?.id)) inscreverPushNativo(identidade); }); }
+      else if (typeof Notification !== "undefined" && Notification.permission === "granted" && !notifDesligadas(sessao?.user?.id)) inscreverPush(identidade);
     }
   }, [perfil]);
 
@@ -857,7 +858,7 @@ function AppInner() {
     if (notifTrocandoRef.current) return;
     notifTrocandoRef.current = true;
     try {
-      definirNotifDesligadas(true); setNotifOff(true);
+      definirNotifDesligadas(idDoUsuario, true); setNotifOff(true);
       await desativarPushDoAparelho();
       showToast("Notificações desligadas neste aparelho. Para voltar a receber, toque em Ativar.", "ok");
     } finally { notifTrocandoRef.current = false; }
@@ -873,18 +874,23 @@ function AppInner() {
     if (notifPermission === "granted") { showToast("As notificações estão ativas. Para desligar, vá em Mais → Notificações."); return; }
     notifTrocandoRef.current = true;
     try {
-      if (permissaoSistema === "granted" && notifOff) { // religar: a permissão já existe, só volta a inscrever o aparelho
-        definirNotifDesligadas(false); setNotifOff(false);
-        if (idDoUsuario) limparNotifDaPessoa(idDoUsuario, true);
-        await (ehNativo() ? inscreverPushNativo(usuario) : inscreverPush(usuario));
-        showToast("Notificações ativadas — você vai receber avisos mesmo com o app fechado.", "ok");
-        return;
+      if (notifOff) { // religar: confere a permissão de agora (pode ter sido revogada) e volta a inscrever o aparelho
+        const atual = ehNativo() ? await permissaoPushNativa() : (typeof Notification !== "undefined" ? Notification.permission : "unsupported");
+        setNotifPermission(atual);
+        if (atual === "granted") {
+          definirNotifDesligadas(idDoUsuario, false); setNotifOff(false);
+          if (idDoUsuario) limparNotifDaPessoa(idDoUsuario, true);
+          await (ehNativo() ? inscreverPushNativo(usuario) : inscreverPush(usuario));
+          showToast("Notificações ativadas — você vai receber avisos mesmo com o app fechado.", "ok");
+          return;
+        }
       }
       const perm = ehNativo() ? await pedirPermissaoPushNativa() : await Notification.requestPermission();
       if (perm === "unsupported") { showToast("Atualize o aplicativo Android para ativar as notificações.", "warn"); return; }
       // ao ativar, o que já existe vira "linha de base" em silêncio: só avisos futuros chegam
       if (perm === "granted" && idDoUsuario) limparNotifDaPessoa(idDoUsuario, true);
       setNotifPermission(perm);
+      if (perm === "granted") { definirNotifDesligadas(idDoUsuario, false); setNotifOff(false); }
       if (perm === "granted") await (ehNativo() ? inscreverPushNativo(usuario) : inscreverPush(usuario));
       showToast(perm === "granted" ? "Notificações ativadas — você vai receber avisos mesmo com o app fechado."
         : ehNativo() ? "Permissão não concedida. Para ativar depois, abra Configurações do Android → Apps → Bipi → Notificações."
@@ -1541,12 +1547,12 @@ function AppInner() {
   const showBottomNav = flow === null;
   // Desktop (lg+): telas de formulário/ajustes ficam estreitas e legíveis; listas e painéis usam mais largura.
   const larguraMain =
-    flow === null && tab.startsWith("cfg-") ? "max-w-none lg:max-w-[1600px]" :
-    (flow === null && tab === "ajustes") || flow === "scan" ? "max-w-none lg:max-w-2xl" :
-    flow === "confirm" ? "max-w-none lg:max-w-5xl" :
-    flow === "expiry" ? "max-w-none lg:max-w-5xl" :
-    ["torre", "relatorios", "historico", "auditoria", "rede", "gestao", "convites"].includes(flow) ? "max-w-none lg:max-w-[1600px]" :
-    "max-w-none lg:max-w-[1600px]";
+    flow === null && tab.startsWith("cfg-") ? "max-w-none md:max-w-2xl lg:max-w-[1600px]" :
+    (flow === null && tab === "ajustes") || flow === "scan" ? "max-w-none md:max-w-2xl lg:max-w-2xl" :
+    flow === "confirm" ? "max-w-none md:max-w-2xl lg:max-w-5xl" :
+    flow === "expiry" ? "max-w-none md:max-w-2xl lg:max-w-5xl" :
+    ["torre", "relatorios", "historico", "auditoria", "rede", "gestao", "convites"].includes(flow) ? "max-w-none md:max-w-2xl lg:max-w-[1600px]" :
+    "max-w-none md:max-w-2xl lg:max-w-[1600px]";
   const alertCount = items.filter((i) => ["alert", "expired"].includes(getStatus(i).level)).length;
 
   return (
