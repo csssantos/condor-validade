@@ -12,7 +12,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
   const titles = {
     produtos: "Produtos monitorados", "cfg-conta": "Conta", "cfg-aparencia": "Aparência", "cfg-notificacoes": "Notificações e som",
     "cfg-aprovacoes": "Aprovar produtos novos", "cfg-avisos": "Avisos", "cfg-balanca": "Código de balança", "cfg-privacidade": "Privacidade e termos", "cfg-sobre": "Sobre o app",
-    home: "Alerta de Validade", scan: "Bipar produto", confirm: "Dados do produto",
+    home: "Bipi Validade", scan: "Bipar produto", confirm: "Dados do produto",
     expiry: "Data de validade", historico: "Histórico de baixas", ajustes: "Mais", auditoria: "Auditoria",
     prioridade: "Prioridade de Perda",
     setores: "Setores", torre: "Torre de Controle", rondas: "Rondas", relatorios: "Relatórios", rede: "Painel da Rede", gestao: "Gestão do Aplicativo", convites: "Convites de promotor",
@@ -59,7 +59,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
               </button>
             )}
             <div style={{ background: "rgba(255,255,255,0.97)" }} className="rounded-xl px-2.5 py-1.5 flex items-center shadow-lg shadow-black/5 lg:hidden">
-              <img src={LOGO_SRC} alt="Condor Supermercados" className="h-5 w-auto" />
+              <img src={LOGO_SRC} alt="Bipi Validade" className="h-7 w-auto" />
             </div>
             <h1 className="text-white font-bold text-[15px] lg:text-lg leading-none">{title}</h1>
           </div>

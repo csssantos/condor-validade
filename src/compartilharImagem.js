@@ -302,7 +302,7 @@ export async function gerarImagemProduto(entrada) {
 
   // ---- rodapé ----
   c.fillStyle = "#D6E2F3"; c.fillRect(50, yRodape + 6, L - 100, 3);
-  c.fillStyle = AZUL; c.font = `800 34px ${fonte}`; c.fillText("Condor · Alerta de Validade", 64, yRodape + 86);
+  c.fillStyle = AZUL; c.font = `800 34px ${fonte}`; c.fillText("Bipi Validade", 64, yRodape + 86);
   c.fillStyle = CINZA; c.font = `500 26px ${fonte}`;
   c.fillText("Confira sempre a validade no app", 64, yRodape + 130);
   c.fillText(`Imagem gerada em ${dados.geradoEm}`, 64, yRodape + 174);

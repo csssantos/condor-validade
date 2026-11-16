@@ -238,14 +238,14 @@ function HistoricoView({ T, historico, items, usuario }) {
   function exportarCSV() {
     const header = ["Produto", "Setor", "Código", "Lote", "Validade", "Ação", "Quantidade", "PrecoUnitario", "DataBaixa", "Responsável"];
     const rows = filtrado.map((h) => [h.nome, h.setor, h.barcode, textoLote(h), formatarData(h.validade), h.motivo, h.quantidade || 1, (h.precoUnitario || 0).toFixed(2), formatarDataHora(h.dataBaixa), h.registradoPor || ""]);
-    downloadCSV(rows, header, "condor-historico-baixas.csv");
+    downloadCSV(rows, header, "bipi-historico-baixas.csv");
   }
   function exportarPlanilha(formato) {
     const linhas = filtrado.map((h) => ({
       Produto: h.nome, Setor: h.setor, Codigo: h.barcode, Lote: textoLote(h), Validade: formatarData(h.validade),
       Acao: h.motivo, Quantidade: h.quantidade || 1, PrecoUnitario: h.precoUnitario || 0, DataBaixa: formatarDataHora(h.dataBaixa), Responsavel: h.registradoPor || ""
     }));
-    downloadPlanilha(linhas, `condor-historico-baixas.${formato}`, "Historico");
+    downloadPlanilha(linhas, `bipi-historico-baixas.${formato}`, "Historico");
   }
 
   return (

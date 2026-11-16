@@ -1442,7 +1442,7 @@ function AppInner() {
   if (conviteStatus?.erro) {
     return comBanner(
       <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
+        <img src={LOGO_SRC} alt="Bipi Validade" className="h-10 w-auto" />
         <Ticket size={28} color={RED} />
         <p className="text-sm font-semibold max-w-xs">{conviteStatus.erro}</p>
         <button onClick={() => setConviteStatus(null)} style={{ color: BLUE }} className="text-xs font-semibold">Ir para o login</button>
@@ -1455,7 +1455,7 @@ function AppInner() {
     const emailLink = emailDoLinkPendente();
     return (
       <div style={{ background: T.bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
+        <img src={LOGO_SRC} alt="Bipi Validade" className="h-10 w-auto" />
         <Lock size={28} color={BLUE} />
         <p className="text-base font-extrabold max-w-xs">Você já está logado neste aparelho</p>
         <p className="text-sm max-w-xs" style={{ color: T.subtext }}>Conta atual: <strong>{emailAtual}</strong>.{emailLink ? <> O link do e-mail é da conta <strong>{emailLink}</strong>.</> : " O link do e-mail é de outra conta."} Se você usar o link, sai desta conta neste aparelho (seus lançamentos já salvos continuam salvos). O link só funciona uma vez.</p>
@@ -1512,7 +1512,7 @@ function AppInner() {
   if (sessao?.user?.is_anonymous && perfil === null && !perfilErro) {
     return comBanner(
       <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
+        <img src={LOGO_SRC} alt="Bipi Validade" className="h-10 w-auto" />
         <Ticket size={28} color={RED} />
         <p className="text-sm font-semibold">Seu acesso de promotor terminou.</p>
         <p style={{ color: getTokens(false).subtext }} className="text-xs max-w-xs">O convite venceu ou foi cancelado. Peça um novo link pro encarregado da loja.</p>
@@ -1527,7 +1527,7 @@ function AppInner() {
     if (perfilErro) {
       return comBanner(
         <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
-          <img src={LOGO_SRC} alt="Condor" className="h-10 w-auto" />
+          <img src={LOGO_SRC} alt="Bipi Validade" className="h-10 w-auto" />
           <p className="text-sm font-semibold">Não foi possível carregar seu perfil.</p>
           <p style={{ color: getTokens(false).subtext }} className="text-xs">Verifique a conexão e tente de novo.</p>
           <button onClick={() => { setPerfil(undefined); setPerfilTick((n) => n + 1); }} style={{ background: BLUE, color: "#fff" }} className="px-4 py-2.5 rounded-xl text-sm font-semibold">Tentar de novo</button>

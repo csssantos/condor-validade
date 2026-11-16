@@ -110,7 +110,7 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
   const pct = Math.round((progresso || 0) * 100);
   return (
     <div role="dialog" aria-modal="true" aria-label="Atualização necessária" className="fixed inset-0 z-[80] flex flex-col items-center justify-center px-8 text-center text-white" style={{ background: FUNDO_MARCA }}>
-      <div className="bg-white rounded-2xl px-6 py-4 shadow-xl shadow-black/25"><img src={logo} alt="Condor" className="h-9 w-auto" /></div>
+      <div className="bg-white rounded-2xl px-6 py-4 shadow-xl shadow-black/25"><img src={logo} alt="Bipi Validade" className="h-12 w-auto" /></div>
       <Sparkles size={30} color="#fff" className="mt-8" />
       <h1 className="text-[24px] font-extrabold mt-3">Nova versão disponível</h1>
       <p className="text-[14px] text-white/80 mt-2 max-w-xs">Para entrar no app, atualize primeiro. É rapidinho.</p>

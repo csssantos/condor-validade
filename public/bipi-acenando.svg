@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
-  <!-- Bipi, o mascote do Condor · Alerta de Validade (descrição oficial no CLAUDE.md) -->
+  <!-- Bipi, o mascote do Bipi Validade (descrição oficial no CLAUDE.md) -->
   <ellipse cx="200" cy="378" rx="92" ry="11" fill="#000" opacity=".22"/>
   <!-- antena -->
   <path d="M200 74 V46" stroke="#7DB4F0" stroke-width="7" stroke-linecap="round"/>

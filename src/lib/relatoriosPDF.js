@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { criarPDF, COR } from "../pdfMarca.js";
 import { supabase } from "../supabaseClient";
-import { CONDOR_LOGO_BASE64 } from "./constantes";
+import { LOGO_SRC, LOGO_BIPI_PROPORCAO } from "./constantes";
 import { formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, hojeISOLocal } from "./formatos";
 import { textoLote } from "./produto";
 import { calcularPrioridade } from "./utilidades";
@@ -109,7 +109,7 @@ function protegerPDF(fn) {
 }
 
 const PDF_BASE = (titulo, subtitulo, usuario, lojaNumero) => criarPDF({
-  titulo, subtitulo, usuario, lojaNumero, logo: CONDOR_LOGO_BASE64, formatarDataHora: formatarDataHoraExtenso,
+  titulo, subtitulo, usuario, lojaNumero, logo: LOGO_SRC, logoProporcao: LOGO_BIPI_PROPORCAO, formatarDataHora: formatarDataHoraExtenso,
 });
 
 const hojeISO = hojeISOLocal;
@@ -140,7 +140,7 @@ async function gerarPDFProximosAVencer_raw(itensProximos, { usuario, lojaNumero,
     [{ t: "PRODUTO", w: 40 }, { t: "SETOR", w: 20 }, { t: "VALIDADE", w: 20 }, { t: "LOTE", w: 17 }, { t: "FALTAM", w: 12, a: "r" }, { t: "QTD.", w: 11, a: "r" }, { t: "VALOR", w: 22, a: "r" }, { t: "PEDIDO", w: 24 }],
     ord.map((i) => [i.nome, i.setor, formatarData(i.validade), textoLote(i) || "—", `${i.status?.d ?? "—"}d`, textoQtd(i), formatarMoeda(valorLinha(i)), textoPedidoCurto(i)])
   );
-  r.finalizar(`condor-proximos-vencer-loja${lojaNumero || "79"}-${hojeISO()}.pdf`, showToast, "Relatório gerado.");
+  r.finalizar(`bipi-proximos-vencer-loja${lojaNumero || "79"}-${hojeISO()}.pdf`, showToast, "Relatório gerado.");
 }
 
 // Pedidos de promoção / preço direto (campanhas) — o que foi pedido, por quem e o que ainda está sem pedido
@@ -182,7 +182,7 @@ async function gerarPDFPedidos_raw({ items, usuario, lojaNumero, showToast }) {
     { vazio: "Nenhum item crítico sem pedido. Tudo coberto." }
   );
   if (criticosSem.length > 150) r.nota(`Mostrando os 150 críticos mais urgentes de ${criticosSem.length}.`);
-  r.finalizar(`condor-pedidos-campanha-${hojeISO()}.pdf`, showToast, "Relatório de pedidos gerado.");
+  r.finalizar(`bipi-pedidos-campanha-${hojeISO()}.pdf`, showToast, "Relatório de pedidos gerado.");
 }
 
 // Perdas e baixas dos últimos N dias (a partir do histórico)
@@ -211,7 +211,7 @@ async function gerarPDFPerdas_raw({ historico, usuario, lojaNumero, showToast, d
     { vazio: "Nenhuma baixa no período." }
   );
   if (lista.length > 300) r.nota("Mostrando as 300 baixas mais recentes. Use a planilha para a lista completa.");
-  r.finalizar(`condor-perdas-baixas-${hojeISO()}.pdf`, showToast, "Relatório de perdas gerado.");
+  r.finalizar(`bipi-perdas-baixas-${hojeISO()}.pdf`, showToast, "Relatório de perdas gerado.");
 }
 
 // Vencimentos por setor (posição atual do estoque monitorado)
@@ -236,7 +236,7 @@ async function gerarPDFPosicaoSetores_raw({ items, usuario, lojaNumero, showToas
     [{ t: "SETOR", w: 50 }, { t: "LOTES", w: 18, a: "r" }, { t: "VENCIDOS", w: 22, a: "r" }, { t: "ATENÇÃO", w: 20, a: "r" }, { t: "S/ PEDIDO", w: 24, a: "r" }, { t: "VALOR EM RISCO", w: 36, a: "r" }],
     lista.map(([s, d]) => [s, String(d.total), String(d.vencidos), String(d.atencao), String(d.sem), formatarMoeda(d.valor)])
   );
-  r.finalizar(`condor-posicao-setores-${hojeISO()}.pdf`, showToast, "Relatório gerado.");
+  r.finalizar(`bipi-posicao-setores-${hojeISO()}.pdf`, showToast, "Relatório gerado.");
 }
 
 async function gerarRelatorioGerencialPDF_raw({ items, historico, usuario, showToast, criticos, atencao, valorEmRisco, tendenciaPerdas, riscoPorSetor, reincidentes, rankingResponsaveis, rondas, lojaNumero, secoes }) {
@@ -298,7 +298,7 @@ async function gerarRelatorioGerencialPDF_raw({ items, historico, usuario, showT
       );
     }
   }
-  r.finalizar(`condor-relatorio-gerencial-${hojeISO()}.pdf`, showToast, "Relatório gerado.");
+  r.finalizar(`bipi-relatorio-gerencial-${hojeISO()}.pdf`, showToast, "Relatório gerado.");
 }
 
 async function gerarRelatorioFinanceiroPDF_raw({ usuario, showToast, lojaNumero, valorTotalMonitorado, valorEmRisco, faixasRisco, porPoliticaTroca, topRisco }) {
@@ -320,7 +320,7 @@ async function gerarRelatorioFinanceiroPDF_raw({ usuario, showToast, lojaNumero,
     [{ t: "PRODUTO", w: 52 }, { t: "SETOR", w: 26 }, { t: "VALIDADE", w: 22 }, { t: "LOTE", w: 20 }, { t: "PEDIDO", w: 28 }, { t: "VALOR", w: 28, a: "r" }],
     topRisco.map((i) => [i.nome, i.setor, formatarData(i.validade), textoLote(i) || "—", textoPedidoCurto(i), formatarMoeda(i.valorRisco)])
   );
-  r.finalizar(`condor-relatorio-financeiro-${hojeISO()}.pdf`, showToast, "Relatório financeiro gerado.");
+  r.finalizar(`bipi-relatorio-financeiro-${hojeISO()}.pdf`, showToast, "Relatório financeiro gerado.");
 }
 
 async function gerarRelatorioAtividadePDF_raw({ usuario, showToast, lojaNumero, porUsuarioAuditoria, porTipoAcao, rondasResumo }) {
@@ -336,7 +336,7 @@ async function gerarRelatorioAtividadePDF_raw({ usuario, showToast, lojaNumero, 
   r.tabela([{ t: "TIPO DE AÇÃO", w: 126 }, { t: "QTD", w: 56, a: "r" }], porTipoAcao.map(([t, q]) => [t, String(q)]));
   r.secao("RONDAS POR SETOR");
   r.tabela([{ t: "SETOR", w: 86 }, { t: "CONCLUÍDAS", w: 48, a: "r" }, { t: "PARCIAIS", w: 48, a: "r" }], rondasResumo.porSetor.map(([s, d]) => [s, String(d.concluidas), String(d.parciais)]));
-  r.finalizar(`condor-relatorio-atividade-${hojeISO()}.pdf`, showToast, "Relatório de atividade gerado.");
+  r.finalizar(`bipi-relatorio-atividade-${hojeISO()}.pdf`, showToast, "Relatório de atividade gerado.");
 }
 
 const gerarPDFProximosAVencer = protegerPDF(gerarPDFProximosAVencer_raw);

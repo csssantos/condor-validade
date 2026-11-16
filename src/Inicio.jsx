@@ -135,8 +135,8 @@ export function PalcoInicio({
         {/* topo: logo + ações */}
         <div className="flex items-center justify-between">
           <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 18 }}
-            className="bg-white rounded-2xl h-10 px-3 flex items-center shadow-lg shadow-black/20">
-            <img src={logo} alt="Condor" className="h-[22px] w-auto" />
+            className="bg-white rounded-2xl h-11 px-3.5 flex items-center shadow-lg shadow-black/20">
+            <img src={logo} alt="Bipi Validade" className="h-[30px] w-auto" />
           </motion.div>
           <div className="flex items-center gap-2">
             {atualizacaoPendente && (

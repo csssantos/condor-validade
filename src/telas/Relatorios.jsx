@@ -74,7 +74,7 @@ function RelatoriosDashboard({ T, lojaNumero, items, criticos, atencao, valorEmR
       <div className="mb-5"><DashTabs T={T} value={aba} onChange={setAba} options={[{ id: "geral", label: "Visão geral" }, { id: "setores", label: "Setores e itens" }, { id: "financeiro", label: "Financeiro e ROI" }, { id: "atividade", label: "Atividade" }]} /></div>
 
       {aba === "geral" && (<>
-        <DashCard T={T} title="Relatórios prontos" subtitle="PDFs no visual do Condor, prontos para imprimir ou enviar" className="mb-5">
+        <DashCard T={T} title="Relatórios prontos" subtitle="PDFs no visual do Bipi, prontos para imprimir ou enviar" className="mb-5">
           <div className="flex gap-2 flex-wrap">
             {[[`Pedidos de campanha (${qtdPedidos}) PDF`, gerarPDFPedidos], ["Pedidos CSV", () => exportarPedidos("csv")], ["Pedidos Excel", () => exportarPedidos("xlsx")], ["Perdas e baixas 30 dias PDF", gerarPDFPerdas], ["Posição por setor PDF", gerarPDFSetores],
               ...(proximosAVencer.length > 0 ? [[`Próximos do vencimento (${proximosAVencer.length}) PDF`, gerarPDFProximos]] : [])].map(([rot, fn]) => (
@@ -532,8 +532,8 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
       Produto: i.nome, Setor: i.setor, Lote: textoLote(i) || "", Validade: formatarData(i.validade), Tipo: rotuloPedido(i.pedidoTipo), Campanha: i.pedidoCampanha || "",
       ValorSugerido: i.pedidoValor != null ? Number(i.pedidoValor).toFixed(2) : "", PedidoPor: i.pedidoPor || "", PedidoEm: dataCurta(i.pedidoEm), Quantidade: i.quantidade,
     }));
-    if (formato === "csv") downloadCSV(linhas.map((l) => Object.values(l)), Object.keys(linhas[0] || { Produto: 1, Setor: 1, Lote: 1, Validade: 1, Tipo: 1, Campanha: 1, ValorSugerido: 1, PedidoPor: 1, PedidoEm: 1, Quantidade: 1 }), "condor-pedidos-campanha.csv");
-    else downloadPlanilha(linhas, `condor-pedidos-campanha.${formato}`, "Pedidos");
+    if (formato === "csv") downloadCSV(linhas.map((l) => Object.values(l)), Object.keys(linhas[0] || { Produto: 1, Setor: 1, Lote: 1, Validade: 1, Tipo: 1, Campanha: 1, ValorSugerido: 1, PedidoPor: 1, PedidoEm: 1, Quantidade: 1 }), "bipi-pedidos-campanha.csv");
+    else downloadPlanilha(linhas, `bipi-pedidos-campanha.${formato}`, "Pedidos");
   }
   const gerarPDFFinanceiro = () => gerarRelatorioFinanceiroPDF({
     usuario, showToast, lojaNumero, valorTotalMonitorado, valorEmRisco, faixasRisco, porPoliticaTroca, topRisco,
@@ -551,9 +551,9 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
     ];
     if (formato === "csv") {
       downloadCSV(linhas.map((l) => [l.Secao, l.Item, l.Setor || "", l.Lote || "", l.Validade || "", l.Quantidade ?? "", (l.Valor || 0).toFixed(2)]),
-        ["Secao", "Item", "Setor", "Lote", "Validade", "Quantidade", "Valor"], "condor-relatorio-financeiro.csv");
+        ["Secao", "Item", "Setor", "Lote", "Validade", "Quantidade", "Valor"], "bipi-relatorio-financeiro.csv");
     } else {
-      downloadPlanilha(linhas, `condor-relatorio-financeiro.${formato}`, "Financeiro");
+      downloadPlanilha(linhas, `bipi-relatorio-financeiro.${formato}`, "Financeiro");
     }
   }
   function exportarAtividade(formato) {
@@ -564,9 +564,9 @@ function RelatoriosView({ T, items, historico, auditoria, usuario, showToast, on
     ];
     if (formato === "csv") {
       downloadCSV(linhas.map((l) => [l.Secao, l.Item, l.Quantidade ?? "", l.Concluidas ?? "", l.Parciais ?? ""]),
-        ["Secao", "Item", "Quantidade", "Concluidas", "Parciais"], "condor-relatorio-atividade.csv");
+        ["Secao", "Item", "Quantidade", "Concluidas", "Parciais"], "bipi-relatorio-atividade.csv");
     } else {
-      downloadPlanilha(linhas, `condor-relatorio-atividade.${formato}`, "Atividade");
+      downloadPlanilha(linhas, `bipi-relatorio-atividade.${formato}`, "Atividade");
     }
   }
 

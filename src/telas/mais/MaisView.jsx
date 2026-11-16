@@ -95,7 +95,7 @@ function MaisView(props) {
             <div className="grid grid-cols-2 gap-3 mt-4">
               {PAGINAS.map((p, i) => <MaisTile key={p.id} T={T} dark={dark} i={i} icon={p.Icon} cor={p.cor} titulo={p.titulo} desc={p.desc} onClick={() => setPagina(p.id)} />)}
             </div>
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} style={{ color: T.subtext }} className="text-center text-[11.5px] mt-6">Condor · Alerta de Validade · v{APP_VERSAO}</motion.p>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} style={{ color: T.subtext }} className="text-center text-[11.5px] mt-6">Bipi Validade · v{APP_VERSAO}</motion.p>
           </motion.div>
         ) : (
           <motion.div key={ativa} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 40 }} transition={{ duration: 0.22 }} className="px-4 pt-3 pb-10">
