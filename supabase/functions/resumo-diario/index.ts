@@ -19,7 +19,7 @@ const TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
 const RESEND = Deno.env.get("RESEND_API_KEY") || "";
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const vapidOk = !!(Deno.env.get("VAPID_PUBLIC_KEY") && Deno.env.get("VAPID_PRIVATE_KEY"));
-if (vapidOk) webpush.setVapidDetails(Deno.env.get("VAPID_SUBJECT") || "mailto:contato@condor.com.br", Deno.env.get("VAPID_PUBLIC_KEY")!, Deno.env.get("VAPID_PRIVATE_KEY")!);
+if (vapidOk) webpush.setVapidDetails(Deno.env.get("VAPID_SUBJECT") || "https://app.usebipi.com", Deno.env.get("VAPID_PUBLIC_KEY")!, Deno.env.get("VAPID_PRIVATE_KEY")!);
 const resp = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json" } });
 
 async function tg(method: string, body: Record<string, unknown>) {
