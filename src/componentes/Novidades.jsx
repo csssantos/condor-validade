@@ -10,6 +10,10 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = regional e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-16-notif", data: "16/11/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Agora dá para desativar (e ativar de novo) as notificações em Mais → Notificações." },
+    { tipo: "melhorado", ate: 7, texto: "No celular, o app passa a ocupar a tela toda, sem faixas brancas nas laterais." },
+  ] },
   { id: "2026-11-15-android", data: "15/11/2026", itens: [
     { tipo: "adicionado", ate: 7, texto: "Aplicativo Android (APK) com avisos que chegam mesmo com o app fechado: vencimentos, avisos da gerência, produtos novos para aprovar e o resumo diário. Para receber, abra o app, entre na conta e ative as notificações." },
   ] },

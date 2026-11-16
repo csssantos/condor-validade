@@ -87,16 +87,23 @@ function PaginaAparencia({ T, dark, tema, onTema }) {
   );
 }
 
-function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNotif, ehEncarregado, usuarioId, emailConta, showToast }) {
+function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNotif, onDesativarNotif, ehEncarregado, usuarioId, emailConta, showToast }) {
   const iosSemInstalar = isIOS() && !isStandalone();
   const ativa = notifPermission === "granted";
+  const desligada = notifPermission === "off"; // permissão do sistema ok, mas desligadas pelo usuário neste aparelho
   const bloqueada = notifPermission === "denied";
   const suportada = notifPermission !== "unsupported";
   const pc = useTelaLarga();
   const controleNotif = (
-            ativa ? <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 14 }} className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#E3F4EA", color: "#14573A" }}>Ligadas</motion.span>
+            ativa ? (
+              <div className="flex items-center gap-2">
+                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 14 }} className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#E3F4EA", color: "#14573A" }}>Ligadas</motion.span>
+                {onDesativarNotif && <motion.button whileTap={{ scale: 0.94 }} onClick={onDesativarNotif} style={{ background: T.chipBg, color: T.text }} className="text-[12px] font-bold px-3.5 py-2 rounded-full">Desativar</motion.button>}
+              </div>
+            )
             : suportada && !bloqueada && !iosSemInstalar ? <motion.button whileTap={{ scale: 0.94 }} onClick={onToggleNotif} style={{ background: BLUE, color: "#fff" }} className="text-[12px] font-bold px-4 py-2 rounded-full">Ativar</motion.button> : null
   );
+  const descNotif = ativa ? "Ativadas neste aparelho" : desligada ? "Desligadas neste aparelho" : bloqueada ? (ehNativo() ? "Bloqueadas no Android" : "Bloqueadas no navegador") : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta";
   const resumo = ehEncarregado && usuarioId ? <ResumoDiarioControles T={T} dark={dark} usuarioId={usuarioId} showToast={showToast} notifAtiva={ativa} temEmail={!!emailConta} /> : null;
   if (pc) {
     return (
@@ -106,7 +113,7 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
             <MaisBolha cor={COR_MAIS.notificacoes} dark={dark} tamanho={52}>{ativa ? <Bell size={22} /> : <BellOff size={22} />}</MaisBolha>
             <div className="flex-1 min-w-0">
               <p style={{ color: T.text }} className="text-[15px] font-bold">Notificações do app</p>
-              <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">{ativa ? "Ativadas neste aparelho" : bloqueada ? (ehNativo() ? "Bloqueadas no Android" : "Bloqueadas no navegador") : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta"}</p>
+              <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">{descNotif}</p>
             </div>
             {controleNotif}
           </div>
@@ -133,7 +140,7 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
     <>
       <MaisBloco T={T} titulo="Alertas" i={0}>
         <MaisLinha T={T} dark={dark} icon={ativa ? Bell : BellOff} cor={COR_MAIS.notificacoes} titulo="Notificações do app"
-          desc={ativa ? "Ativadas neste aparelho" : bloqueada ? (ehNativo() ? "Bloqueadas no Android" : "Bloqueadas no navegador") : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta"}
+          desc={descNotif}
           direita={controleNotif} ultima />
         <AnimatePresence>
           {iosSemInstalar && !ativa && <div className="px-4 pb-4"><MaisAviso>No iPhone, as notificações só funcionam depois de instalar o app: toque em <strong>Compartilhar</strong> no Safari → <strong>Adicionar à Tela de Início</strong> → abra pelo ícone criado e volte aqui para ativar.</MaisAviso></div>}

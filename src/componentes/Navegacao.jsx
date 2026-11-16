@@ -37,7 +37,7 @@ function BottomNav({ T, tab, setTab, alertCount, onScan }) {
   return (
     <nav className="lg:hidden fixed inset-x-0 bottom-0 z-20 pointer-events-none px-3 pb-[calc(env(safe-area-inset-bottom)*0.12+4px)]" style={{ transform: "translateZ(0)", willChange: "transform" }}>
       <motion.div initial={{ y: 90, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 26 }}
-        className="pointer-events-auto max-w-md mx-auto relative flex items-center rounded-[32px] px-1.5 h-[68px]"
+        className="pointer-events-auto max-w-none md:max-w-xl mx-auto relative flex items-center rounded-[32px] px-1.5 h-[68px]"
         style={{
           background: escuro ? "rgba(21,31,48,.88)" : "rgba(255,255,255,.9)", backdropFilter: "blur(20px) saturate(160%)", WebkitBackdropFilter: "blur(20px) saturate(160%)",
           border: `1px solid ${escuro ? "rgba(255,255,255,.1)" : "rgba(15,40,80,.08)"}`, boxShadow: "0 18px 40px -12px rgba(5,20,50,.38), 0 2px 6px rgba(5,20,50,.08)",

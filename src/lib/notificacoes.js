@@ -80,6 +80,21 @@ async function inscreverPushNativo(usuario) {
     await P.register();
   } catch (e) { console.error("Falha ao inscrever push nativo:", e); }
 }
+// ---------- Desligar notificações neste aparelho (2026-11-16) ----------
+// A permissão do sistema continua concedida; quem desliga é o app: tira a inscrição do aparelho (o servidor apaga a linha
+// no próximo envio, quando o serviço de push responde "inscrição inválida") e guarda a escolha para não registrar de novo.
+// A escolha vale POR PESSOA (chave com o id da conta): quem entra depois no mesmo aparelho não herda o "desligado".
+const chaveNotifOff = (uid) => `avdc_notif_off:${uid}`;
+function notifDesligadas(uid) { if (!uid) return false; try { return localStorage.getItem(chaveNotifOff(uid)) === "1"; } catch { return false; } }
+function definirNotifDesligadas(uid, v) { if (!uid) return; try { if (v) localStorage.setItem(chaveNotifOff(uid), "1"); else localStorage.removeItem(chaveNotifOff(uid)); } catch { /* sem armazenamento */ } }
+async function desativarPushDoAparelho() {
+  try {
+    if (ehNativo()) { await desinscreverPushNativo(); return; }
+    const reg = await navigator.serviceWorker?.ready;
+    const sub = await reg?.pushManager?.getSubscription();
+    if (sub) await sub.unsubscribe();
+  } catch (e) { console.error("Falha ao desligar push:", e); }
+}
 /** ao sair da conta: apaga o token do aparelho para não receber avisos da pessoa anterior */
 async function desinscreverPushNativo() {
   try { const P = pluginPush(); if (!P) return; await P.unregister(); } catch { /* ok */ }
@@ -174,4 +189,4 @@ async function buscarProdutoPorCodigo(barcode) {
   return null;
 }
 
-export { buscarProdutoPorCodigo, limparNotifDaPessoa, chaveBaseNotif, chaveNotifItem, planejarNotificacoes, chaveListaNotif, dispararNotificacao, inscreverPush, ehNativo, permissaoPushNativa, pedirPermissaoPushNativa, inscreverPushNativo, desinscreverPushNativo, isIOS, isStandalone, urlBase64ToUint8Array };
+export { notifDesligadas, definirNotifDesligadas, desativarPushDoAparelho, buscarProdutoPorCodigo, limparNotifDaPessoa, chaveBaseNotif, chaveNotifItem, planejarNotificacoes, chaveListaNotif, dispararNotificacao, inscreverPush, ehNativo, permissaoPushNativa, pedirPermissaoPushNativa, inscreverPushNativo, desinscreverPushNativo, isIOS, isStandalone, urlBase64ToUint8Array };

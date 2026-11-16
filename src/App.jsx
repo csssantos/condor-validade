@@ -22,7 +22,7 @@ import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SITE_URL
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
 import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, contarFilaDaPessoa, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
-import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, ehNativo, permissaoPushNativa, pedirPermissaoPushNativa, inscreverPushNativo, desinscreverPushNativo, isIOS, isStandalone, planejarNotificacoes, chaveListaNotif, limparNotifDaPessoa } from "./lib/notificacoes";
+import { chaveBaseNotif, chaveNotifItem, dispararNotificacao, inscreverPush, ehNativo, permissaoPushNativa, pedirPermissaoPushNativa, inscreverPushNativo, desinscreverPushNativo, notifDesligadas, definirNotifDesligadas, desativarPushDoAparelho, isIOS, isStandalone, planejarNotificacoes, chaveListaNotif, limparNotifDaPessoa } from "./lib/notificacoes";
 import { campanhaValida, eanValido, limiteSomaLote, normalizarCampanha, textoLote } from "./lib/produto";
 import { usarDadosGerenciais } from "./lib/relatoriosPDF";
 import { useDesktop, useTelaLarga } from "./lib/tela";
@@ -130,9 +130,13 @@ function AppInner() {
   const [setoresExtra, setSetoresExtra] = useState([]);
   const [subsetoresExtra, setSubsetoresExtra] = useState([]);
   const [rondaIntent, setRondaIntent] = useState(null);
-  const [notifPermission, setNotifPermission] = useState(
+  const [permissaoSistema, setNotifPermission] = useState(
     typeof Notification !== "undefined" ? Notification.permission : ehNativo() ? "default" : "unsupported"
   );
+  const [notifOff, setNotifOff] = useState(() => notifDesligadas(idDoUsuario)); // desligadas por esta pessoa neste aparelho
+  useEffect(() => { setNotifOff(notifDesligadas(idDoUsuario)); }, [idDoUsuario]);
+  // "off" = permissão do sistema concedida, mas o usuário desligou os avisos no app (nada de "granted" para o resto do app)
+  const notifPermission = permissaoSistema === "granted" && notifOff ? "off" : permissaoSistema;
   useEffect(() => { // APK Android: sem API Notification; a permissão vem do plugin nativo
     if (!ehNativo()) return;
     const ler = () => permissaoPushNativa().then(setNotifPermission);
@@ -307,8 +311,8 @@ function AppInner() {
       setUsuario(identidade);
       // Auditoria de acesso: o SERVIDOR grava nome, loja e IP (o app só informa o aparelho); sem serviço externo de IP
       if (loginRegistradoRef.current !== sessao?.user?.id) { loginRegistradoRef.current = sessao?.user?.id; supabase.rpc("registrar_login", { p_dispositivo: String(navigator.userAgent || "").slice(0, 300) }).then(({ error }) => { if (error) console.warn("registrar_login:", error.message); }, () => {}); }
-      if (ehNativo()) { permissaoPushNativa().then((p) => { if (p === "granted") inscreverPushNativo(identidade); }); }
-      else if (typeof Notification !== "undefined" && Notification.permission === "granted") inscreverPush(identidade);
+      if (ehNativo()) { permissaoPushNativa().then((p) => { if (p === "granted" && !notifDesligadas(sessao?.user?.id)) inscreverPushNativo(identidade); }); }
+      else if (typeof Notification !== "undefined" && Notification.permission === "granted" && !notifDesligadas(sessao?.user?.id)) inscreverPush(identidade);
     }
   }, [perfil]);
 
@@ -850,6 +854,16 @@ function AppInner() {
     setAuditoria((prev) => [{ id: `temp-${Date.now()}`, criadoEm: new Date().toISOString(), usuario: usuarioAtual, acao, detalhe, barcode }, ...prev].slice(0, 40));
   }
 
+  async function desativarNotificacoes() {
+    if (notifTrocandoRef.current) return;
+    notifTrocandoRef.current = true;
+    try {
+      definirNotifDesligadas(idDoUsuario, true); setNotifOff(true);
+      await desativarPushDoAparelho();
+      showToast("Notificações desligadas neste aparelho. Para voltar a receber, toque em Ativar.", "ok");
+    } finally { notifTrocandoRef.current = false; }
+  }
+
   async function toggleNotificacoes() {
     if (notifTrocandoRef.current) return; // toque duplo durante o pedido de permissão
     if (!ehNativo() && typeof Notification === "undefined") { showToast("Seu navegador não suporta notificações.", "warn"); return; }
@@ -857,14 +871,26 @@ function AppInner() {
       showToast("No iPhone, adicione o app à Tela de Início primeiro (Compartilhar → Adicionar à Tela de Início) para poder ativar notificações.", "warn");
       return;
     }
-    if (notifPermission === "granted") { showToast("As notificações já estão ativas."); return; }
+    if (notifPermission === "granted") { showToast("As notificações estão ativas. Para desligar, vá em Mais → Notificações."); return; }
     notifTrocandoRef.current = true;
     try {
+      if (notifOff) { // religar: confere a permissão de agora (pode ter sido revogada) e volta a inscrever o aparelho
+        const atual = ehNativo() ? await permissaoPushNativa() : (typeof Notification !== "undefined" ? Notification.permission : "unsupported");
+        setNotifPermission(atual);
+        if (atual === "granted") {
+          definirNotifDesligadas(idDoUsuario, false); setNotifOff(false);
+          if (idDoUsuario) limparNotifDaPessoa(idDoUsuario, true);
+          await (ehNativo() ? inscreverPushNativo(usuario) : inscreverPush(usuario));
+          showToast("Notificações ativadas — você vai receber avisos mesmo com o app fechado.", "ok");
+          return;
+        }
+      }
       const perm = ehNativo() ? await pedirPermissaoPushNativa() : await Notification.requestPermission();
       if (perm === "unsupported") { showToast("Atualize o aplicativo Android para ativar as notificações.", "warn"); return; }
       // ao ativar, o que já existe vira "linha de base" em silêncio: só avisos futuros chegam
       if (perm === "granted" && idDoUsuario) limparNotifDaPessoa(idDoUsuario, true);
       setNotifPermission(perm);
+      if (perm === "granted") { definirNotifDesligadas(idDoUsuario, false); setNotifOff(false); }
       if (perm === "granted") await (ehNativo() ? inscreverPushNativo(usuario) : inscreverPush(usuario));
       showToast(perm === "granted" ? "Notificações ativadas — você vai receber avisos mesmo com o app fechado."
         : ehNativo() ? "Permissão não concedida. Para ativar depois, abra Configurações do Android → Apps → Bipi → Notificações."
@@ -1521,12 +1547,12 @@ function AppInner() {
   const showBottomNav = flow === null;
   // Desktop (lg+): telas de formulário/ajustes ficam estreitas e legíveis; listas e painéis usam mais largura.
   const larguraMain =
-    flow === null && tab.startsWith("cfg-") ? "max-w-md lg:max-w-[1600px]" :
-    (flow === null && tab === "ajustes") || flow === "scan" ? "max-w-md lg:max-w-2xl" :
-    flow === "confirm" ? "max-w-md lg:max-w-5xl" :
-    flow === "expiry" ? "max-w-md lg:max-w-5xl" :
-    ["torre", "relatorios", "historico", "auditoria", "rede", "gestao", "convites"].includes(flow) ? "max-w-md lg:max-w-[1600px]" :
-    "max-w-md lg:max-w-[1600px]";
+    flow === null && tab.startsWith("cfg-") ? "max-w-none md:max-w-2xl lg:max-w-[1600px]" :
+    (flow === null && tab === "ajustes") || flow === "scan" ? "max-w-none md:max-w-2xl lg:max-w-2xl" :
+    flow === "confirm" ? "max-w-none md:max-w-2xl lg:max-w-5xl" :
+    flow === "expiry" ? "max-w-none md:max-w-2xl lg:max-w-5xl" :
+    ["torre", "relatorios", "historico", "auditoria", "rede", "gestao", "convites"].includes(flow) ? "max-w-none md:max-w-2xl lg:max-w-[1600px]" :
+    "max-w-none md:max-w-2xl lg:max-w-[1600px]";
   const alertCount = items.filter((i) => ["alert", "expired"].includes(getStatus(i).level)).length;
 
   return (
@@ -1542,7 +1568,7 @@ function AppInner() {
         onBack={flow === "expiry" && !editingItemId ? () => setFlow("confirm") : resetFlow}
         dark={dark}
         setDark={(fn) => setPrefs((p) => { const d = typeof fn === "function" ? fn(dark) : fn; return { ...p, tema: d ? "escuro" : "claro" }; })}
-        notifPermission={notifPermission} onToggleNotif={toggleNotificacoes}
+        notifPermission={notifPermission} onToggleNotif={toggleNotificacoes} onDesativarNotif={desativarNotificacoes}
         atualizacaoPendente={!!novaVersao && !mostrarBannerVersao} onAtualizacao={() => setVersaoDispensada(null)} />
 
       <FaixaFila online={online} />
@@ -1591,7 +1617,7 @@ function AppInner() {
             onScan={() => setFlow("scan")} onCadastrar={() => abrirCadastroDireto()} onOpenDetail={setDetalheItem}
             onVerPrioridades={() => setFlow("prioridade")}
             comPalco={tab === "home"} nomeUsuario={perfil?.nome} lojaNumero={lojaAtiva?.numero_loja}
-            notifPermission={notifPermission} onToggleNotif={toggleNotificacoes}
+            notifPermission={notifPermission} onToggleNotif={toggleNotificacoes} onDesativarNotif={desativarNotificacoes}
             dark={dark} onTema={() => setPrefs((p) => ({ ...p, tema: dark ? "claro" : "escuro" }))}
             atualizacaoPendente={!!novaVersao && !mostrarBannerVersao} onAtualizacao={() => setVersaoDispensada(null)} />
         )}
@@ -1627,7 +1653,7 @@ function AppInner() {
           <MaisView secao={tab.startsWith("cfg-") ? tab.slice(4) : null} T={T} dark={dark} tema={tema}
             setTema={(t) => setPrefs((p) => ({ ...p, tema: t }))}
             som={prefs.som} setSom={(v) => setPrefs((p) => ({ ...p, som: v }))}
-            notifPermission={notifPermission} onToggleNotif={toggleNotificacoes}
+            notifPermission={notifPermission} onToggleNotif={toggleNotificacoes} onDesativarNotif={desativarNotificacoes}
             historico={historico} showToast={showToast} usuario={usuario} onSair={sair}
             onAbrirAuditoria={() => setFlow("auditoria")} onAbrirHistorico={() => setFlow("historico")}
             onAbrirPrioridade={() => setFlow("prioridade")} onAbrirTorre={() => setFlow("torre")} onAbrirRelatorios={() => setFlow("relatorios")}
