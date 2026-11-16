@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Gera a logo Bipi (vetor + PNG) e os ícones do app a partir do desenho oficial.
+"""Gera a logo Bipi (vetor + PNG) e os ícones do app. O símbolo está desenhado aqui (cabeça do Bipi simplificada; o mascote completo continua em public/mascote.svg).
+Depende de Playwright (Chromium) e Pillow. Os banners do bot são gerados à parte por scripts/gerar-banners-bot.py.
 Uso: python3 scripts/gerar-logo.py   (precisa do Playwright/Chromium)
 Saídas: public/logo-bipi.svg, public/logo-bipi-robo.svg, public/logo-bipi.png (nome),
 public/icon-*.png, apple-touch-icon.png, favicon.ico, android-icones/*, src/lib/logoBipi.js"""
@@ -98,7 +99,7 @@ with sync_playwright() as p:
         for nome in ('ic_launcher.png', 'ic_launcher_round.png'):
             rr = 0.5 if 'round' in nome else 0.2
             png(b, icone_svg(t, True, 1.0, rr), t, t, os.path.join(d, nome))
-        png(b, icone_cheio(t * 108 // 48 if False else t, 0.66), t, t, os.path.join(d, 'ic_launcher_foreground_cheio.png'), False)
+        png(b, icone_cheio(t, 0.66), t, t, os.path.join(d, 'ic_launcher_foreground_cheio.png'), False)
     b.close()
 
 from PIL import Image

@@ -109,7 +109,7 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
   return (
     <aside style={{ background: T.card, borderColor: T.border }} className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 z-30 flex-col border-r">
       <div className="px-6 pt-5 pb-4 flex items-center justify-between">
-        <img src={LOGO_SRC} alt="Bipi Validade" className="h-8 w-auto" />
+        <div className="bg-white rounded-xl px-2.5 py-1.5 flex items-center shadow-sm"><img src={LOGO_SRC} alt="Bipi Validade" className="h-8 w-auto" /></div>
         {lojaNumero && <span style={{ background: T.chipBg, color: T.subtext }} className="text-[10px] font-bold px-2 py-1 rounded-md">LOJA {lojaNumero}</span>}
       </div>
       <nav className="flex-1 overflow-y-auto px-3 pb-4 flex flex-col gap-5">
