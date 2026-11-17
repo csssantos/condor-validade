@@ -2,7 +2,7 @@
 -- Coluna produtos.invisivel: 1 = escondido da tela de início, 0 = aparece. É CALCULADA sozinha a partir da foto:
 --   1 quando o lote não tem foto, ou só tem o link do Open Food Facts (que não abre);
 --   0 quando tem foto de verdade (arquivo nosso ou enviada pelo app). Quando a foto chega (migração ou câmera), vira 0 sem ninguém mexer.
--- Nada mais muda (nenhum trigger, policy ou função). Tabela pequena: a criação é instantânea.
+-- Nada mais muda (nenhum trigger, policy ou função). Tabela pequena (dezenas de lotes): a criação reescreve a tabela por um instante.
 -- Para VOLTAR atrás: no app, ESCONDER_SEM_FOTO = false (src/lib/constantes.js) já mostra tudo; a coluna pode ficar ou sair com:
 --   alter table public.produtos drop column invisivel;
 -- Auto-teste no final; se falhar, nada é aplicado.

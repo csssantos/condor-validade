@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { Package, Barcode, Percent, Tag, Clock, Layers, DollarSign, Boxes, Target, TrendingDown, ShieldAlert, Users2, ChevronRight, ShieldCheck, PackageX, Edit2, Share2, Trash2, Megaphone, CalendarDays } from "lucide-react";
 import { FUNDO_MARCA } from "../TelasEntrada";
-import { BLUE, BLUE_DARK, BLUE_SOFT, MOTIVOS_BAIXA, MOTIVOS_EXCLUSAO, RED, RED_DARK, RED_SOFT, gerarCodigoLocalizacao } from "../lib/constantes";
+import { BLUE, BLUE_DARK, BLUE_SOFT, MOTIVOS_BAIXA, MOTIVOS_EXCLUSAO, RED, RED_DARK, RED_SOFT, gerarCodigoLocalizacao, semFotoUtil } from "../lib/constantes";
+import { trocarPorBipi } from "../componentes/ItemCards";
 import { supaFetchAlteracoesValidade } from "../lib/dados";
 import { descontoSugerido, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, statusStyles, useValoresVisiveis } from "../lib/formatos";
 import { clampNumero } from "../lib/utilidades";
@@ -281,7 +282,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} transition={{ type: "spring", stiffness: 380, damping: 38 }}
         style={{ background: T.card }} className="relative w-full max-w-md rounded-t-[30px] overflow-hidden flex flex-col max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:max-h-[90vh] sm:rounded-[30px]">
         <div style={{ background: FUNDO_MARCA }} className="relative shrink-0">
-          {item.foto ? <img src={item.foto} alt="" className="w-full h-36 object-cover" /> : (
+          {!semFotoUtil(item.foto) ? <img src={item.foto} onError={trocarPorBipi} alt="" className="w-full h-36 object-cover" /> : (
             <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={44} color="#fff" className="relative opacity-90" /></div>
           )}
           <button onClick={onClose} aria-label="Fechar" className="absolute top-3 left-3 h-10 w-10 rounded-full flex items-center justify-center text-white" style={{ background: "rgba(255,255,255,.2)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.3)" }}><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
@@ -405,7 +406,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           <span aria-hidden className="absolute -left-12 bottom-10 h-32 w-32 rounded-full bg-white/10" />
           <button onClick={onClose} aria-label="Fechar" className="absolute top-5 left-5 h-11 w-11 rounded-full flex items-center justify-center text-white" style={{ background: "rgba(255,255,255,.2)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.3)" }}><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
           <span style={{ background: s.bg, color: s.fg }} className="absolute top-6 right-6 text-[12px] font-bold px-3.5 py-1.5 rounded-full shadow-md">{status.label}</span>
-          {item.foto ? <img src={item.foto} alt="" className="relative h-64 w-64 object-contain bg-white rounded-[28px] p-4 shadow-2xl shadow-black/30" /> : (
+          {!semFotoUtil(item.foto) ? <img src={item.foto} onError={trocarPorBipi} alt="" className="relative h-64 w-64 object-contain bg-white rounded-[28px] p-4 shadow-2xl shadow-black/30" /> : (
             <div className="relative h-64 w-64 rounded-[28px] overflow-hidden ring-1 ring-white/30 flex items-center justify-center" style={{ background: "rgba(255,255,255,.12)" }}><div aria-hidden className="absolute inset-0 opacity-[.15]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={56} color="#fff" className="relative opacity-90" /></div>
           )}
           <h2 className="relative font-extrabold text-[26px] leading-tight text-center mt-7">{item.nome}</h2>

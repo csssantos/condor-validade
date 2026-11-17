@@ -151,7 +151,8 @@ const SITE_URL = String(import.meta.env.VITE_SITE_URL || window.location.origin)
 // "Sem foto utilizável" = sem foto ou só com link do Open Food Facts (que não abre); o banco guarda o mesmo critério em produtos.invisivel (1 = escondido, 0 = aparece).
 const ESCONDER_SEM_FOTO = true;
 const BIPI_SEM_FOTO = "/bipi-acenando.png";
-function semFotoUtil(foto) { return !foto || /openfoodfacts\.org/i.test(String(foto)); }
-function invisivelNoInicio(item) { return ESCONDER_SEM_FOTO && (item?.invisivel != null ? Number(item.invisivel) === 1 : semFotoUtil(item?.foto)); }
+function semFotoUtil(foto) { const f = String(foto ?? "").trim(); return !f || (!f.startsWith("data:") && /openfoodfacts\.org/i.test(f)); }
+// Sempre pela foto atual (a coluna invisivel do banco é igual, mas pode ficar velha na memória depois de editar).
+function invisivelNoInicio(item) { return ESCONDER_SEM_FOTO && semFotoUtil(item?.foto); }
 
 export { ESCONDER_SEM_FOTO, BIPI_SEM_FOTO, semFotoUtil, invisivelNoInicio, BG, BLUE, BLUE_DARK, BLUE_SOFT, CATALOG_KEY, CATEGORIAS_GIRO, DIAS_ALERTA_BASE, HIST_KEY, INK, ITEMS_KEY, LOGO_BIPI_PROPORCAO, LOGO_SRC, MOTIVOS_BAIXA, MOTIVOS_EXCLUSAO, NOTIF_KEY, POLITICAS_TROCA, PREFS_KEY, RED, RED_DARK, RED_SOFT, SETORES, SETORES_PERECIVEIS, SETORES_PERECIVEIS_EXTRA, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, USER_KEY, agruparItensPorProduto, definirSetoresPereciveisExtra, ehPerecivel, gerarCodigoLocalizacao, setorPrincipal, subsetorEfetivo };

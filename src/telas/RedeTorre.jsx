@@ -6,7 +6,8 @@ import { RefreshCw, Building2, AlertTriangle, Boxes, TrendingDown, Loader2, File
 import { FUNDO_MARCA } from "../TelasEntrada";
 import { DashBadge, DashBars, DashCard, DashDonut, DashHBars, DashKpi, DashPageHeader, DashTable, DashTabs } from "../componentes/dash";
 import { EstadoVazioNovo, FaixaChips } from "../componentes/ui";
-import { BLUE, BLUE_DARK, BLUE_SOFT, RED, RED_DARK, RED_SOFT } from "../lib/constantes";
+import { BLUE, BLUE_DARK, BLUE_SOFT, RED, RED_DARK, RED_SOFT, semFotoUtil } from "../lib/constantes";
+import { trocarPorBipi } from "../componentes/ItemCards";
 import { supaFetchResumoRede } from "../lib/dados";
 import { formatarMoeda, useFormatarMoedaComCamada } from "../lib/formatos";
 import { gerarRelatorioGerencialPDF, usarDadosGerenciais } from "../lib/relatoriosPDF";
@@ -428,7 +429,7 @@ function LinhaPrioridade({ T, item, p, pos, podeVerValores, onOpenDetail, aberta
   return (
     <div style={{ background: T.card }} className="rounded-[22px] shadow-md shadow-black/5 overflow-hidden">
       <button onClick={onToggle} aria-expanded={aberta} className="w-full flex items-center gap-3 p-3 text-left">
-        {item.foto ? <img src={item.foto} alt="" className="h-12 w-12 rounded-2xl object-cover shrink-0" /> : <span style={{ background: soft }} className="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0"><Package size={20} color={cor} /></span>}
+        {!semFotoUtil(item.foto) ? <img src={item.foto} onError={trocarPorBipi} alt="" className="h-12 w-12 rounded-2xl object-cover shrink-0" /> : <span style={{ background: soft }} className="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0"><Package size={20} color={cor} /></span>}
         <span className="min-w-0 flex-1">
           <span style={{ color: T.text }} className="block text-[13.5px] font-extrabold leading-tight line-clamp-2">{item.nome}</span>
           <span style={{ color: T.subtext }} className="block text-[11.5px] mt-0.5 truncate">{item.setor} · {quando}</span>
@@ -487,7 +488,7 @@ function PrioridadeMobile({ T, prioridades, valorEmRisco, urgenteCount, semTroca
           {topo && (
             <motion.button initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} whileTap={{ scale: 0.985 }} onClick={() => onOpenDetail(topo.item)} style={{ background: T.card }} className="w-full text-left rounded-[28px] shadow-xl shadow-black/10 overflow-hidden mb-5">
               <div className="relative">
-                {topo.item.foto ? <img src={topo.item.foto} alt="" className="w-full h-40 object-cover" /> : <div style={{ background: FUNDO_MARCA }} className="w-full h-24" />}
+                {!semFotoUtil(topo.item.foto) ? <img src={topo.item.foto} onError={trocarPorBipi} alt="" className="w-full h-40 object-cover" /> : <div style={{ background: FUNDO_MARCA }} className="w-full h-24" />}
                 <span style={{ background: "#D92D33" }} className="absolute top-3 left-3 text-[10.5px] font-extrabold text-white rounded-full px-3 py-1.5 uppercase tracking-wide">Faça isto primeiro</span>
               </div>
               <div className="p-4 flex items-center gap-3.5" style={{ color: T.text }}>

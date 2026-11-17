@@ -7,7 +7,8 @@ import { PalcoPagina } from "../Inicio";
 import { FUNDO_MARCA } from "../TelasEntrada";
 import { DashBadge, DashCard, DashDonut, DashHBars, DashKpi, DashPageHeader, DashTabs } from "../componentes/dash";
 import { EstadoVazioNovo, FaixaChips, LinhaProduto } from "../componentes/ui";
-import { BLUE, BLUE_DARK, BLUE_SOFT, MOTIVOS_EXCLUSAO, RED, RED_DARK, RED_SOFT, SUBSETORES_PADRAO, agruparItensPorProduto } from "../lib/constantes";
+import { BLUE, BLUE_DARK, BLUE_SOFT, MOTIVOS_EXCLUSAO, RED, RED_DARK, RED_SOFT, SUBSETORES_PADRAO, agruparItensPorProduto, semFotoUtil } from "../lib/constantes";
+import { trocarPorBipi } from "../componentes/ItemCards";
 import { formatarData, formatarMoeda, getStatus, statusStyles, useFormatarMoedaComCamada, useValoresVisiveis } from "../lib/formatos";
 import { useDesktop } from "../lib/tela";
 import { DashFiltros, TabelaProdutos } from "./Home";
@@ -304,7 +305,7 @@ function ItemCardGridSetor({ T, item, onOpenDetail, onLancarValidade, onExcluir,
       className="relative rounded-2xl overflow-hidden border shadow-lg shadow-black/5 text-left">
       <button onClick={() => (item.semValidade && onLancarValidade ? onLancarValidade(item) : onOpenDetail(item))} className="block w-full text-left">
         <div className="relative">
-          {item.foto ? <img src={item.foto} alt="" className="w-full h-24 object-cover" /> : (
+          {!semFotoUtil(item.foto) ? <img src={item.foto} onError={trocarPorBipi} alt="" className="w-full h-24 object-cover" /> : (
             <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><Package size={24} color={BLUE} /></div>
           )}
           {!item.semValidade && (
@@ -346,7 +347,7 @@ function ItemCardGridAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onO
       className="relative rounded-2xl overflow-hidden border shadow-lg shadow-black/5 text-left">
       <button onClick={() => setAberto((v) => !v)} className="block w-full text-left">
         <div className="relative">
-          {base.foto ? <img src={base.foto} alt="" className="w-full h-24 object-cover" /> : (
+          {!semFotoUtil(base.foto) ? <img src={base.foto} onError={trocarPorBipi} alt="" className="w-full h-24 object-cover" /> : (
             <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><Package size={24} color={BLUE} /></div>
           )}
           <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded">{piorStatus.label}</span>
