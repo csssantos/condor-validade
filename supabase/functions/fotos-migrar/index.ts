@@ -31,6 +31,53 @@ function decodificar(dataUrl: string): { bytes: Uint8Array; tipo: string } | nul
   } catch { return null; }
 }
 
+// ---------- Fotos do Open Food Facts: pede a foto ATUAL pelo código de barras e guarda uma cópia no nosso bucket ----------
+const hostOk = (u: string) => { try { const x = new URL(u); return x.protocol === "https:" && (x.hostname === "openfoodfacts.org" || x.hostname.endsWith(".openfoodfacts.org")); } catch { return false; } };
+const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((v) => v.toString(16).padStart(2, "0")).join("");
+async function fotoAtualOff(bc: string): Promise<{ bytes: Uint8Array; tipo: string } | null> {
+  const consulta = async (c: string) => {
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${c}.json?fields=image_front_url,image_front_small_url`, { headers: { "User-Agent": "BipiValidade/1.0" }, signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j?.status === 1 ? j.product : null;
+  };
+  let p = await consulta(bc);
+  if (!p && bc.length === 12) p = await consulta("0" + bc); // UPC-A guardado como EAN-13
+  if (!p) return null;
+  for (const u of [p.image_front_url, p.image_front_small_url]) {
+    if (typeof u !== "string" || !hostOk(u)) continue;
+    try {
+      const r = await fetch(u, { signal: AbortSignal.timeout(8000), redirect: "error" });
+      if (!r.ok) continue;
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      if (bytes.length < 500 || bytes.length > MAX_BYTES) continue;
+      if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return { bytes, tipo: "image/jpeg" };
+      if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return { bytes, tipo: "image/png" };
+    } catch { /* tenta a próxima imagem */ }
+  }
+  return null;
+}
+async function migrarOff(): Promise<{ migradas: number; puladas: number; lote: number }> {
+  const { data: pend, error } = await sb.rpc("fotos_off_pendentes", { p_limite: 8 });
+  if (error) return { migradas: 0, puladas: 0, lote: 0 }; // SQL ainda não aplicado: segue sem
+  const lista = pend || [];
+  const rs = await Promise.all(lista.map(async (p: any) => {
+    try {
+      if (!Number.isInteger(Number(p.loja_id)) || !/^[0-9]{8,14}$/.test(String(p.barcode)) || !hostOk(String(p.antigo))) return false;
+      const f = await fotoAtualOff(String(p.barcode));
+      if (!f) return false;
+      const nome = hex(await crypto.subtle.digest("SHA-256", f.bytes)).slice(0, 32);
+      const caminho = `${Number(p.loja_id)}/${nome}.${TIPOS[f.tipo]}`;
+      const { error: eUp } = await sb.storage.from("fotos").upload(caminho, f.bytes, { contentType: f.tipo, upsert: true, cacheControl: "31536000" });
+      if (eUp) return false;
+      const { error: eTr } = await sb.rpc("foto_off_trocar", { p_loja: Number(p.loja_id), p_antigo: p.antigo, p_url: `${URL_BASE}/storage/v1/object/public/fotos/${caminho}` });
+      return !eTr;
+    } catch { return false; }
+  }));
+  const migradas = rs.filter(Boolean).length;
+  return { migradas, puladas: lista.length - migradas, lote: lista.length };
+}
+
 Deno.serve(async (req: Request) => {
   const origem = req.headers.get("origin") || "";
   const cors = { "Access-Control-Allow-Origin": SITES.includes(origem) ? origem : SITES[0], "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };
@@ -61,5 +108,7 @@ Deno.serve(async (req: Request) => {
     const { error: eTr } = await sb.rpc("foto_trocar", { p_loja: Number(p.loja_id), p_hash: p.hash, p_url: url });
     if (eTr) puladas++; else migradas++;
   }
-  return resp({ ok: true, migradas, puladas, pode_ter_mais: migradas > 0 && (pend || []).length >= 12 }); // sem progresso = não insistir
+  const off = await migrarOff();
+  const progresso = migradas + off.migradas;
+  return resp({ ok: true, migradas: progresso, puladas: puladas + off.puladas, pode_ter_mais: progresso > 0 && ((pend || []).length >= 12 || off.lote >= 8) }); // sem progresso = não insistir
 });
