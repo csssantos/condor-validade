@@ -7,7 +7,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
 // Domínios do app: o antigo continua valendo durante a transição; APP_URL (secret) escolhe o principal (só aceita um da lista).
-const SITES = ["https://condor-validade.vercel.app", "https://app.usebipi.com"];
+const SITES = ["https://condor-validade.vercel.app", "https://app.usebipi.com", "https://bipi-validade.vercel.app"];
 const appUrl = (Deno.env.get("APP_URL") || "").trim();
 const SITE = SITES.includes(appUrl) ? appUrl : SITES[0];
 if (appUrl && !SITES.includes(appUrl)) console.warn("APP_URL ignorado: use exatamente https://app.usebipi.com (sem barra no final)");

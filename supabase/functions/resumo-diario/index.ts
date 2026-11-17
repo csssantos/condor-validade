@@ -12,7 +12,7 @@ import { enviarFcm, fcmAtivo } from "../_compartilhado/fcm.ts";
 import { modeloAviso, REMETENTE } from "../auth-email/templates.ts";
 import { normalizar, temConteudo, textoTelegram, corpoPush, mensagemEmail, detalhesEmail } from "./formato.ts";
 
-const SITES = ["https://condor-validade.vercel.app", "https://app.usebipi.com"];
+const SITES = ["https://condor-validade.vercel.app", "https://app.usebipi.com", "https://bipi-validade.vercel.app"];
 const appUrl = (Deno.env.get("APP_URL") || "").trim();
 const SITE = SITES.includes(appUrl) ? appUrl : SITES[0];
 const TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";

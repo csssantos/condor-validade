@@ -8,7 +8,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const SITES = ["https://condor-validade.vercel.app", "https://app.usebipi.com"];
+const SITES = ["https://condor-validade.vercel.app", "https://app.usebipi.com", "https://bipi-validade.vercel.app"];
 const URL_BASE = Deno.env.get("SUPABASE_URL")!;
 const sb = createClient(URL_BASE, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const TIPOS: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };

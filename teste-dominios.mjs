@@ -7,7 +7,7 @@ let ok = 0, falhas = 0;
 const t = (nome, fn) => { try { fn(); ok++; console.log("ok  ", nome); } catch (e) { falhas++; console.log("FALHA", nome, "\n     ", e.message); } };
 const ler = (p) => readFileSync(p, "utf8");
 const F = "supabase/functions";
-const ANTIGO = "https://condor-validade.vercel.app", NOVO = "https://app.usebipi.com";
+const ANTIGO = "https://condor-validade.vercel.app", NOVO = "https://app.usebipi.com", VERCEL_NOVO = "https://bipi-validade.vercel.app";
 
 const regexDe = (arq) => { const m = ler(`${F}/${arq}/index.ts`).match(/const ORIGEM_OK = (\/.*\/);/); assert.ok(m, arq); return eval(m[1]); };
 for (const f of ["assistente-ia", "identificar-produto", "enviar-push"]) {
@@ -30,7 +30,7 @@ const siteCom = (f, appUrl) => { // executa só o bloco SITES/SITE/APP_URL da fu
   return { ...r, avisos };
 };
 for (const f of comSites) {
-  t(`SITE ${f}: sem APP_URL fica no domínio antigo (nada muda até o secret ser definido)`, () => { const r = siteCom(f, undefined); assert.equal(r.SITE, ANTIGO); assert.deepEqual(r.SITES, [ANTIGO, NOVO]); });
+  t(`SITE ${f}: sem APP_URL fica no domínio antigo (nada muda até o secret ser definido)`, () => { const r = siteCom(f, undefined); assert.equal(r.SITE, ANTIGO); assert.deepEqual(r.SITES, [ANTIGO, NOVO, VERCEL_NOVO]); });
   t(`SITE ${f}: APP_URL=app.usebipi.com muda para o novo; qualquer outro valor é ignorado`, () => {
     assert.equal(siteCom(f, NOVO).SITE, NOVO);
     for (const v of ["https://malicioso.com", "http://app.usebipi.com", "https://app.usebipi.com/", "https://usebipi.com", "HTTPS://APP.USEBIPI.COM", "app.usebipi.com", ""]) assert.equal(siteCom(f, v).SITE, ANTIGO, v);

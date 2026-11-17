@@ -19,7 +19,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 // CORS: só o site do app (e previews/localhost) pode chamar do navegador
-const ORIGEM_OK = /^https:\/\/condor-validade[a-z0-9-]*\.vercel\.app$|^https:\/\/app\.usebipi\.com$|^http:\/\/localhost(:\d+)?$/;
+const ORIGEM_OK = /^https:\/\/condor-validade[a-z0-9-]*\.vercel\.app$|^https:\/\/app\.usebipi\.com$|^https:\/\/bipi-validade\.vercel\.app$|^http:\/\/localhost(:\d+)?$/;
 
 // Modelo: GEMINI_MODEL (se definido) ou descoberto automaticamente na API do Google
 // (o Flash mais novo disponível para a chave). Assim a função não quebra quando o Google aposenta um modelo.
