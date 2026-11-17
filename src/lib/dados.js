@@ -31,7 +31,7 @@ function produtoFromRow(r) {
     emPromocao: !!r.em_promocao, precoPromocional: r.preco_promocional != null ? Number(r.preco_promocional) : null,
     criadoEm: r.criado_em, cadastradoPor: r.cadastrado_por || null, atualizadoPor: r.atualizado_por || null,
     notificado10d: !!r.notificado_10d, familia: r.familia || null,
-    lote: r.lote || null, semLote: !!r.sem_lote,
+    lote: r.lote || null, semLote: !!r.sem_lote, invisivel: r.invisivel != null ? Number(r.invisivel) : null,
     pedidoTipo: r.pedido_tipo || null, pedidoCampanha: r.pedido_campanha || null, pedidoValor: r.pedido_valor != null ? Number(r.pedido_valor) : null, pedidoEm: r.pedido_em || null, pedidoPor: r.pedido_por || null
   };
 }

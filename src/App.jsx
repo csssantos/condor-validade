@@ -18,7 +18,7 @@ import { FaixaFila } from "./componentes/FaixaFila";
 import { Gestos } from "./componentes/Gestos";
 import { profundidade, passoVoltar, reconciliar, guardaVoltar } from "./lib/gestos";
 import { AtualizacaoModal, NOVIDADES, gravarNovidadeVista, lerNovidadeVista, novidadesParaCargo } from "./componentes/Novidades";
-import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, setorPrincipal } from "./lib/constantes";
+import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, invisivelNoInicio, setorPrincipal } from "./lib/constantes";
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
 import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, contarFilaDaPessoa, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
 import { PermissoesContext, formatarData, formatarDataHoraExtenso, formatarMoeda, getStatus, getTokens, precisaNotificar, sugestaoDesconto } from "./lib/formatos";
@@ -124,6 +124,8 @@ function AppInner() {
   // Autocomplete de nome no cadastro — lista enxuta de nomes já usados, sem duplicar
   const nomesExistentesCatalogo = useMemo(() => Array.from(new Set(Object.values(catalog).map((c) => c.nome).filter(Boolean))), [catalog]);
   const [items, setItems] = useState([]);
+  // TEMPORÁRIO (ver ESCONDER_SEM_FOTO em lib/constantes.js): a tela de início não mostra produto sem foto utilizável.
+  const itemsInicio = useMemo(() => items.filter((i) => !invisivelNoInicio(i)), [items]);
   const [historico, setHistorico] = useState([]);
   const [rondas, setRondas] = useState([]);
   const [auditoria, setAuditoria] = useState([]);
@@ -1601,16 +1603,16 @@ function AppInner() {
         {flow === "assistente" && ehEncarregado && <AssistenteIAView T={T} perfil={perfil} lojaAtiva={lojaAtiva} showToast={showToast} onCriarRonda={abrirRondaInteligente} />}
 
         {flow === null && tab === "home" && telaLarga && (
-          <DashboardView T={T} items={items} historico={historico} rondas={rondas} auditoria={ehEncarregado ? auditoria : []} nome={perfil?.nome} lojaNumero={lojaAtiva?.numero_loja}
+          <DashboardView T={T} items={itemsInicio} historico={historico} rondas={rondas} auditoria={ehEncarregado ? auditoria : []} nome={perfil?.nome} lojaNumero={lojaAtiva?.numero_loja}
             onOpenDetail={setDetalheItem} onTab={(t) => { setSetorAtivo(null); setTab(t); }} onFlow={(f) => setFlow(!ehEncarregado && ["auditoria", "torre", "relatorios", "historico"].includes(f) ? null : f)} />
         )}
         {flow === null && tab === "produtos" && telaLarga && (
-          <ProdutosDashboard T={T} items={items} historico={historico} search={search} setSearch={setSearch}
+          <ProdutosDashboard T={T} items={itemsInicio} historico={historico} search={search} setSearch={setSearch}
             filtroSetor={filtroSetor} setFiltroSetor={setFiltroSetor} ordenarPor={ordenarPor} setOrdenarPor={setOrdenarPor}
             onOpenDetail={setDetalheItem} onVerPrioridades={() => setFlow("prioridade")} />
         )}
         {flow === null && ((tab === "produtos" && !telaLarga) || (tab === "home" && !telaLarga)) && (
-          <HomeView T={T} items={items} historico={historico} search={search} setSearch={setSearch}
+          <HomeView T={T} items={itemsInicio} historico={historico} search={search} setSearch={setSearch}
             filtroSetor={filtroSetor} setFiltroSetor={setFiltroSetor}
             ordenarPor={ordenarPor} setOrdenarPor={setOrdenarPor}
             modoVisual={modoVisual} setModoVisual={setModoVisual}

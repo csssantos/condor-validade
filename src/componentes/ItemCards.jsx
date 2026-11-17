@@ -3,7 +3,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { X as CloseIcon, Package, MapPin, Barcode, Percent, ShieldAlert, ChevronRight, Calendar } from "lucide-react";
 import { EstadoVazioNovo } from "./ui";
-import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT, gerarCodigoLocalizacao } from "../lib/constantes";
+import { BIPI_SEM_FOTO, BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT, gerarCodigoLocalizacao, semFotoUtil } from "../lib/constantes";
 import { formatarData, formatarMoeda, statusStyles, sugestaoDesconto, useValoresVisiveis } from "../lib/formatos";
 import { useDesktop } from "../lib/tela";
 
@@ -47,12 +47,15 @@ function EmptyState({ T, hasItems }) {
   );
 }
 
+// Imagem que não abre (link quebrado) vira o Bipi, sem ficar em loop se o próprio Bipi falhar.
+function trocarPorBipi(e) { const el = e.currentTarget; if (!el.dataset.bipi) { el.dataset.bipi = "1"; el.src = BIPI_SEM_FOTO; el.style.objectFit = "contain"; } }
+
 function Thumb({ foto, size = 44, rounded = "rounded-xl" }) {
-  return foto ? (
-    <img src={foto} alt="" style={{ width: size, height: size }} className={`${rounded} object-cover shrink-0`} />
+  return !semFotoUtil(foto) ? (
+    <img src={foto} alt="" onError={trocarPorBipi} style={{ width: size, height: size }} className={`${rounded} object-cover shrink-0`} />
   ) : (
     <div style={{ width: size, height: size, background: BLUE_SOFT }} className={`${rounded} flex items-center justify-center shrink-0`}>
-      <Package size={size * 0.42} color={BLUE} />
+      <img src={BIPI_SEM_FOTO} alt="" style={{ width: size * 0.8, height: size * 0.8 }} className="object-contain" />
     </div>
   );
 }
@@ -162,8 +165,8 @@ function ItemCardGrid({ T, item, onOpenDetail }) {
     <motion.button whileTap={{ scale: 0.97 }} onClick={() => onOpenDetail(item)} style={{ background: T.card }}
       className="rounded-2xl overflow-hidden shadow-lg shadow-black/5 text-left">
       <div className="relative">
-        {item.foto ? <img src={item.foto} alt="" className="w-full h-24 object-cover" /> : (
-          <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><Package size={26} color={BLUE} /></div>
+        {!semFotoUtil(item.foto) ? <img src={item.foto} alt="" onError={trocarPorBipi} className="w-full h-24 object-cover" /> : (
+          <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><img src={BIPI_SEM_FOTO} alt="" className="h-20 object-contain" /></div>
         )}
         <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md">{item.status.label}</span>
       </div>
@@ -176,4 +179,4 @@ function ItemCardGrid({ T, item, onOpenDetail }) {
   );
 }
 
-export { EmptyState, FichaFiltro, GrupoFiltro, ItemCard, ItemCardAgrupado, ItemCardGrid, StatCard, Thumb };
+export { trocarPorBipi, EmptyState, FichaFiltro, GrupoFiltro, ItemCard, ItemCardAgrupado, ItemCardGrid, StatCard, Thumb };

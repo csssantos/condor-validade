@@ -3,8 +3,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Package, Plus, Trash2, ChevronRight } from "lucide-react";
 import { FUNDO_MARCA } from "../TelasEntrada";
-import { Thumb } from "./ItemCards";
-import { BLUE, BLUE_DARK, BLUE_SOFT, RED, RED_SOFT } from "../lib/constantes";
+import { Thumb, trocarPorBipi } from "./ItemCards";
+import { BIPI_SEM_FOTO, BLUE, BLUE_DARK, BLUE_SOFT, RED, RED_SOFT, semFotoUtil } from "../lib/constantes";
 import { formatarData, formatarMoeda } from "../lib/formatos";
 
 // ===== Peças novas das páginas internas (celular): mesmo palco, vidro e cartões da tela inicial =====
@@ -91,8 +91,8 @@ function CartaoGrade({ T, item, idx = 0, onOpenDetail }) {
     <motion.button initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 320, damping: 26, delay: Math.min(idx * 0.03, 0.3) }}
       whileTap={{ scale: 0.97 }} onClick={() => onOpenDetail(item)} style={{ background: T.card }} className="rounded-[24px] shadow-lg shadow-black/5 text-left overflow-hidden">
       <div className="relative">
-        {item.foto ? <img src={item.foto} alt="" className="w-full h-28 object-cover" /> : (
-          <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "16px 16px" }} /><Package size={30} color="#fff" className="relative opacity-90" /></div>
+        {!semFotoUtil(item.foto) ? <img src={item.foto} alt="" onError={trocarPorBipi} className="w-full h-28 object-cover" /> : (
+          <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "16px 16px" }} /><img src={BIPI_SEM_FOTO} alt="" className="relative h-24 object-contain" /></div>
         )}
         <span style={{ background: c.soft, color: c.cor }} className="absolute top-2 left-2 text-[10px] font-bold rounded-full px-2.5 py-1 shadow-sm">{item.status?.label}</span>
       </div>
