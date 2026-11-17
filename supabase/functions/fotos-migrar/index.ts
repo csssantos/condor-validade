@@ -72,7 +72,7 @@ async function fotoAtualOff(bc: string): Promise<{ foto?: { bytes: Uint8Array; t
       if (!corpo) return { erro: true };
       const j = JSON.parse(new TextDecoder().decode(corpo));
       return { p: j?.status === 1 ? j.product : null };
-    } catch { return { erro: true }; }
+    } catch (e) { console.warn("consulta OFF falhou:", (e as Error)?.name || "erro"); return { erro: true }; }
   };
   let q = await consulta(bc);
   if ("erro" in q) return { erro: true };
@@ -89,7 +89,7 @@ async function fotoAtualOff(bc: string): Promise<{ foto?: { bytes: Uint8Array; t
       const ini = (...b: number[]) => b.every((v, i) => bytes[i] === v);
       if (ini(0xff, 0xd8, 0xff)) return { foto: { bytes, tipo: "image/jpeg" } };
       if (ini(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return { foto: { bytes, tipo: "image/png" } };
-    } catch { falhaRede = true; }
+    } catch (e) { console.warn("imagem OFF falhou:", (e as Error)?.name || "erro"); falhaRede = true; }
   }
   return falhaRede ? { erro: true } : { semFoto: true };
 }
@@ -107,8 +107,8 @@ async function migrarOff(): Promise<{ migradas: number; puladas: number; lote: n
       const loja = Number(p.loja_id), bc = String(p.barcode), antigo = String(p.antigo);
       if (!Number.isInteger(loja) || !/^[0-9]{8,14}$/.test(bc) || !/^https:\/\/([a-z0-9-]+\.)*openfoodfacts\.org\//.test(antigo)) return false;
       const f = await fotoAtualOff(bc);
-      if (f.semFoto) { await sb.rpc("foto_off_falhou", { p_loja: loja, p_barcode: bc }); return false; }
-      if (!f.foto) return false;
+      if (f.semFoto) { console.warn("OFF sem foto para um produto (registrado)"); await sb.rpc("foto_off_falhou", { p_loja: loja, p_barcode: bc }); return false; }
+      if (f.erro || !f.foto) { await sb.rpc("foto_off_falhou", { p_loja: loja, p_barcode: bc, p_leve: true }); return false; } // pausa curta (1 h), não conta como falha
       const nome = hex(await crypto.subtle.digest("SHA-256", f.foto.bytes)).slice(0, 32);
       const caminho = `${loja}/${nome}.${TIPOS[f.foto.tipo]}`;
       const { error: eUp } = await sb.storage.from("fotos").upload(caminho, f.foto.bytes, { contentType: f.foto.tipo, upsert: true, cacheControl: "31536000" });

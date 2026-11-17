@@ -6,7 +6,9 @@
 -- (mesmo padrão de fotos_pendentes/foto_trocar):
 --   fotos_off_pendentes(limite): catálogo com link do Open Food Facts + código de barras válido (EAN-8/UPC-A/EAN-13, não só zeros),
 --                                ordem aleatória, sem os que o OFF já respondeu "sem foto" (tabela fotos_off_tentativas).
---   foto_off_falhou(loja, barcode): registra essa resposta (3 dias de pausa; 5 falhas = para).
+--   foto_off_falhou(loja, barcode, leve): registra essa resposta ("sem foto": 3 dias de pausa, 5 falhas = para; leve = erro passageiro: 1 hora).
+--   Para a equipe ver quais produtos o OFF não tem foto: select loja_id, barcode, falhas, ultima from fotos_off_tentativas where falhas >= 1 order by falhas desc;
+--   (o cartão desses continua em branco: fotografar no app. Para religar um produto parado: delete from fotos_off_tentativas where barcode = '...';)
 --   foto_off_trocar(loja, link_antigo, link_novo): troca o link antigo pelo do nosso bucket em catálogo, lotes
 --                                (menos lote travado por pedido de campanha) e histórico daquela loja.
 -- Nenhuma tabela, coluna, policy ou trigger existente muda. Rodar DEPOIS de supabase-fotos-storage.sql e supabase-fotos-ajustes.sql.
@@ -43,13 +45,20 @@ language sql security definer set search_path = public as $$
    limit greatest(1, least(coalesce(p_limite, 4), 10));
 $$;
 
-create or replace function public.foto_off_falhou(p_loja bigint, p_barcode text)
+-- p_leve = erro passageiro (rede, limite, 5xx, imagem que não baixou): pausa de 1 hora e NÃO conta nas 5 falhas.
+create or replace function public.foto_off_falhou(p_loja bigint, p_barcode text, p_leve boolean default false)
 returns void language plpgsql security definer set search_path = public as $$
 begin
   if p_loja is null or p_barcode is null or p_barcode !~ '^[0-9]{8,14}$' then raise exception 'foto_pedido_invalido'; end if;
-  insert into public.fotos_off_tentativas (loja_id, barcode) values (p_loja, p_barcode)
-  on conflict (loja_id, barcode) do update set falhas = public.fotos_off_tentativas.falhas + 1, ultima = now();
+  if coalesce(p_leve, false) then
+    insert into public.fotos_off_tentativas (loja_id, barcode, falhas, ultima) values (p_loja, p_barcode, 0, now() - interval '71 hours')
+    on conflict (loja_id, barcode) do update set ultima = greatest(public.fotos_off_tentativas.ultima, now() - interval '71 hours');
+  else
+    insert into public.fotos_off_tentativas (loja_id, barcode) values (p_loja, p_barcode)
+    on conflict (loja_id, barcode) do update set falhas = public.fotos_off_tentativas.falhas + 1, ultima = now();
+  end if;
 end $$;
+drop function if exists public.foto_off_falhou(bigint, text);
 
 create or replace function public.foto_off_trocar(p_loja bigint, p_antigo text, p_url text)
 returns int language plpgsql security definer set search_path = public as $$
@@ -75,10 +84,10 @@ end $$;
 
 revoke all on function public.fotos_off_pendentes(int) from public, anon, authenticated;
 revoke all on function public.foto_off_trocar(bigint, text, text) from public, anon, authenticated;
-revoke all on function public.foto_off_falhou(bigint, text) from public, anon, authenticated;
+revoke all on function public.foto_off_falhou(bigint, text, boolean) from public, anon, authenticated;
 grant execute on function public.fotos_off_pendentes(int) to service_role;
 grant execute on function public.foto_off_trocar(bigint, text, text) to service_role;
-grant execute on function public.foto_off_falhou(bigint, text) to service_role;
+grant execute on function public.foto_off_falhou(bigint, text, boolean) to service_role;
 
 -- AUTO-TESTE (não grava em dado real)
 do $$
@@ -87,8 +96,8 @@ begin
      or has_function_privilege('anon', 'public.foto_off_trocar(bigint,text,text)', 'execute')
      or has_function_privilege('authenticated', 'public.fotos_off_pendentes(int)', 'execute')
      or has_function_privilege('anon', 'public.fotos_off_pendentes(int)', 'execute')
-     or has_function_privilege('authenticated', 'public.foto_off_falhou(bigint,text)', 'execute')
-     or has_function_privilege('anon', 'public.foto_off_falhou(bigint,text)', 'execute')
+     or has_function_privilege('authenticated', 'public.foto_off_falhou(bigint,text,boolean)', 'execute')
+     or has_function_privilege('anon', 'public.foto_off_falhou(bigint,text,boolean)', 'execute')
      or has_table_privilege('authenticated', 'public.fotos_off_tentativas', 'select')
      or has_table_privilege('anon', 'public.fotos_off_tentativas', 'select') then
     raise exception 'auto-teste falhou: função aberta para usuário';

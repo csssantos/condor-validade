@@ -54,13 +54,18 @@ const rodar = async (bc, rotas) => { const m = mk(rotas); const r = await carreg
   t("content-length enorme recusa sem ler o corpo", () => assert.equal(r.semFoto, true)); }
 { let n = 0; const { r, m } = await rodar("789123456789", [[API, (u) => (++n === 1 ? json({ status: 0 }) : json({ status: 1, product: { image_front_url: IMG } }))], [/front\.jpg/, () => img(JPG)]]);
   t("UPC-A (12): tenta de novo com 0 na frente", () => { assert.equal(r.foto.tipo, "image/jpeg"); assert.ok(m.chamadas[1].url.includes("/0789123456789.json")); }); }
+t("migrarOff: valida código (8-14 dígitos) e link antigo antes de consultar; erro passageiro registra pausa leve", () => {
+  assert.ok(src.includes("/^[0-9]{8,14}$/.test(bc)") && src.includes("openfoodfacts\\.org"));
+  assert.ok(src.includes("p_leve: true") && src.includes("Number(n) > 0"));
+});
 // SQL (texto)
 const sql = fs.readFileSync(new URL("./supabase-fotos-off.sql", import.meta.url), "utf8");
 t("SQL: funções só para service_role e tabela fechada", () => {
-  for (const f of ["fotos_off_pendentes(int)", "foto_off_trocar(bigint, text, text)", "foto_off_falhou(bigint, text)"]) { assert.ok(sql.includes(`revoke all on function public.${f} from public, anon, authenticated`), f); assert.ok(sql.includes(`grant execute on function public.${f} to service_role`), f); }
+  for (const f of ["fotos_off_pendentes(int)", "foto_off_trocar(bigint, text, text)", "foto_off_falhou(bigint, text, boolean)"]) { assert.ok(sql.includes(`revoke all on function public.${f} from public, anon, authenticated`), f); assert.ok(sql.includes(`grant execute on function public.${f} to service_role`), f); }
   assert.ok(sql.includes("enable row level security") && sql.includes("revoke all on public.fotos_off_tentativas"));
 });
 t("SQL: pendentes ignora zeros, usa memória de falha e agrupa por loja+link", () => {
+  assert.ok(sql.includes("'^[0-9]{8}$'") && sql.includes("'^[0-9]{12,13}$'") && sql.includes("p_leve") && sql.includes("interval '71 hours'"));
   assert.ok(sql.includes("!~ '^0+$'") && sql.includes("fotos_off_tentativas t") && sql.includes("group by c.loja_id, c.foto"));
 });
 t("SQL: troca só link do OFF por link da pasta da própria loja; lote travado fica de fora", () => {
