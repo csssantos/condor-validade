@@ -107,8 +107,8 @@ async function migrarOff(): Promise<{ migradas: number; puladas: number; lote: n
       const loja = Number(p.loja_id), bc = String(p.barcode), antigo = String(p.antigo);
       if (!Number.isInteger(loja) || !/^[0-9]{8,14}$/.test(bc) || !/^https:\/\/([a-z0-9-]+\.)*openfoodfacts\.org\//.test(antigo)) return false;
       const f = await fotoAtualOff(bc);
-      if (f.semFoto) { console.warn("OFF sem foto para um produto (registrado)"); await sb.rpc("foto_off_falhou", { p_loja: loja, p_barcode: bc }); return false; }
-      if (f.erro || !f.foto) { await sb.rpc("foto_off_falhou", { p_loja: loja, p_barcode: bc, p_leve: true }); return false; } // pausa curta (1 h), não conta como falha
+      if (f.semFoto) { console.warn("OFF sem foto para um produto (registrado)"); const { error: eF } = await sb.rpc("foto_off_falhou", { p_loja: loja, p_barcode: bc }); if (eF) console.error("foto_off_falhou", eF.code); return false; }
+      if (f.erro || !f.foto) { const { error: eF } = await sb.rpc("foto_off_falhou", { p_loja: loja, p_barcode: bc, p_leve: true }); if (eF) console.error("foto_off_falhou", eF.code); return false; } // pausa curta (1 h), não conta como falha
       const nome = hex(await crypto.subtle.digest("SHA-256", f.foto.bytes)).slice(0, 32);
       const caminho = `${loja}/${nome}.${TIPOS[f.foto.tipo]}`;
       const { error: eUp } = await sb.storage.from("fotos").upload(caminho, f.foto.bytes, { contentType: f.foto.tipo, upsert: true, cacheControl: "31536000" });

@@ -15,7 +15,7 @@
 -- Auto-teste no final (não grava nada em dado real): se algo falhar, nada é aplicado.
 begin;
 
--- Memória de falha: produto que o OFF respondeu "não tenho foto" não é consultado de novo por 3 dias (e, depois de 5 falhas, só manualmente).
+-- Memória de falha: produto que o OFF respondeu "não tenho foto" não é consultado de novo por 3 dias (e, depois de 5 falhas, só manualmente); erro passageiro (rede, limite, 5xx) pausa só 1 hora e não conta como falha.
 create table if not exists public.fotos_off_tentativas (
   loja_id bigint not null,
   barcode text not null,
