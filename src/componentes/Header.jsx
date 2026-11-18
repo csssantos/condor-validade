@@ -3,7 +3,8 @@ import { motion } from "framer-motion";
 import { BellIcon, BellSlashIcon, SunIcon, MoonIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { Search } from "lucide-react";
 import { BotaoAtualizacao } from "./Atualizacao";
-import { BLUE, LOGO_SRC } from "../lib/constantes";
+import { BLUE } from "../lib/constantes";
+import { LogoBipi } from "./LogoBipi";
 import { useTelaLarga } from "../lib/tela";
 
 // ============ Header ============
@@ -59,7 +60,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
               </button>
             )}
             <div style={{ background: "rgba(255,255,255,0.97)" }} className="rounded-xl px-2.5 py-1.5 flex items-center shadow-lg shadow-black/5 lg:hidden">
-              <img src={LOGO_SRC} alt="Bipi Validade" className="h-7 w-auto" />
+              <LogoBipi className="h-7 w-auto" />
             </div>
             <h1 className="text-white font-bold text-[15px] lg:text-lg leading-none">{title}</h1>
           </div>

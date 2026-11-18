@@ -10,6 +10,9 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = regional e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-18-logo", data: "18/11/2026", itens: [
+    { tipo: "melhorado", ate: 7, texto: "A logo do Bipi agora é animada: os olhos piscam e olham em volta. A tela de carregamento ganhou o robô Bipi, com sinal na antena, olhos piscando e o leitor passeando no visor." },
+  ] },
   { id: "2026-11-17-sem-foto", data: "17/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "Por enquanto, a tela inicial mostra só os produtos que têm foto. Foto que não abre aparece como o Bipi. Os produtos sem foto voltam à tela inicial quando a foto chegar." },
   ] },

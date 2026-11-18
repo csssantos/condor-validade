@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
+import { LogoBipi, RoboCarregando } from "./componentes/LogoBipi";
 
 const AZUL = "#0B4F9E";
 export const FUNDO_MARCA = "radial-gradient(120% 85% at 50% 0%, #1B6FD1 0%, #0B4F9E 42%, #061C3A 100%)";
@@ -76,8 +77,8 @@ export function TelaCarregando({ logo, mensagem }) {
 
         {/* logo */}
         <motion.div initial={{ scale: 0, rotate: -12 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.1 }}
-          className="relative h-[92px] w-[196px] rounded-[28px] bg-white flex items-center justify-center shadow-[0_18px_40px_-10px_rgba(0,0,0,.5)]">
-          <motion.img src={logo} alt="Bipi Validade" className="h-[64px] w-auto" animate={reduzir ? undefined : { y: [0, -3, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }} />
+          className="relative flex items-center justify-center">
+          <RoboCarregando className="h-[176px] w-auto drop-shadow-[0_18px_30px_rgba(0,0,0,.35)]" />
         </motion.div>
       </div>
 
@@ -138,7 +139,7 @@ export function AuthPalco({ logo, compacto }) {
       <div className="absolute inset-0 flex flex-col items-center justify-center px-6 pb-8 pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-0 text-center">
         <motion.div initial={{ scale: 0, rotate: -14 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 280, damping: 16, delay: 0.1 }}
           className={`bg-white flex items-center justify-center shadow-[0_16px_36px_-10px_rgba(0,0,0,.55)] ${compacto ? "h-[58px] w-[156px] rounded-[20px]" : "h-[80px] w-[210px] rounded-[26px] lg:h-[120px] lg:w-[320px] lg:rounded-[34px]"} transition-all duration-500`}>
-          <img src={logo} alt="Bipi Validade" className={`${compacto ? "h-[38px]" : "h-[52px] lg:h-[84px]"} w-auto transition-all duration-500`} />
+          <LogoBipi className={`${compacto ? "h-[38px]" : "h-[52px] lg:h-[84px]"} w-auto transition-all duration-500`} />
         </motion.div>
         <div className={`overflow-hidden transition-all duration-500 ${compacto ? "max-h-0 opacity-0" : "max-h-48 opacity-100 mt-4"}`}>
           <h2 className="text-[28px] lg:text-5xl font-extrabold leading-tight tracking-tight">

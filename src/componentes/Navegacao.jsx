@@ -3,7 +3,8 @@ import { useReducedMotion, motion } from "framer-motion";
 import { HomeIcon, Squares2X2Icon, ClockIcon, Cog6ToothIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { HomeIcon as HomeIconSolid, Squares2X2Icon as Squares2X2IconSolid, ClockIcon as ClockIconSolid, Cog6ToothIcon as Cog6ToothIconSolid } from "@heroicons/react/24/solid";
 import { LayoutDashboard, Package, LayoutGrid, ShieldCheck, Flame, Radar, FileText, History, ListChecks, Sparkles, Ticket, Building2, Wrench, KeyRound, Palette, Bell, Megaphone, Barcode, Info, LogOut, Inbox } from "lucide-react";
-import { BLUE, LOGO_SRC, RED, RED_DARK, RED_SOFT } from "../lib/constantes";
+import { BLUE, RED, RED_DARK, RED_SOFT } from "../lib/constantes";
+import { LogoBipi } from "./LogoBipi";
 
 function BottomNav({ T, tab, setTab, alertCount, onScan }) {
   const reduzir = useReducedMotion();
@@ -109,7 +110,7 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
   return (
     <aside style={{ background: T.card, borderColor: T.border }} className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 z-30 flex-col border-r">
       <div className="px-6 pt-5 pb-4 flex items-center justify-between">
-        <div className="bg-white rounded-xl px-2.5 py-1.5 flex items-center shadow-sm"><img src={LOGO_SRC} alt="Bipi Validade" className="h-8 w-auto" /></div>
+        <div className="bg-white rounded-xl px-2.5 py-1.5 flex items-center shadow-sm"><LogoBipi className="h-8 w-auto" /></div>
         {lojaNumero && <span style={{ background: T.chipBg, color: T.subtext }} className="text-[10px] font-bold px-2 py-1 rounded-md">LOJA {lojaNumero}</span>}
       </div>
       <nav className="flex-1 overflow-y-auto px-3 pb-4 flex flex-col gap-5">

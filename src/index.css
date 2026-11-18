@@ -18,3 +18,27 @@ input[type="date"], input[type="datetime-local"], input[type="time"] {
   appearance: none;
 }
 input[type="date"]::-webkit-date-and-time-value, input[type="datetime-local"]::-webkit-date-and-time-value { text-align: left; }
+
+/* Logo animada do Bipi (componentes/LogoBipi.jsx): olhos piscam e olham em volta; robô do carregamento. */
+.bipi-piscar { transform-box: fill-box; transform-origin: center; animation: bipi-piscar 3.6s infinite; }
+.bipi-olhar { animation: bipi-olhar 3.6s infinite; }
+.bipi-olhar2 { animation: bipi-olhar2 2.8s infinite; }
+.bipi-flutuar { animation: bipi-flutuar 2.8s ease-in-out infinite; }
+.bipi-sombra { transform-box: fill-box; transform-origin: center; animation: bipi-sombra 2.8s ease-in-out infinite; }
+.bipi-bola { transform-box: fill-box; transform-origin: center; animation: bipi-bola 1.4s ease-in-out infinite; }
+.bipi-sinal { animation: bipi-sinal 1.4s ease-in-out infinite; opacity: 0; }
+.bipi-sinal2 { animation-delay: .35s; }
+.bipi-feixe { animation: bipi-feixe 2.8s ease-in-out infinite; }
+@keyframes bipi-piscar { 0%, 12%, 16%, 20%, 24%, 80%, 85%, 100% { transform: scaleY(1); } 14%, 22%, 82.5% { transform: scaleY(.08); } }
+@keyframes bipi-olhar { 0%, 27%, 85%, 100% { transform: translateX(0); } 36%, 50% { transform: translateX(6px); } 58%, 75% { transform: translateX(-6px); } }
+@keyframes bipi-olhar2 { 0%, 46%, 93%, 100% { transform: translateX(0); } 57%, 71% { transform: translateX(3px); } 82% { transform: translateX(-3px); } }
+@keyframes bipi-flutuar { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes bipi-sombra { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(.86); } }
+@keyframes bipi-bola { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+@keyframes bipi-sinal { 0%, 100% { opacity: 0; } 50% { opacity: .9; } }
+@keyframes bipi-feixe { 0%, 100% { transform: translateY(70px); } 50% { transform: translateY(126px); } }
+@media (prefers-reduced-motion: reduce) {
+  .bipi-piscar, .bipi-olhar, .bipi-olhar2, .bipi-flutuar, .bipi-sombra, .bipi-bola, .bipi-feixe { animation: none; }
+  .bipi-sinal { animation: none; opacity: .8; }
+  .bipi-feixe { transform: translateY(104px); }
+}

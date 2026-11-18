@@ -18,6 +18,7 @@ import { FaixaFila } from "./componentes/FaixaFila";
 import { Gestos } from "./componentes/Gestos";
 import { profundidade, passoVoltar, reconciliar, guardaVoltar } from "./lib/gestos";
 import { AtualizacaoModal, NOVIDADES, gravarNovidadeVista, lerNovidadeVista, novidadesParaCargo } from "./componentes/Novidades";
+import { LogoBipi } from "./componentes/LogoBipi";
 import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, invisivelNoInicio, setorPrincipal } from "./lib/constantes";
 import { LOJA_ID_ATIVA, avisoFromRow, historicoFromRow, loadLocal, produtoFromRow, registrarAuditoria, saveLocal, setLojaIdAtiva, supaCriarSetorCustomizado, supaCriarSubsetorCustomizado, supaEnviarResumoRede, supaFetchAuditoria, supaFetchAvisosRecentes, supaFetchCatalogo, supaFetchConfigLoja, supaFetchHistorico, supaFetchProdutos, supaFetchRondas, supaFetchSetoresCustomizados, supaFetchSubsetoresCustomizados, supaRegistrarAlteracaoValidade, supaRegistrarPedido } from "./lib/dados";
 import { avisarErroGravacao, erroDeRede, gravarCatalogo, gravarComFila, gravarHistorico, gravarProduto, lerFila, filaEnviando, contarFilaDaPessoa, mensagemErroGravacao, processarFila, removerProduto, definirUsuarioFila, usuarioFila, limparFilaOrfa } from "./lib/fila";
@@ -1444,7 +1445,7 @@ function AppInner() {
   if (conviteStatus?.erro) {
     return comBanner(
       <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <img src={LOGO_SRC} alt="Bipi Validade" className="h-10 w-auto" />
+        <LogoBipi className="h-10 w-auto" />
         <Ticket size={28} color={RED} />
         <p className="text-sm font-semibold max-w-xs">{conviteStatus.erro}</p>
         <button onClick={() => setConviteStatus(null)} style={{ color: BLUE }} className="text-xs font-semibold">Ir para o login</button>
@@ -1457,7 +1458,7 @@ function AppInner() {
     const emailLink = emailDoLinkPendente();
     return (
       <div style={{ background: T.bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <img src={LOGO_SRC} alt="Bipi Validade" className="h-10 w-auto" />
+        <LogoBipi className="h-10 w-auto" />
         <Lock size={28} color={BLUE} />
         <p className="text-base font-extrabold max-w-xs">Você já está logado neste aparelho</p>
         <p className="text-sm max-w-xs" style={{ color: T.subtext }}>Conta atual: <strong>{emailAtual}</strong>.{emailLink ? <> O link do e-mail é da conta <strong>{emailLink}</strong>.</> : " O link do e-mail é de outra conta."} Se você usar o link, sai desta conta neste aparelho (seus lançamentos já salvos continuam salvos). O link só funciona uma vez.</p>
@@ -1514,7 +1515,7 @@ function AppInner() {
   if (sessao?.user?.is_anonymous && perfil === null && !perfilErro) {
     return comBanner(
       <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <img src={LOGO_SRC} alt="Bipi Validade" className="h-10 w-auto" />
+        <LogoBipi className="h-10 w-auto" />
         <Ticket size={28} color={RED} />
         <p className="text-sm font-semibold">Seu acesso de promotor terminou.</p>
         <p style={{ color: getTokens(false).subtext }} className="text-xs max-w-xs">O convite venceu ou foi cancelado. Peça um novo link pro encarregado da loja.</p>
@@ -1529,7 +1530,7 @@ function AppInner() {
     if (perfilErro) {
       return comBanner(
         <div style={{ background: getTokens(false).bg }} className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
-          <img src={LOGO_SRC} alt="Bipi Validade" className="h-10 w-auto" />
+          <LogoBipi className="h-10 w-auto" />
           <p className="text-sm font-semibold">Não foi possível carregar seu perfil.</p>
           <p style={{ color: getTokens(false).subtext }} className="text-xs">Verifique a conexão e tente de novo.</p>
           <button onClick={() => { setPerfil(undefined); setPerfilTick((n) => n + 1); }} style={{ background: BLUE, color: "#fff" }} className="px-4 py-2.5 rounded-xl text-sm font-semibold">Tentar de novo</button>
