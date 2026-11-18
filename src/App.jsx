@@ -56,7 +56,7 @@ function AppInner() {
   const [tab, setTab] = useState("home");
   const [flow, setFlow] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [prefs, setPrefs] = useState({ tema: "claro", som: true });
+  const [prefs, setPrefs] = useState({ tema: "auto", som: true });
   const [sistemaEscuro, setSistemaEscuro] = useState(() => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
   const [usuario, setUsuario] = useState(null);
   const [recuperandoSenha, setRecuperandoSenha] = useState(abriuPorRecuperacao);
@@ -376,7 +376,7 @@ function AppInner() {
   }, [T.bg]);
 
   useEffect(() => {
-    setPrefs(loadLocal(PREFS_KEY, { tema: "claro", som: true }));
+    setPrefs(loadLocal(PREFS_KEY, { tema: "auto", som: true }));
     setLoading(false);
   }, []);
 

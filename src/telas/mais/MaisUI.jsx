@@ -1,6 +1,6 @@
 // Parte do App (separado de App.jsx em 2026-11-05). Mudanças de comportamento: ver CLAUDE.md.
 import { motion } from "framer-motion";
-import { ChevronRight, Loader2, Sun, Moon, SunMoon } from "lucide-react";
+import { ChevronRight, Loader2 } from "lucide-react";
 import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../../lib/constantes";
 
 // ============ Ajustes ============
@@ -135,7 +135,6 @@ function MaisHero({ T, perfil, usuario, tema, onTema }) {
   const nome = perfil?.nome || usuario || "Usuário";
   const cargo = perfil?.cargo_nome_loja || perfil?.cargos?.nome || "";
   const loja = perfil?.lojas?.numero_loja;
-  const OPCOES = [["claro", "Claro", Sun], ["escuro", "Escuro", Moon], ["auto", "Auto", SunMoon]];
   return (
     <motion.div initial={{ opacity: 0, y: -16, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={MOLA_SUAVE}
       style={{ background: `linear-gradient(135deg, ${BLUE_DARK}, ${BLUE})`, isolation: "isolate", WebkitMaskImage: "-webkit-radial-gradient(white, black)", transform: "translateZ(0)" }} className="relative overflow-hidden rounded-[30px] p-5 text-white shadow-xl shadow-black/10">
@@ -152,14 +151,6 @@ function MaisHero({ T, perfil, usuario, tema, onTema }) {
             {[cargo, loja ? `Loja ${loja}` : null].filter(Boolean).join(" · ")}
           </motion.p>
         </div>
-      </div>
-      <div role="radiogroup" aria-label="Tema" className="relative mt-5 flex p-1 rounded-2xl bg-black/25">
-        {OPCOES.map(([id, rotulo, Icone]) => (
-          <button key={id} role="radio" aria-checked={tema === id} onClick={(e) => onTema(id, e)} className="relative flex-1 py-2 rounded-xl text-[12.5px] font-bold flex items-center justify-center gap-1.5">
-            {tema === id && <motion.span layoutId="mais-tema-hero" transition={MOLA} className="absolute inset-0 rounded-xl bg-white" />}
-            <span className="relative flex items-center gap-1.5" style={{ color: tema === id ? BLUE_DARK : "#fff" }}><Icone size={14} />{rotulo}</span>
-          </button>
-        ))}
       </div>
     </motion.div>
   );

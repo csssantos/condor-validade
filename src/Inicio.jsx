@@ -2,7 +2,7 @@
 // vidro e animações. Só aparência: os números vêm prontos do HomeView (App.jsx).
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { AlertTriangle, Bell, BellOff, Moon, Sun, CheckCircle2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Bell, BellOff, CheckCircle2, RefreshCw } from "lucide-react";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
 const VERM = "#E31E24", AMBAR = "#F5A524", VERDE = "#34C77B";
@@ -147,7 +147,6 @@ export function PalcoInicio({
             )}
             <BotaoVidro onClick={onEmergencia} label={emergencia ? "Sair do modo emergência" : "Modo emergência"} ativo={emergencia}><AlertTriangle size={17} /></BotaoVidro>
             <BotaoVidro onClick={onNotif} label="Notificações">{notifOk ? <Bell size={17} /> : <BellOff size={17} />}</BotaoVidro>
-            <BotaoVidro onClick={onTema} label="Alternar tema">{dark ? <Sun size={17} /> : <Moon size={17} />}</BotaoVidro>
           </div>
         </div>
 

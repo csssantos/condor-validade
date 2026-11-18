@@ -533,3 +533,6 @@ Retrato do banco no dia: 2 lojas, 5 usuários (3 ativos), 45 lotes, 169 produtos
 
 ## LOGO ANIMADA + ROBÔ NO CARREGAMENTO (2026-11-18, pedido do dono; sem banca por pedido dele) — sem SQL
 - `componentes/LogoBipi.jsx`: `LogoBipi` (SVG da palavra "bipi", os pingos dos "i" são os olhos: piscam e olham em volta, loop 3,6 s) usado no Header, SideNav, `AuthPalco`, telas de convite/erro do App.jsx e `AtualizacaoObrigatoria`; `RoboCarregando` (símbolo do Bipi com antena + sinal em arcos concêntricos fora da bolinha, olhos, feixe do leitor no visor, flutuando) substitui o cartão branco da logo em `TelaCarregando`. Animações = classes `bipi-*` em `index.css` (param com reduzir movimento). `LOGO_SRC` (PNG) continua em PDFs, imagem de compartilhar e ContaSemVinculo/Home/Paginas. Modelos GIF de referência ficaram no scratchpad (`gif/`).
+
+## TEMA EM UM LUGAR SÓ (2026-11-18, pedido do dono) — sem SQL
+- O seletor de tema (Claro/Escuro/Automático) existe só em Mais → Aparência (`PaginaAparencia`). Saíram o botão sol/lua da Home (`Inicio.jsx`, ao lado do sino) e o seletor do `MaisHero`. Padrão para quem nunca escolheu = `"auto"` (segue o celular); quem já escolheu mantém a escolha salva. Props `onTema`/`dark` ainda passam por Home/Inicio sem uso (limpeza futura).
