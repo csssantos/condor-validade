@@ -87,7 +87,7 @@ function SeletorTema({ T, dark, tema, onTema }) {
   );
 }
 
-const FONTES = [["normal", "Normal", "Tamanho padrão do app (no Android segue a letra do celular)"], ["grande", "Grande", "Letras um pouco maiores"], ["maior", "Muito grande", "Letras bem maiores, mais fáceis de ler"]];
+const FONTES = [["normal", "Normal", "Tamanho padrão do app"], ["grande", "Grande", "Letras um pouco maiores"], ["maior", "Muito grande", "Letras bem maiores, mais fáceis de ler"]];
 
 function SeletorFonte({ T, fonte, onFonte }) {
   return (

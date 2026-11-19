@@ -183,7 +183,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
               style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="flex-1 min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
             <select value={unidadeMedida} onChange={(e) => setUnidadeMedida(e.target.value)}
               style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }}
-              className="w-[84px] shrink-0 border rounded-xl px-2 py-2.5 text-sm font-semibold outline-none focus:ring-2">
+              className="w-[5.25rem] shrink-0 border rounded-xl px-2 py-2.5 text-sm font-semibold outline-none focus:ring-2">
               {ordemUnidadesPeloSetor(product.setor).map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
           </div>
