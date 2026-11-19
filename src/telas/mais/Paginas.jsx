@@ -16,7 +16,7 @@ import { apenasNumeros, parseCodigoBalanca, sanitizarTexto } from "../../lib/uti
 import { ResumoDiarioControles } from "./ResumoDiario";
 import { APP_VERSAO, COR_MAIS, COR_TEMA, MOLA, MOLA_SUAVE, MaisAviso, MaisBloco, MaisBolha, MaisBotao, MaisCampo, MaisCheck, MaisLinha, MaisSwitch, clarearCor } from "./MaisUI";
 
-function PaginaAparencia({ T, dark, tema, onTema }) {
+function SeletorTema({ T, dark, tema, onTema }) {
   const pc = useTelaLarga();
   const previa = (id) => {
     const claro = { bg: COR_TEMA.claro, card: "#fff", linha: "#D5DCE6", texto: "#12131A" };
@@ -87,6 +87,44 @@ function PaginaAparencia({ T, dark, tema, onTema }) {
   );
 }
 
+const FONTES = [["normal", "Normal", "Segue o tamanho de letra do seu celular", "100%"], ["grande", "Grande", "Letras um pouco maiores em todo o app", "112.5%"], ["maior", "Muito grande", "Letras bem maiores, mais fáceis de ler", "125%"]];
+
+function SeletorFonte({ T, fonte, onFonte }) {
+  return (
+    <MaisBloco T={T} i={1}>
+      <div className="p-4">
+        <p style={{ color: T.text }} className="text-[15px] font-bold">Tamanho das letras</p>
+        <p style={{ color: T.subtext }} className="text-[13px] mt-0.5">Vale só neste aparelho.</p>
+        <div role="radiogroup" aria-label="Tamanho das letras" className="mt-3 flex flex-col gap-2">
+          {FONTES.map(([id, nome, desc]) => {
+            const sel = (fonte || "normal") === id;
+            return (
+              <button key={id} type="button" role="radio" aria-checked={sel} onClick={() => onFonte(id)}
+                style={{ background: sel ? `${BLUE}14` : T.chipBg, borderColor: sel ? BLUE : "transparent" }} className="border-2 rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
+                <div className="flex-1 min-w-0">
+                  <p style={{ color: T.text }} className="text-[15px] font-bold">{nome}</p>
+                  <p style={{ color: T.subtext }} className="text-[13px] mt-0.5 leading-snug">{desc}</p>
+                </div>
+                {sel && <span style={{ background: BLUE }} className="h-6 w-6 rounded-full flex items-center justify-center text-white shrink-0"><Check size={14} /></span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </MaisBloco>
+  );
+}
+
+function PaginaAparencia({ T, dark, tema, onTema, fonte, onFonte }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <SeletorTema T={T} dark={dark} tema={tema} onTema={onTema} />
+      <SeletorFonte T={T} fonte={fonte} onFonte={onFonte} />
+    </div>
+  );
+}
+
+
 function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNotif, onDesativarNotif, ehEncarregado, usuarioId, emailConta, showToast }) {
   const iosSemInstalar = isIOS() && !isStandalone();
   const ativa = notifPermission === "granted";
@@ -97,7 +135,7 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
   const controleNotif = (
             ativa ? (
               <div className="flex items-center gap-2">
-                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 14 }} className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: "#E3F4EA", color: "#14573A" }}>Ligadas</motion.span>
+                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 14 }} className="text-[0.75rem] font-bold px-2.5 py-1 rounded-full" style={{ background: "#E3F4EA", color: "#14573A" }}>Ligadas</motion.span>
                 {onDesativarNotif && <motion.button whileTap={{ scale: 0.94 }} onClick={onDesativarNotif} style={{ background: T.chipBg, color: T.text }} className="text-[12px] font-bold px-3.5 py-2 rounded-full">Desativar</motion.button>}
               </div>
             )
@@ -272,7 +310,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
           </div>
           <MaisCampo T={T} label="Título" value={titulo} onChange={(v) => setTitulo(v.slice(0, 60))} placeholder="Ex.: Reunião às 15h no CPD" maxLength={60} />
           <label className="block">
-            <span style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 flex justify-between"><span>Mensagem</span><span>{mensagem.length}/300</span></span>
+            <span style={{ color: T.subtext }} className="text-[0.75rem] font-semibold mb-1 flex justify-between"><span>Mensagem</span><span>{mensagem.length}/300</span></span>
             <textarea value={mensagem} onChange={(e) => setMensagem(e.target.value.slice(0, 300))} rows={4} placeholder="Escreva o aviso…"
               style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-2xl px-4 py-3 text-[15px] outline-none focus:ring-2 resize-none" />
           </label>
@@ -339,7 +377,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
       <MaisBloco T={T} titulo="Prévia" i={0} className="max-lg:order-first">
         <div className="p-4">
           <motion.div layout style={{ background: `${tipoAtual.cor}1A`, borderColor: tipoAtual.cor }} className="rounded-2xl border-l-4 p-4">
-            <p style={{ color: dark ? clarearCor(tipoAtual.cor, 0.5) : tipoAtual.cor }} className="text-[11px] font-extrabold uppercase tracking-wide">{tipoAtual.rotulo}</p>
+            <p style={{ color: dark ? clarearCor(tipoAtual.cor, 0.5) : tipoAtual.cor }} className="text-[0.75rem] font-extrabold uppercase tracking-wide">{tipoAtual.rotulo}</p>
             <p style={{ color: T.text }} className="text-[15px] font-bold mt-1 break-words">{titulo || "Título do aviso"}</p>
             <p style={{ color: T.subtext }} className="text-[13px] mt-1 leading-snug break-words whitespace-pre-line">{mensagem || "A mensagem aparece aqui para quem receber."}</p>
           </motion.div>

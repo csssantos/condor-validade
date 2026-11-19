@@ -19,7 +19,7 @@ function FichaFiltro({ children, onRemove }) {
 function GrupoFiltro({ T, titulo, opcoes, valor, onChange }) {
   return (
     <div className="mb-5">
-      <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-[.1em] mb-2">{titulo}</p>
+      <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-[.1em] mb-2">{titulo}</p>
       <div className="flex gap-1.5 flex-wrap">
         {opcoes.map(([id, rot]) => (
           <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => onChange(id)} aria-pressed={valor === id}
@@ -34,7 +34,7 @@ function StatCard({ T, label, value, color }) {
   return (
     <div style={{ background: T.card }} className="rounded-[22px] px-3 py-3.5 shadow-lg shadow-black/5 text-center">
       <p style={{ color }} className="text-2xl font-extrabold leading-none tabular-nums">{value}</p>
-      <p style={{ color: T.subtext }} className="text-[11px] mt-1.5 font-bold">{label}</p>
+      <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1.5 font-bold">{label}</p>
     </div>
   );
 }
@@ -76,31 +76,31 @@ function ItemCard({ T, item, onOpenDetail }) {
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm truncate">{item.nome}</p>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[11px]"><MapPin size={11} /> {item.setor}</span>
-            <span style={{ color: T.subtext }} className="text-[11px]">•</span>
-            <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[11px] font-mono"><Barcode size={11} /> {item.barcode}</span>
+            <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[0.75rem]"><MapPin size={11} /> {item.setor}</span>
+            <span style={{ color: T.subtext }} className="text-[0.75rem]">•</span>
+            <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[0.75rem] font-mono"><Barcode size={11} /> {item.barcode}</span>
           </div>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <span style={{ background: s.bg, color: s.fg }} className="text-[10px] font-bold px-2 py-1 rounded-md tracking-wide">{item.status.label}</span>
-            <span className="text-[11px] font-medium">{diasTexto}</span>
+            <span style={{ background: s.bg, color: s.fg }} className="text-[0.6875rem] font-bold px-2 py-1 rounded-md tracking-wide">{item.status.label}</span>
+            <span className="text-[0.75rem] font-medium">{diasTexto}</span>
             {desconto && (
-              <span style={{ background: RED_SOFT, color: RED_DARK }} className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-1 rounded-md">
+              <span style={{ background: RED_SOFT, color: RED_DARK }} className="inline-flex items-center gap-0.5 text-[0.6875rem] font-bold px-1.5 py-1 rounded-md">
                 <Percent size={10} /> {desconto.pct}% sugerido
               </span>
             )}
             {item.politicaTroca === "sem_troca" && (
-              <span style={{ background: "#4A1013", color: "#FFD5D8" }} className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-1 rounded-md">
+              <span style={{ background: "#4A1013", color: "#FFD5D8" }} className="inline-flex items-center gap-0.5 text-[0.6875rem] font-bold px-1.5 py-1 rounded-md">
                 <ShieldAlert size={10} /> SEM TROCA
               </span>
             )}
           </div>
-          <p style={{ color: T.subtext }} className="text-[10px] mt-1.5">
+          <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1.5">
             Validade {formatarData(item.validade)} · alerta {[item.diasAlerta, ...(item.diasAlertaExtras || [])].sort((a, b) => b - a).join("/")}d
             {item.quantidade ? ` · qtd ${item.quantidade}${item.porPeso ? "kg" : ""}` : ""}
             {item.precoUnitario && podeVerValores ? ` · ${formatarMoeda(item.precoUnitario)}${item.porPeso ? "/kg" : "/un"}` : ""}
           </p>
-          {gerarCodigoLocalizacao(item) && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5 font-mono flex items-center gap-1"><MapPin size={9} /> {gerarCodigoLocalizacao(item)}</p>}
-          {item.cadastradoPor && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5">Cadastrado por {item.cadastradoPor}</p>}
+          {gerarCodigoLocalizacao(item) && <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-0.5 font-mono flex items-center gap-1"><MapPin size={9} /> {gerarCodigoLocalizacao(item)}</p>}
+          {item.cadastradoPor && <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-0.5">Cadastrado por {item.cadastradoPor}</p>}
         </div>
         <ChevronRight size={16} color={T.subtext} className="shrink-0 mt-1" />
       </div>
@@ -122,15 +122,15 @@ function ItemCardAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onOpenD
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate">{base.nome}</p>
             <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-              <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[11px]"><MapPin size={11} /> {base.setor}</span>
-              <span style={{ color: T.subtext }} className="text-[11px]">•</span>
-              <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[11px] font-mono"><Barcode size={11} /> {base.barcode}</span>
+              <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[0.75rem]"><MapPin size={11} /> {base.setor}</span>
+              <span style={{ color: T.subtext }} className="text-[0.75rem]">•</span>
+              <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[0.75rem] font-mono"><Barcode size={11} /> {base.barcode}</span>
             </div>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span style={{ background: s.bg, color: s.fg }} className="text-[10px] font-bold px-2 py-1 rounded-md tracking-wide">{piorStatus.label}</span>
-              <span style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[10px] font-bold px-2 py-1 rounded-md">{lotes.length} datas diferentes</span>
+              <span style={{ background: s.bg, color: s.fg }} className="text-[0.6875rem] font-bold px-2 py-1 rounded-md tracking-wide">{piorStatus.label}</span>
+              <span style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[0.6875rem] font-bold px-2 py-1 rounded-md">{lotes.length} datas diferentes</span>
             </div>
-            <p style={{ color: T.subtext }} className="text-[10px] mt-1.5">Total {totalQuantidade} unidade{totalQuantidade !== 1 ? "s" : ""} nesse produto</p>
+            <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1.5">Total {totalQuantidade} unidade{totalQuantidade !== 1 ? "s" : ""} nesse produto</p>
           </div>
           <ChevronRight size={16} color={T.subtext} className={`shrink-0 mt-1 transition-transform ${aberto ? "rotate-90" : ""}`} />
         </div>
@@ -143,11 +143,11 @@ function ItemCardAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onOpenD
               <button key={l.id} onClick={() => onOpenDetail(l)} style={{ background: T.chipBg }} className="w-full text-left rounded-xl p-2.5 flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span style={{ background: sl.bg, color: sl.fg }} className="text-[9px] font-bold px-1.5 py-0.5 rounded">{sl.label}</span>
+                    <span style={{ background: sl.bg, color: sl.fg }} className="text-[0.6875rem] font-bold px-1.5 py-0.5 rounded">{sl.label}</span>
                     <span className="text-xs font-semibold">{formatarData(l.validade)}</span>
-                    <span style={{ color: T.subtext }} className="text-[10px]">· {l.quantidade || 1} un</span>
+                    <span style={{ color: T.subtext }} className="text-[0.6875rem]">· {l.quantidade || 1} un</span>
                   </div>
-                  {gerarCodigoLocalizacao(l) && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5 font-mono">{gerarCodigoLocalizacao(l)}</p>}
+                  {gerarCodigoLocalizacao(l) && <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-0.5 font-mono">{gerarCodigoLocalizacao(l)}</p>}
                 </div>
                 <ChevronRight size={14} color={T.subtext} className="shrink-0" />
               </button>
@@ -168,12 +168,12 @@ function ItemCardGrid({ T, item, onOpenDetail }) {
         {!semFotoUtil(item.foto) ? <img src={item.foto} alt="" onError={trocarPorBipi} className="w-full h-24 object-cover" /> : (
           <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><img src={BIPI_SEM_FOTO} alt="" className="h-20 object-contain" /></div>
         )}
-        <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-md">{item.status.label}</span>
+        <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded-md">{item.status.label}</span>
       </div>
       <div className="p-2.5">
         <p className="font-semibold text-xs truncate">{item.nome}</p>
-        <p style={{ color: T.subtext }} className="text-[10px] mt-0.5 truncate flex items-center gap-1"><MapPin size={9} /> {item.setor}</p>
-        <p style={{ color: T.subtext }} className="text-[10px] mt-1 flex items-center gap-1"><Calendar size={9} /> {formatarData(item.validade)}</p>
+        <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-0.5 truncate flex items-center gap-1"><MapPin size={9} /> {item.setor}</p>
+        <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1 flex items-center gap-1"><Calendar size={9} /> {formatarData(item.validade)}</p>
       </div>
     </motion.button>
   );

@@ -309,7 +309,7 @@ function BarraProgressoRonda({ T, conf, total, cor = BLUE }) {
       <div style={{ background: T.chipBg }} className="h-2.5 rounded-full overflow-hidden">
         <div style={{ background: cor, width: `${pct}%`, transition: "width .5s" }} className="h-full rounded-full" />
       </div>
-      <p style={{ color: T.subtext }} className="text-[11px] mt-1 tabular-nums">{conf} de {total} conferidos · {pct}%</p>
+      <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1 tabular-nums">{conf} de {total} conferidos · {pct}%</p>
     </div>
   );
 }
@@ -390,15 +390,15 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
             {lotes.length < 5 && <button onClick={() => setLotes((p) => [...p, { validade: "", lote: "" }])} style={{ color: BLUE }} className="text-xs font-semibold text-left">+ outro lote / outra data</button>}
           </div>
           <datalist id="lotes-cadastrados-ronda">{cadastrados.filter((c) => c.lote).map((c) => <option key={c.lote} value={c.lote} />)}</datalist>
-          {!lotesValidos && <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">Lote inválido: use letras, números, ponto, barra ou traço (até 20).</p>}
+          {!lotesValidos && <p style={{ color: RED_DARK }} className="text-[0.75rem] font-semibold mt-1.5">Lote inválido: use letras, números, ponto, barra ou traço (até 20).</p>}
           {lotes.map((l, i) => {
             if (!l.lote || !loteOkRonda(l) || !cadastrados.length) return null;
             const c = cadastrados.find((x) => x.lote === l.lote);
-            if (!c) return <p key={i} style={{ color: "#C2760C" }} className="text-[11px] font-semibold mt-1.5">Lote {l.lote} não está lançado nesse produto. Se for lote novo, lance a validade depois da ronda.</p>;
-            if (l.validade && c.validade && l.validade !== c.validade) return <p key={i} style={{ color: "#C2760C" }} className="text-[11px] font-semibold mt-1.5">O lote {l.lote} está cadastrado com validade {formatarData(c.validade)}.</p>;
+            if (!c) return <p key={i} style={{ color: "#C2760C" }} className="text-[0.75rem] font-semibold mt-1.5">Lote {l.lote} não está lançado nesse produto. Se for lote novo, lance a validade depois da ronda.</p>;
+            if (l.validade && c.validade && l.validade !== c.validade) return <p key={i} style={{ color: "#C2760C" }} className="text-[0.75rem] font-semibold mt-1.5">O lote {l.lote} está cadastrado com validade {formatarData(c.validade)}.</p>;
             return null;
           })}
-          {vencida && <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">Essa data já passou: esse produto só pode ser marcado como Irregular.</p>}
+          {vencida && <p style={{ color: RED_DARK }} className="text-[0.75rem] font-semibold mt-1.5">Essa data já passou: esse produto só pode ser marcado como Irregular.</p>}
         </GestaoCampo>
         <GestaoCampo T={T} label="Resultado da conferência">
           <div className="grid grid-cols-3 gap-2">
@@ -513,16 +513,16 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
       <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 pt-[calc(env(safe-area-inset-top)+16px)] lg:px-8 lg:pb-6 lg:pt-7 lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-x-8 lg:items-center">
         <div className="flex items-start justify-between gap-3 lg:col-start-1 lg:row-start-1 lg:row-span-2">
           <div className="min-w-0">
-            <p className="text-white/70 text-[11px] font-medium">CONFERÊNCIA · {ronda.setor}</p>
+            <p className="text-white/70 text-[0.75rem] font-medium">CONFERÊNCIA · {ronda.setor}</p>
             <h2 className="text-white font-bold text-lg lg:text-3xl leading-tight">{ronda.titulo}</h2>
-            <p className="text-white/70 text-[11px] lg:text-sm mt-0.5">Encarregado: {ronda.criado_por_nome || "—"}{ronda.prazo ? ` · prazo ${formatarDataHoraExtenso(ronda.prazo)}` : ""}</p>
+            <p className="text-white/70 text-[0.75rem] lg:text-sm mt-0.5">Encarregado: {ronda.criado_por_nome || "—"}{ronda.prazo ? ` · prazo ${formatarDataHoraExtenso(ronda.prazo)}` : ""}</p>
           </div>
           <button onClick={onFechar} className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center shrink-0"><X size={18} color="#fff" /></button>
         </div>
         <div className="mt-3 lg:mt-0 rounded-2xl bg-white/12 p-3 lg:col-start-2 lg:row-start-1">
           <div className="flex items-end justify-between text-white">
             <p className="text-3xl font-extrabold leading-none tabular-nums">{pctDe(conf, total)}%</p>
-            <p className="text-[11px] text-white/80 text-right tabular-nums">{total} produtos · {conf} conferidos · {total - conf} pendentes</p>
+            <p className="text-[0.75rem] text-white/80 text-right tabular-nums">{total} produtos · {conf} conferidos · {total - conf} pendentes</p>
           </div>
           <div className="h-2.5 rounded-full bg-white/20 overflow-hidden mt-2"><div style={{ background: "#fff", width: `${pctDe(conf, total)}%`, transition: "width .5s" }} className="h-full rounded-full" /></div>
         </div>
@@ -580,7 +580,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
                 <Thumb foto={x.foto} size={44} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold truncate">{x.nome}</p>
-                  <p style={{ color: T.subtext }} className="text-[11px] truncate flex items-center gap-1.5"><SeloRisco risco={x.risco} nivel={x.risco_nivel} /><span className="truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}{Array.isArray(x.lotes) && x.lotes.some((l) => l.lote) ? ` · lote ${x.lotes.filter((l) => l.lote).map((l) => l.lote).join("/")}` : ""}</span></p>
+                  <p style={{ color: T.subtext }} className="text-[0.75rem] truncate flex items-center gap-1.5"><SeloRisco risco={x.risco} nivel={x.risco_nivel} /><span className="truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}{Array.isArray(x.lotes) && x.lotes.some((l) => l.lote) ? ` · lote ${x.lotes.filter((l) => l.lote).map((l) => l.lote).join("/")}` : ""}</span></p>
                 </div>
                 <DashBadge bg={r.bg} color={r.color}>{x._pendente ? "enviando…" : r.label}</DashBadge>
               </button>
@@ -663,7 +663,7 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
       <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="px-4 pb-4 shrink-0 pt-[calc(env(safe-area-inset-top)+16px)] lg:px-8 lg:pb-6 lg:pt-7">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-white/70 text-[11px] font-medium">{ativa ? "RONDA ATIVA" : "RONDA"} · {ronda.setor}</p>
+            <p className="text-white/70 text-[0.75rem] font-medium">{ativa ? "RONDA ATIVA" : "RONDA"} · {ronda.setor}</p>
             <h2 className="text-white font-bold text-lg lg:text-3xl leading-tight">{ronda.titulo}</h2>
             <p className="text-white/75 text-[11.5px] mt-0.5">Responsável: {ronda.usuario || "—"}</p>
           </div>
@@ -712,7 +712,7 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
             {eventos.length > 0 && (
               <details className="mt-3"><summary style={{ color: BLUE }} className="text-xs font-semibold cursor-pointer">Histórico completo ({eventos.length} registros)</summary>
                 <div className="mt-2 flex flex-col gap-1 max-h-60 overflow-y-auto">
-                  {eventos.map((e) => <p key={e.id} style={{ color: T.subtext }} className="text-[11px]">{formatarDataHoraExtenso(e.criado_em)} · <b style={{ color: T.text }}>{e.usuario_nome || "—"}</b> · {e.tipo}{e.dados?.nome ? ` · ${e.dados.nome}` : ""}{e.dados?.resultado ? ` → ${e.dados.resultado}` : ""}{e.dados?.motivo ? ` · ${e.dados.motivo}` : ""}</p>)}
+                  {eventos.map((e) => <p key={e.id} style={{ color: T.subtext }} className="text-[0.75rem]">{formatarDataHoraExtenso(e.criado_em)} · <b style={{ color: T.text }}>{e.usuario_nome || "—"}</b> · {e.tipo}{e.dados?.nome ? ` · ${e.dados.nome}` : ""}{e.dados?.resultado ? ` → ${e.dados.resultado}` : ""}{e.dados?.motivo ? ` · ${e.dados.motivo}` : ""}</p>)}
                 </div>
               </details>
             )}
@@ -735,7 +735,7 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
             {lista.map((x) => { const r = RONDA_RESULTADO[x.resultado]; return (
               <button key={x.id} onClick={() => setItem(x)} style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-3 flex items-center gap-3 text-left">
                 <Thumb foto={x.foto} size={40} />
-                <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate">{x.nome}</p><p style={{ color: T.subtext }} className="text-[11px] truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}{Array.isArray(x.lotes) && x.lotes.some((l) => l.lote) ? ` · lote ${x.lotes.filter((l) => l.lote).map((l) => l.lote).join("/")}` : ""}</p></div>
+                <div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate">{x.nome}</p><p style={{ color: T.subtext }} className="text-[0.75rem] truncate">{x.barcode}{x.validade_encontrada ? ` · validade ${formatarData(x.validade_encontrada)}` : ""}{Array.isArray(x.lotes) && x.lotes.some((l) => l.lote) ? ` · lote ${x.lotes.filter((l) => l.lote).map((l) => l.lote).join("/")}` : ""}</p></div>
                 <DashBadge bg={r.bg} color={r.color}>{r.label}</DashBadge>
               </button>); })}
             {lista.length === 0 && <p style={{ color: T.subtext }} className="text-sm text-center py-6">Nenhum produto nesse filtro.</p>}
@@ -911,7 +911,7 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
               return <label key={u.id} style={{ background: on ? BLUE_SOFT : T.chipBg }} className="rounded-xl px-3 py-2.5 flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" checked={on} onChange={() => setSel((p) => (on ? p.filter((x) => x !== u.id) : [...p, u.id]))} /><span className="flex-1 min-w-0 truncate font-medium">{u.nome}</span><span style={{ color: T.subtext }} className="text-[10.5px]">{u.setor || "sem setor"}</span></label>;
             })}
             {setores.length > 0 && candidatos.length === 0 && <p style={{ color: "#C2760C" }} className="text-xs font-semibold">Nenhum funcionário vinculado a esse setor. Defina o setor dele em Funcionários.</p>}
-            {nivel <= 4 && setores.length > 0 && <label className="text-[11px] flex items-center gap-2" style={{ color: T.subtext }}><input type="checkbox" checked={outrosSetores} onChange={(e) => setOutrosSetores(e.target.checked)} /> Mostrar funcionários de outros setores (gerência)</label>}
+            {nivel <= 4 && setores.length > 0 && <label className="text-[0.75rem] flex items-center gap-2" style={{ color: T.subtext }}><input type="checkbox" checked={outrosSetores} onChange={(e) => setOutrosSetores(e.target.checked)} /> Mostrar funcionários de outros setores (gerência)</label>}
           </div>
         </GestaoCampo>
         <div className="grid grid-cols-1 gap-3">
@@ -972,7 +972,7 @@ function CartaoOcorrencia({ T, o, onClick }) {
         <p className="text-sm font-semibold leading-snug line-clamp-2">{o.descricao}</p>
         <BadgeOcorrencia o={o} />
       </div>
-      <div style={{ color: T.subtext }} className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] mt-1.5">
+      <div style={{ color: T.subtext }} className="flex flex-wrap gap-x-3 gap-y-0.5 text-[0.75rem] mt-1.5">
         <span>{o.setor} · {CAT[o.categoria]}</span>
         <span style={{ color: p.color }} className="font-bold">{p.label}</span>
         <span>{o.responsavel_nome ? `👤 ${o.responsavel_nome}` : "sem responsável"}</span>
@@ -1296,7 +1296,7 @@ function RondasView({ T, perfil, lojaAtiva, catalog, showToast, intent, onIntent
         <div className="hidden lg:grid grid-cols-3 gap-4 mb-4">
           {[["Em curso", lista.filter(emCurso).length, "#1F9D55"], ["Minhas", minhasRondas.length, BLUE], ["Encerradas", lista.length - lista.filter(emCurso).length, T.subtext]].map(([r, n, cor]) => (
             <div key={r} style={{ background: T.card, borderColor: T.chipBg }} className="rounded-2xl border p-4 shadow-sm">
-              <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide">{r}</p>
+              <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide">{r}</p>
               <p style={{ color: cor }} className="text-3xl font-extrabold tabular-nums mt-1">{n}</p>
             </div>
           ))}
@@ -1317,8 +1317,8 @@ function RondasView({ T, perfil, lojaAtiva, catalog, showToast, intent, onIntent
                     <div style={{ background: st.bg }} className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"><Icone size={18} color={st.color} /></div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2"><p className="text-sm font-semibold leading-tight">{r.titulo}</p><DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge></div>
-                      <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">{r.setor} · por {r.criado_por_nome || r.usuario || "—"} · {formatarDataHoraExtenso(r.criado_em)}</p>
-                      <p style={{ color: T.subtext }} className="text-[11px]">👥 {(r.ronda_participantes || []).map((p) => p.nome).join(", ") || "—"}</p>
+                      <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5">{r.setor} · por {r.criado_por_nome || r.usuario || "—"} · {formatarDataHoraExtenso(r.criado_em)}</p>
+                      <p style={{ color: T.subtext }} className="text-[0.75rem]">👥 {(r.ronda_participantes || []).map((p) => p.nome).join(", ") || "—"}</p>
                       <div className="mt-2"><BarraProgressoRonda T={T} conf={conf} total={tot} cor={st.color} /></div>
                     </div>
                   </div>

@@ -124,31 +124,31 @@ function PaginaAprovacoes({ T, dark, perfil, showToast, subsetoresExtra = [] }) 
             {aberto === a.id && a.status === "pendente" && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={MOLA_SUAVE} className="overflow-hidden">
                 <div className="px-3.5 pb-4 flex flex-col gap-3" style={{ borderTop: `1px solid ${T.chipBg}` }}>
-                  <label className="pt-3 text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Nome do produto
+                  <label className="pt-3 text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Nome do produto
                     <input value={ed.nome || ""} maxLength={80} onChange={(e) => setEd({ ...ed, nome: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal uppercase" />
                   </label>
-                  <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Setor
+                  <label className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Setor
                     <select value={ed.setor || ""} onChange={(e) => { const ns = e.target.value; const manter = opcoesSub(ns).includes(ed.sub); if (ed.sub && !manter) showToast?.("Setor mudou: escolha a subcategoria de novo", "aviso"); setEd({ ...ed, setor: ns, sub: manter ? ed.sub : "" }); }} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
                       {SETORES_APROVACAO.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </label>
-                  <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Subcategoria (obrigatória)
+                  <label className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Subcategoria (obrigatória)
                     <select value={ed.sub || ""} onChange={(e) => setEd({ ...ed, sub: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
                       <option value="">Escolha…</option>
                       {opcoesSub(ed.setor).map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </label>
                   <div className="flex gap-2">
-                    <label className="flex-1 text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Gramagem (obrigatória)
+                    <label className="flex-1 text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Gramagem (obrigatória)
                       <input inputMode="decimal" value={ed.tam || ""} maxLength={10} placeholder="500" onChange={(e) => setEd({ ...ed, tam: e.target.value.replace(/[^0-9.,]/g, "") })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal" />
                     </label>
-                    <label className="w-24 text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Unidade
+                    <label className="w-24 text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Unidade
                       <select value={ed.uni || "G"} onChange={(e) => setEd({ ...ed, uni: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
                         {["G", "KG", "ML", "L"].map((u) => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </label>
                   </div>
-                  <label className="text-[11px] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Preço (obrigatório)
+                  <label className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Preço (obrigatório)
                     <input inputMode="decimal" value={ed.preco || ""} maxLength={9} placeholder="8,99" onChange={(e) => setEd({ ...ed, preco: e.target.value.replace(/[^0-9.,]/g, "") })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal" />
                   </label>
                   <div className="flex items-center gap-2">

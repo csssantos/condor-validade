@@ -82,7 +82,7 @@ function SetoresDashboard({ T, grupos, resumo, ultimaRondaPorSetor, onAbrirSetor
                 <button key={setor} onClick={() => onAbrirSetor(setor)} style={{ borderColor: T.border, background: T.card }} className="text-left rounded-xl border p-4 hover:shadow-md transition">
                   <div className="flex items-center gap-2.5">
                     <div style={{ background: e.bg }} className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"><Icone size={17} color={e.fg} /></div>
-                    <div className="min-w-0 flex-1"><p className="text-sm font-bold truncate">{setor}</p><p style={{ color: T.subtext }} className="text-[11px]">{g.total} produto(s)</p></div>
+                    <div className="min-w-0 flex-1"><p className="text-sm font-bold truncate">{setor}</p><p style={{ color: T.subtext }} className="text-[0.75rem]">{g.total} produto(s)</p></div>
                   </div>
                   <div className="flex h-2 rounded-full overflow-hidden mt-3" style={{ background: T.chipBg }}>
                     <div style={{ width: pct(g.vencido), background: RED_DARK }} /><div style={{ width: pct(g.alerta), background: RED }} /><div style={{ width: pct(ok), background: "#1F9D55" }} />
@@ -91,7 +91,7 @@ function SetoresDashboard({ T, grupos, resumo, ultimaRondaPorSetor, onAbrirSetor
                     <DashBadge bg={e.bg} color={e.fg}>{e.label}</DashBadge>
                     <span style={{ color: T.subtext }} className="text-[10.5px]">{ultimaRondaPorSetor[setor] ? `ronda ${tempoDesde(ultimaRondaPorSetor[setor])}` : "sem ronda"}</span>
                   </div>
-                  {(g.vencido > 0 || g.alerta > 0) && <p style={{ color: T.subtext }} className="text-[11px] mt-2">{g.vencido} vencido(s) · {g.alerta} em alerta · {fmt(g.valor)}</p>}
+                  {(g.vencido > 0 || g.alerta > 0) && <p style={{ color: T.subtext }} className="text-[0.75rem] mt-2">{g.vencido} vencido(s) · {g.alerta} em alerta · {fmt(g.valor)}</p>}
                 </button>
               );
             })}
@@ -220,13 +220,13 @@ function SetoresView({ T, items, catalog, rondas, onIniciarRonda, onOpenDetail, 
               className="relative overflow-hidden rounded-[32px] text-white p-5 shadow-xl shadow-black/15 mb-4">
               <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
               <div className="relative">
-                <p className="text-[11px] font-bold uppercase tracking-[.16em] text-white/70">Setores da loja</p>
+                <p className="text-[0.75rem] font-bold uppercase tracking-[.16em] text-white/70">Setores da loja</p>
                 <div className="flex items-end justify-between gap-3 mt-2">
                   <div>
                     <p className="font-extrabold leading-none tabular-nums text-[44px]">{resumo.criticos + resumo.atencao}<span className="text-[18px] text-white/70 font-bold"> / {grupos.length}</span></p>
                     <p className="text-[12.5px] text-white/80 mt-1.5">setores precisam de você agora</p>
                   </div>
-                  <div className="text-right"><p className="text-[11px] text-white/70 font-semibold">{totalProdutos} produtos</p>{valorRisco > 0 && <p className="text-[14px] font-extrabold tabular-nums">{formatarMoeda(valorRisco)}</p>}{valorRisco > 0 && <p className="text-[10.5px] text-white/70">em risco</p>}</div>
+                  <div className="text-right"><p className="text-[0.75rem] text-white/70 font-semibold">{totalProdutos} produtos</p>{valorRisco > 0 && <p className="text-[14px] font-extrabold tabular-nums">{formatarMoeda(valorRisco)}</p>}{valorRisco > 0 && <p className="text-[10.5px] text-white/70">em risco</p>}</div>
                 </div>
                 <div className="flex h-2.5 rounded-full overflow-hidden mt-4" style={{ background: "rgba(255,255,255,.2)" }}>
                   <div style={{ width: `${(resumo.criticos / n) * 100}%`, background: "#FF5A5F" }} /><div style={{ width: `${(resumo.atencao / n) * 100}%`, background: "#FFC24B" }} /><div style={{ width: `${(resumo.controlados / n) * 100}%`, background: "#34C77B" }} />
@@ -266,12 +266,12 @@ function ExcluirProdutoSheet({ T, item, onCancel, onConfirmar }) {
             <p style={{ color: T.subtext }} className="text-xs truncate">{item.nome}</p>
           </div>
         </div>
-        <p style={{ color: T.subtext }} className="text-[11px] font-medium mb-2">Excluir sem registrar no histórico. Qual o motivo?</p>
+        <p style={{ color: T.subtext }} className="text-[0.75rem] font-medium mb-2">Excluir sem registrar no histórico. Qual o motivo?</p>
         <div className="grid grid-cols-2 gap-1.5">
           {MOTIVOS_EXCLUSAO.map((m) => (
             <button key={m} onClick={() => setMotivo(m)}
               style={motivo === m ? { background: RED_DARK, color: "#fff" } : { background: T.chipBg, color: T.text }}
-              className="text-[11px] font-medium py-2.5 rounded-xl">
+              className="text-[0.75rem] font-medium py-2.5 rounded-xl">
               {m}
             </button>
           ))}
@@ -309,7 +309,7 @@ function ItemCardGridSetor({ T, item, onOpenDetail, onLancarValidade, onExcluir,
             <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><Package size={24} color={BLUE} /></div>
           )}
           {!item.semValidade && (
-            <span style={{ background: statusStyles(item.status.level).bg, color: statusStyles(item.status.level).fg }} className="absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded">
+            <span style={{ background: statusStyles(item.status.level).bg, color: statusStyles(item.status.level).fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded">
               {item.status.label}
             </span>
           )}
@@ -321,7 +321,7 @@ function ItemCardGridSetor({ T, item, onOpenDetail, onLancarValidade, onExcluir,
         </div>
         <div className="p-2.5 pr-8">
           <p className="font-semibold text-xs truncate">{item.nome}</p>
-          <p style={{ color: T.subtext }} className="text-[10px] mt-1">{item.semValidade ? "Toque pra cadastrar" : formatarData(item.validade)}</p>
+          <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1">{item.semValidade ? "Toque pra cadastrar" : formatarData(item.validade)}</p>
         </div>
       </button>
       {!item.semValidade && onExcluir && (
@@ -350,12 +350,12 @@ function ItemCardGridAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onO
           {!semFotoUtil(base.foto) ? <img src={base.foto} onError={trocarPorBipi} alt="" className="w-full h-24 object-cover" /> : (
             <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><Package size={24} color={BLUE} /></div>
           )}
-          <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded">{piorStatus.label}</span>
+          <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded">{piorStatus.label}</span>
           <span style={{ background: "rgba(11,79,158,0.85)", color: "#fff" }} className="absolute top-1.5 right-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded">{lotes.length}x datas</span>
         </div>
         <div className="p-2.5">
           <p className="font-semibold text-xs truncate">{base.nome}</p>
-          <p style={{ color: T.subtext }} className="text-[10px] mt-1">{totalQuantidade} un no total</p>
+          <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1">{totalQuantidade} un no total</p>
         </div>
       </button>
       {aberto && (
@@ -365,9 +365,9 @@ function ItemCardGridAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onO
             return (
               <button key={l.id} onClick={() => onOpenDetail(l)} style={{ background: T.chipBg }} className="w-full text-left rounded-xl p-2 flex items-center justify-between gap-2">
                 <div className="min-w-0 flex items-center gap-1.5">
-                  <span style={{ background: sl.bg, color: sl.fg }} className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0">{sl.label}</span>
+                  <span style={{ background: sl.bg, color: sl.fg }} className="text-[0.6875rem] font-bold px-1.5 py-0.5 rounded shrink-0">{sl.label}</span>
                   <span className="text-xs font-semibold">{formatarData(l.validade)}</span>
-                  <span style={{ color: T.subtext }} className="text-[10px]">· {l.quantidade || 1}un</span>
+                  <span style={{ color: T.subtext }} className="text-[0.6875rem]">· {l.quantidade || 1}un</span>
                 </div>
                 <ChevronRight size={13} color={T.subtext} className="shrink-0" />
               </button>
@@ -621,7 +621,7 @@ function SetorDetalheView({ T, setor, items, catalog, rondas, subInicial, onVolt
                 )}
               </div>
               {(parcialHoje || (concluidaHoje && !parcialHoje)) && (
-                <p className="text-[11px] font-semibold mt-2 text-white/85">
+                <p className="text-[0.75rem] font-semibold mt-2 text-white/85">
                   {parcialHoje ? `Ronda parcial hoje — iniciada por ${parcialHoje.usuario || "alguém"}${parcialHoje.finalizadoPor && parcialHoje.finalizadoPor !== parcialHoje.usuario ? `, retomada por ${parcialHoje.finalizadoPor}` : ""}.`
                     : `Ronda concluída hoje por ${concluidaHoje.finalizadoPor || concluidaHoje.usuario || "alguém"}.`}
                 </p>

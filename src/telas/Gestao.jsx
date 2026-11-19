@@ -39,7 +39,7 @@ function GestaoSheet({ T, title, subtitle, onClose, children, larga = false }) {
 function GestaoCampo({ T, label, children, hint }) {
   return (
     <label className="block">
-      <span style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide">{label}</span>
+      <span style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide">{label}</span>
       <div className="mt-1">{children}</div>
       {hint && <span style={{ color: T.subtext }} className="text-[10.5px] mt-1 block">{hint}</span>}
     </label>
@@ -72,12 +72,12 @@ function GestaoAplicativoView({ T, showToast, lojaAtiva, lojas, onTrocarLoja, on
       <div className="lg:hidden">
         <div style={{ background: "linear-gradient(150deg, #1B2233 0%, #0B0D12 100%)" }} className="rounded-3xl p-5 mb-4 relative overflow-hidden shadow-lg">
           <Wrench size={110} className="absolute -right-5 -bottom-6 text-white/5" />
-          <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5"><Wrench size={12} /> Gestão do aplicativo</p>
+          <p className="text-white/60 text-[0.6875rem] font-bold uppercase tracking-widest flex items-center gap-1.5"><Wrench size={12} /> Gestão do aplicativo</p>
           <p className="text-white text-xl font-extrabold mt-2">{lojaAtiva?.numero_loja ? `Loja ${lojaAtiva.numero_loja}` : "Nenhuma loja em uso"}</p>
           <p className="text-white/60 text-xs mt-0.5">{lojaEmUso ? [lojaEmUso.bairro, lojaEmUso.cidade].filter(Boolean).join(" · ") : "Escolha uma loja na aba Lojas"}</p>
           <div className="flex gap-2 mt-4">
-            <span className="bg-white/10 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full">{(lojas || []).length} loja(s)</span>
-            <span className="bg-white/10 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full">{ativas} ativa(s)</span>
+            <span className="bg-white/10 text-white text-[0.75rem] font-semibold px-3 py-1.5 rounded-full">{(lojas || []).length} loja(s)</span>
+            <span className="bg-white/10 text-white text-[0.75rem] font-semibold px-3 py-1.5 rounded-full">{ativas} ativa(s)</span>
           </div>
         </div>
         <div style={{ background: T.chipBg }} className="flex rounded-2xl p-1 mb-4">
@@ -142,7 +142,7 @@ function DiagnosticoBanco({ T }) {
               <li key={i.id} style={{ background: T.chipBg }} className="rounded-xl px-3 py-2 flex items-start gap-2">
                 {i.ok ? <Check size={14} style={{ color: "#146C3A" }} className="mt-0.5 shrink-0" /> : <AlertTriangle size={14} style={{ color: RED_DARK }} className="mt-0.5 shrink-0" />}
                 <div className="min-w-0">
-                  <p style={{ color: T.subtext }} className="text-[10px] font-bold uppercase tracking-wide">{i.grupo}</p>
+                  <p style={{ color: T.subtext }} className="text-[0.6875rem] font-bold uppercase tracking-wide">{i.grupo}</p>
                   <p style={{ color: i.ok ? T.text : RED_DARK }} className="text-xs font-semibold break-words">{i.detalhe}</p>
                 </div>
               </li>
@@ -245,7 +245,7 @@ function GestaoLojas({ T, lojas, lojaAtiva, onTrocarLoja, onRecarregarLojas, sho
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold truncate">{l.bairro || "Sem bairro"}</p>
                     <p style={{ color: T.subtext }} className="text-xs truncate">{[l.cidade, l.estado].filter(Boolean).join(" - ") || "Cidade não informada"}</p>
-                    {endereco && <p style={{ color: T.subtext }} className="text-[11px] truncate mt-0.5">{endereco}</p>}
+                    {endereco && <p style={{ color: T.subtext }} className="text-[0.75rem] truncate mt-0.5">{endereco}</p>}
                   </div>
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
@@ -390,7 +390,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
       <div style={{ background: T.card, borderColor: T.border }} className="rounded-3xl border p-4 mb-4 flex items-center gap-3 flex-wrap">
         <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0"><Building2 size={20} /></div>
         <div className="flex-1 min-w-[10rem]">
-          <p style={{ color: T.subtext }} className="text-[10px] font-bold uppercase tracking-wide">Loja dos funcionários</p>
+          <p style={{ color: T.subtext }} className="text-[0.6875rem] font-bold uppercase tracking-wide">Loja dos funcionários</p>
           <select value={lojaSel || ""} onChange={(e) => setLojaSel(Number(e.target.value))} style={inp} className="mt-1 w-full border rounded-xl px-3 py-2 text-sm font-semibold outline-none">
             {lojas.map((l) => <option key={l.id} value={l.id}>Loja {l.numero_loja}{l.bairro ? ` — ${l.bairro}` : ""}{l.ativo === false ? " (inativa)" : ""}</option>)}
           </select>
@@ -430,7 +430,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
               <div style={{ background: u.ativo ? BLUE_SOFT : "#EEF0F3", color: u.ativo ? BLUE_DARK : "#6B7280" }} className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-extrabold shrink-0">{iniciais(u.nome)}</div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold truncate">{u.nome}</p>
-                <p style={{ color: T.subtext }} className="text-[11px] truncate">{u.matricula ? `Mat. ${u.matricula} · ` : ""}{u.cargo_nome_loja || "—"}</p>
+                <p style={{ color: T.subtext }} className="text-[0.75rem] truncate">{u.matricula ? `Mat. ${u.matricula} · ` : ""}{u.cargo_nome_loja || "—"}</p>
                 <p className="mt-1"><DashBadge bg={BLUE_SOFT} color={BLUE_DARK}>{u.cargos?.nome || "sem cargo"}</DashBadge></p>
               </div>
               <DashBadge bg={u.ativo ? "#E6F7ED" : RED_SOFT} color={u.ativo ? "#1F9D55" : RED_DARK}>{u.ativo ? "Ativo" : "Bloqueado"}</DashBadge>
@@ -444,10 +444,10 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
               <div style={{ background: "#FCF0DD", color: "#C2760C" }} className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-extrabold shrink-0">{iniciais(p.nome)}</div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold truncate">{p.nome}</p>
-                <p style={{ color: T.subtext }} className="text-[11px] truncate">Mat. {p.matricula} · {p.cargo_nome_loja || "—"}</p>
+                <p style={{ color: T.subtext }} className="text-[0.75rem] truncate">Mat. {p.matricula} · {p.cargo_nome_loja || "—"}</p>
                 <p style={{ color: "#C2760C" }} className="text-[10.5px] font-semibold mt-0.5">Aguardando 1º acesso</p>
               </div>
-              <button onClick={() => removerPendente(p.matricula)} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-bold px-3 py-1.5 rounded-full shrink-0">Remover</button>
+              <button onClick={() => removerPendente(p.matricula)} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[0.75rem] font-bold px-3 py-1.5 rounded-full shrink-0">Remover</button>
             </div>
           ))}
         </div>
@@ -511,7 +511,7 @@ function BotaoAcao({ T, Icon, titulo, desc, cor, bg, onConfirmar, confirmaTexto,
       <Icon size={18} className="shrink-0" />
       <span className="flex-1 min-w-0">
         <span className="block text-sm font-bold">{armado ? confirmaTexto : titulo}</span>
-        {!armado && desc && <span className="block text-[11px] opacity-80 mt-0.5">{desc}</span>}
+        {!armado && desc && <span className="block text-[0.75rem] opacity-80 mt-0.5">{desc}</span>}
       </span>
     </button>
   );
@@ -555,7 +555,7 @@ function AcoesFuncionarioSheet({ T, u, nivelUsuario, cargos, showToast, onClose,
           {admin && (
             <>
               <button onClick={() => setModo("editar")} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
-                <Pencil size={18} className="shrink-0" /><span><span className="block text-sm font-bold">Editar dados</span><span className="block text-[11px] opacity-80 mt-0.5">Nome, cargo, setor e telefone.</span></span>
+                <Pencil size={18} className="shrink-0" /><span><span className="block text-sm font-bold">Editar dados</span><span className="block text-[0.75rem] opacity-80 mt-0.5">Nome, cargo, setor e telefone.</span></span>
               </button>
               <BotaoAcao T={T} ocupado={ocupado} Icon={Mail} titulo="Enviar redefinição de senha" desc={u.email ? `Manda o link para ${u.email}.` : "Sem e-mail cadastrado."} cor={BLUE_DARK} bg={BLUE_SOFT} confirmaTexto="Toque de novo para enviar o e-mail" onConfirmar={redefinir} />
               <BotaoAcao T={T} ocupado={ocupado} Icon={Trash2} titulo="Excluir funcionário" desc="Apaga a conta de vez. Não dá pra desfazer." cor={RED_DARK} bg={RED_SOFT} confirmaTexto="Toque de novo para EXCLUIR" onConfirmar={excluir} />
@@ -611,7 +611,7 @@ function PromotoresLista({ T, convites, termo, onAbrir }) {
             <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-11 w-11 rounded-full flex items-center justify-center shrink-0"><Ticket size={18} /></div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold truncate">{c.nome}</p>
-              <p style={{ color: T.subtext }} className="text-[11px] truncate">{marcasConvite(c)} · {st.id === "expirado" ? "venceu" : "vale até"} {formatarDataHoraExtenso(c.expira_em)}</p>
+              <p style={{ color: T.subtext }} className="text-[0.75rem] truncate">{marcasConvite(c)} · {st.id === "expirado" ? "venceu" : "vale até"} {formatarDataHoraExtenso(c.expira_em)}</p>
               <p style={{ color: T.subtext }} className="text-[10.5px] mt-0.5">{c.usos ? `${c.usos} abertura(s) · ${tempoDesde(c.ultimo_uso)}` : "ainda não aberto"}</p>
             </div>
             <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>
@@ -641,7 +641,7 @@ function AcoesConviteSheet({ T, c, nivelUsuario, showToast, onClose, onFeito }) 
     <GestaoSheet T={T} title={c.nome} subtitle={`${marcasConvite(c)} · ${st.label}`} onClose={onClose}>
       <div className="flex flex-col gap-2.5">
         {podeEditar && (
-          <button onClick={() => setEditando(true)} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left"><Pencil size={18} /><span className="flex-1 min-w-0"><span className="block text-sm font-bold">Editar validade e marcas</span><span className="block text-[11px] opacity-80 mt-0.5">Mudar a data de vencimento, tirar o acesso total ou trocar as marcas.</span></span></button>
+          <button onClick={() => setEditando(true)} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 text-left"><Pencil size={18} /><span className="flex-1 min-w-0"><span className="block text-sm font-bold">Editar validade e marcas</span><span className="block text-[0.75rem] opacity-80 mt-0.5">Mudar a data de vencimento, tirar o acesso total ou trocar as marcas.</span></span></button>
         )}
         {c.codigo && <p style={{ background: T.chipBg, color: T.text }} className="text-xs rounded-xl px-3 py-2">Código do promotor: <b className="font-mono select-all">{c.codigo}</b></p>}
         {st.id === "ativo" && (
@@ -715,7 +715,7 @@ function EditarConviteSheet({ T, c, nivelUsuario, showToast, onClose, onFeito })
       <div className="flex flex-col gap-3">
         <MarcasPicker T={T} lojaId={c.loja_id} marcas={marcas} setMarcas={setMarcas} acessoTotal={total} setAcessoTotal={setTotal} podeTotal={podeTotal} inputStyle={inputStyle} inputCls={inputCls} showToast={showToast} txt={txt} setTxt={setTxt} />
         <div className="flex flex-col gap-1.5">
-          <label style={{ color: T.subtext }} className="text-[11px] font-medium">Validade do convite</label>
+          <label style={{ color: T.subtext }} className="text-[0.75rem] font-medium">Validade do convite</label>
           <select value={modo} onChange={(e) => setModo(e.target.value)} style={inputStyle} className={inputCls}>
             <option value="manter">Manter ({validadeConvite(c)})</option>
             {DURACOES_CONVITE.map((d) => <option key={d.id} value={d.id}>A partir de agora: {d.label}</option>)}
@@ -749,8 +749,8 @@ function PedidosExclusaoLista({ T, pedidos, meuId, nivelUsuario, onResolver }) {
         <div key={pd.id} style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3.5 flex flex-col gap-2.5">
           <div>
             <p className="text-sm font-bold">Excluir {pd.nome}</p>
-            <p style={{ color: T.subtext }} className="text-[11px]">{pd.matricula ? `Mat. ${pd.matricula} · ` : ""}{pd.cargo_nome || "—"}</p>
-            <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">Pedido por {pd.solicitante_nome || "—"} · {tempoDesde(pd.criado_em)}</p>
+            <p style={{ color: T.subtext }} className="text-[0.75rem]">{pd.matricula ? `Mat. ${pd.matricula} · ` : ""}{pd.cargo_nome || "—"}</p>
+            <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5">Pedido por {pd.solicitante_nome || "—"} · {tempoDesde(pd.criado_em)}</p>
           </div>
           {podeAprovar && pd.solicitante_id !== meuId ? (
             <div className="grid grid-cols-2 gap-2">
@@ -758,7 +758,7 @@ function PedidosExclusaoLista({ T, pedidos, meuId, nivelUsuario, onResolver }) {
               <BotaoAcao T={T} Icon={Trash2} titulo="Aprovar" cor={RED_DARK} bg={RED_SOFT} confirmaTexto="Confirmar exclusão" onConfirmar={() => onResolver(pd, true)} />
             </div>
           ) : (
-            <p style={{ color: "#C2760C" }} className="text-[11px] font-semibold">{pd.solicitante_id === meuId ? "Aguardando um gerente, um Regional ou o dev aprovar." : "Só gerente, regional ou dev aprovam."}</p>
+            <p style={{ color: "#C2760C" }} className="text-[0.75rem] font-semibold">{pd.solicitante_id === meuId ? "Aguardando um gerente, um Regional ou o dev aprovar." : "Só gerente, regional ou dev aprovam."}</p>
           )}
         </div>
       ))}
@@ -819,7 +819,7 @@ function MarcasPicker({ T, lojaId, marcas, setMarcas, acessoTotal, setAcessoTota
         <>
           <div className="flex flex-wrap gap-1.5">
             {marcas.map((m) => (
-              <span key={m} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[11px] font-bold rounded-full pl-2.5 pr-1.5 py-1 flex items-center gap-1">
+              <span key={m} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[0.75rem] font-bold rounded-full pl-2.5 pr-1.5 py-1 flex items-center gap-1">
                 {m}{conta[m] === 0 ? " · nenhum produto casa ainda" : typeof conta[m] === "number" ? ` · ${conta[m]} prod.` : ""}
                 <button type="button" aria-label={`Remover ${m}`} onClick={() => setMarcas(marcas.filter((x) => x !== m))} className="h-4 w-4 rounded-full flex items-center justify-center"><X size={11} /></button>
               </span>
@@ -833,7 +833,7 @@ function MarcasPicker({ T, lojaId, marcas, setMarcas, acessoTotal, setAcessoTota
           {sug.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {sug.map((m) => (
-                <button key={m.nome} type="button" onClick={() => adicionar(m.nome)} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-semibold rounded-full px-2.5 py-1">{m.nome}{m.produtos ? ` · ${m.produtos}` : ""}</button>
+                <button key={m.nome} type="button" onClick={() => adicionar(m.nome)} style={{ background: T.chipBg, color: T.text }} className="text-[0.75rem] font-semibold rounded-full px-2.5 py-1">{m.nome}{m.produtos ? ` · ${m.produtos}` : ""}</button>
               ))}
             </div>
           )}
@@ -971,7 +971,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
           </DashCard>
           {recente && (
             <DashCard T={T} title={`Convite de ${recente.nome} pronto`} subtitle={`${marcasConvite(recente)} · ${validadeConvite(recente)}`}>
-              <p style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-mono break-all rounded-xl px-3 py-2 select-all mb-3">{linkDoConvite(recente)}</p>
+              <p style={{ background: T.chipBg, color: T.text }} className="text-[0.75rem] font-mono break-all rounded-xl px-3 py-2 select-all mb-3">{linkDoConvite(recente)}</p>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => copiar(recente)} style={{ background: T.chipBg, color: T.text }} className="py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"><Copy size={13} /> Copiar link</button>
                 <button onClick={() => compartilhar(recente)} style={{ background: "#1F9D55", color: "#fff" }} className="py-2 rounded-xl text-xs font-semibold">WhatsApp / enviar</button>
@@ -982,15 +982,15 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
         <DashCard T={T} title="Convites da loja" subtitle="Quem tem acesso e quando vence" className="col-span-2">
           {convites === null ? <div className="text-center py-8"><Loader2 size={22} className="animate-spin mx-auto" color={T.subtext} /></div> : (
             <DashTable T={T} rows={convites} empty="Nenhum convite gerado ainda." cols={[
-              { key: "nome", label: "Promotor", render: (c) => <div><p className="font-semibold">{c.nome}</p><p style={{ color: T.subtext }} className="text-[11px]">{marcasConvite(c)}</p></div> },
+              { key: "nome", label: "Promotor", render: (c) => <div><p className="font-semibold">{c.nome}</p><p style={{ color: T.subtext }} className="text-[0.75rem]">{marcasConvite(c)}</p></div> },
               { key: "expira_em", label: "Validade", render: (c) => <span className="text-xs">{formatarDataHoraExtenso(c.expira_em)}</span> },
               { key: "usos", label: "Uso", render: (c) => <span style={{ color: T.subtext }} className="text-xs">{c.usos ? `${c.usos}x · ${tempoDesde(c.ultimo_uso)}` : "não aberto"}</span> },
               { key: "st", label: "Status", render: (c) => { const st = statusDe(c); return <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>; } },
               { key: "acoes", label: "", align: "right", render: (c) => statusDe(c).label === "Ativo" ? (
                 <div className="flex gap-1.5 justify-end">
-                  <button onClick={() => copiar(c)} style={{ background: T.chipBg, color: T.text }} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold">Copiar</button>
-                  <button onClick={() => compartilhar(c)} style={{ background: T.chipBg, color: T.text }} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold">Enviar</button>
-                  <button onClick={() => cancelar(c)} style={{ background: RED_SOFT, color: RED_DARK }} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold">Cancelar</button>
+                  <button onClick={() => copiar(c)} style={{ background: T.chipBg, color: T.text }} className="px-2.5 py-1.5 rounded-lg text-[0.75rem] font-semibold">Copiar</button>
+                  <button onClick={() => compartilhar(c)} style={{ background: T.chipBg, color: T.text }} className="px-2.5 py-1.5 rounded-lg text-[0.75rem] font-semibold">Enviar</button>
+                  <button onClick={() => cancelar(c)} style={{ background: RED_SOFT, color: RED_DARK }} className="px-2.5 py-1.5 rounded-lg text-[0.75rem] font-semibold">Cancelar</button>
                 </div>) : null },
             ]} />
           )}
@@ -1000,7 +1000,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
     <div className="px-4 pt-4 flex flex-col gap-3 lg:hidden">
       <div style={{ background: T.card }} className="rounded-2xl p-4 shadow-sm flex flex-col gap-2.5">
         <p className="text-sm font-bold flex items-center gap-2"><Ticket size={16} color={BLUE} /> Novo convite</p>
-        <p style={{ color: T.subtext }} className="text-[11px] -mt-1">O promotor abre o link e já entra, sem e-mail nem senha. Loja {lojaAtiva?.numero_loja || "—"}.</p>
+        <p style={{ color: T.subtext }} className="text-[0.75rem] -mt-1">O promotor abre o link e já entra, sem e-mail nem senha. Loja {lojaAtiva?.numero_loja || "—"}.</p>
         <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do promotor" style={inputStyle} className={inputCls} />
         <MarcasPicker T={T} lojaId={lojaAtiva?.id} marcas={marcas} setMarcas={setMarcas} acessoTotal={acessoTotal} setAcessoTotal={setAcessoTotal} podeTotal={nivelUsuario <= 4} inputStyle={inputStyle} inputCls={inputCls} showToast={showToast} txt={marcaTxt} setTxt={setMarcaTxt} />
         <select value={duracao} onChange={(e) => setDuracao(e.target.value)} style={inputStyle} className={inputCls}>
@@ -1015,8 +1015,8 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
       {recente && (
         <div style={{ background: BLUE_SOFT, borderColor: BLUE }} className="rounded-2xl p-4 border flex flex-col gap-2">
           <p className="text-sm font-bold">Convite de {recente.nome} pronto</p>
-          <p style={{ color: T.subtext }} className="text-[11px]">{marcasConvite(recente)} · {validadeConvite(recente)}</p>
-          <p style={{ background: T.card, color: T.text }} className="text-[11px] font-mono break-all rounded-xl px-3 py-2 select-all">{linkDoConvite(recente)}</p>
+          <p style={{ color: T.subtext }} className="text-[0.75rem]">{marcasConvite(recente)} · {validadeConvite(recente)}</p>
+          <p style={{ background: T.card, color: T.text }} className="text-[0.75rem] font-mono break-all rounded-xl px-3 py-2 select-all">{linkDoConvite(recente)}</p>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={() => copiar(recente)} style={{ background: T.card, color: T.text }} className="py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"><Copy size={14} /> Copiar link</button>
             <button onClick={() => compartilhar(recente)} style={{ background: "#1F9D55", color: "#fff" }} className="py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5"><Share2 size={14} /> Enviar</button>
@@ -1024,7 +1024,7 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
         </div>
       )}
 
-      <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide mt-1 px-1">Convites da loja</p>
+      <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide mt-1 px-1">Convites da loja</p>
       {convites === null && <div className="text-center py-8"><Loader2 size={22} className="animate-spin mx-auto" color={T.subtext} /></div>}
       {convites?.length === 0 && <p style={{ color: T.subtext }} className="text-xs text-center py-6">Nenhum convite gerado ainda.</p>}
       <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:items-start">
@@ -1036,16 +1036,16 @@ function ConvitesPromotorView({ T, showToast, lojaAtiva, nivelUsuario }) {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold truncate">{c.nome}</p>
-                  <p style={{ color: T.subtext }} className="text-[11px]">{marcasConvite(c)} · {ativo ? "vale até" : "venceu em"} {formatarDataHoraExtenso(c.expira_em)}</p>
-                  <p style={{ color: T.subtext }} className="text-[10px]">{c.usos ? `Aberto ${c.usos}x · último ${formatarDataHoraExtenso(c.ultimo_uso)}` : "Ainda não aberto"}</p>
+                  <p style={{ color: T.subtext }} className="text-[0.75rem]">{marcasConvite(c)} · {ativo ? "vale até" : "venceu em"} {formatarDataHoraExtenso(c.expira_em)}</p>
+                  <p style={{ color: T.subtext }} className="text-[0.6875rem]">{c.usos ? `Aberto ${c.usos}x · último ${formatarDataHoraExtenso(c.ultimo_uso)}` : "Ainda não aberto"}</p>
                 </div>
-                <span style={{ background: st.bg, color: st.color }} className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0">{st.label}</span>
+                <span style={{ background: st.bg, color: st.color }} className="text-[0.6875rem] font-bold px-2.5 py-1 rounded-full shrink-0">{st.label}</span>
               </div>
               {ativo && (
                 <div className="flex gap-2">
-                  <button onClick={() => copiar(c)} style={{ background: T.chipBg, color: T.text }} className="flex-1 py-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1"><Copy size={12} /> Copiar</button>
-                  <button onClick={() => compartilhar(c)} style={{ background: T.chipBg, color: T.text }} className="flex-1 py-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1"><Share2 size={12} /> Enviar</button>
-                  <button onClick={() => cancelar(c)} style={{ background: RED_SOFT, color: RED_DARK }} className="flex-1 py-2 rounded-xl text-[11px] font-semibold">Cancelar</button>
+                  <button onClick={() => copiar(c)} style={{ background: T.chipBg, color: T.text }} className="flex-1 py-2 rounded-xl text-[0.75rem] font-semibold flex items-center justify-center gap-1"><Copy size={12} /> Copiar</button>
+                  <button onClick={() => compartilhar(c)} style={{ background: T.chipBg, color: T.text }} className="flex-1 py-2 rounded-xl text-[0.75rem] font-semibold flex items-center justify-center gap-1"><Share2 size={12} /> Enviar</button>
+                  <button onClick={() => cancelar(c)} style={{ background: RED_SOFT, color: RED_DARK }} className="flex-1 py-2 rounded-xl text-[0.75rem] font-semibold">Cancelar</button>
                 </div>
               )}
             </div>

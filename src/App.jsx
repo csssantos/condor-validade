@@ -366,6 +366,10 @@ function AppInner() {
   const tema = prefs.tema || (prefs.dark ? "escuro" : "claro");
   const dark = tema === "escuro" || (tema === "auto" && sistemaEscuro);
   const T = getTokens(dark);
+  // Tamanho das letras (acessibilidade): "normal" segue o celular; "grande"/"maior" aumentam tudo que usa rem.
+  useEffect(() => {
+    try { document.documentElement.style.fontSize = ({ grande: "112.5%", maior: "125%" })[prefs.fonte] || ""; } catch { /* sem DOM */ }
+  }, [prefs.fonte]);
   // Faixa branca embaixo (iPhone): pinta html/body/#root com a cor do tema, assim a área da barra inferior nunca fica branca.
   useEffect(() => {
     try {
@@ -1655,6 +1659,7 @@ function AppInner() {
         {flow === null && (tab === "ajustes" || tab.startsWith("cfg-")) && (
           <MaisView secao={tab.startsWith("cfg-") ? tab.slice(4) : null} T={T} dark={dark} tema={tema}
             setTema={(t) => setPrefs((p) => ({ ...p, tema: t }))}
+            fonte={prefs.fonte} setFonte={(f) => setPrefs((p) => ({ ...p, fonte: f }))}
             som={prefs.som} setSom={(v) => setPrefs((p) => ({ ...p, som: v }))}
             notifPermission={notifPermission} onToggleNotif={toggleNotificacoes} onDesativarNotif={desativarNotificacoes}
             historico={historico} showToast={showToast} usuario={usuario} onSair={sair}
@@ -1691,14 +1696,14 @@ function AppInner() {
                 <div style={{ background: BLUE_SOFT }} className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"><Package size={16} color={BLUE} /></div>
                 <div>
                   <p className="text-sm font-semibold">Só cadastrar o produto</p>
-                  <p style={{ color: T.subtext }} className="text-[11px]">Guarda nome, setor e preço pra usar depois</p>
+                  <p style={{ color: T.subtext }} className="text-[0.75rem]">Guarda nome, setor e preço pra usar depois</p>
                 </div>
               </button>
               <button onClick={() => escolherIntencao("validade")} style={{ background: RED_SOFT, color: RED_DARK }} className="w-full text-left rounded-2xl p-3.5 flex items-center gap-3">
                 <div style={{ background: "rgba(255,255,255,0.5)" }} className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0"><Calendar size={16} color={RED_DARK} /></div>
                 <div>
                   <p className="text-sm font-semibold">Cadastrar e lançar validade</p>
-                  <p style={{ color: RED_DARK }} className="text-[11px]">Segue pro fluxo completo, com data de vencimento</p>
+                  <p style={{ color: RED_DARK }} className="text-[0.75rem]">Segue pro fluxo completo, com data de vencimento</p>
                 </div>
               </button>
             </div>

@@ -130,7 +130,7 @@ export default function TelaBiparCracha({
               <motion.button type="button" onClick={onConfirmarManual} disabled={!podeConfirmar} whileTap={podeConfirmar ? { scale: 0.97 } : undefined}
                 className="w-full h-[52px] mt-3 rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: "#fff", color: "#0B4F9E" }}>Continuar <ArrowRight size={17} /></motion.button>
-              <p className="text-[11px] text-white/60 text-center mt-2">{manualCode.length > 0 && manualCode.length < 4 ? "Mínimo de 4 dígitos." : "Ela precisa estar pré-cadastrada pelo encarregado ou pelo CPD."}</p>
+              <p className="text-[0.75rem] text-white/60 text-center mt-2">{manualCode.length > 0 && manualCode.length < 4 ? "Mínimo de 4 dígitos." : "Ela precisa estar pré-cadastrada pelo encarregado ou pelo CPD."}</p>
             </motion.div>
           ) : (
             <motion.p key="camera" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="mt-4 text-[13px] text-white/80 text-center leading-snug">

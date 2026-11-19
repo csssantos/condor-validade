@@ -33,7 +33,7 @@ function RedeDashboard({ T, lojas, totais, lojasOrdenadas, ordenarPor, setOrdena
 
       <div style={{ background: `linear-gradient(110deg, ${PURPLE_DARK} 0%, ${PURPLE} 70%, #8E73DB 100%)` }} className="rounded-2xl px-7 py-6 mb-5 flex items-center justify-between gap-6 shadow-sm overflow-hidden relative">
         <div className="relative z-10">
-          <p className="text-white/70 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5"><Building2 size={13} /> Visão consolidada da rede</p>
+          <p className="text-white/70 text-[0.75rem] font-bold uppercase tracking-wider flex items-center gap-1.5"><Building2 size={13} /> Visão consolidada da rede</p>
           <p className="text-white text-3xl font-extrabold mt-2 tabular-nums">{formatarMoeda(totais.valorEmRisco)}</p>
           <p className="text-white/75 text-sm mt-1">em risco nas {lojas.length} lojas{maisRisco && maisRisco.valorEmRisco > 0 ? ` · maior exposição: ${rotulo(maisRisco)}${maisRisco.lojaNome ? ` (${maisRisco.lojaNome})` : ""}` : ""}</p>
         </div>
@@ -68,7 +68,7 @@ function RedeDashboard({ T, lojas, totais, lojasOrdenadas, ordenarPor, setOrdena
                   segments={porRisco.slice(0, 8).map((l, i) => ({ label: rotulo(l), value: l.valorEmRisco, color: palette[i % palette.length] }))} />
                 <div className="w-full grid grid-cols-2 gap-x-3 gap-y-1.5">
                   {porRisco.slice(0, 8).map((l, i) => (
-                    <div key={l.lojaNumero} className="flex items-center gap-1.5 text-[11px] min-w-0">
+                    <div key={l.lojaNumero} className="flex items-center gap-1.5 text-[0.75rem] min-w-0">
                       <span style={{ background: palette[i % palette.length] }} className="h-2 w-2 rounded-full shrink-0" />
                       <span style={{ color: T.subtext }} className="truncate">{rotulo(l)}</span>
                       <span style={{ color: T.text }} className="ml-auto font-semibold tabular-nums">{totais.valorEmRisco > 0 ? Math.round((l.valorEmRisco / totais.valorEmRisco) * 100) : 0}%</span>
@@ -83,7 +83,7 @@ function RedeDashboard({ T, lojas, totais, lojasOrdenadas, ordenarPor, setOrdena
             <DashCard T={T} title="Críticos e atenção por loja" subtitle="Produtos vencidos/próximos do vencimento">
               <DashBars T={T} W={420} data={[...lojas].sort((a, b) => (b.criticos + b.atencao) - (a.criticos + a.atencao)).map((l) => ({
                 label: rotulo(l).replace("Loja ", "L"), parts: [{ value: l.criticos, color: RED_DARK }, { value: l.atencao, color: "#E0921C" }] }))} />
-              <div className="flex gap-4 mt-2 text-[11px]" style={{ color: T.subtext }}>
+              <div className="flex gap-4 mt-2 text-[0.75rem]" style={{ color: T.subtext }}>
                 <span className="flex items-center gap-1.5"><i style={{ background: RED_DARK }} className="h-2 w-2 rounded-full" /> Críticos</span>
                 <span className="flex items-center gap-1.5"><i style={{ background: "#E0921C" }} className="h-2 w-2 rounded-full" /> Atenção</span>
               </div>
@@ -101,7 +101,7 @@ function RedeDashboard({ T, lojas, totais, lojasOrdenadas, ordenarPor, setOrdena
               { id: "valorEmRisco", label: "Valor em risco" }, { id: "perdaMes", label: "Perda no mês" }, { id: "rondasPendentesHoje", label: "Rondas pendentes" }]} />}>
             <DashTable T={T} rows={lojasOrdenadas.map((l) => ({ ...l, id: l.lojaNumero }))} cols={[
               { key: "pos", label: "#", width: 48, render: (l) => <span style={{ color: T.subtext }} className="tabular-nums">{lojasOrdenadas.findIndex((x) => x.lojaNumero === l.lojaNumero) + 1}</span> },
-              { key: "loja", label: "Loja", render: (l) => <div><p className="font-semibold">Loja {l.lojaNumero}</p>{l.lojaNome && <p style={{ color: T.subtext }} className="text-[11px]">{l.lojaNome}</p>}</div> },
+              { key: "loja", label: "Loja", render: (l) => <div><p className="font-semibold">Loja {l.lojaNumero}</p>{l.lojaNome && <p style={{ color: T.subtext }} className="text-[0.75rem]">{l.lojaNome}</p>}</div> },
               { key: "valorEmRisco", label: "Valor em risco", align: "right", render: (l) => <span className="font-semibold tabular-nums">{formatarMoeda(l.valorEmRisco)}</span> },
               { key: "perdaMes", label: "Perda no mês", align: "right", render: (l) => <span className="tabular-nums">{formatarMoeda(l.perdaMes)}</span> },
               { key: "criticos", label: "Críticos", align: "right", render: (l) => <DashBadge bg={l.criticos > 0 ? RED_SOFT : T.chipBg} color={l.criticos > 0 ? RED_DARK : T.subtext}>{l.criticos}</DashBadge> },
@@ -153,7 +153,7 @@ function RedeView({ T, showToast }) {
     <div className="px-4 pt-4 pb-4 lg:hidden">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
         style={{ background: `linear-gradient(160deg, #6D4FC2 0%, #4B2E9E 75%)` }} className="rounded-[28px] p-4 shadow-lg shadow-black/5 mb-4">
-        <p className="text-white/70 text-[10px] font-bold uppercase tracking-wide mb-3 flex items-center gap-1.5">
+        <p className="text-white/70 text-[0.6875rem] font-bold uppercase tracking-wide mb-3 flex items-center gap-1.5">
           <Building2 size={14} /> Painel da Rede · {lojas ? `${lojas.length} loja(s) reportando` : "carregando…"}
         </p>
         {totais && (
@@ -179,7 +179,7 @@ function RedeView({ T, showToast }) {
       </motion.div>
 
       {lojasDesatualizadas.length > 0 && (
-        <div style={{ background: "#FEF3E0", color: "#C98A0C" }} className="rounded-2xl px-3.5 py-2.5 mb-4 text-[11px] font-medium flex items-start gap-2">
+        <div style={{ background: "#FEF3E0", color: "#C98A0C" }} className="rounded-2xl px-3.5 py-2.5 mb-4 text-[0.75rem] font-medium flex items-start gap-2">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           <span>{lojasDesatualizadas.length} loja(s) sem enviar dados há mais de 6h — pode ser app fechado ou sem internet: {lojasDesatualizadas.map((l) => l.lojaNome || `Loja ${l.lojaNumero}`).join(", ")}.</span>
         </div>
@@ -213,19 +213,19 @@ function RedeView({ T, showToast }) {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <p style={{ color: RED_DARK }} className="text-sm font-extrabold">{formatarMoeda(l.valorEmRisco)}</p>
-                  <p style={{ color: T.subtext }} className="text-[9px]">Em risco</p>
+                  <p style={{ color: T.subtext }} className="text-[0.6875rem]">Em risco</p>
                 </div>
                 <div>
                   <p className="text-sm font-extrabold">{formatarMoeda(l.perdaMes)}</p>
-                  <p style={{ color: T.subtext }} className="text-[9px]">Perda no mês</p>
+                  <p style={{ color: T.subtext }} className="text-[0.6875rem]">Perda no mês</p>
                 </div>
                 <div>
                   <p style={{ color: l.rondasPendentesHoje > 0 ? "#C98A0C" : "#1F9D55" }} className="text-sm font-extrabold">{l.rondasPendentesHoje}</p>
-                  <p style={{ color: T.subtext }} className="text-[9px]">Rondas pendentes</p>
+                  <p style={{ color: T.subtext }} className="text-[0.6875rem]">Rondas pendentes</p>
                 </div>
               </div>
               {l.setoresSemRondaHoje?.length > 0 && (
-                <p style={{ color: T.subtext, borderColor: T.border }} className="text-[10px] mt-2 pt-2 border-t">
+                <p style={{ color: T.subtext, borderColor: T.border }} className="text-[0.6875rem] mt-2 pt-2 border-t">
                   Sem ronda hoje: {l.setoresSemRondaHoje.join(", ")}
                 </p>
               )}
@@ -270,7 +270,7 @@ function TorreDashboard({ T, criticos, atencao, valorEmRisco, previsaoAmanha, ri
       <div className="grid grid-cols-3 gap-4">
         <DashCard T={T} title="Produtos reincidentes" subtitle="3+ perdas nos últimos 60 dias">
           <DashTable T={T} rows={reincidentes.map((r, i) => ({ ...r, id: i }))} empty="Nenhum reincidente." cols={[
-            { key: "nome", label: "Produto", render: (r) => <div><p className="font-semibold truncate max-w-[14rem]">{r.nome}</p><p style={{ color: T.subtext }} className="text-[11px]">{r.setor}</p></div> },
+            { key: "nome", label: "Produto", render: (r) => <div><p className="font-semibold truncate max-w-[14rem]">{r.nome}</p><p style={{ color: T.subtext }} className="text-[0.75rem]">{r.setor}</p></div> },
             { key: "n", label: "Perdas", align: "right", render: (r) => <DashBadge bg={RED_SOFT} color={RED_DARK}>{r.datas.length}x</DashBadge> }]} />
         </DashCard>
         <DashCard T={T} title="Quem registra baixas" subtitle="Ranking de responsáveis">
@@ -318,7 +318,7 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
         <div className="relative">
           <div className="flex items-center gap-2">
             <span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: situacao.cor }} /><span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: situacao.cor }} /></span>
-            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-white/75">Torre de controle · ao vivo</p>
+            <p className="text-[0.75rem] font-bold uppercase tracking-[.16em] text-white/75">Torre de controle · ao vivo</p>
           </div>
           <h2 className="text-[26px] font-extrabold leading-tight mt-2">{situacao.rot}</h2>
           <p className="text-[12.5px] text-white/80 mt-0.5">{situacao.sub}</p>
@@ -355,7 +355,7 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
             const cor = f > 0.66 ? ["#E5484D", "#B42318"] : f > 0.33 ? ["#F5A524", "#C2670C"] : ["#3B82F6", "#1D4ED8"];
             return (
               <div key={setor} className={`relative overflow-hidden rounded-[22px] text-white p-3.5 ${i === 0 ? "col-span-2" : ""}`} style={{ background: `linear-gradient(145deg, ${cor[0]}, ${cor[1]})`, minHeight: i === 0 ? 92 : 78 }}>
-                <p className="text-[11px] font-bold uppercase tracking-wide text-white/80 truncate">#{i + 1} · {setor}</p>
+                <p className="text-[0.75rem] font-bold uppercase tracking-wide text-white/80 truncate">#{i + 1} · {setor}</p>
                 <p className={`font-extrabold tabular-nums leading-tight mt-1 ${i === 0 ? "text-[24px]" : "text-[17px]"}`}>{formatarMoeda(valor)}</p>
                 <div className="h-1.5 rounded-full mt-2 bg-white/25 overflow-hidden"><div className="h-full rounded-full bg-white" style={{ width: `${Math.max(6, f * 100)}%` }} /></div>
               </div>
@@ -374,7 +374,7 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
             </div>
             <div className="flex items-end gap-3 h-20">
               {[["Ant.", tendenciaPerdas.anterior || 0, T.chipBg], ["Atual", tendenciaPerdas.atual, RED]].map(([r, v, c]) => (
-                <div key={r} className="flex flex-col items-center justify-end h-full gap-1"><div className="w-8 rounded-lg" style={{ background: c, height: `${Math.max(6, (v / perdaMax) * 100)}%` }} /><span style={{ color: T.subtext }} className="text-[10px] font-semibold">{r}</span></div>
+                <div key={r} className="flex flex-col items-center justify-end h-full gap-1"><div className="w-8 rounded-lg" style={{ background: c, height: `${Math.max(6, (v / perdaMax) * 100)}%` }} /><span style={{ color: T.subtext }} className="text-[0.6875rem] font-semibold">{r}</span></div>
               ))}
             </div>
           </div>
@@ -385,7 +385,7 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
         <div className="flex flex-wrap gap-2">
           {reincidentes.map((pr) => (
             <span key={pr.nome + pr.setor} style={{ background: T.card, color: T.text }} className="rounded-full pl-3.5 pr-1.5 py-1.5 text-[12px] font-bold shadow-sm flex items-center gap-2 max-w-full">
-              <span className="truncate">{pr.nome}</span><span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-extrabold rounded-full px-2 py-0.5 shrink-0">{pr.datas.length}x</span>
+              <span className="truncate">{pr.nome}</span><span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[0.75rem] font-extrabold rounded-full px-2 py-0.5 shrink-0">{pr.datas.length}x</span>
             </span>
           ))}
         </div>
@@ -397,7 +397,7 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
             <div key={nome} style={{ background: T.card }} className="shrink-0 w-[104px] rounded-[22px] shadow-md shadow-black/5 p-3 text-center">
               <span style={{ background: k === 0 ? `linear-gradient(135deg, ${BLUE}, ${BLUE_DARK})` : T.chipBg, color: k === 0 ? "#fff" : T.text }} className="h-11 w-11 rounded-full mx-auto flex items-center justify-center text-[14px] font-extrabold">{iniciaisDe(nome)}</span>
               <p style={{ color: T.text }} className="text-[12px] font-bold mt-2 truncate">{String(nome).split(" ")[0]}</p>
-              <p style={{ color: T.subtext }} className="text-[11px] font-semibold tabular-nums">{qtd} ação(ões)</p>
+              <p style={{ color: T.subtext }} className="text-[0.75rem] font-semibold tabular-nums">{qtd} ação(ões)</p>
             </div>
           ))}
         </div>
@@ -443,7 +443,7 @@ function LinhaPrioridade({ T, item, p, pos, podeVerValores, onOpenDetail, aberta
               <div key={r} style={{ background: T.chipBg }} className="rounded-xl px-2 py-2 text-center min-w-0"><p style={{ color: T.subtext }} className="text-[9.5px] font-bold uppercase">{r}</p><p style={{ color: T.text }} className="text-[12px] font-extrabold truncate">{v}</p></div>
             ))}
           </div>
-          <div style={{ background: soft }} className="rounded-2xl px-3 py-2.5 mt-2"><p style={{ color: cor }} className="text-[10px] font-extrabold uppercase tracking-wide">O que fazer</p><p style={{ color: T.text }} className="text-[12.5px] font-semibold leading-snug">{p.acao}</p></div>
+          <div style={{ background: soft }} className="rounded-2xl px-3 py-2.5 mt-2"><p style={{ color: cor }} className="text-[0.6875rem] font-extrabold uppercase tracking-wide">O que fazer</p><p style={{ color: T.text }} className="text-[12.5px] font-semibold leading-snug">{p.acao}</p></div>
           {p.reincidencias >= 2 && <p style={{ color: T.subtext }} className="text-[11.5px] mt-2 flex items-center gap-1.5"><Repeat size={12} /> Já foi baixado {p.reincidencias}x nos últimos 60 dias</p>}
           <button onClick={() => onOpenDetail(item)} style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="w-full mt-2.5 rounded-xl py-2.5 text-[12.5px] font-extrabold text-white">Abrir produto</button>
         </div>
@@ -468,7 +468,7 @@ function PrioridadeMobile({ T, prioridades, valorEmRisco, urgenteCount, semTroca
         className="relative overflow-hidden rounded-[32px] text-white p-5 shadow-xl shadow-black/15 mb-4">
         <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
         <div className="relative">
-          <p className="text-[11px] font-bold uppercase tracking-[.16em] text-white/70">Prioridade de perda</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-[.16em] text-white/70">Prioridade de perda</p>
           <p className="font-extrabold leading-tight tabular-nums mt-1" style={{ fontSize: 32 }}>{podeVerValores ? formatarMoeda(valorEmRisco) : "•••"}</p>
           <p className="text-[12.5px] text-white/80">em {prioridades.length} produto(s) que podem virar perda</p>
           <div className="flex h-2.5 rounded-full overflow-hidden mt-3.5" style={{ background: "rgba(255,255,255,.2)" }}>
@@ -508,7 +508,7 @@ function PrioridadeMobile({ T, prioridades, valorEmRisco, urgenteCount, semTroca
                 <span className="h-5 w-1.5 rounded-full" style={{ background: g.cor }} />
                 <h3 style={{ color: T.text }} className="text-[14.5px] font-extrabold">{g.rot}</h3>
                 <span style={{ color: T.subtext }} className="text-[11.5px] font-semibold">{g.sub}</span>
-                <span style={{ background: T.chipBg, color: T.subtext }} className="ml-auto text-[11px] font-extrabold rounded-full px-2.5 py-0.5 tabular-nums">{g.itens.length}</span>
+                <span style={{ background: T.chipBg, color: T.subtext }} className="ml-auto text-[0.75rem] font-extrabold rounded-full px-2.5 py-0.5 tabular-nums">{g.itens.length}</span>
               </div>
               <div className="flex flex-col gap-2">
                 {g.itens.map(({ item, p }) => <LinhaPrioridade key={item.id} T={T} item={item} p={p} podeVerValores={podeVerValores} onOpenDetail={onOpenDetail} aberta={aberto === item.id} onToggle={() => setAberto(aberto === item.id ? null : item.id)} />)}

@@ -10,6 +10,10 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = regional e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-18-acessibilidade", data: "18/11/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Novo ajuste em Mais → Aparência: Tamanho das letras (Normal, Grande e Muito grande). No Normal, o app segue o tamanho de letra do seu celular." },
+    { tipo: "melhorado", ate: 7, texto: "Letras pequenas ficaram maiores e mais fáceis de ler, o texto cinza ficou mais escuro para dar mais contraste e agora dá para dar zoom na tela com os dedos." },
+  ] },
   { id: "2026-11-18-tema", data: "18/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "O tema do app agora é escolhido em um lugar só: Mais → Aparência. Saíram os botões repetidos da tela inicial e do topo do Mais. Para quem nunca escolheu, o app segue o tema do celular (Automático)." },
   ] },
@@ -310,7 +314,7 @@ function AtualizacaoModal({ T, novidades, cargoNome, onFechar }) {
                     <div key={i} style={{ background: T.chipBg }} className="rounded-xl p-3">
                       <div className="flex items-center gap-1.5 flex-wrap mb-1">
                         <DashBadge bg={t.bg} color={t.cor}>{t.rotulo}</DashBadge>
-                        <span style={{ color: T.subtext }} className="text-[10px] font-semibold">{rotuloPublico(it.ate)}</span>
+                        <span style={{ color: T.subtext }} className="text-[0.6875rem] font-semibold">{rotuloPublico(it.ate)}</span>
                       </div>
                       <p className="text-[12.5px] leading-snug">{it.texto}</p>
                     </div>

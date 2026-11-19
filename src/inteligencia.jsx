@@ -83,7 +83,7 @@ function Cartao({ T, titulo, sub, direita, children, className = "" }) {
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0">
             {titulo && <p className="text-sm font-bold">{titulo}</p>}
-            {sub && <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">{sub}</p>}
+            {sub && <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5">{sub}</p>}
           </div>
           {direita}
         </div>
@@ -98,8 +98,8 @@ function Kpi({ T, label, valor, sub, cor = T.text }) {
   return (
     <div style={{ background: T.card }} className="rounded-2xl shadow-lg shadow-black/5 p-3.5 min-w-0 overflow-hidden">
       <p style={{ color: cor }} className={`${fonte} font-extrabold tabular-nums leading-tight whitespace-nowrap overflow-hidden text-ellipsis`} title={String(valor ?? "")}>{valor}</p>
-      <p style={{ color: T.subtext }} className="text-[11px] font-medium mt-0.5">{label}</p>
-      {sub && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5">{sub}</p>}
+      <p style={{ color: T.subtext }} className="text-[0.75rem] font-medium mt-0.5">{label}</p>
+      {sub && <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -149,16 +149,16 @@ function Vazio({ T, texto }) {
   return <p style={{ color: T.subtext }} className="text-[12.5px] text-center py-6">{texto}</p>;
 }
 function Tendencia({ t }) {
-  if (t === "subindo") return <span className="inline-flex items-center gap-1 text-[11px] font-bold" style={{ color: RED_DARK }}><TrendingUp size={13} /> Subindo</span>;
-  if (t === "caindo") return <span className="inline-flex items-center gap-1 text-[11px] font-bold" style={{ color: VERDE }}><TrendingDown size={13} /> Caindo</span>;
-  return <span className="inline-flex items-center gap-1 text-[11px] font-bold" style={{ color: "#6B7280" }}><Minus size={13} /> Estável</span>;
+  if (t === "subindo") return <span className="inline-flex items-center gap-1 text-[0.75rem] font-bold" style={{ color: RED_DARK }}><TrendingUp size={13} /> Subindo</span>;
+  if (t === "caindo") return <span className="inline-flex items-center gap-1 text-[0.75rem] font-bold" style={{ color: VERDE }}><TrendingDown size={13} /> Caindo</span>;
+  return <span className="inline-flex items-center gap-1 text-[0.75rem] font-bold" style={{ color: "#6B7280" }}><Minus size={13} /> Estável</span>;
 }
 function BarraRisco({ score }) {
   const cor = score >= 60 ? RED : score >= 30 ? LARANJA : VERDE;
   return (
     <div className="flex items-center gap-2 min-w-[96px]">
       <div className="h-1.5 rounded-full bg-black/10 flex-1 overflow-hidden"><div style={{ width: `${Math.max(3, score)}%`, background: cor }} className="h-full rounded-full" /></div>
-      <span style={{ color: cor }} className="text-[11px] font-extrabold tabular-nums w-6 text-right">{score}</span>
+      <span style={{ color: cor }} className="text-[0.75rem] font-extrabold tabular-nums w-6 text-right">{score}</span>
     </div>
   );
 }
@@ -374,8 +374,8 @@ function FatoresRisco({ T, f }) {
     f.dias_para_vencer_lote != null && (f.dias_para_vencer_lote < 0 ? `lote cadastrado vencido há ${Math.abs(f.dias_para_vencer_lote)} dia(s)` : `lote atual vence em ${f.dias_para_vencer_lote} dia(s)`),
     f.nunca_conferido ? "nunca conferido em ronda" : f.dias_sem_conferir != null && `${f.dias_sem_conferir} dia(s) desde a última conferência`,
   ].filter(Boolean);
-  if (!linhas.length) return <p style={{ color: T.subtext }} className="text-[11px] mt-2">Sem ocorrências no histórico.</p>;
-  return <ul className="mt-2 flex flex-col gap-0.5">{linhas.map((l, i) => <li key={i} style={{ color: T.subtext }} className="text-[11px]">• {l}</li>)}</ul>;
+  if (!linhas.length) return <p style={{ color: T.subtext }} className="text-[0.75rem] mt-2">Sem ocorrências no histórico.</p>;
+  return <ul className="mt-2 flex flex-col gap-0.5">{linhas.map((l, i) => <li key={i} style={{ color: T.subtext }} className="text-[0.75rem]">• {l}</li>)}</ul>;
 }
 
 // ============================================================================ PREVISÃO OPERACIONAL
@@ -404,7 +404,7 @@ export function PrevisaoOperacionalView({ T, perfil, lojaAtiva, showToast, onCri
   return (
     <div className="px-4 pt-4 lg:px-0 flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-x-6 lg:items-start lg:[&>*]:col-start-1">
       <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="rounded-3xl p-5 lg:p-8 text-white lg:!col-span-2">
-        <p className="text-[11px] font-bold tracking-[0.16em] text-white/70 flex items-center gap-1.5"><Radar size={14} /> PREVISÃO OPERACIONAL</p>
+        <p className="text-[0.75rem] font-bold tracking-[0.16em] text-white/70 flex items-center gap-1.5"><Radar size={14} /> PREVISÃO OPERACIONAL</p>
         <p className="text-lg font-bold mt-1">O que pode dar problema — antes de acontecer</p>
         <p className="text-[12px] text-white/75 mt-1">Baseado em {base.eventos_120_dias ?? 0} ocorrência(s) dos últimos 120 dias ({base.dias_de_historico ?? 0} dia(s) de histórico). Última análise: {dataHoraBR(dados.gerado_em)}.</p>
         {!base.suficiente && <p className="mt-2 text-[12px] font-semibold bg-white/15 rounded-xl px-3 py-2">Ainda não existe histórico suficiente para previsões confiáveis em toda a loja. Os cards abaixo só aparecem onde há dados.</p>}
@@ -432,11 +432,11 @@ export function PrevisaoOperacionalView({ T, perfil, lojaAtiva, showToast, onCri
                 <div className="flex items-center justify-between gap-2 mt-1">
                   <span style={{ color: T.subtext }} className="text-[10.5px] flex items-center gap-1"><Info size={11} /> {CONFIANCA[c.confianca] || "—"}</span>
                   <div className="flex gap-1.5">
-                    {c.barcode && <button onClick={() => setProduto(c.barcode)} style={{ background: T.chipBg }} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg">Histórico</button>}
+                    {c.barcode && <button onClick={() => setProduto(c.barcode)} style={{ background: T.chipBg }} className="text-[0.75rem] font-semibold px-2.5 py-1.5 rounded-lg">Histórico</button>}
                     <button onClick={() => setAcao({ alvo_tipo: c.tipo_alvo, setor: c.setor, codigo: c.barcode, alvo_nome: c.alvo, problema: `${c.tipo_risco}: ${c.justificativa}`, evidencias: c.dados, origem: "previsao" })}
-                      style={{ background: T.chipBg }} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg">Plano de ação</button>
+                      style={{ background: T.chipBg }} className="text-[0.75rem] font-semibold px-2.5 py-1.5 rounded-lg">Plano de ação</button>
                     {onCriarRonda && <button onClick={() => onCriarRonda(c.tipo_alvo === "produto" ? { setor: c.setor, modo: "manual", barcodes: [c.barcode], nome: `Ronda preventiva · ${c.alvo}`.slice(0, 80) } : { setor: c.setor, modo: "priorizada", nome: `Ronda preventiva · ${c.setor}` })}
-                      style={{ background: BLUE, color: "#fff" }} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg">Criar ronda</button>}
+                      style={{ background: BLUE, color: "#fff" }} className="text-[0.75rem] font-semibold px-2.5 py-1.5 rounded-lg">Criar ronda</button>}
                   </div>
                 </div>
               </div>
@@ -515,7 +515,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
     <div className="px-4 pt-4 lg:px-0 flex flex-col gap-4">
       <div style={{ background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)` }} className="rounded-3xl p-5 lg:p-8 text-white flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-bold tracking-[0.16em] text-white/75 flex items-center gap-1.5"><Flame size={14} /> PREVENÇÃO DE PERDAS</p>
+          <p className="text-[0.75rem] font-bold tracking-[0.16em] text-white/75 flex items-center gap-1.5"><Flame size={14} /> PREVENÇÃO DE PERDAS</p>
           <p className="text-lg lg:text-3xl font-bold mt-1">Onde a loja está perdendo — e o que fazer</p>
         </div>
       </div>
@@ -558,7 +558,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
                 {!d.top_produtos?.length ? <Vazio T={T} texto="Sem perdas no período." /> : (
                   <div className="flex flex-col">{d.top_produtos.map((p, i) => (
                     <button key={p.barcode + i} onClick={() => setProduto(p.barcode)} className="flex items-center gap-3 py-2 text-left">
-                      <span style={{ background: i < 3 ? RED_SOFT : T.chipBg, color: i < 3 ? RED_DARK : T.subtext }} className="h-7 w-7 rounded-lg text-[11px] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
+                      <span style={{ background: i < 3 ? RED_SOFT : T.chipBg, color: i < 3 ? RED_DARK : T.subtext }} className="h-7 w-7 rounded-lg text-[0.75rem] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
                       <div className="min-w-0 flex-1"><p className="text-[12.5px] font-semibold truncate">{p.nome}</p><p style={{ color: T.subtext }} className="text-[10.5px]">{p.setor}</p></div>
                       <div className="text-right"><p className="text-[12px] font-bold">{p.registros}x</p><p style={{ color: T.subtext }} className="text-[10.5px]">{moeda(p.valor)}</p></div>
                     </button>
@@ -573,7 +573,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
                       <div className="flex items-center gap-2">
                         <span style={{ color: T.subtext }}>{s.registros} perda(s) · {s.irregularidades} irreg.</span>
                         <button onClick={() => setNovaAcao({ alvo_tipo: "setor", setor: s.setor, alvo_nome: s.setor, problema: `${s.registros} perda(s) (${moeda(s.valor)}) e ${s.irregularidades} irregularidade(s) em ${d.periodo_dias} dias em ${s.setor}.`, evidencias: s, origem: "painel" })}
-                          style={{ background: T.chipBg }} className="text-[11px] font-semibold px-2 py-1 rounded-lg">Plano</button>
+                          style={{ background: T.chipBg }} className="text-[0.75rem] font-semibold px-2 py-1 rounded-lg">Plano</button>
                       </div>
                     </div>
                   ))}</div>
@@ -620,10 +620,10 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
                     {["aberta", "em_andamento"].includes(a.status) && (
                       <div className="flex gap-1.5 flex-wrap">
                         {onCriarRonda && <button onClick={() => onCriarRonda(a.alvo_tipo === "produto" && a.barcode ? { setor: a.setor, modo: "manual", barcodes: [a.barcode], acaoId: a.id, nome: `Ronda preventiva · ${a.alvo_nome}`.slice(0, 80) } : { setor: a.setor, modo: "priorizada", acaoId: a.id, nome: `Ronda preventiva · ${a.setor}` })}
-                          style={{ background: BLUE, color: "#fff" }} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg">Criar ronda</button>}
-                        <button onClick={() => setTarefa({ setor: a.setor, descricao: `${a.problema}\n${(a.acoes || []).map((x) => "• " + x).join("\n")}`.slice(0, 400), prioridade: "alta", acaoId: a.id })} style={{ background: T.chipBg }} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg">Criar tarefa</button>
-                        <button onClick={() => mudarStatus(a, "concluida")} style={{ background: VERDE_SOFT, color: VERDE }} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg">Concluir</button>
-                        <button onClick={() => mudarStatus(a, "cancelada")} style={{ background: T.chipBg, color: T.subtext }} className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg">Cancelar</button>
+                          style={{ background: BLUE, color: "#fff" }} className="text-[0.75rem] font-semibold px-2.5 py-1.5 rounded-lg">Criar ronda</button>}
+                        <button onClick={() => setTarefa({ setor: a.setor, descricao: `${a.problema}\n${(a.acoes || []).map((x) => "• " + x).join("\n")}`.slice(0, 400), prioridade: "alta", acaoId: a.id })} style={{ background: T.chipBg }} className="text-[0.75rem] font-semibold px-2.5 py-1.5 rounded-lg">Criar tarefa</button>
+                        <button onClick={() => mudarStatus(a, "concluida")} style={{ background: VERDE_SOFT, color: VERDE }} className="text-[0.75rem] font-semibold px-2.5 py-1.5 rounded-lg">Concluir</button>
+                        <button onClick={() => mudarStatus(a, "cancelada")} style={{ background: T.chipBg, color: T.subtext }} className="text-[0.75rem] font-semibold px-2.5 py-1.5 rounded-lg">Cancelar</button>
                       </div>
                     )}
                   </div>
@@ -772,11 +772,11 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
         <div style={{ background: `linear-gradient(135deg, ${BLUE_DARK} 0%, #1d1240 100%)` }} className="rounded-3xl p-4 lg:p-6 text-white lg:col-start-1 lg:row-start-1">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] font-bold tracking-[0.16em] text-white/70 flex items-center gap-1.5"><Sparkles size={14} /> ASSISTENTE IA — INTELIGÊNCIA OPERACIONAL</p>
+              <p className="text-[0.75rem] font-bold tracking-[0.16em] text-white/70 flex items-center gap-1.5"><Sparkles size={14} /> ASSISTENTE IA — INTELIGÊNCIA OPERACIONAL</p>
               <p className="text-base lg:text-lg font-bold mt-1">Pergunte sobre a operação da loja</p>
               <p className="hidden lg:block text-[11.5px] text-white/70 mt-1">Responde só com os dados que você tem permissão de ver. Nada é criado sem a sua confirmação.</p>
             </div>
-            {msgs.length > 0 && <button onClick={novaConversa} disabled={pensando} className="bg-white/15 rounded-xl px-2.5 py-2 text-[11px] font-semibold flex items-center gap-1 shrink-0 disabled:opacity-50"><Plus size={14} /> Nova conversa</button>}
+            {msgs.length > 0 && <button onClick={novaConversa} disabled={pensando} className="bg-white/15 rounded-xl px-2.5 py-2 text-[0.75rem] font-semibold flex items-center gap-1 shrink-0 disabled:opacity-50"><Plus size={14} /> Nova conversa</button>}
           </div>
         </div>
         {aviso === "sem_chave" && (
@@ -842,8 +842,8 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
                       </div>
                     ))}</div>
                   )}
-                  {m.ferramentas?.length > 0 && <p style={{ color: T.subtext }} className="text-[10px]">Dados consultados: {m.ferramentas.join(", ").replace(/_/g, " ")}</p>}
-                  {m.modelo && <p style={{ color: T.subtext }} className="text-[10px]">Respondido por {/pro/.test(m.modelo) ? "Gemini Pro" : "Gemini Flash"} ({m.modelo})</p>}
+                  {m.ferramentas?.length > 0 && <p style={{ color: T.subtext }} className="text-[0.6875rem]">Dados consultados: {m.ferramentas.join(", ").replace(/_/g, " ")}</p>}
+                  {m.modelo && <p style={{ color: T.subtext }} className="text-[0.6875rem]">Respondido por {/pro/.test(m.modelo) ? "Gemini Pro" : "Gemini Flash"} ({m.modelo})</p>}
                 </div>
               )}
             </div>
@@ -951,10 +951,10 @@ export function PainelRedeView({ T, showToast }) {
       <div style={{ background: `linear-gradient(120deg, ${ROXO_ESCURO} 0%, ${ROXO} 70%, #8E73DB 100%)` }} className="rounded-3xl p-5 lg:p-7 text-white relative overflow-hidden">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[11px] font-bold tracking-[0.16em] text-white/70">PAINEL DA REDE · {todas.length} LOJA(S) · AO VIVO</p>
+            <p className="text-[0.75rem] font-bold tracking-[0.16em] text-white/70">PAINEL DA REDE · {todas.length} LOJA(S) · AO VIVO</p>
             <p className="text-3xl lg:text-4xl font-extrabold mt-2 tabular-nums break-words">{moeda(tot.valor_risco)}</p>
             <p className="text-[12.5px] text-white/80 mt-1">em risco agora{pctRisco !== null ? ` · ${pctRisco}% do valor monitorado (${moeda(tot.valor_monitorado)})` : ""}</p>
-            <p className="text-[11px] text-white/60 mt-1">Atualizado {tempoAtras(d.gerado_em)} · calculado direto do banco</p>
+            <p className="text-[0.75rem] text-white/60 mt-1">Atualizado {tempoAtras(d.gerado_em)} · calculado direto do banco</p>
           </div>
           <div className="flex flex-col gap-2 lg:items-end">
             <div className="flex gap-1.5">{[7, 30, 90].map((n) => (
@@ -1008,7 +1008,7 @@ export function PainelRedeView({ T, showToast }) {
               <div key={i} className="flex items-center gap-3 py-1.5 text-[12.5px]">
                 <span style={{ background: i < 3 ? RED_SOFT : T.chipBg, color: i < 3 ? RED_DARK : T.subtext }} className="h-6 w-6 rounded-lg text-[10.5px] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
                 <span className="flex-1 min-w-0 truncate font-semibold">{p.nome}</span>
-                <span style={{ color: T.subtext }} className="whitespace-nowrap text-[11px]">L{p.loja} · {p.registros}x · {moeda(p.valor)}</span>
+                <span style={{ color: T.subtext }} className="whitespace-nowrap text-[0.75rem]">L{p.loja} · {p.registros}x · {moeda(p.valor)}</span>
               </div>
             ))}</div>
           )}
@@ -1067,7 +1067,7 @@ export function PainelRedeView({ T, showToast }) {
                 <div key={i} className="flex justify-between gap-2 py-1 text-[12.5px]"><span className="truncate">{p.nome}</span><span style={{ color: T.subtext }} className="whitespace-nowrap">{p.registros}x · {moeda(p.valor)}</span></div>
               ))}
             </Cartao>
-            <p style={{ color: T.subtext }} className="text-[11px]">Equipe: {detalhe.equipe} pessoa(s) · Rondas no período: {detalhe.rondas} ({detalhe.rondas_concluidas} concluída(s)) · Planos de ação ativos: {detalhe.acoes_abertas} · Última movimentação {tempoAtras(detalhe.ultima_atividade)}.</p>
+            <p style={{ color: T.subtext }} className="text-[0.75rem]">Equipe: {detalhe.equipe} pessoa(s) · Rondas no período: {detalhe.rondas} ({detalhe.rondas_concluidas} concluída(s)) · Planos de ação ativos: {detalhe.acoes_abertas} · Última movimentação {tempoAtras(detalhe.ultima_atividade)}.</p>
           </div>
         </Folha>
       )}

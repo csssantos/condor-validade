@@ -131,7 +131,7 @@ export function TutorialBipi({ etapas: etapasIniciais, onFechar }) {
         <div aria-hidden className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-white/[.07]" />
         <div className="relative px-5 lg:px-7 pt-4">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-[.2em] text-white/70">TUTORIAL · {i + 1} DE {etapas.length}</span>
+            <span className="text-[0.75rem] font-bold tracking-[.2em] text-white/70">TUTORIAL · {i + 1} DE {etapas.length}</span>
             <button type="button" onClick={() => onFechar(false)} className="h-9 px-3 rounded-full bg-white/15 text-[12.5px] font-bold flex items-center gap-1" aria-label="Pular tutorial"><X size={14} />Pular</button>
           </div>
           <div className="flex items-end gap-2 mt-3">

@@ -24,14 +24,14 @@ function BottomNav({ T, tab, setTab, alertCount, onScan }) {
     return (
       <button key={id} onClick={() => { setTab(id); if (ativo) { try { document.getElementById("root")?.scrollTo({ top: 0, behavior: reduzir ? "auto" : "smooth" }); } catch { /* sem scroll */ } } }} className="flex-1 flex flex-col items-center justify-center gap-1 h-full relative" aria-label={label} aria-current={ativo ? "page" : undefined}>
         {badge > 0 && (
-          <span style={{ background: RED }} className="absolute top-1.5 right-[26%] text-[9px] text-white font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center z-10">{badge}</span>
+          <span style={{ background: RED }} className="absolute top-1.5 right-[26%] text-[0.6875rem] text-white font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center z-10">{badge}</span>
         )}
         {ativo && (
           <motion.div layoutId="navPill" style={{ background: escuro ? "rgba(255,255,255,.1)" : RED_SOFT }}
             className="absolute inset-x-1 top-1.5 bottom-1.5 rounded-[22px]" transition={{ type: "spring", stiffness: 500, damping: 35 }} />
         )}
         <Ico className="relative w-[20px] h-[20px]" style={{ color: ativo ? (escuro ? "#fff" : RED_DARK) : T.subtext }} />
-        <span className="relative text-[10px] font-semibold whitespace-nowrap leading-none" style={{ color: ativo ? (escuro ? "#fff" : RED_DARK) : T.subtext }}>{label}</span>
+        <span className="relative text-[0.6875rem] font-semibold whitespace-nowrap leading-none" style={{ color: ativo ? (escuro ? "#fff" : RED_DARK) : T.subtext }}>{label}</span>
       </button>
     );
   };
@@ -111,12 +111,12 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
     <aside style={{ background: T.card, borderColor: T.border }} className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 z-30 flex-col border-r">
       <div className="px-6 pt-5 pb-4 flex items-center justify-between">
         <div className="bg-white rounded-xl px-2.5 py-1.5 flex items-center shadow-sm"><LogoBipi className="h-8 w-auto" /></div>
-        {lojaNumero && <span style={{ background: T.chipBg, color: T.subtext }} className="text-[10px] font-bold px-2 py-1 rounded-md">LOJA {lojaNumero}</span>}
+        {lojaNumero && <span style={{ background: T.chipBg, color: T.subtext }} className="text-[0.6875rem] font-bold px-2 py-1 rounded-md">LOJA {lojaNumero}</span>}
       </div>
       <nav className="flex-1 overflow-y-auto px-3 pb-4 flex flex-col gap-5">
         {grupos.map((g) => (
           <div key={g.titulo}>
-            <p style={{ color: T.subtext }} className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em]">{g.titulo}:</p>
+            <p style={{ color: T.subtext }} className="px-3 mb-1.5 text-[0.6875rem] font-bold uppercase tracking-[0.14em]">{g.titulo}:</p>
             <div className="flex flex-col gap-0.5">
               {g.itens.map((it) => {
                 const ativo = it.flow ? flow === it.flow : flow === null && tab === it.tab;
@@ -126,7 +126,7 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
                     className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-left transition ${ativo ? "font-bold" : "font-medium hover:opacity-70"}`}>
                     <it.Icon size={17} className="shrink-0" style={{ color: ativo ? RED_DARK : T.subtext }} />
                     <span className="flex-1 truncate">{it.label}</span>
-                    {it.badge > 0 && <span style={{ background: RED }} className="text-[10px] text-white font-bold rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center">{it.badge}</span>}
+                    {it.badge > 0 && <span style={{ background: RED }} className="text-[0.6875rem] text-white font-bold rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center">{it.badge}</span>}
                   </button>
                 );
               })}
@@ -144,7 +144,7 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
         <div style={{ background: BLUE, color: "#fff" }} className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0">{iniciais}</div>
         <div className="min-w-0 flex-1">
           <p style={{ color: T.text }} className="text-xs font-bold truncate">{nome || "Usuário"}</p>
-          <p style={{ color: T.subtext }} className="text-[10px] truncate">{cargo || "—"}</p>
+          <p style={{ color: T.subtext }} className="text-[0.6875rem] truncate">{cargo || "—"}</p>
         </div>
         <button onClick={onSair} title="Sair da conta" style={{ background: T.chipBg, color: T.subtext }} className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 hover:opacity-70">
           <LogOut size={15} />

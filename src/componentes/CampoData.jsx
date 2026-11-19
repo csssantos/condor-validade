@@ -49,8 +49,8 @@ function CampoData({ value, onChange, style, className = "", T }) {
         <input type="date" aria-label="Escolher a data no calendário" value={value || ""} onChange={escolher} onClick={abrir}
           className="absolute right-0 top-0 h-full w-11 opacity-0 cursor-pointer" style={{ fontSize: 16 }} />
       </div>
-      {avisoHoje && !value && <p style={{ color: T?.subtext }} className="text-[11px] font-medium mt-1.5">Para a data de hoje, digite no campo (dd/mm/aaaa).</p>}
-      {incompleta && <p role="alert" style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">{txt.length === 10 ? "Essa data não existe. Confira o dia e o mês." : "Digite a data completa: dd/mm/aaaa."}</p>}
+      {avisoHoje && !value && <p style={{ color: T?.subtext }} className="text-[0.75rem] font-medium mt-1.5">Para a data de hoje, digite no campo (dd/mm/aaaa).</p>}
+      {incompleta && <p role="alert" style={{ color: RED_DARK }} className="text-[0.75rem] font-semibold mt-1.5">{txt.length === 10 ? "Essa data não existe. Confira o dia e o mês." : "Digite a data completa: dd/mm/aaaa."}</p>}
     </div>
   );
 }

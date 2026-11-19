@@ -136,8 +136,8 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
         <div className="min-w-0">
           <p className="font-semibold text-sm truncate">{product.nome}</p>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
-            <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[11px]"><MapPin size={11} /> {product.subsetor ? `${product.setor} · ${product.subsetor}` : product.setor}{perecivel ? " · perecível" : ""}</span>
-            <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[11px] font-mono"><Barcode size={11} /> {barcode}</span>
+            <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[0.75rem]"><MapPin size={11} /> {product.subsetor ? `${product.setor} · ${product.subsetor}` : product.setor}{perecivel ? " · perecível" : ""}</span>
+            <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[0.75rem] font-mono"><Barcode size={11} /> {barcode}</span>
           </div>
         </div>
       </div>
@@ -148,7 +148,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
           <CampoData T={T} value={validade} onChange={setValidade}
             style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder, boxSizing: "border-box", maxWidth: "100%" }}
             className="w-full min-w-0 border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
-          {dataRuim && <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">Data fora do normal ({String(validade).slice(0, 4)}). Confira o ano: use 4 dígitos, entre {anoAtual - 1} e {anoAtual + 10}.</p>}
+          {dataRuim && <p style={{ color: RED_DARK }} className="text-[0.75rem] font-semibold mt-1.5">Data fora do normal ({String(validade).slice(0, 4)}). Confira o ano: use 4 dígitos, entre {anoAtual - 1} e {anoAtual + 10}.</p>}
         </div>
 
         {!porPeso && (
@@ -168,7 +168,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
                 {lotesDoProduto.slice(0, 5).map((l) => (
                   <p key={l.id} style={{ color: T.text }} className="text-[12px]">{l.lote ? `Lote ${l.lote}` : "Sem lote"} · vence {formatarData(l.validade)} · {l.quantidade || 1} {l.porPeso ? "kg" : "un"}</p>
                 ))}
-                <p style={{ color: T.subtext }} className="text-[11px] mt-1">Se o lote da embalagem for diferente, ele entra como um lote novo.</p>
+                <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1">Se o lote da embalagem for diferente, ele entra como um lote novo.</p>
               </div>
             )}
           </div>
@@ -224,7 +224,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
                     className="w-full text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50">
                     <PackageX size={14} /> Registrar perda agora
                   </button>
-                  {!tamanho.trim() && <p className="text-[10px] mt-1.5 opacity-80">Preencha o tamanho/embalagem acima pra liberar.</p>}
+                  {!tamanho.trim() && <p className="text-[0.6875rem] mt-1.5 opacity-80">Preencha o tamanho/embalagem acima pra liberar.</p>}
                 </div>
               )}
             </div>
@@ -248,22 +248,22 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
                 })}
               </div>
               {muitoProxima && (
-                <div style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-semibold px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5" role="alert">
+                <div style={{ background: RED_SOFT, color: RED_DARK }} className="text-[0.75rem] font-semibold px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5" role="alert">
                   <ShieldAlert size={13} className="mt-0.5 shrink-0" /> <span>{MSG_PROXIMA}</span>
                 </div>
               )}
               {motivoUmDia && !muitoProxima && (
-                <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[11px] font-medium px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5">
+                <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[0.75rem] font-medium px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5">
                   <Sparkles size={13} className="mt-0.5 shrink-0" /> <span>{perecivel ? "Produto perecível: liberado o lançamento mesmo faltando só 1 dia para o vencimento." : "Falta só 1 dia para o vencimento: o alerta fica em 1 dia."}</span>
                 </div>
               )}
               {restritivo && !motivoUmDia && opcoes.length > 0 && (
-                <div style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-medium px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5">
+                <div style={{ background: RED_SOFT, color: RED_DARK }} className="text-[0.75rem] font-medium px-3 py-2 rounded-xl mt-2 flex items-start gap-1.5">
                   <ShieldAlert size={13} className="mt-0.5 shrink-0" />
                   <span>Faltam apenas {diasRestantesAtual} dia(s) para o vencimento — por segurança, só é possível escolher {opcoes[0]} dia(s) de antecedência.</span>
                 </div>
               )}
-              {!restritivo && <p style={{ color: T.subtext }} className="text-[11px] mt-1.5">Selecione de 1 a 3 marcos de alerta (ex: 10, 5 e 2 dias antes).</p>}
+              {!restritivo && <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1.5">Selecione de 1 a 3 marcos de alerta (ex: 10, 5 e 2 dias antes).</p>}
             </>
           )}
         </div>
@@ -289,9 +289,9 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
               onChange={(e) => setQuantidade(e.target.value.replace(",", "."))}
                             placeholder={porPeso ? "Ex: 1,235" : ""}
               style={{ background: T.inputBg, color: T.text, borderColor: qtdMsg ? RED : T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
-            {qtdMsg && <p style={{ color: RED_DARK }} className="text-[11px] font-semibold mt-1.5">{qtdMsg}</p>}
+            {qtdMsg && <p style={{ color: RED_DARK }} className="text-[0.75rem] font-semibold mt-1.5">{qtdMsg}</p>}
             {(product.pesoLido || product.precoLidoEmbutido) && !editing && (
-              <p style={{ color: "#1F9D55" }} className="text-[10px] mt-1 font-medium">✓ Peso lido direto da etiqueta da balança</p>
+              <p style={{ color: "#1F9D55" }} className="text-[0.6875rem] mt-1 font-medium">✓ Peso lido direto da etiqueta da balança</p>
             )}
           </div>
           <div>
@@ -304,7 +304,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
         </div>
         {valorTotal > 0 && (
           <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2.5 -mt-1 lg:col-span-2">
-            <p style={{ color: T.subtext }} className="text-[11px]">
+            <p style={{ color: T.subtext }} className="text-[0.75rem]">
               {porPeso ? "Total (calculado automaticamente, não editável): " : "Valor total estimado: "}
               <strong style={{ color: T.text }}>{formatarMoeda(valorTotal)}</strong>
               {porPeso ? "" : ` (atualiza o "valor em risco" da Home automaticamente)`}
@@ -315,7 +315,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-1.5">
             <label style={{ color: T.subtext }} className="text-xs font-semibold block">Observações (opcional)</label>
-            <span style={{ color: T.subtext }} className="text-[10px]">{observacoes.length}/300</span>
+            <span style={{ color: T.subtext }} className="text-[0.6875rem]">{observacoes.length}/300</span>
           </div>
           <textarea value={observacoes} maxLength={300} onChange={(e) => setObservacoes(e.target.value)} rows={2} placeholder="Ex: lote da promoção, caixa danificada..."
             style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 resize-none" />
@@ -336,7 +336,7 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
       </div>
 
       {!podeSalvar && motivoBloqueio && (
-        <p style={{ color: RED_DARK }} className="text-[11px] font-medium text-center mt-4 -mb-2" role="status">{motivoBloqueio}</p>
+        <p style={{ color: RED_DARK }} className="text-[0.75rem] font-medium text-center mt-4 -mb-2" role="status">{motivoBloqueio}</p>
       )}
       <div className="flex gap-2 mt-5">
         {!editing && onVoltar && (

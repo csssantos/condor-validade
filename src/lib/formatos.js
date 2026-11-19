@@ -151,7 +151,7 @@ function getTokens(dark) {
   // reflete em todos os cards do app, porque todos herdam a cor de borda a partir daqui.
   return dark
     ? { bg: "#0B1220", card: "#151F30", border: "transparent", inputBorder: "rgba(255,255,255,0.15)", text: "#EEF2F9", subtext: "#93A0B8", inputBg: "#1B2740", chipBg: "#1B2740" }
-    : { bg: BG, card: "#FFFFFF", border: "transparent", inputBorder: "#DDE2ED", text: INK, subtext: "#6B7280", inputBg: "#FFFFFF", chipBg: "#F3F5F9" };
+    : { bg: BG, card: "#FFFFFF", border: "transparent", inputBorder: "#DDE2ED", text: INK, subtext: "#566070", inputBg: "#FFFFFF", chipBg: "#F3F5F9" };
 }
 
 // ============ Dashboard (computador) — gráficos em SVG puro, sem biblioteca ============

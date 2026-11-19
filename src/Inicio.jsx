@@ -68,7 +68,7 @@ function Pilula({ rotulo, valor, cor, atraso }) {
     <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 22, delay: atraso }}
       style={VIDRO} className="rounded-[22px] py-3 px-2 text-center">
       <p className="text-[24px] font-extrabold leading-none tabular-nums">{Math.round(n)}</p>
-      <p className="text-[11px] font-semibold mt-1.5 flex items-center justify-center gap-1.5 text-white/85">
+      <p className="text-[0.75rem] font-semibold mt-1.5 flex items-center justify-center gap-1.5 text-white/85">
         <span className="h-2 w-2 rounded-full" style={{ background: cor, boxShadow: `0 0 8px ${cor}` }} />{rotulo}
       </p>
     </motion.div>

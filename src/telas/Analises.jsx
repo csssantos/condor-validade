@@ -27,7 +27,7 @@ function PrioridadeDashboard({ T, prioridades, valorEmRisco, urgenteCount, semTr
   const top = Object.entries(porSetor).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([label, value]) => ({ label, value, color: RED, right: fmt(value) }));
   const cols = [
     { key: "pos", label: "#", width: 44, render: (x) => <span style={{ color: T.subtext }} className="tabular-nums">{filtrados.indexOf(x) + 1}</span> },
-    { key: "nome", label: "Produto", render: (x) => <div className="flex items-center gap-3"><Thumb foto={x.item.foto} size={34} /><div><p className="font-semibold truncate max-w-[20rem]">{x.item.nome}</p><p style={{ color: T.subtext }} className="text-[11px]">{x.item.setor}{gerarCodigoLocalizacao(x.item) ? ` · ${gerarCodigoLocalizacao(x.item)}` : ""}</p></div></div> },
+    { key: "nome", label: "Produto", render: (x) => <div className="flex items-center gap-3"><Thumb foto={x.item.foto} size={34} /><div><p className="font-semibold truncate max-w-[20rem]">{x.item.nome}</p><p style={{ color: T.subtext }} className="text-[0.75rem]">{x.item.setor}{gerarCodigoLocalizacao(x.item) ? ` · ${gerarCodigoLocalizacao(x.item)}` : ""}</p></div></div> },
     { key: "nivel", label: "Nível", render: (x) => <DashBadge bg={x.p.nivel === "urgente" ? RED_DARK : RED_SOFT} color={x.p.nivel === "urgente" ? "#fff" : RED_DARK}>{x.p.nivel === "urgente" ? "URGENTE" : "ATENÇÃO"}</DashBadge> },
     { key: "score", label: "Risco", render: (x) => <div className="flex items-center gap-2 w-28"><div style={{ background: T.chipBg }} className="h-1.5 flex-1 rounded-full overflow-hidden"><div style={{ width: `${x.p.score}%`, background: x.p.score > 70 ? RED_DARK : "#E0921C" }} className="h-full" /></div><span className="text-xs font-bold tabular-nums">{x.p.score}</span></div> },
     { key: "prazo", label: "Prazo", render: (x) => <span className="text-xs">{x.p.status.level === "expired" ? `vencido há ${Math.abs(x.p.dias)}d` : x.p.dias === 0 ? "vence hoje" : `em ${x.p.dias}d`}</span> },
@@ -185,7 +185,7 @@ function PrioridadeInteligenteView({ T, items, historico, onOpenDetail }) {
 function InfoTile({ T, icon: Icon, label, value, mono }) {
   return (
     <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2">
-      <div style={{ color: T.subtext }} className="flex items-center gap-1 text-[10px] font-semibold uppercase"><Icon size={11} /> {label}</div>
+      <div style={{ color: T.subtext }} className="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase"><Icon size={11} /> {label}</div>
       <p className={`text-sm font-medium mt-0.5 truncate ${mono ? "font-mono" : ""}`}>{value}</p>
     </div>
   );
@@ -281,7 +281,7 @@ function HistoricoView({ T, historico, items, usuario }) {
             {reincidentes.map((pr) => (
               <div key={pr.nome + pr.datas.length} style={{ background: RED_SOFT }} className="rounded-2xl px-3.5 py-2.5">
                 <p style={{ color: RED_DARK }} className="text-[13px] font-extrabold">{pr.nome}</p>
-                <p style={{ color: RED_DARK }} className="text-[11px] mt-0.5 opacity-80">{pr.setor} · {pr.datas.length} vencimentos · média {(pr.datas.length / 2).toFixed(1)}/mês</p>
+                <p style={{ color: RED_DARK }} className="text-[0.75rem] mt-0.5 opacity-80">{pr.setor} · {pr.datas.length} vencimentos · média {(pr.datas.length / 2).toFixed(1)}/mês</p>
               </div>
             ))}
           </div>
@@ -298,7 +298,7 @@ function HistoricoView({ T, historico, items, usuario }) {
         <p className="text-[11.5px] leading-relaxed">Referência do setor: o vencimento responde por cerca de 38% das perdas em supermercados brasileiros, geralmente entre 1% e 1,5% do faturamento. O relatório completo em PDF para a gerência é gerado na aba <b>Torre</b>.</p>
       </div>
 
-      <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-[.1em] mb-2.5">Baixas registradas · {filtrado.length}</p>
+      <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-[.1em] mb-2.5">Baixas registradas · {filtrado.length}</p>
       {filtrado.length === 0 ? (
         <EstadoVazioNovo T={T} Icone={History} titulo="Nenhuma baixa neste período" texto="Baixas registradas na tela inicial aparecem aqui." />
       ) : (
@@ -310,11 +310,11 @@ function HistoricoView({ T, historico, items, usuario }) {
               <div className="flex-1 min-w-0">
                 <p style={{ color: T.text }} className="font-bold text-[13.5px] leading-tight truncate">{h.nome}</p>
                 <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5 truncate">{h.setor} · {formatarDataHora(h.dataBaixa)}</p>
-                {h.registradoPor && <p style={{ color: T.subtext }} className="text-[11px] truncate">Por {h.registradoPor}</p>}
+                {h.registradoPor && <p style={{ color: T.subtext }} className="text-[0.75rem] truncate">Por {h.registradoPor}</p>}
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span style={h.vencidoAntes ? { background: RED_SOFT, color: RED_DARK } : { background: BLUE_SOFT, color: BLUE_DARK }} className="text-[10.5px] font-bold px-2.5 py-1 rounded-full text-right">{h.motivo}</span>
-                <span style={{ color: T.subtext }} className="text-[11px] font-semibold tabular-nums">{h.quantidade || 1} un</span>
+                <span style={{ color: T.subtext }} className="text-[0.75rem] font-semibold tabular-nums">{h.quantidade || 1} un</span>
               </div>
             </motion.div>
           ))}
@@ -370,8 +370,8 @@ function AuditoriaView({ T, auditoria }) {
         <div className="flex flex-col gap-5">
           {grupos.map(([data, itens]) => (
             <div key={data}>
-              <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-[.1em] mb-2.5 flex items-center gap-1.5">
-                <CalendarDaysIcon className="w-3.5 h-3.5" /> {data} <span style={{ background: T.chipBg }} className="rounded-full px-1.5 text-[10px] tabular-nums">{itens.length}</span>
+              <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-[.1em] mb-2.5 flex items-center gap-1.5">
+                <CalendarDaysIcon className="w-3.5 h-3.5" /> {data} <span style={{ background: T.chipBg }} className="rounded-full px-1.5 text-[0.6875rem] tabular-nums">{itens.length}</span>
               </p>
               <div className="relative pl-1">
                 <div aria-hidden style={{ background: T.chipBg }} className="absolute left-[19px] top-3 bottom-3 w-[2px] rounded-full" />

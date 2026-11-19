@@ -377,7 +377,7 @@ export function LegalLeitor({ T, docId, onFechar }) {
               </div>
             </motion.section>
           ))}
-          <p style={{ color: T.subtext }} className="text-[11px] text-center mt-4 px-4">Texto de referência para o uso do app. Em caso de dúvida, fale com o responsável pelo próprio app.</p>
+          <p style={{ color: T.subtext }} className="text-[0.75rem] text-center mt-4 px-4">Texto de referência para o uso do app. Em caso de dúvida, fale com o responsável pelo próprio app.</p>
         </div>
       </div>
     </motion.div>,
@@ -813,7 +813,7 @@ export function PaginaPedidosLGPD({ T, showToast }) {
       <section style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative rounded-[24px] text-white p-5 overflow-hidden">
         <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
         <div className="relative">
-          <p className="text-[11px] font-bold tracking-[.18em] text-white/70">PEDIDOS LGPD</p>
+          <p className="text-[0.75rem] font-bold tracking-[.18em] text-white/70">PEDIDOS LGPD</p>
           <p className="text-[30px] font-extrabold leading-none mt-1">{lista === null ? "…" : abertos.length}<span className="text-[14px] font-bold text-white/75"> em aberto</span></p>
           <p className="text-[12.5px] text-white/80 mt-1.5 leading-snug">Prazo de resposta: 15 dias. {atrasados > 0 ? `${atrasados} pedido(s) com prazo vencido.` : "Nenhum pedido atrasado."} Gerente e encarregados das lojas não veem esta tela.</p>
         </div>

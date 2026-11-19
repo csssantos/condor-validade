@@ -150,7 +150,7 @@ function DashboardView({ T, items, historico, rondas, auditoria, nome, lojaNumer
           right={
             <div className="flex flex-wrap justify-end gap-x-3 gap-y-1">
               {[["Vencido", COR.expired], ["Em alerta", COR.alert], ["Atenção", COR.warning], ["No prazo", COR.ok]].map(([l, c]) => (
-                <span key={l} style={{ color: T.subtext }} className="flex items-center gap-1.5 text-[10px] font-semibold"><i style={{ background: c }} className="h-2 w-2 rounded-full inline-block" />{l}</span>
+                <span key={l} style={{ color: T.subtext }} className="flex items-center gap-1.5 text-[0.6875rem] font-semibold"><i style={{ background: c }} className="h-2 w-2 rounded-full inline-block" />{l}</span>
               ))}
             </div>
           }>
@@ -202,14 +202,14 @@ function DashboardView({ T, items, historico, rondas, auditoria, nome, lojaNumer
       {/* Tabela de críticos + rondas */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <DashCard T={T} className="xl:col-span-2" title="Produtos mais críticos" subtitle="Os que vencem primeiro e pedem ação"
-          right={<button onClick={() => onFlow("prioridade")} style={{ color: BLUE }} className="text-[11px] font-bold hover:underline shrink-0">Ver prioridades →</button>}>
+          right={<button onClick={() => onFlow("prioridade")} style={{ color: BLUE }} className="text-[0.75rem] font-bold hover:underline shrink-0">Ver prioridades →</button>}>
           {d.criticos.length === 0 ? (
             <p style={{ color: T.subtext }} className="text-xs py-8 text-center">Nenhum produto vencido ou em alerta. 🎉</p>
           ) : (
             <div className="overflow-x-auto -mx-1">
               <table className="w-full text-left text-xs min-w-[520px]">
                 <thead>
-                  <tr style={{ color: T.subtext, borderColor: T.border }} className="border-b text-[10px] uppercase tracking-wide">
+                  <tr style={{ color: T.subtext, borderColor: T.border }} className="border-b text-[0.6875rem] uppercase tracking-wide">
                     <th className="font-bold py-2 px-1">Produto</th><th className="font-bold py-2 px-1">Setor</th><th className="font-bold py-2 px-1">Validade</th>
                     <th className="font-bold py-2 px-1 text-right">Qtd</th><th className="font-bold py-2 px-1 text-right">Valor</th><th className="font-bold py-2 px-1 text-right">Status</th>
                   </tr>
@@ -226,11 +226,11 @@ function DashboardView({ T, items, historico, rondas, auditoria, nome, lojaNumer
                           </div>
                         </td>
                         <td style={{ color: T.subtext }} className="py-2.5 px-1">{i.setor}</td>
-                        <td style={{ color: T.text }} className="py-2.5 px-1 tabular-nums">{formatarData(i.validade)}{textoLote(i) && <span style={{ color: T.subtext }} className="block text-[10px]">{textoLote(i) === "Sem lote" ? "Sem lote" : `Lote ${textoLote(i)}`}</span>}</td>
+                        <td style={{ color: T.text }} className="py-2.5 px-1 tabular-nums">{formatarData(i.validade)}{textoLote(i) && <span style={{ color: T.subtext }} className="block text-[0.6875rem]">{textoLote(i) === "Sem lote" ? "Sem lote" : `Lote ${textoLote(i)}`}</span>}</td>
                         <td style={{ color: T.text }} className="py-2.5 px-1 text-right tabular-nums">{i.quantidade || 1}</td>
                         <td style={{ color: T.text }} className="py-2.5 px-1 text-right tabular-nums font-semibold">{fmt(i.valor)}</td>
                         <td className="py-2.5 px-1 text-right">
-                          <span style={{ background: st.bg, color: st.fg }} className="text-[10px] font-bold px-2 py-1 rounded-md whitespace-nowrap">
+                          <span style={{ background: st.bg, color: st.fg }} className="text-[0.6875rem] font-bold px-2 py-1 rounded-md whitespace-nowrap">
                             {i.status.d < 0 ? `${-i.status.d}d vencido` : i.status.d === 0 ? "Vence hoje" : `${i.status.d}d`}
                           </span>
                         </td>
@@ -243,7 +243,7 @@ function DashboardView({ T, items, historico, rondas, auditoria, nome, lojaNumer
           )}
         </DashCard>
         <DashCard T={T} title="Rondas de hoje" subtitle={d.rondasSetor.length ? `${rondasOk} de ${d.rondasSetor.length} setores conferidos` : "Sem setores ainda"}
-          right={<button onClick={() => onTab("rondas")} style={{ color: BLUE }} className="text-[11px] font-bold hover:underline shrink-0">Abrir →</button>}>
+          right={<button onClick={() => onTab("rondas")} style={{ color: BLUE }} className="text-[0.75rem] font-bold hover:underline shrink-0">Abrir →</button>}>
           <div className="flex flex-col gap-1 -mx-1">
             {d.rondasSetor.slice(0, 8).map((s) => {
               const cor = s.estado === "ok" ? "#1F9D55" : s.estado === "parcial" ? "#C98A0C" : T.subtext;
@@ -252,9 +252,9 @@ function DashboardView({ T, items, historico, rondas, auditoria, nome, lojaNumer
                   <i style={{ background: cor }} className="h-2.5 w-2.5 rounded-full shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p style={{ color: T.text }} className="text-xs font-semibold truncate">{s.setor}</p>
-                    <p style={{ color: T.subtext }} className="text-[10px]">{s.risco > 0 ? `${s.risco} em risco · ` : ""}última ronda {tempoDesde(s.ultima)}</p>
+                    <p style={{ color: T.subtext }} className="text-[0.6875rem]">{s.risco > 0 ? `${s.risco} em risco · ` : ""}última ronda {tempoDesde(s.ultima)}</p>
                   </div>
-                  <span style={{ color: cor }} className="text-[10px] font-bold uppercase shrink-0">{s.estado === "ok" ? "Concluída" : s.estado === "parcial" ? "Parcial" : "Pendente"}</span>
+                  <span style={{ color: cor }} className="text-[0.6875rem] font-bold uppercase shrink-0">{s.estado === "ok" ? "Concluída" : s.estado === "parcial" ? "Parcial" : "Pendente"}</span>
                 </div>
               );
             })}
@@ -286,24 +286,24 @@ function DashboardView({ T, items, historico, rondas, auditoria, nome, lojaNumer
             {[["Sem troca", d.troca.sem, RED_DARK, RED_SOFT], ["Com troca", d.troca.com, "#1F9D55", "#E6F7ED"], ["Não informado", d.troca.nao, T.subtext, T.chipBg]].map(([l, n, c, bg]) => (
               <div key={l} style={{ background: bg }} className="rounded-xl py-4 px-2 text-center">
                 <p style={{ color: c }} className="text-2xl font-extrabold leading-none tabular-nums">{n}</p>
-                <p style={{ color: c }} className="text-[10px] font-semibold mt-1.5">{l}</p>
+                <p style={{ color: c }} className="text-[0.6875rem] font-semibold mt-1.5">{l}</p>
               </div>
             ))}
           </div>
           <div style={{ background: T.chipBg }} className="rounded-xl p-3.5 mt-4 flex items-center justify-between">
-            <span style={{ color: T.subtext }} className="text-[11px] font-semibold">Valor sem possibilidade de troca</span>
+            <span style={{ color: T.subtext }} className="text-[0.75rem] font-semibold">Valor sem possibilidade de troca</span>
             <strong style={{ color: RED_DARK }} className="text-sm tabular-nums">{fmt(d.troca.valorSem)}</strong>
           </div>
         </DashCard>
         <DashCard T={T} title="Atividade recente" subtitle="Últimas ações da equipe"
-          right={<button onClick={() => onFlow("auditoria")} style={{ color: BLUE }} className="text-[11px] font-bold hover:underline shrink-0">Auditoria →</button>}>
+          right={<button onClick={() => onFlow("auditoria")} style={{ color: BLUE }} className="text-[0.75rem] font-bold hover:underline shrink-0">Auditoria →</button>}>
           <div className="flex flex-col gap-3 pt-1">
             {d.feed.map((a, k) => (
               <div key={a.id || k} className="flex items-start gap-3">
-                <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">{(a.usuario || "?").trim()[0]?.toUpperCase()}</div>
+                <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="h-7 w-7 rounded-full flex items-center justify-center text-[0.6875rem] font-bold shrink-0">{(a.usuario || "?").trim()[0]?.toUpperCase()}</div>
                 <div className="min-w-0">
                   <p style={{ color: T.text }} className="text-xs leading-snug"><strong>{a.usuario || "Alguém"}</strong> {a.acao}</p>
-                  <p style={{ color: T.subtext }} className="text-[10px] mt-0.5">{formatarDataHoraExtenso(a.criadoEm)}</p>
+                  <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-0.5">{formatarDataHoraExtenso(a.criadoEm)}</p>
                 </div>
               </div>
             ))}

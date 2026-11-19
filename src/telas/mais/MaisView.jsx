@@ -54,7 +54,7 @@ function MaisView(props) {
   const conteudo = (id) => {
     switch (id) {
       case "conta": return <PaginaConta T={T} dark={dark} perfil={perfil} usuario={usuario} showToast={props.showToast} onSair={props.onSair} />;
-      case "aparencia": return <PaginaAparencia T={T} dark={dark} tema={tema} onTema={trocarTema} />;
+      case "aparencia": return <PaginaAparencia T={T} dark={dark} tema={tema} onTema={trocarTema} fonte={props.fonte} onFonte={props.setFonte} />;
       case "notificacoes": return <PaginaNotificacoes T={T} dark={dark} som={props.som} setSom={props.setSom} notifPermission={props.notifPermission} onToggleNotif={props.onToggleNotif} onDesativarNotif={props.onDesativarNotif} ehEncarregado={ehEncarregado} usuarioId={props.usuarioId} emailConta={props.emailConta} showToast={props.showToast} />;
       case "atalhos": return !ehEncarregado ? null : <PaginaAtalhos T={T} dark={dark} historico={historico} ehEncarregado={ehEncarregado} ehCorporativo={ehCorporativo} ehDev={ehDev} acoes={acoes} />;
       case "aprovacoes": return ehEncarregado ? <PaginaAprovacoes T={T} dark={dark} perfil={perfil} showToast={props.showToast} subsetoresExtra={props.subsetoresExtra || []} /> : null;

@@ -179,7 +179,7 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
         <AuthLink T={T} forte onClick={() => { setModo("recuperar"); setErro(""); setMensagem(""); }}>Esqueci minha senha</AuthLink>
         <motion.div variants={itemForm} className="flex items-center gap-3 my-0.5" aria-hidden>
           <span style={{ background: T.inputBorder }} className="h-px flex-1" />
-          <span style={{ color: T.subtext }} className="text-[11px] font-semibold uppercase tracking-wider">Primeiro acesso?</span>
+          <span style={{ color: T.subtext }} className="text-[0.75rem] font-semibold uppercase tracking-wider">Primeiro acesso?</span>
           <span style={{ background: T.inputBorder }} className="h-px flex-1" />
         </motion.div>
         <AuthBotao T={T} variante="contorno" type="button" onClick={() => { setErro(""); setModo("cadastro-scan"); }}>

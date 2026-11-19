@@ -95,7 +95,7 @@ export function TelaCarregando({ logo, mensagem }) {
         <motion.div className="h-full w-2/5 rounded-full" style={{ background: "linear-gradient(90deg, transparent, #fff, transparent)" }}
           animate={reduzir ? { x: "60%" } : { x: ["-110%", "280%"] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} />
       </div>
-      <p className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] text-[11px] text-white/55 font-medium tracking-widest uppercase">Bipi Validade</p>
+      <p className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] text-[0.75rem] text-white/55 font-medium tracking-widest uppercase">Bipi Validade</p>
     </div>
   );
 }

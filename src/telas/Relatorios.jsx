@@ -22,10 +22,10 @@ function SelecionarSecoesRelatorioSheet({ T, secoesDisponiveis, selecionadas, on
       <div onClick={onFechar} className="absolute inset-0 bg-black/60" />
       <div style={{ background: T.card }} className="relative w-full max-w-md lg:max-w-lg lg:ring-1 lg:ring-black/10 lg:shadow-2xl rounded-t-[28px] p-5 pb-[calc(1.75rem+env(safe-area-inset-bottom))] max-h-[88dvh] overflow-y-auto sm:rounded-2xl">
         <h3 className="font-bold text-sm mb-1">O que entra no relatório?</h3>
-        <p style={{ color: T.subtext }} className="text-[11px] mb-3">O resumo geral (KPIs e perdas do mês) sempre entra. Escolha as seções extras:</p>
+        <p style={{ color: T.subtext }} className="text-[0.75rem] mb-3">O resumo geral (KPIs e perdas do mês) sempre entra. Escolha as seções extras:</p>
 
         <button onClick={() => secoesDisponiveis.forEach((s) => { if (todasMarcadas ? selecionadas.has(s.id) : !selecionadas.has(s.id)) onAlternar(s.id); })}
-          style={{ color: BLUE }} className="text-[11px] font-semibold mb-2">
+          style={{ color: BLUE }} className="text-[0.75rem] font-semibold mb-2">
           {todasMarcadas ? "Desmarcar todas" : "Marcar todas"}
         </button>
 
@@ -151,8 +151,8 @@ function RelatoriosDashboard({ T, lojaNumero, items, criticos, atencao, valorEmR
           <DashCard T={T} title="Ações por pessoa"><DashHBars T={T} data={porUsuarioAuditoria.slice(0, 8).map(([n, c]) => ({ label: n, value: c, color: BLUE, right: `${c}` }))} /></DashCard>
           <DashCard T={T} title="Tipos de ação"><DashHBars T={T} data={porTipoAcao.slice(0, 8).map(([n, c]) => ({ label: n, value: c, color: "#0E9AA7", right: `${c}` }))} /></DashCard>
           <DashCard T={T} title="Rondas por setor" right={<div className="flex gap-1.5">
-            <button onClick={gerarPDFAtividade} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[11px] font-semibold px-2.5 py-1 rounded-lg">PDF</button>
-            {["csv", "xlsx"].map((f) => <button key={f} onClick={() => exportarAtividade(f)} style={btn} className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border uppercase">{f}</button>)}</div>}>
+            <button onClick={gerarPDFAtividade} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[0.75rem] font-semibold px-2.5 py-1 rounded-lg">PDF</button>
+            {["csv", "xlsx"].map((f) => <button key={f} onClick={() => exportarAtividade(f)} style={btn} className="text-[0.75rem] font-semibold px-2.5 py-1 rounded-lg border uppercase">{f}</button>)}</div>}>
             <DashHBars T={T} data={rondasResumo.porSetor.slice(0, 8).map(([s, d]) => ({ label: s, value: d.concluidas + d.parciais, color: "#1F9D55", right: `${d.concluidas} ok · ${d.parciais} parc.` }))} />
           </DashCard>
         </div>
@@ -244,10 +244,10 @@ function RelatoriosMobile(p) {
         className="relative overflow-hidden rounded-[32px] text-white p-5 shadow-xl shadow-black/15 mb-4">
         <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
         <div className="relative">
-          <p className="text-[11px] font-bold uppercase tracking-[.16em] text-white/70">{sub} · Relatório gerencial</p>
+          <p className="text-[0.75rem] font-bold uppercase tracking-[.16em] text-white/70">{sub} · Relatório gerencial</p>
           <div className="flex items-center justify-between gap-3 mt-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-white/70">Em risco agora</p>
+              <p className="text-[0.75rem] font-bold uppercase tracking-wide text-white/70">Em risco agora</p>
               <p className="font-extrabold leading-tight tabular-nums whitespace-nowrap mt-0.5" style={{ fontSize: Math.max(22, Math.min(34, Math.floor(150 / (formatarMoeda(valorEmRisco).length * 0.6)))) }}>{formatarMoeda(valorEmRisco)}</p>
               <p className="text-[12px] text-white/75 mt-1">de {formatarMoeda(valorTotalMonitorado)} monitorados</p>
             </div>
@@ -299,7 +299,7 @@ function RelatoriosMobile(p) {
               <div key={rot} style={{ background: T.chipBg }} className="rounded-2xl p-3">
                 <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">{rot}</p>
                 <p style={{ color: cor }} className="text-[15px] font-extrabold tabular-nums mt-0.5">{formatarMoeda(d.valor)}</p>
-                <p style={{ color: T.subtext }} className="text-[11px]">{d.qtd} item(ns)</p>
+                <p style={{ color: T.subtext }} className="text-[0.75rem]">{d.qtd} item(ns)</p>
               </div>
             ))}
           </div>
@@ -332,7 +332,7 @@ function RelatoriosMobile(p) {
           <div style={{ background: T.chipBg }} className="rounded-2xl p-3 mt-3">
             <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Índice de perda (perda ÷ faturamento)</p>
             {indicePerda != null ? (
-              <p style={{ color: T.text }} className="text-[20px] font-extrabold tabular-nums">{indicePerda.toFixed(2)}% <span style={{ color: T.subtext }} className="text-[11px] font-semibold">de {formatarMoeda(faturamentoMensal)}/mês</span></p>
+              <p style={{ color: T.text }} className="text-[20px] font-extrabold tabular-nums">{indicePerda.toFixed(2)}% <span style={{ color: T.subtext }} className="text-[0.75rem] font-semibold">de {formatarMoeda(faturamentoMensal)}/mês</span></p>
             ) : <p style={{ color: T.subtext }} className="text-[12px] mt-0.5">Informe o faturamento mensal para calcular.</p>}
             {!editFat ? (
               <button onClick={() => setEditFat(true)} style={{ color: BLUE }} className="text-[12px] font-bold mt-1.5">{faturamentoMensal ? "Atualizar faturamento" : "+ Informar faturamento"}</button>
@@ -368,7 +368,7 @@ function RelatoriosMobile(p) {
           {porUsuarioAuditoria.length > 0 && <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${T.chipBg}` }}>
             {porUsuarioAuditoria.slice(0, 6).map(([nome, q], i) => <BarraRank key={nome} T={T} pos={i + 1} rotulo={nome} pct={(q / maxPessoa) * 100} texto={`${q}`} cor={BLUE} />)}
           </div>}
-          {porTipoAcao.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{porTipoAcao.slice(0, 8).map(([t, q]) => <span key={t} style={{ background: T.chipBg, color: T.text }} className="text-[11px] font-bold rounded-full px-2.5 py-1 capitalize">{t} · {q}</span>)}</div>}
+          {porTipoAcao.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{porTipoAcao.slice(0, 8).map(([t, q]) => <span key={t} style={{ background: T.chipBg, color: T.text }} className="text-[0.75rem] font-bold rounded-full px-2.5 py-1 capitalize">{t} · {q}</span>)}</div>}
         </div>
         <ExportarCapitulo T={T} titulo="Exportar atividade e rondas" itens={[
           ["PDF", FileText, gerarPDFAtividade, true], ["CSV", Download, () => exportarAtividade("csv")], ["Excel", FileSpreadsheet, () => exportarAtividade("xlsx")],

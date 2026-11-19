@@ -58,7 +58,7 @@ function TabelaProdutos({ T, itens, onOpenDetail, limite = 60, mostrarSetor = tr
     { key: "dias", label: "Prazo", render: (i) => { const b = NIVEL_BADGE(i.status.level); return <DashBadge bg={b.bg} color={b.fg}>{diasTexto(i.status.d)}</DashBadge>; } },
     { key: "quantidade", label: "Qtd", align: "right", render: (i) => <span className="tabular-nums">{i.quantidade ?? 1}</span> },
     { key: "valor", label: "Valor", align: "right", render: (i) => <span className="tabular-nums font-semibold">{fmt((Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0))}</span> },
-    { key: "status", label: "Status", align: "right", render: (i) => { const b = statusStyles(i.status.level); return <span style={{ background: b.bg, color: b.fg }} className="text-[10px] font-bold px-2.5 py-1 rounded-full">{i.status.label}</span>; } },
+    { key: "status", label: "Status", align: "right", render: (i) => { const b = statusStyles(i.status.level); return <span style={{ background: b.bg, color: b.fg }} className="text-[0.6875rem] font-bold px-2.5 py-1 rounded-full">{i.status.label}</span>; } },
   ];
   return (
     <>
@@ -236,7 +236,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
                 <span style={{ background: RED_SOFT }} className="h-9 w-9 rounded-2xl flex items-center justify-center"><FireIconSolid className="w-[18px] h-[18px]" style={{ color: RED_DARK }} /></span>
                 <ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} />
               </div>
-              <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide mt-3">Prioridade de perda</p>
+              <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide mt-3">Prioridade de perda</p>
               <p style={{ color: T.text }} className="text-[26px] font-extrabold leading-tight tabular-nums">{resumoPrioridade.total}</p>
               <p style={{ color: T.subtext }} className="text-[11.5px] leading-snug">{resumoPrioridade.semTroca > 0 ? `${resumoPrioridade.semTroca} sem troca` : "precisam de atenção"}</p>
               <div className="flex flex-col gap-1 mt-2.5">
@@ -250,13 +250,13 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
               style={{ background: T.card }} className="rounded-[24px] p-4 shadow-lg shadow-black/5 flex flex-col">
               <span style={{ background: BLUE_SOFT }} className="h-9 w-9 rounded-2xl flex items-center justify-center"><ShieldCheckIcon className="w-[18px] h-[18px]" style={{ color: BLUE }} /></span>
-              <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide mt-3">Troca com fornecedor</p>
+              <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide mt-3">Troca com fornecedor</p>
               <div className="flex flex-col gap-1.5 mt-1.5">
                 <p style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2 tabular-nums">{pontoTroca(RED_DARK)}{comparativoTroca.semTroca}<span style={{ color: T.subtext }} className="font-medium text-[11.5px]">sem troca</span></p>
                 <p style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2 tabular-nums">{pontoTroca("#1F9D55")}{comparativoTroca.comTroca}<span style={{ color: T.subtext }} className="font-medium text-[11.5px]">com troca</span></p>
                 <p style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2 tabular-nums">{pontoTroca("#9AA3B2")}{comparativoTroca.naoInformado}<span style={{ color: T.subtext }} className="font-medium text-[11.5px]">não informado</span></p>
               </div>
-              {comparativoTroca.valorSemTroca > 0 && <p style={{ color: RED_DARK }} className="text-[11px] font-bold mt-2">{formatarMoeda(comparativoTroca.valorSemTroca)} sem troca</p>}
+              {comparativoTroca.valorSemTroca > 0 && <p style={{ color: RED_DARK }} className="text-[0.75rem] font-bold mt-2">{formatarMoeda(comparativoTroca.valorSemTroca)} sem troca</p>}
             </motion.div>
           )}
         </div>
@@ -274,7 +274,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
         <motion.button whileTap={{ scale: 0.92 }} onClick={() => setFiltrosAbertos(true)} aria-label="Filtros" style={{ background: filtrosAtivos > 0 ? BLUE_DARK : T.card, color: filtrosAtivos > 0 ? "#fff" : T.text }}
           className="h-[46px] w-[46px] rounded-full flex items-center justify-center shrink-0 relative shadow-sm">
           <SlidersHorizontal size={17} />
-          {filtrosAtivos > 0 && <span style={{ background: RED }} className="absolute -top-1 -right-1 text-[9px] text-white font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">{filtrosAtivos}</span>}
+          {filtrosAtivos > 0 && <span style={{ background: RED }} className="absolute -top-1 -right-1 text-[0.6875rem] text-white font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">{filtrosAtivos}</span>}
         </motion.button>
         <motion.button whileTap={{ scale: 0.92 }} onClick={() => setModoVisual(modoVisual === "lista" ? "grade" : "lista")} aria-label="Trocar lista e grade"
           style={{ background: T.card, color: T.text }} className="h-[46px] w-[46px] rounded-full flex items-center justify-center shrink-0 shadow-sm">
@@ -339,7 +339,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
       ) : (
         <>
           <div className="flex items-center justify-between mb-2.5">
-            <p style={{ color: T.text }} className="text-[15px] font-extrabold">Produtos monitorados <span style={{ background: T.chipBg, color: T.subtext }} className="ml-1 text-[11px] font-bold rounded-full px-2 py-0.5 tabular-nums align-middle">{filtrados.length}</span></p>
+            <p style={{ color: T.text }} className="text-[15px] font-extrabold">Produtos monitorados <span style={{ background: T.chipBg, color: T.subtext }} className="ml-1 text-[0.75rem] font-bold rounded-full px-2 py-0.5 tabular-nums align-middle">{filtrados.length}</span></p>
           </div>
           {modoVisual === "lista" ? (
             <div className="flex flex-col gap-2.5 xl:grid xl:grid-cols-2 2xl:grid-cols-3 xl:items-start">

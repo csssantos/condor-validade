@@ -107,7 +107,7 @@ export function AvisoToast({ msg, tom, id, elevar, onFechar }) {
           <Orbe tom={tom} cor={t.cor} animar={animar} />
           <div className="min-w-0 flex-1" aria-hidden="true">
             <div className="flex items-center gap-2 mb-1">
-              <p style={{ color: t.luz }} className="text-[10px] font-bold uppercase tracking-[0.14em] leading-none">{t.rotulo}</p>
+              <p style={{ color: t.luz }} className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] leading-none">{t.rotulo}</p>
               <Pontinhos animar={animar && (carregando || tom === "erro" || tom === "aviso")} />
             </div>
             <p className="text-[13px] font-medium leading-snug break-words" style={{ display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{msg}</p>

@@ -83,7 +83,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
       <div style={{ background: "#F5A524" }} className={`${grande ? "h-11 w-11" : "h-9 w-9"} rounded-full flex items-center justify-center shrink-0`}><Megaphone size={grande ? 20 : 17} color="#fff" /></div>
       <div className="min-w-0 flex-1">
         <p style={{ color: "#7A4B00" }} className={`${grande ? "text-[15px]" : "text-[13px]"} font-extrabold leading-tight`}>{status.d === 0 ? "Vence hoje" : `Faltam ${status.d} dia${status.d === 1 ? "" : "s"} para vencer`}: lance uma campanha</p>
-        <p style={{ color: "#8A5A10" }} className={`${grande ? "text-[12.5px]" : "text-[11px]"} mt-0.5 leading-snug`}>Peça promoção ou preço direto e registre aqui o número da campanha. Depois de salvar, o lote fica travado.</p>
+        <p style={{ color: "#8A5A10" }} className={`${grande ? "text-[12.5px]" : "text-[0.75rem]"} mt-0.5 leading-snug`}>Peça promoção ou preço direto e registre aqui o número da campanha. Depois de salvar, o lote fica travado.</p>
       </div>
       {!editandoPedido && <button onClick={lancarCampanha} style={{ background: "#B86E00", color: "#fff" }} className={`shrink-0 font-bold rounded-full ${grande ? "text-[13px] px-5 py-2.5" : "text-[11.5px] px-3.5 py-2"}`}>Lançar campanha</button>}
     </div>
@@ -94,20 +94,20 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
         <Percent size={15} color={BLUE} />
         <div>
           <p style={{ color: BLUE_DARK }} className="text-xs font-bold">Em promoção</p>
-          <p style={{ color: BLUE }} className="text-[11px]">{formatarMoeda(item.precoPromocional)} <span className="line-through opacity-60">{formatarMoeda(item.precoUnitario)}</span></p>
+          <p style={{ color: BLUE }} className="text-[0.75rem]">{formatarMoeda(item.precoPromocional)} <span className="line-through opacity-60">{formatarMoeda(item.precoUnitario)}</span></p>
         </div>
       </div>
   ) : null;
   const bPedido = (item.pedidoTipo || (onPedido && (status.level !== "expired" || editandoPedido))) ? (
       <div ref={pedidoRef} style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-3">
-        <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-1.5 flex items-center gap-1"><Tag size={11} /> Pedido de promoção ou preço direto</p>
+        <p style={{ color: T.subtext }} className="text-[0.6875rem] font-bold uppercase tracking-wide mb-1.5 flex items-center gap-1"><Tag size={11} /> Pedido de promoção ou preço direto</p>
         {item.pedidoTipo && !editandoPedido && (
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p style={{ color: "#1F7A45" }} className="text-[13px] font-bold">{item.pedidoTipo === "preco_direto" ? "Preço direto pedido" : "Promoção pedida"}{item.pedidoCampanha ? ` · campanha ${item.pedidoCampanha}` : ""}{item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")}` : ""}</p>
               <p style={{ color: T.subtext }} className="text-[10.5px] mt-0.5">{item.pedidoPor || "—"}{item.pedidoEm ? ` · ${formatarDataHoraExtenso(item.pedidoEm)}` : ""}</p>
             </div>
-            {onPedido && podeGerirPedido && <button onClick={() => setEditandoPedido(true)} style={{ color: BLUE }} className="text-[11px] font-bold shrink-0 px-1">Alterar</button>}
+            {onPedido && podeGerirPedido && <button onClick={() => setEditandoPedido(true)} style={{ color: BLUE }} className="text-[0.75rem] font-bold shrink-0 px-1">Alterar</button>}
           </div>
         )}
         {item.pedidoTipo && !editandoPedido && (
@@ -151,16 +151,16 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                     <span className="min-w-0">Validade {formatarData(l.validade)}{l.lote ? ` · Lote ${l.lote}` : ""} · {l.quantidade || 1}{l.porPeso ? "kg" : "un"}</span>
                   </label>
                 ))}
-                <p style={{ color: T.subtext }} className="text-[10px] mt-0.5">Marcados ficam travados como este. Lotes que vencem em mais de 30 dias vêm desmarcados; vencidos ou com pedido não aparecem (até 10 lotes).</p>
+                <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-0.5">Marcados ficam travados como este. Lotes que vencem em mais de 30 dias vêm desmarcados; vencidos ou com pedido não aparecem (até 10 lotes).</p>
               </div>
             )}
-            <p style={{ color: T.subtext }} className="text-[10px] mt-1">O valor é só uma sugestão: depende da central liberar. Campanha (obrigatória): só números, até 20 dígitos.{!item.pedidoTipo && " Atenção: depois de salvar, " + (lotesExtra.length ? "este lote e os marcados ficam travados" : "este lote fica travado") + " (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
+            <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1">O valor é só uma sugestão: depende da central liberar. Campanha (obrigatória): só números, até 20 dígitos.{!item.pedidoTipo && " Atenção: depois de salvar, " + (lotesExtra.length ? "este lote e os marcados ficam travados" : "este lote fica travado") + " (sem editar, somar ou excluir); só o encarregado do setor destrava."}</p>
             <div className="flex gap-2 mt-2.5">
-              <button onClick={() => { setDesmarcados(desmarcadosPadrao()); setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); setPedidoValor(valorTxt0(item.pedidoValor)); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
+              <button onClick={() => { setDesmarcados(desmarcadosPadrao()); setEditandoPedido(false); setConfirmandoRemoverPedido(false); setPedidoTipo(item.pedidoTipo || null); setPedidoCampanha(item.pedidoCampanha || ""); setPedidoValor(valorTxt0(item.pedidoValor)); }} style={{ color: T.subtext }} className="flex-1 text-[0.75rem] py-1.5">Cancelar</button>
               {item.pedidoTipo && podeGerirPedido && (confirmandoRemoverPedido
-                ? <button onClick={() => salvarPedido(null, null, null)} disabled={salvandoPedido} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">Confirmar remoção</button>
-                : <button onClick={() => setConfirmandoRemoverPedido(true)} style={{ color: RED_DARK }} className="flex-1 text-[11px] font-semibold py-1.5">Remover</button>)}
-              <button onClick={() => salvarPedido(pedidoTipo, normalizarCampanha(pedidoCampanha), pedidoValorNum)} disabled={salvandoPedido || !pedidoTipo || !campanhaOk || pedidoValorNum == null} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : lotesExtra.length && !item.pedidoTipo ? `Salvar em ${lotesExtra.length + 1} lotes` : "Salvar"}</button>
+                ? <button onClick={() => salvarPedido(null, null, null)} disabled={salvandoPedido} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[0.75rem] font-semibold py-1.5 rounded-xl disabled:opacity-40">Confirmar remoção</button>
+                : <button onClick={() => setConfirmandoRemoverPedido(true)} style={{ color: RED_DARK }} className="flex-1 text-[0.75rem] font-semibold py-1.5">Remover</button>)}
+              <button onClick={() => salvarPedido(pedidoTipo, normalizarCampanha(pedidoCampanha), pedidoValorNum)} disabled={salvandoPedido || !pedidoTipo || !campanhaOk || pedidoValorNum == null} style={{ background: BLUE_DARK, color: "#fff" }} className="flex-1 text-[0.75rem] font-semibold py-1.5 rounded-xl disabled:opacity-40">{salvandoPedido ? "Salvando…" : lotesExtra.length && !item.pedidoTipo ? `Salvar em ${lotesExtra.length + 1} lotes` : "Salvar"}</button>
             </div>
           </div>
         )}
@@ -176,14 +176,14 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           <div className="flex items-center gap-2 mt-2 pl-9">
             <span style={{ color: RED_DARK }} className="text-xs line-through opacity-60">{formatarMoeda(desconto.precoOriginal)}</span>
             <span style={{ color: RED_DARK }} className="text-sm font-extrabold">{formatarMoeda(desconto.precoComDesconto)}</span>
-            <span style={{ color: RED_DARK }} className="text-[10px] opacity-70">/un sugerido</span>
+            <span style={{ color: RED_DARK }} className="text-[0.6875rem] opacity-70">/un sugerido</span>
           </div>
         )}
       </div>
   ) : null;
   const bOutros = outrosLotes && outrosLotes.length > 0 ? (
       <div style={{ background: T.chipBg }} className="rounded-2xl p-3">
-        <p style={{ color: T.subtext }} className="text-[10px] font-bold uppercase tracking-wide mb-2 flex items-center gap-1.5"><Layers size={12} /> Outros lotes deste produto ({outrosLotes.length})</p>
+        <p style={{ color: T.subtext }} className="text-[0.6875rem] font-bold uppercase tracking-wide mb-2 flex items-center gap-1.5"><Layers size={12} /> Outros lotes deste produto ({outrosLotes.length})</p>
         <div className="flex flex-col gap-1.5">
           {outrosLotes.map((l) => {
             const sl = statusStyles(getStatus(l).level);
@@ -191,11 +191,11 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
               <button key={l.id} onClick={() => onTrocarLote && onTrocarLote(l)} style={{ background: T.card }} className="w-full text-left rounded-xl p-2.5 flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span style={{ background: sl.bg, color: sl.fg }} className="text-[9px] font-bold px-1.5 py-0.5 rounded">{sl.label}</span>
+                    <span style={{ background: sl.bg, color: sl.fg }} className="text-[0.6875rem] font-bold px-1.5 py-0.5 rounded">{sl.label}</span>
                     <span className="text-xs font-semibold">{formatarData(l.validade)}</span>
-                    <span style={{ color: T.subtext }} className="text-[10px]">· {l.lote ? `Lote ${l.lote} · ` : ""}{l.quantidade || 1}{l.porPeso ? "kg" : "un"}{l.pedidoTipo ? " · pedido ✓" : " · sem pedido"}</span>
+                    <span style={{ color: T.subtext }} className="text-[0.6875rem]">· {l.lote ? `Lote ${l.lote} · ` : ""}{l.quantidade || 1}{l.porPeso ? "kg" : "un"}{l.pedidoTipo ? " · pedido ✓" : " · sem pedido"}</span>
                   </div>
-                  {gerarCodigoLocalizacao(l) && <p style={{ color: T.subtext }} className="text-[10px] mt-0.5 font-mono">{gerarCodigoLocalizacao(l)}</p>}
+                  {gerarCodigoLocalizacao(l) && <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-0.5 font-mono">{gerarCodigoLocalizacao(l)}</p>}
                 </div>
                 <ChevronRight size={14} color={T.subtext} className="shrink-0" />
               </button>
@@ -207,7 +207,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   const bHist = historicoValidade && historicoValidade.length > 0 ? (
       <div style={{ background: "#FFF8E8", borderColor: "#F0DDA6" }} className="rounded-2xl p-3 border">
         <button onClick={() => setMostrarHistoricoValidade((v) => !v)} className="w-full flex items-center justify-between">
-          <p style={{ color: "#8A6414" }} className="text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5">
+          <p style={{ color: "#8A6414" }} className="text-[0.6875rem] font-bold uppercase tracking-wide flex items-center gap-1.5">
             <ShieldCheck size={12} /> Validade já foi alterada {historicoValidade.length}x
           </p>
           <ChevronRight size={14} color="#8A6414" className={`shrink-0 transition-transform ${mostrarHistoricoValidade ? "rotate-90" : ""}`} />
@@ -219,7 +219,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                 <p style={{ color: "#8A6414" }} className="text-xs font-semibold">
                   {formatarData(h.validadeAnterior)} → {formatarData(h.validadeNova)}
                 </p>
-                <p style={{ color: "#8A6414" }} className="text-[10px] mt-0.5 opacity-80">
+                <p style={{ color: "#8A6414" }} className="text-[0.6875rem] mt-0.5 opacity-80">
                   {h.alteradoPor || "—"} · {formatarDataHoraExtenso(h.alteradoEm)}
                 </p>
               </div>
@@ -246,12 +246,12 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   ) : null;
   const bExclusao = (
     <div style={{ background: RED_SOFT }} className={pc ? "rounded-2xl p-4" : "rounded-xl p-2.5"}>
-      <p style={{ color: RED_DARK }} className="text-[11px] font-medium text-center mb-2">Excluir sem registrar no histórico. Qual o motivo?</p>
+      <p style={{ color: RED_DARK }} className="text-[0.75rem] font-medium text-center mb-2">Excluir sem registrar no histórico. Qual o motivo?</p>
       <div className="grid grid-cols-2 gap-1.5">
         {MOTIVOS_EXCLUSAO.map((m) => (
           <button key={m} onClick={() => setMotivoExclusao(m)}
             style={motivoExclusao === m ? { background: RED_DARK, color: "#fff" } : { background: "#fff", color: RED_DARK }}
-            className="text-[11px] font-medium py-2 rounded-xl border" >
+            className="text-[0.75rem] font-medium py-2 rounded-xl border" >
             {m}
           </button>
         ))}
@@ -263,11 +263,11 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           className="w-full min-w-0 mt-2 border rounded-xl px-3 py-2 text-xs outline-none" />
       )}
       <div className="flex gap-2 mt-2.5">
-        <button onClick={() => { setConfirmandoExclusao(false); setMotivoExclusao(null); setMotivoExclusaoOutro(""); }} style={{ color: T.subtext }} className="flex-1 text-[11px] py-1.5">Cancelar</button>
+        <button onClick={() => { setConfirmandoExclusao(false); setMotivoExclusao(null); setMotivoExclusaoOutro(""); }} style={{ color: T.subtext }} className="flex-1 text-[0.75rem] py-1.5">Cancelar</button>
         <button
           onClick={() => onExcluir && onExcluir(item, motivoExclusao === "Outro" ? (motivoExclusaoOutro.trim() || "Outro") : motivoExclusao)}
           disabled={!onExcluir || !motivoExclusao || (motivoExclusao === "Outro" && !motivoExclusaoOutro.trim())}
-          style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[11px] font-semibold py-1.5 rounded-xl disabled:opacity-40">
+          style={{ background: RED_DARK, color: "#fff" }} className="flex-1 text-[0.75rem] font-semibold py-1.5 rounded-xl disabled:opacity-40">
           Sim, excluir
         </button>
       </div>
@@ -286,7 +286,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={44} color="#fff" className="relative opacity-90" /></div>
           )}
           <button onClick={onClose} aria-label="Fechar" className="absolute top-3 left-3 h-10 w-10 rounded-full flex items-center justify-center text-white" style={{ background: "rgba(255,255,255,.2)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.3)" }}><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
-          <span style={{ background: s.bg, color: s.fg }} className="absolute bottom-3 left-4 text-[11px] font-bold px-3 py-1 rounded-full shadow-md">{status.label}</span>
+          <span style={{ background: s.bg, color: s.fg }} className="absolute bottom-3 left-4 text-[0.75rem] font-bold px-3 py-1 rounded-full shadow-md">{status.label}</span>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4">
@@ -297,16 +297,16 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           {/* Dados essenciais em grade simples — sem elementos decorativos */}
           <div style={{ background: T.chipBg }} className="rounded-2xl mt-3.5 p-3.5 grid grid-cols-2 gap-3">
             <div>
-              <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-0.5">Setor</p>
+              <p style={{ color: T.subtext }} className="text-[0.6875rem] font-bold uppercase tracking-wide mb-0.5">Setor</p>
               <p className="text-[13px] font-bold truncate">{item.setor}{item.subsetor ? ` · ${item.subsetor}` : ""}</p>
             </div>
             <div className="text-right">
-              <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-0.5">Validade</p>
+              <p style={{ color: T.subtext }} className="text-[0.6875rem] font-bold uppercase tracking-wide mb-0.5">Validade</p>
               <p className="text-[13px] font-bold">{formatarData(item.validade)}</p>
               {(item.lote || item.semLote) && <p style={{ color: T.subtext }} className="text-[10.5px] font-semibold mt-0.5">{item.lote ? `Lote ${item.lote}` : "Sem lote"}</p>}
             </div>
             <div className="col-span-2 pt-2.5 border-t" style={{ borderColor: T.border }}>
-              <p style={{ color: T.subtext }} className="text-[9px] font-bold uppercase tracking-wide mb-0.5 flex items-center gap-1"><Barcode size={11} /> Código do produto</p>
+              <p style={{ color: T.subtext }} className="text-[0.6875rem] font-bold uppercase tracking-wide mb-0.5 flex items-center gap-1"><Barcode size={11} /> Código do produto</p>
               <p style={{ color: T.text }} className="text-[13px] font-mono font-semibold tracking-wide">{item.barcode}</p>
             </div>
           </div>
@@ -334,7 +334,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           {(item.cadastradoPor || item.atualizadoPor) && (
             <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2.5 mt-3 flex items-center gap-2">
               <Users2 size={13} color={T.subtext} />
-              <p style={{ color: T.subtext }} className="text-[11px]">
+              <p style={{ color: T.subtext }} className="text-[0.75rem]">
                 {item.cadastradoPor && <>Cadastrado por <strong style={{ color: T.text }}>{item.cadastradoPor}</strong></>}
                 {item.atualizadoPor && item.atualizadoPor !== item.cadastradoPor && <> · editado por <strong style={{ color: T.text }}>{item.atualizadoPor}</strong></>}
               </p>
@@ -343,7 +343,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 
           {item.observacoes && (
             <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2.5 mt-3">
-              <p style={{ color: T.subtext }} className="text-[10px] font-semibold uppercase mb-0.5">Observações</p>
+              <p style={{ color: T.subtext }} className="text-[0.6875rem] font-semibold uppercase mb-0.5">Observações</p>
               <p className="text-sm">{item.observacoes}</p>
             </div>
           )}
@@ -369,23 +369,23 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             {onEdit && (
               <button onClick={() => onEdit(item)} className="flex flex-col items-center gap-1.5">
                 <div style={{ background: T.chipBg }} className="h-11 w-11 rounded-2xl flex items-center justify-center"><Edit2 size={16} style={{ color: T.text }} /></div>
-                <span style={{ color: T.subtext }} className="text-[10px] font-medium">Editar</span>
+                <span style={{ color: T.subtext }} className="text-[0.6875rem] font-medium">Editar</span>
               </button>
             )}
             {onDuplicate && (
               <button onClick={() => onDuplicate(item)} className="flex flex-col items-center gap-1.5">
                 <div style={{ background: T.chipBg }} className="h-11 w-11 rounded-2xl flex items-center justify-center"><Layers size={16} style={{ color: T.text }} /></div>
-                <span style={{ color: T.subtext }} className="text-[10px] font-medium">Novo lote</span>
+                <span style={{ color: T.subtext }} className="text-[0.6875rem] font-medium">Novo lote</span>
               </button>
             )}
             <button onClick={() => onShare(item)} className="flex flex-col items-center gap-1.5">
               <div style={{ background: T.chipBg }} className="h-11 w-11 rounded-2xl flex items-center justify-center"><Share2 size={16} style={{ color: T.text }} /></div>
-              <span style={{ color: T.subtext }} className="text-[10px] font-medium">Compartilhar</span>
+              <span style={{ color: T.subtext }} className="text-[0.6875rem] font-medium">Compartilhar</span>
             </button>
             {onExcluir && (
             <button onClick={() => setConfirmandoExclusao(true)} className="flex flex-col items-center gap-1.5">
               <div style={{ background: RED_SOFT }} className="h-11 w-11 rounded-2xl flex items-center justify-center"><Trash2 size={16} color={RED_DARK} /></div>
-              <span style={{ color: RED_DARK }} className="text-[10px] font-medium">Excluir</span>
+              <span style={{ color: RED_DARK }} className="text-[0.6875rem] font-medium">Excluir</span>
             </button>
             )}
           </div>
@@ -419,7 +419,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
         <div className="min-w-0 min-h-0 flex flex-col">
           <div style={{ borderColor: T.border }} className="shrink-0 border-b px-8 py-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wider">Detalhes do produto</p>
+              <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wider">Detalhes do produto</p>
               <p className="text-lg font-extrabold leading-tight truncate">{diasTexto}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -449,7 +449,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                 ...(!!item.precoUnitario && podeVerValores ? [[DollarSign, item.porPeso ? "Valor total (kg)" : "Valor total", formatarMoeda((item.quantidade || 1) * item.precoUnitario), null]] : []),
               ].map(([Ico, rot, val, cor]) => (
                 <div key={rot} style={{ background: T.chipBg }} className="rounded-2xl px-5 py-4 min-w-0">
-                  <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5"><Ico size={13} /> {rot}</p>
+                  <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide flex items-center gap-1.5"><Ico size={13} /> {rot}</p>
                   <p style={cor ? { color: cor } : undefined} className="text-[24px] font-extrabold mt-1.5 leading-tight break-words">{val}</p>
                 </div>
               ))}
@@ -468,7 +468,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
               </div>
               <div className="flex flex-col gap-4 min-w-0">
                 <div style={{ background: T.chipBg }} className="rounded-2xl px-5 py-2">
-                  <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide pt-2 pb-1">Dados do produto</p>
+                  <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide pt-2 pb-1">Dados do produto</p>
                   {[
                     ["Setor", `${item.setor}${item.subsetor ? " · " + item.subsetor : ""}`],
                     ["Lote", item.lote || (item.semLote ? "Sem lote" : "—")],
@@ -488,7 +488,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                 </div>
                 {item.observacoes && (
                   <div style={{ background: T.chipBg }} className="rounded-2xl px-5 py-4">
-                    <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide mb-1">Observações</p>
+                    <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide mb-1">Observações</p>
                     <p className="text-sm">{item.observacoes}</p>
                   </div>
                 )}
@@ -516,7 +516,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 
           {subEtapa === null && (
             <>
-              <p style={{ color: T.subtext }} className="text-[11px] font-medium mb-2">O que foi feito com o produto?</p>
+              <p style={{ color: T.subtext }} className="text-[0.75rem] font-medium mb-2">O que foi feito com o produto?</p>
               <div className="grid grid-cols-2 gap-2">
                 {MOTIVOS_BAIXA.filter((m) => m !== "Promoção aplicada" || onAplicarPromocao).map((m) => (
                   <button key={m} onClick={() => escolherMotivo(m)} style={{ background: T.chipBg, color: T.text }} className="text-xs font-medium py-3 rounded-xl">{m}</button>
@@ -528,7 +528,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 
           {subEtapa === "promocao" && (
             <>
-              <p style={{ color: T.subtext }} className="text-[11px] font-medium mb-1.5">Qual o preço promocional? O produto continua sendo monitorado.</p>
+              <p style={{ color: T.subtext }} className="text-[0.75rem] font-medium mb-1.5">Qual o preço promocional? O produto continua sendo monitorado.</p>
               <input type="number" inputMode="decimal" min="0" step="0.01" autoFocus value={precoPromoInput} onChange={(e) => setPrecoPromoInput(e.target.value)}
                 placeholder="0,00" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-3 text-sm outline-none focus:ring-2" />
               <div className="flex gap-2 mt-3">
@@ -546,7 +546,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
               <p className="text-[12px] font-semibold mb-1.5">Baixa total do lote</p>
               <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2.5">
                 <p className="text-sm font-bold">{item.quantidade ? `${item.quantidade}${item.porPeso ? " kg" : " unidade(s)"}` : "Quantidade não informada"} · {motivoPendente}</p>
-                <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">Validade {formatarData(item.validade)}{item.lote ? ` · lote ${item.lote}` : ""}</p>
+                <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5">Validade {formatarData(item.validade)}{item.lote ? ` · lote ${item.lote}` : ""}</p>
               </div>
               <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 leading-snug">A baixa é sempre do lote inteiro: tudo o que está lançado neste lote sai do estoque e vai para o histórico com este motivo.{item.emPromocao ? " Este lote está em promoção: a baixa registra o lote todo, não só o que sobrou." : ""}</p>
               <div className="flex gap-2 mt-3">

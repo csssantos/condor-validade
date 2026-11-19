@@ -148,7 +148,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
           <div key={i} style={{ background: i + 1 <= etapa ? BLUE : T.chipBg }} className="h-1.5 flex-1 rounded-full transition-colors" />
         ))}
       </div>
-      <p style={{ color: T.subtext }} className="text-[11px] font-semibold uppercase tracking-wide mb-3 lg:hidden">
+      <p style={{ color: T.subtext }} className="text-[0.75rem] font-semibold uppercase tracking-wide mb-3 lg:hidden">
         Etapa {etapa} de {TOTAL_ETAPAS} · {NOMES_ETAPA[etapa - 1]}
       </p>
 
@@ -202,7 +202,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
                   <Images size={13} /> Galeria
                 </button>
               </div>
-              {foto && <button onClick={() => setFoto(null)} style={{ color: RED_DARK }} className="text-[11px] font-medium text-left">Remover foto</button>}
+              {foto && <button onClick={() => setFoto(null)} style={{ color: RED_DARK }} className="text-[0.75rem] font-medium text-left">Remover foto</button>}
             </div>
             <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFotoSelecionada} />
             <input ref={galeriaInputRef} type="file" accept="image/*" className="hidden" onChange={handleFotoSelecionada} />
@@ -217,8 +217,8 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
           )}
           {erroIA && (
             <div style={{ background: RED_SOFT }} className="mt-1.5 rounded-lg p-2">
-              <p style={{ color: RED_DARK }} className="text-[11px]">Não consegui identificar o produto. Tente uma foto mais nítida, ou preencha manualmente.</p>
-              <p style={{ color: RED_DARK }} className="text-[9px] mt-1 font-mono opacity-70 break-all">{erroIA}</p>
+              <p style={{ color: RED_DARK }} className="text-[0.75rem]">Não consegui identificar o produto. Tente uma foto mais nítida, ou preencha manualmente.</p>
+              <p style={{ color: RED_DARK }} className="text-[0.6875rem] mt-1 font-mono opacity-70 break-all">{erroIA}</p>
             </div>
           )}
         </div>
@@ -230,7 +230,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
             onFocus={() => setSugestoesAbertas(true)} onBlur={() => setTimeout(() => setSugestoesAbertas(false), 150)}
             placeholder="Ex: Leite integral 1L"
             style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
-          <p style={{ color: T.subtext }} className="text-[10px] mt-1">Pode escrever normal — ao salvar, vira o padrão abreviado do sistema (ex: "BISC. CHOC/AVELÃ").</p>
+          <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1">Pode escrever normal — ao salvar, vira o padrão abreviado do sistema (ex: "BISC. CHOC/AVELÃ").</p>
           {sugestoesAbertas && nome.trim().length >= 2 && sugestoesFiltradas.length > 0 && (
             <div style={{ background: T.card, borderColor: T.border }} className="absolute z-20 left-0 right-0 mt-1 border rounded-xl shadow-lg shadow-black/10 overflow-hidden max-h-48 overflow-y-auto">
               {sugestoesFiltradas.map((s) => (
@@ -262,8 +262,8 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
           <input type="number" inputMode="decimal" min="0.01" step="0.01" value={precoUnitario}
             onChange={(e) => setPrecoUnitario(e.target.value)} placeholder="0,00"
             style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
-          {!(Number(precoUnitario) > 0) && <p style={{ color: T.subtext }} className="text-[10px] mt-1">Obrigatório pra calcular o valor em risco do produto.</p>}
-          {porPeso && <p style={{ color: T.subtext }} className="text-[10px] mt-1">Ao lançar a validade, o valor total é calculado automaticamente pelo peso pesado.</p>}
+          {!(Number(precoUnitario) > 0) && <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1">Obrigatório pra calcular o valor em risco do produto.</p>}
+          {porPeso && <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1">Ao lançar a validade, o valor total é calculado automaticamente pelo peso pesado.</p>}
         </div>
         )}
         {ver(2) && (
@@ -280,7 +280,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
               {ordemUnidadesPeloSetor(setorFinal).map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
           </div>
-          <p style={{ color: T.subtext }} className="text-[10px] mt-1">Fica salvo no cadastro — não precisa digitar de novo ao lançar a validade.</p>
+          <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1">Fica salvo no cadastro — não precisa digitar de novo ao lançar a validade.</p>
         </div>
         )}
         {ver(3) && (
@@ -307,7 +307,7 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
             </>
           ) : (
             <div style={{ background: T.chipBg }} className="rounded-xl p-3">
-              <p style={{ color: T.subtext }} className="text-[10px] font-medium mb-1.5">Nome do novo setor</p>
+              <p style={{ color: T.subtext }} className="text-[0.6875rem] font-medium mb-1.5">Nome do novo setor</p>
               <input autoFocus value={novoSetorNome} maxLength={40} onChange={(e) => setNovoSetorNome(sanitizarTexto(e.target.value, 40))} placeholder="Ex: Padaria Fina"
                 style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 mb-2" />
               <button onClick={() => setNovoSetorPerecivel((v) => !v)} className="flex items-center gap-2 mb-3">
@@ -333,11 +333,11 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
           {setor && setor !== "Outro" && !criandoSetor && (
             <div className="mt-2">
               <div className="flex items-center justify-between mb-1">
-                <label style={{ color: T.subtext }} className="text-[10px] font-medium block">
+                <label style={{ color: T.subtext }} className="text-[0.6875rem] font-medium block">
                   Subsetor {setor === "Mercearia" && <span style={{ color: RED }}>*</span>}
                 </label>
                 {!criandoSubsetor && (
-                  <button onClick={() => setCriandoSubsetor(true)} style={{ color: BLUE }} className="text-[10px] font-semibold">+ Novo subsetor</button>
+                  <button onClick={() => setCriandoSubsetor(true)} style={{ color: BLUE }} className="text-[0.6875rem] font-semibold">+ Novo subsetor</button>
                 )}
               </div>
               {criandoSubsetor ? (
@@ -360,13 +360,13 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
                       {opcoes.map((s) => (
                         <button key={s} onClick={() => setSubsetor(s)}
                           style={subsetor === s ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }}
-                          className="text-[11px] font-medium py-2 rounded-xl">
+                          className="text-[0.75rem] font-medium py-2 rounded-xl">
                           {s}
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <p style={{ color: T.subtext }} className="text-[10px]">Nenhum subsetor ainda pra {setor}. Toque em "+ Novo subsetor" pra criar.</p>
+                    <p style={{ color: T.subtext }} className="text-[0.6875rem]">Nenhum subsetor ainda pra {setor}. Toque em "+ Novo subsetor" pra criar.</p>
                   );
                 })()
               )}
@@ -378,28 +378,28 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
         {ver(4) && (
         <div style={{ borderColor: T.border }} className="pt-1 border-t lg:col-span-2">
           <div className="mt-3" />
-          <label style={{ color: T.subtext }} className="text-[10px] font-medium mb-1 block">Categoria de giro</label>
+          <label style={{ color: T.subtext }} className="text-[0.6875rem] font-medium mb-1 block">Categoria de giro</label>
           <div className="flex gap-1.5 mb-3">
             {CATEGORIAS_GIRO.map((g) => (
               <button key={g} onClick={() => setCategoriaGiro(categoriaGiro === g ? "" : g)}
                 style={categoriaGiro === g ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }}
-                className="flex-1 text-[11px] font-medium py-1.5 rounded-xl">
+                className="flex-1 text-[0.75rem] font-medium py-1.5 rounded-xl">
                 {g}
               </button>
             ))}
           </div>
 
-          <label style={{ color: T.subtext }} className="text-[10px] font-medium mb-1 block">Política de troca com o fornecedor</label>
+          <label style={{ color: T.subtext }} className="text-[0.6875rem] font-medium mb-1 block">Política de troca com o fornecedor</label>
           <div className="flex gap-1.5">
             {POLITICAS_TROCA.map((p) => (
               <button key={p.valor} onClick={() => setPoliticaTroca(politicaTroca === p.valor ? "" : p.valor)}
                 style={politicaTroca === p.valor ? (p.valor === "sem_troca" ? { background: RED, color: "#fff" } : { background: "#1F9D55", color: "#fff" }) : { background: T.chipBg, color: T.text }}
-                className="flex-1 text-[11px] font-semibold py-2 rounded-xl">
+                className="flex-1 text-[0.75rem] font-semibold py-2 rounded-xl">
                 {p.label}
               </button>
             ))}
           </div>
-          {politicaTroca && <p style={{ color: T.subtext }} className="text-[10px] mt-1.5">{POLITICAS_TROCA.find((p) => p.valor === politicaTroca)?.desc}</p>}
+          {politicaTroca && <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1.5">{POLITICAS_TROCA.find((p) => p.valor === politicaTroca)?.desc}</p>}
         </div>
         )}
       </div>

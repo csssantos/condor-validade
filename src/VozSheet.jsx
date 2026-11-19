@@ -98,7 +98,7 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
     <div className="flex items-start gap-3 py-2">
       <span style={{ background: T.chipBg, color: valor ? accentDark : T.subtext }} className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0"><Icon size={16} /></span>
       <div className="min-w-0 flex-1">
-        <p style={{ color: T.subtext }} className="text-[11px] font-semibold">{rotulo}</p>
+        <p style={{ color: T.subtext }} className="text-[0.75rem] font-semibold">{rotulo}</p>
         <p style={{ color: valor ? T.text : T.subtext }} className={`text-sm ${valor ? "font-bold" : ""}`}>{valor || vazio}</p>
       </div>
     </div>
@@ -144,7 +144,7 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
               <div style={{ background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2 text-xs flex gap-2 mb-3"><AlertTriangle size={14} className="shrink-0 mt-0.5" /> {erro}</div>
             )}
 
-            <label style={{ color: T.subtext }} className="text-[11px] font-semibold block mb-1">{SR ? "O que você falou (dá pra corrigir)" : "Digite ou use o microfone do teclado"}</label>
+            <label style={{ color: T.subtext }} className="text-[0.75rem] font-semibold block mb-1">{SR ? "O que você falou (dá pra corrigir)" : "Digite ou use o microfone do teclado"}</label>
             <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={2} maxLength={200} placeholder="Ex.: iogurte natural vence sexta, 12 unidades"
               style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 resize-none" />
 
@@ -188,8 +188,8 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
               {res.precoUnitario != null && <Linha Icon={DollarSign} rotulo="Preço" valor={`R$ ${res.precoUnitario.toFixed(2).replace(".", ",")}`} />}
               {ehNovo && res.setorSugerido && <Linha Icon={MapPin} rotulo="Setor sugerido" valor={res.setorSugerido} />}
             </div>
-            {ehNovo && novoFmt.correcoes?.length > 0 && <p style={{ color: T.subtext }} className="text-[11px] mt-2">Ajustei a grafia pelo cadastro: {novoFmt.correcoes.map(([de, para]) => `${de} → ${para}`).join(", ")}.</p>}
-            {ehNovo && <p style={{ color: T.subtext }} className="text-[11px] mt-2">Produto novo: você completa setor e localização na próxima tela. Ele fica sem código de barras até alguém bipar.</p>}
+            {ehNovo && novoFmt.correcoes?.length > 0 && <p style={{ color: T.subtext }} className="text-[0.75rem] mt-2">Ajustei a grafia pelo cadastro: {novoFmt.correcoes.map(([de, para]) => `${de} → ${para}`).join(", ")}.</p>}
+            {ehNovo && <p style={{ color: T.subtext }} className="text-[0.75rem] mt-2">Produto novo: você completa setor e localização na próxima tela. Ele fica sem código de barras até alguém bipar.</p>}
 
             <div className="flex gap-2 mt-4">
               {SR && (

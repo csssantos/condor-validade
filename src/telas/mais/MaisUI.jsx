@@ -60,7 +60,7 @@ function MaisBolha({ cor, dark, tamanho = 44, children }) {
 function MaisBloco({ T, titulo, children, i = 0, className = "" }) {
   return (
     <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ ...MOLA, delay: 0.04 + i * 0.07 }} className={`mb-4 ${className}`}>
-      {titulo && <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wider mb-2 px-1">{titulo}</p>}
+      {titulo && <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wider mb-2 px-1">{titulo}</p>}
       <div style={{ background: T.card }} className="rounded-3xl shadow-lg shadow-black/5 overflow-hidden">{children}</div>
     </motion.section>
   );
@@ -87,7 +87,7 @@ function MaisLinha({ T, dark, icon: Icon, cor = BLUE, titulo, desc, direita, onC
 function MaisCampo({ T, label, value, onChange, type = "text", placeholder, autoComplete, direita, maxLength, inputMode }) {
   return (
     <label className="block">
-      <span style={{ color: T.subtext }} className="text-[11px] font-semibold mb-1 block">{label}</span>
+      <span style={{ color: T.subtext }} className="text-[0.75rem] font-semibold mb-1 block">{label}</span>
       <div className="relative">
         <input value={value} onChange={(e) => onChange(e.target.value)} type={type} placeholder={placeholder} autoComplete={autoComplete}
           maxLength={maxLength} inputMode={inputMode}

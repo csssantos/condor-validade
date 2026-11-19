@@ -9,8 +9,8 @@ export default function GraficoRecharts({ T, tipo = "barras", dados, formato, al
   const comum = (
     <>
       <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,130,150,.18)" vertical={false} />
-      <XAxis dataKey="rotulo" tick={{ fontSize: 10, fill: T.subtext }} interval={0} angle={dados.length > 6 ? -30 : 0} textAnchor={dados.length > 6 ? "end" : "middle"} height={dados.length > 6 ? 58 : 26} />
-      <YAxis tick={{ fontSize: 10, fill: T.subtext }} width={formato === "moeda" ? 62 : 32} tickFormatter={(v) => (formato === "moeda" ? `R$${Math.round(v / 100) / 10}k` : v)} />
+      <XAxis dataKey="rotulo" tick={{ fontSize: "0.6875rem", fill: T.subtext }} interval={0} angle={dados.length > 6 ? -30 : 0} textAnchor={dados.length > 6 ? "end" : "middle"} height={dados.length > 6 ? 58 : 26} />
+      <YAxis tick={{ fontSize: "0.6875rem", fill: T.subtext }} width={formato === "moeda" ? 62 : 32} tickFormatter={(v) => (formato === "moeda" ? `R$${Math.round(v / 100) / 10}k` : v)} />
       <Tooltip formatter={(v) => fmt(v)} contentStyle={{ background: T.card, border: "none", borderRadius: 12, fontSize: 12, color: T.text }} labelStyle={{ color: T.text }} />
     </>
   );

@@ -45,7 +45,7 @@ function ContaSemVinculo({ T, onVinculado, onSair }) {
           <div aria-hidden style={{ background: "rgba(255,255,255,0.05)" }} className="absolute -left-24 top-1/3 w-72 h-72 rounded-full" />
           <img src={LOGO_SRC} alt="Bipi Validade" className="h-11 w-auto self-start relative" />
           <div className="relative">
-            <p className="text-[11px] font-bold tracking-[0.28em] opacity-70 mb-3">QUASE LÁ</p>
+            <p className="text-[0.75rem] font-bold tracking-[0.28em] opacity-70 mb-3">QUASE LÁ</p>
             <h1 className="text-4xl font-extrabold leading-tight mb-8">Vincule sua conta<br />ao seu cadastro de funcionário</h1>
             <ol className="flex flex-col gap-5 max-w-md">
               {passos.map(([n, t, d]) => (

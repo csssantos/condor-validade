@@ -82,13 +82,13 @@ function TelegramVinculo({ T, showToast }) {
           <>
             <p style={{ color: T.subtext }} className="text-xs">Abra o bot, toque em Iniciar e envie o seu código:</p>
             <button onClick={() => copiarCodigo(st.codigo)} style={{ background: T.chipBg, color: T.text }} className="text-lg font-mono font-bold text-center rounded-xl py-3 w-full flex items-center justify-center gap-2 active:scale-[.98]">{st.codigo}<Copy size={16} color={T.subtext} /></button>
-            <p style={{ color: T.subtext }} className="text-[11px] text-center -mt-1.5">Toque no código para copiar</p>
+            <p style={{ color: T.subtext }} className="text-[0.75rem] text-center -mt-1.5">Toque no código para copiar</p>
           </>
         ) : cod ? (
           <>
             <p style={{ color: T.subtext }} className="text-xs">Abra o bot, toque em Iniciar e envie este código (vale 10 minutos):</p>
             <button onClick={() => copiarCodigo(cod.codigo)} style={{ background: T.chipBg, color: T.text }} className="text-2xl font-mono font-bold text-center rounded-xl py-3 w-full flex items-center justify-center gap-2.5 tracking-widest active:scale-[.98]">{fmt(cod.codigo)}<Copy size={18} color={T.subtext} /></button>
-            <p style={{ color: T.subtext }} className="text-[11px] text-center -mt-1.5">Toque no código para copiar</p>
+            <p style={{ color: T.subtext }} className="text-[0.75rem] text-center -mt-1.5">Toque no código para copiar</p>
           </>
         ) : (
           <button onClick={gerar} disabled={busy} style={{ background: BLUE, color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold disabled:opacity-60">{busy ? "Gerando…" : "Gerar código para vincular"}</button>

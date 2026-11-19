@@ -80,8 +80,8 @@ function NovaVersaoBanner({ T, estado, progresso, erro, onAtualizar, onFechar, s
           <p className="text-white text-xs font-medium flex-1">
             {baixando ? (pct >= 100 ? "Pronto! Reiniciando o app…" : `Baixando a atualização… ${pct}%`) : erro ? "Não deu pra baixar a atualização. Tente de novo." : "Tem uma versão nova do app. Atualizar agora?"}
           </p>
-          {!baixando && !solto && <button onClick={onFechar} className="text-white/70 text-[11px] font-medium shrink-0 px-1">Depois</button>}
-          {!baixando && <button onClick={onAtualizar} style={{ background: "#fff", color: BLUE_DARK }} className="text-[11px] font-bold px-3 py-1.5 rounded-full shrink-0">{erro ? "Tentar de novo" : "Atualizar"}</button>}
+          {!baixando && !solto && <button onClick={onFechar} className="text-white/70 text-[0.75rem] font-medium shrink-0 px-1">Depois</button>}
+          {!baixando && <button onClick={onAtualizar} style={{ background: "#fff", color: BLUE_DARK }} className="text-[0.75rem] font-bold px-3 py-1.5 rounded-full shrink-0">{erro ? "Tentar de novo" : "Atualizar"}</button>}
         </div>
         {baixando && (
           <div className="h-1.5 rounded-full bg-white/20 mt-2.5 overflow-hidden">

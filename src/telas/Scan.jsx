@@ -361,8 +361,8 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado, encaixar: querEn
                 )}
                 <div className="absolute bottom-3 left-2 right-2 text-center" role="status" aria-live="polite">
                   {recusado
-                    ? <p className="text-[11px] font-bold inline-block px-3 py-1 rounded-full" style={{ background: "#FFF4E0", color: "#7A4B00" }}>Código não aceito. Aponte para outro.</p>
-                    : <p className="text-white/90 text-[11px] font-medium bg-black/45 inline-block px-3 py-1 rounded-full">Aponte para o código (em pé ou deitado)</p>}
+                    ? <p className="text-[0.75rem] font-bold inline-block px-3 py-1 rounded-full" style={{ background: "#FFF4E0", color: "#7A4B00" }}>Código não aceito. Aponte para outro.</p>
+                    : <p className="text-white/90 text-[0.75rem] font-medium bg-black/45 inline-block px-3 py-1 rounded-full">Aponte para o código (em pé ou deitado)</p>}
                 </div>
               </div>
             </div>
@@ -404,7 +404,7 @@ function ScanView({ T, onDetected, onCancel, variante, ocupado, encaixar: querEn
             onChange={(e) => setManualCode(apenasNumeros(e.target.value, 14))}
             onKeyDown={(e) => { if (e.key === "Enter") submitManual(); }} placeholder="Ex: 7891234567890"
             style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full font-mono border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2" />
-          <p style={{ color: T.subtext }} className="text-[10px] mt-1">{manualCode.length}/14 dígitos {manualCode.length > 0 && manualCode.length < 4 ? "— mínimo 4 dígitos" : ""}</p>
+          <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1">{manualCode.length}/14 dígitos {manualCode.length > 0 && manualCode.length < 4 ? "— mínimo 4 dígitos" : ""}</p>
           <button onClick={submitManual} disabled={manualCode.length < 4} style={{ background: manualCode.length >= 4 ? BLUE : "#C7CEDA" }} className="w-full mt-2 text-white text-sm font-semibold py-2.5 rounded-xl">
             Confirmar código
           </button>

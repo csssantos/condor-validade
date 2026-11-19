@@ -89,7 +89,7 @@ function DashCard({ T, title, subtitle, right, children, className = "" }) {
         <header className="flex items-start justify-between gap-3 px-5 pt-4">
           <div className="min-w-0">
             <h3 style={{ color: T.text }} className="text-sm font-bold">{title}</h3>
-            {subtitle && <p style={{ color: T.subtext }} className="text-[11px] mt-0.5">{subtitle}</p>}
+            {subtitle && <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5">{subtitle}</p>}
           </div>
           {right}
         </header>
@@ -125,16 +125,16 @@ function DashKpi({ T, label, value, sub, chip, chipBom, Icon, accent, children }
   return (
     <div style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border shadow-sm p-5 flex flex-col min-w-0">
       <div className="flex items-center justify-between gap-2">
-        <p style={{ color: T.subtext }} className="text-[11px] font-bold uppercase tracking-wide truncate">{label}</p>
+        <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide truncate">{label}</p>
         <div style={{ background: `${accent}1F` }} className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0"><Icon size={16} color={accent} /></div>
       </div>
       {/* valor nunca sai da caixa: fonte se ajusta ao tamanho do texto e ao espaço disponível */}
       <div className="flex items-end gap-2 mt-2 min-w-0 flex-wrap">
         <p style={{ color: T.text, fontSize: String(value ?? "").length > 12 ? "clamp(17px, 1.55vw, 24px)" : String(value ?? "").length > 8 ? "clamp(19px, 1.8vw, 26px)" : "28px" }}
           className="font-extrabold leading-none tabular-nums whitespace-nowrap overflow-hidden text-ellipsis max-w-full" title={String(value ?? "")}>{value}</p>
-        {chip && <span style={chipStyle} className="text-[11px] font-bold px-1.5 py-0.5 rounded-md mb-0.5">{chip}</span>}
+        {chip && <span style={chipStyle} className="text-[0.75rem] font-bold px-1.5 py-0.5 rounded-md mb-0.5">{chip}</span>}
       </div>
-      {sub && <p style={{ color: T.subtext }} className="text-[11px] mt-1.5">{sub}</p>}
+      {sub && <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1.5">{sub}</p>}
       <div className="mt-3">{children}</div>
     </div>
   );
@@ -226,7 +226,7 @@ function DashDonut({ T, segments, centerValue, centerLabel, size = 176, thicknes
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <p style={{ color: T.text }} className="text-2xl font-extrabold leading-none tabular-nums">{centerValue}</p>
-        <p style={{ color: T.subtext }} className="text-[10px] mt-1 font-semibold uppercase tracking-wide">{centerLabel}</p>
+        <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1 font-semibold uppercase tracking-wide">{centerLabel}</p>
       </div>
     </div>
   );

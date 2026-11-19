@@ -94,11 +94,11 @@ function CartaoGrade({ T, item, idx = 0, onOpenDetail }) {
         {!semFotoUtil(item.foto) ? <img src={item.foto} alt="" onError={trocarPorBipi} className="w-full h-28 object-cover" /> : (
           <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "16px 16px" }} /><img src={BIPI_SEM_FOTO} alt="" className="relative h-24 object-contain" /></div>
         )}
-        <span style={{ background: c.soft, color: c.cor }} className="absolute top-2 left-2 text-[10px] font-bold rounded-full px-2.5 py-1 shadow-sm">{item.status?.label}</span>
+        <span style={{ background: c.soft, color: c.cor }} className="absolute top-2 left-2 text-[0.6875rem] font-bold rounded-full px-2.5 py-1 shadow-sm">{item.status?.label}</span>
       </div>
       <div className="p-3">
         <p style={{ color: T.text }} className="font-extrabold text-[13px] leading-tight line-clamp-2 min-h-[32px]">{item.nome}</p>
-        <p style={{ color: T.subtext }} className="text-[11px] mt-1.5 truncate">{item.setor}</p>
+        <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1.5 truncate">{item.setor}</p>
         <p style={{ color: T.text }} className="text-[11.5px] font-bold mt-0.5">{formatarData(item.validade)} <span style={{ color: T.subtext }} className="font-medium">· {item.quantidade || 1} un</span></p>
       </div>
     </motion.button>
@@ -132,18 +132,18 @@ function LinhaProduto({ T, item, idx = 0, lotes, totalQuantidade, piorStatus, se
               {mostrarSetor && !semValidade ? `${item.setor} · ` : ""}{semValidade ? "Sem validade lançada" : agrupado ? `${lotes.length} datas · ${totalQuantidade} un` : `${formatarData(item.validade)} · ${item.quantidade || 1} un`}
             </span>
             {!semValidade && (agrupado ? lotes.some((l) => l.pedidoTipo) : item.pedidoTipo) && (
-              <span style={{ background: "#E6F5EC", color: "#1F7A45" }} className="inline-block mt-1 text-[10px] font-bold rounded-full px-2 py-0.5">
+              <span style={{ background: "#E6F5EC", color: "#1F7A45" }} className="inline-block mt-1 text-[0.6875rem] font-bold rounded-full px-2 py-0.5">
                 {agrupado ? `${lotes.filter((l) => l.pedidoTipo).length}/${lotes.length} com pedido` : `${item.pedidoTipo === "preco_direto" ? "Preço direto pedido" : "Promoção pedida"}${item.pedidoCampanha ? ` · ${item.pedidoCampanha}` : ""}`}
               </span>
             )}
             {!semValidade && podeVerValores && !agrupado && Number(item.precoUnitario) > 0 && (
-              <span style={{ color: T.subtext }} className="block text-[11px]">{formatarMoeda((Number(item.quantidade) || 1) * Number(item.precoUnitario))}</span>
+              <span style={{ color: T.subtext }} className="block text-[0.75rem]">{formatarMoeda((Number(item.quantidade) || 1) * Number(item.precoUnitario))}</span>
             )}
           </span>
         </button>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           {semValidade ? (
-            <button onClick={() => onOpenDetail(item)} style={{ background: BLUE_DARK, color: "#fff" }} className="text-[11px] font-bold rounded-full px-3 py-1.5 flex items-center gap-1"><Plus size={12} /> Lançar</button>
+            <button onClick={() => onOpenDetail(item)} style={{ background: BLUE_DARK, color: "#fff" }} className="text-[0.75rem] font-bold rounded-full px-3 py-1.5 flex items-center gap-1"><Plus size={12} /> Lançar</button>
           ) : (
             <span style={{ background: c.soft, color: c.cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1 whitespace-nowrap">{piorStatus?.label}</span>
           )}
@@ -155,7 +155,7 @@ function LinhaProduto({ T, item, idx = 0, lotes, totalQuantidade, piorStatus, se
         <div className="px-3 pb-3 flex flex-col gap-1.5">
           {lotes.map((l) => { const cl = corDoNivel(l.status.level); return (
             <button key={l.id} onClick={() => onOpenDetail(l)} style={{ background: T.chipBg }} className="w-full text-left rounded-2xl px-3 py-2.5 flex items-center justify-between gap-2">
-              <span style={{ color: T.text }} className="text-[12.5px] font-bold">{formatarData(l.validade)} <span style={{ color: T.subtext }} className="font-medium">· {l.lote ? `Lote ${l.lote} · ` : ""}{l.quantidade || 1} un</span>{l.pedidoTipo ? <span style={{ color: "#1F7A45" }} className="text-[10px] font-bold"> · pedido{l.pedidoCampanha ? ` ${l.pedidoCampanha}` : ""} ✓</span> : <span style={{ color: T.subtext }} className="text-[10px] font-medium"> · sem pedido</span>}</span>
+              <span style={{ color: T.text }} className="text-[12.5px] font-bold">{formatarData(l.validade)} <span style={{ color: T.subtext }} className="font-medium">· {l.lote ? `Lote ${l.lote} · ` : ""}{l.quantidade || 1} un</span>{l.pedidoTipo ? <span style={{ color: "#1F7A45" }} className="text-[0.6875rem] font-bold"> · pedido{l.pedidoCampanha ? ` ${l.pedidoCampanha}` : ""} ✓</span> : <span style={{ color: T.subtext }} className="text-[0.6875rem] font-medium"> · sem pedido</span>}</span>
               <span style={{ background: cl.soft, color: cl.cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1">{l.status.label}</span>
             </button>
           ); })}
