@@ -14,6 +14,7 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, LOGO_SRC, RED, RED_DARK, RED_SOFT, agruparI
 import { formatarData, formatarMoeda, getStatus, statusStyles, useFormatarMoedaComCamada, useValoresVisiveis } from "../lib/formatos";
 import { textoLote } from "../lib/produto";
 import { calcularPrioridade, sanitizarTexto } from "../lib/utilidades";
+import { IconeNivel } from "../componentes/IconeNivel";
 
 // ============ Home ============
 // Item 33: busca "inteligente" — entende algumas expressões em linguagem natural, além de nome/código
@@ -58,7 +59,7 @@ function TabelaProdutos({ T, itens, onOpenDetail, limite = 60, mostrarSetor = tr
     { key: "dias", label: "Prazo", render: (i) => { const b = NIVEL_BADGE(i.status.level); return <DashBadge bg={b.bg} color={b.fg}>{diasTexto(i.status.d)}</DashBadge>; } },
     { key: "quantidade", label: "Qtd", align: "right", render: (i) => <span className="tabular-nums">{i.quantidade ?? 1}</span> },
     { key: "valor", label: "Valor", align: "right", render: (i) => <span className="tabular-nums font-semibold">{fmt((Number(i.quantidade) || 1) * (Number(i.precoUnitario) || 0))}</span> },
-    { key: "status", label: "Status", align: "right", render: (i) => { const b = statusStyles(i.status.level); return <span style={{ background: b.bg, color: b.fg }} className="text-[0.6875rem] font-bold px-2.5 py-1 rounded-full">{i.status.label}</span>; } },
+    { key: "status", label: "Status", align: "right", render: (i) => { const b = statusStyles(i.status.level); return <span style={{ background: b.bg, color: b.fg }} className="text-[0.6875rem] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1"><IconeNivel level={i.status.level} size={11} />{i.status.label}</span>; } },
   ];
   return (
     <>

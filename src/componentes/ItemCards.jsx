@@ -6,6 +6,7 @@ import { EstadoVazioNovo } from "./ui";
 import { BIPI_SEM_FOTO, BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT, gerarCodigoLocalizacao, semFotoUtil } from "../lib/constantes";
 import { formatarData, formatarMoeda, statusStyles, sugestaoDesconto, useValoresVisiveis } from "../lib/formatos";
 import { useDesktop } from "../lib/tela";
+import { IconeNivel } from "./IconeNivel";
 
 function FichaFiltro({ children, onRemove }) {
   return (
@@ -81,7 +82,7 @@ function ItemCard({ T, item, onOpenDetail }) {
             <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[0.75rem] font-mono"><Barcode size={11} /> {item.barcode}</span>
           </div>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <span style={{ background: s.bg, color: s.fg }} className="text-[0.6875rem] font-bold px-2 py-1 rounded-md tracking-wide">{item.status.label}</span>
+            <span style={{ background: s.bg, color: s.fg }} className="text-[0.6875rem] font-bold px-2 py-1 rounded-md tracking-wide inline-flex items-center gap-1"><IconeNivel level={item.status.level} size={11} />{item.status.label}</span>
             <span className="text-[0.75rem] font-medium">{diasTexto}</span>
             {desconto && (
               <span style={{ background: RED_SOFT, color: RED_DARK }} className="inline-flex items-center gap-0.5 text-[0.6875rem] font-bold px-1.5 py-1 rounded-md">
@@ -168,7 +169,7 @@ function ItemCardGrid({ T, item, onOpenDetail }) {
         {!semFotoUtil(item.foto) ? <img src={item.foto} alt="" onError={trocarPorBipi} className="w-full h-24 object-cover" /> : (
           <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><img src={BIPI_SEM_FOTO} alt="" className="h-20 object-contain" /></div>
         )}
-        <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded-md">{item.status.label}</span>
+        <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded-md inline-flex items-center gap-1"><IconeNivel level={item.status.level} size={11} />{item.status.label}</span>
       </div>
       <div className="p-2.5">
         <p className="font-semibold text-xs truncate">{item.nome}</p>

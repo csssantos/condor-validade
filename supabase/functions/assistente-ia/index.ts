@@ -82,7 +82,8 @@ Regras obrigatórias:
 7. Você NÃO executa ações. Quando fizer sentido (ex.: criar ronda priorizada, tarefa, ação preventiva), use as ferramentas propor_* — o app mostrará um botão para o usuário confirmar.
 8. Valores em reais: formato R$ 1.234,56. Datas: DD/MM/AAAA.
 9. Pedidos do tipo "os N últimos lançamentos de validade" (N pode ser 1, 2, 4, 6, 10, 15...): chame ultimos_lancamentos com EXATAMENTE N em "quantidade" e, em "campos", SÓ o que o usuário pediu (ex.: "apenas o nome, código e quantidade" => campos nome, codigo, quantidade). Se ele não disser os campos, use nome, codigo, quantidade, validade e lote; "sem X" significa o padrão menos X; para "de hoje"/"de ontem"/"da semana" use "dias" (0/1/6). A coluna do produto entra sempre. O app mostra a tabela com esses campos: na resposta escreva no máximo uma frase curta e NÃO repita os dados nem acrescente campos que não foram pedidos. Se vierem menos que N, diga quantos existem (lembrando que lotes baixados não entram). Se pedirem mais de 50, avise que o máximo é 50. Se o aviso da ferramenta trouxer campos ignorados, diga ao usuário.
-10. Seja breve: no máximo uns 12 tópicos. Termine, quando útil, com 1 a 3 próximos passos práticos.`;
+10. Privacidade: nomes de funcionários chegam como códigos ("Pessoa 1"). Use o código na resposta; nunca invente nem tente descobrir o nome real.
+11. Seja breve: no máximo uns 12 tópicos. Termine, quando útil, com 1 a 3 próximos passos práticos.`;
 
 // ---------------------------------------------------------------- ferramentas
 const S = (type: string, description?: string, extra: Record<string, unknown> = {}) => ({ type, ...(description ? { description } : {}), ...extra });
@@ -141,6 +142,19 @@ const dias = (n: unknown, pad = 30) => Math.max(1, Math.min(365, Number(n) || pa
 const iso = (d: number) => new Date(Date.now() - d * 86400000).toISOString();
 const corta = (s: unknown, n = 300) => String(s ?? "").slice(0, n);
 
+// Privacidade: o modelo (Gemini) NUNCA recebe nome de funcionário. Cada pessoa vira "Pessoa 1", "Pessoa 2"...
+// (código estável só dentro desta conversa). A tabela mostrada ao usuário continua com o nome real: ela é montada aqui no servidor.
+const pessoasPorCtx = new WeakMap<object, Map<string, string>>();
+function codigoPessoa(c: Ctx, nome: unknown): string {
+  const n = String(nome ?? "").trim();
+  if (!n) return "";
+  let m = pessoasPorCtx.get(c);
+  if (!m) { m = new Map(); pessoasPorCtx.set(c, m); }
+  const k = n.toLowerCase();
+  if (!m.has(k)) m.set(k, "Pessoa " + (m.size + 1));
+  return m.get(k)!;
+}
+
 async function executar(nome: string, args: any, c: Ctx): Promise<unknown> {
   c.usadas.push(nome);
   const err = (e: any) => ({ erro: e?.message || String(e) });
@@ -187,14 +201,14 @@ async function executar(nome: string, args: any, c: Ctx): Promise<unknown> {
       const porSetor: Record<string, number> = {};
       linhas.forEach((x) => { if (x.resultado === "irregular") porSetor[x.rondas.setor] = (porSetor[x.rondas.setor] || 0) + 1; });
       if (Object.keys(porSetor).length) c.graficos.push({ titulo: "Irregularidades em rondas por setor", tipo: "barras", dados: Object.entries(porSetor).map(([k, v]) => ({ rotulo: k, valor: v })) });
-      return { total: linhas.length, por_setor_irregular: porSetor, itens: linhas.slice(0, 40).map((x) => ({ produto: x.nome, codigo: x.barcode, resultado: x.resultado, setor: x.rondas.setor, ronda: x.rondas.titulo, quando: x.conferido_em, por: x.conferido_por, obs: corta(x.observacao, 120) })) };
+      return { total: linhas.length, por_setor_irregular: porSetor, itens: linhas.slice(0, 40).map((x) => ({ produto: x.nome, codigo: x.barcode, resultado: x.resultado, setor: x.rondas.setor, ronda: x.rondas.titulo, quando: x.conferido_em, por: codigoPessoa(c, x.conferido_por), obs: corta(x.observacao, 120) })) };
     }
     case "rondas_recentes": {
       let q = c.sb.from("rondas").select("titulo, setor, status, modo, criado_por_nome, criado_em, prazo, total_itens, total_verificado, ok_count, proximo_count, vencido_count")
         .gte("criado_em", iso(dias(args?.dias))).order("criado_em", { ascending: false }).limit(30);
       if (c.loja) q = q.eq("loja_id", c.loja);
       const { data, error } = await q;
-      return error ? err(error) : { rondas: data };
+      return error ? err(error) : { rondas: ((data as any[]) || []).map((r) => ({ ...r, criado_por_nome: codigoPessoa(c, r.criado_por_nome) })) };
     }
     case "tarefas": {
       let q = c.sb.from("ocorrencias").select("setor, categoria, descricao, prioridade, status, responsavel_nome, prazo, criado_em, concluido_em")
@@ -203,7 +217,7 @@ async function executar(nome: string, args: any, c: Ctx): Promise<unknown> {
       if (args?.somente_atrasadas) q = q.lt("prazo", new Date().toISOString());
       const { data, error } = await q;
       if (error) return err(error);
-      return { total: (data as any[])?.length || 0, tarefas: ((data as any[]) || []).map((t) => ({ ...t, descricao: corta(t.descricao, 160), atrasada: !!t.prazo && new Date(t.prazo) < new Date() })) };
+      return { total: (data as any[])?.length || 0, tarefas: ((data as any[]) || []).map((t) => ({ ...t, responsavel_nome: codigoPessoa(c, t.responsavel_nome), descricao: corta(t.descricao, 160), atrasada: !!t.prazo && new Date(t.prazo) < new Date() })) };
     }
     case "comparar_semanas": {
       const { data, error } = await c.sb.rpc("analise_perdas", { p_loja: c.loja, p_dias: 21, p_setor: args?.setor || null });
@@ -267,7 +281,9 @@ async function executar(nome: string, args: any, c: Ctx): Promise<unknown> {
       if (ignorados.length) avisos.push("Campos que não existem e foram ignorados: " + ignorados.join(", ") + ". Avise o usuário (campos disponíveis: " + Object.keys(CAMPOS_LANC).join(", ") + ").");
       if (!linhas.length && setorTxt) avisos.push("Nenhum lançamento com esse texto no setor; o nome do setor pode estar diferente. Diga isso em vez de afirmar que não há lançamentos.");
       if (dias != null && linhas.length === n) avisos.push("Pode haver mais lançamentos no período do que os mostrados.");
-      return { pedidos: n, encontrados: linhas.length, periodo_dias: dias, campos: chaves, lancamentos: linhas, aviso: avisos.join(" ") };
+      const paraModelo = linhas.map((l: any) => (Object.hasOwn(l, "lancado_por") ? { ...l, lancado_por: codigoPessoa(c, l.lancado_por) } : l));
+      if (chaves.includes("lancado_por")) avisos.push("Os nomes de quem lançou foram trocados por códigos (Pessoa 1, 2...) por privacidade; o usuário vê os nomes reais na tabela. Nunca tente adivinhar nomes.");
+      return { pedidos: n, encontrados: linhas.length, periodo_dias: dias, campos: chaves, lancamentos: paraModelo, aviso: avisos.join(" ") };
     }
     case "propor_ronda": {
       const p = { tipo: "ronda", setor: corta(args?.setor, 60), modo: ["completa", "priorizada", "amostragem", "manual"].includes(args?.modo) ? args.modo : "priorizada",

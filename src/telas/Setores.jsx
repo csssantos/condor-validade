@@ -12,6 +12,7 @@ import { trocarPorBipi } from "../componentes/ItemCards";
 import { formatarData, formatarMoeda, getStatus, statusStyles, useFormatarMoedaComCamada, useValoresVisiveis } from "../lib/formatos";
 import { useDesktop } from "../lib/tela";
 import { DashFiltros, TabelaProdutos } from "./Home";
+import { IconeNivel } from "../componentes/IconeNivel";
 
 // ============ Bottom Nav ============
 // ============ Setores (alertas agrupados por setor, item pedido: aba separada) ============
@@ -309,8 +310,8 @@ function ItemCardGridSetor({ T, item, onOpenDetail, onLancarValidade, onExcluir,
             <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><Package size={24} color={BLUE} /></div>
           )}
           {!item.semValidade && (
-            <span style={{ background: statusStyles(item.status.level).bg, color: statusStyles(item.status.level).fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded">
-              {item.status.label}
+            <span style={{ background: statusStyles(item.status.level).bg, color: statusStyles(item.status.level).fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1">
+              <IconeNivel level={item.status.level} size={11} />{item.status.label}
             </span>
           )}
           {item.semValidade && (

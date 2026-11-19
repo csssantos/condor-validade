@@ -1,13 +1,14 @@
 // Parte do App (separado de App.jsx em 2026-11-05). Mudanças de comportamento: ver CLAUDE.md.
 import React from "react";
 import { AlertTriangle } from "lucide-react";
+import { registrarErroApp } from "../lib/erros";
 
 // Rede de segurança: se algo quebrar no render (em vez de tela branca sem explicação nenhuma),
 // mostra o erro de verdade na tela — assim dá pra saber exatamente o que aconteceu e resolver rápido.
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { erro: null }; }
   static getDerivedStateFromError(erro) { return { erro }; }
-  componentDidCatch(erro, info) { console.error("Erro capturado pelo ErrorBoundary:", erro, info); }
+  componentDidCatch(erro, info) { console.error("Erro capturado pelo ErrorBoundary:", erro, info); registrarErroApp(erro, "tela"); }
   render() {
     if (this.state.erro) {
       return (

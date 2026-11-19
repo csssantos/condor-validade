@@ -8,6 +8,7 @@ import { grupoForm, AuthTitulo, AuthCampo, AuthAviso, AuthBotao, AuthLink, itemF
 import { BLUE, BLUE_SOFT, LOGO_SRC, SITE_URL } from "../lib/constantes";
 import { useDesktop } from "../lib/tela";
 import { ScanView } from "./Scan";
+import { pedirCaptcha, MENSAGEM_CAPTCHA } from "../lib/captcha";
 
 // ============ Tela de login / recuperação de senha (Supabase Auth) ============
 function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null, erroInicial = "", emailConta = "" }) {
@@ -76,9 +77,11 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
     // A matrícula vai nos metadados: o servidor (trigger no banco) cria o perfil e marca o pré-cadastro como
     // usado NA HORA do signUp, mesmo sem sessão aberta. Antes o app tentava inserir em "usuarios" pelo navegador
     // e o banco barrava (sem sessão não há permissão) — daí o "chame o CPD".
+    let captchaToken;
+    try { captchaToken = await pedirCaptcha(); } catch { setCarregando(false); setErro(MENSAGEM_CAPTCHA); return; }
     const { data: signUpData, error } = await supabase.auth.signUp({
       email: emailLimpo, password: cadSenha,
-      options: { emailRedirectTo: SITE_URL, data: { matricula: funcionarioEncontrado.matricula, nome: funcionarioEncontrado.nome, termos_versao: TERMOS_VERSAO, termos_aceitos_em: new Date().toISOString() } }
+      options: { captchaToken, emailRedirectTo: SITE_URL, data: { matricula: funcionarioEncontrado.matricula, nome: funcionarioEncontrado.nome, termos_versao: TERMOS_VERSAO, termos_aceitos_em: new Date().toISOString() } }
     });
     if (!error) marcarAceitePendente();
     if (error) {
@@ -92,7 +95,9 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
     // Confirmação de e-mail desligada no Supabase => já vem com sessão e o app entra sozinho.
     if (signUpData?.session) { setCarregando(false); return; }
     // Sem sessão: tenta entrar direto (só funciona se o e-mail não exigir confirmação).
-    const { error: erroLogin } = await supabase.auth.signInWithPassword({ email: emailLimpo, password: cadSenha });
+    let tokenLogin;
+    try { tokenLogin = await pedirCaptcha(); } catch { /* sem token o login automático falha e a pessoa entra à mão */ }
+    const { error: erroLogin } = await supabase.auth.signInWithPassword({ email: emailLimpo, password: cadSenha, options: { captchaToken: tokenLogin } });
     setCarregando(false);
     if (!erroLogin) return;
     setEmail(emailLimpo);
@@ -114,7 +119,9 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
     e.preventDefault();
     setErro(""); setCarregando(true);
     if (antesDeEntrar && (await antesDeEntrar())) { setCarregando(false); return; } // tem versão nova: a tela de atualização assume
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
+    let captchaToken;
+    try { captchaToken = await pedirCaptcha(); } catch { setCarregando(false); setErro(MENSAGEM_CAPTCHA); return; }
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha, options: { captchaToken } });
     setCarregando(false);
     if (error) {
       setErro(
@@ -130,7 +137,9 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
   async function enviarRecuperacao(e) {
     e.preventDefault();
     setErro(""); setMensagem(""); setCarregando(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: SITE_URL });
+    let captchaToken;
+    try { captchaToken = await pedirCaptcha(); } catch { setCarregando(false); setErro(MENSAGEM_CAPTCHA); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: SITE_URL, captchaToken });
     setCarregando(false);
     if (error) { setErro(error.status === 429 ? "Espere um minuto antes de pedir outro e-mail." : "Não foi possível enviar o e-mail de recuperação."); return; }
     setMensagem("Se esse e-mail tiver cadastro, enviamos um link (vale 1 hora). Olhe também o Spam e use sempre o e-mail mais recente.");

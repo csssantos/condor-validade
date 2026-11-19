@@ -17,6 +17,7 @@ import { BottomNav, SideNav } from "./componentes/Navegacao";
 import { FaixaFila } from "./componentes/FaixaFila";
 import { Gestos } from "./componentes/Gestos";
 import { profundidade, passoVoltar, reconciliar, guardaVoltar } from "./lib/gestos";
+import { pedirCaptcha, MENSAGEM_CAPTCHA } from "./lib/captcha";
 import { AtualizacaoModal, NOVIDADES, gravarNovidadeVista, lerNovidadeVista, novidadesParaCargo } from "./componentes/Novidades";
 import { LogoBipi } from "./componentes/LogoBipi";
 import { BLUE, BLUE_SOFT, LOGO_SRC, PREFS_KEY, RED, RED_DARK, RED_SOFT, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, definirSetoresPereciveisExtra, invisivelNoInicio, setorPrincipal } from "./lib/constantes";
@@ -248,7 +249,9 @@ function AppInner() {
         return;
       }
       if (!sessaoAtual) {
-        const { error: erroAnon } = await supabase.auth.signInAnonymously();
+        let captchaToken;
+        try { captchaToken = await pedirCaptcha(); } catch { limparUrl(); setConviteStatus({ erro: MENSAGEM_CAPTCHA }); return; }
+        const { error: erroAnon } = await supabase.auth.signInAnonymously({ options: { captchaToken } });
         if (erroAnon) {
           console.error(erroAnon);
           limparUrl();

@@ -12,6 +12,7 @@ import { clampNumero } from "../lib/utilidades";
 import { campanhaValida, normalizarCampanha } from "../lib/produto";
 import { useTelaLarga } from "../lib/tela";
 import { InfoTile } from "./Analises";
+import { IconeNivel } from "../componentes/IconeNivel";
 
 // ============ Modal de detalhe do produto ============
 function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdit, onDuplicate, onBaixa, onShare, onAplicarPromocao, onPedido, onPedidoLotes, lotesParaPedido, podeGerirPedido, onExcluir }) {
@@ -286,7 +287,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
             <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={44} color="#fff" className="relative opacity-90" /></div>
           )}
           <button onClick={onClose} aria-label="Fechar" className="absolute top-3 left-3 h-10 w-10 rounded-full flex items-center justify-center text-white" style={{ background: "rgba(255,255,255,.2)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.3)" }}><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
-          <span style={{ background: s.bg, color: s.fg }} className="absolute bottom-3 left-4 text-[0.75rem] font-bold px-3 py-1 rounded-full shadow-md">{status.label}</span>
+          <span style={{ background: s.bg, color: s.fg }} className="absolute bottom-3 left-4 text-[0.75rem] font-bold px-3 py-1 rounded-full shadow-md inline-flex items-center gap-1.5"><IconeNivel level={status.level} size={13} />{status.label}</span>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4">
@@ -405,7 +406,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           <span aria-hidden className="absolute -right-24 -top-20 h-80 w-80 rounded-full bg-white/10" />
           <span aria-hidden className="absolute -left-12 bottom-10 h-32 w-32 rounded-full bg-white/10" />
           <button onClick={onClose} aria-label="Fechar" className="absolute top-5 left-5 h-11 w-11 rounded-full flex items-center justify-center text-white" style={{ background: "rgba(255,255,255,.2)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.3)" }}><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
-          <span style={{ background: s.bg, color: s.fg }} className="absolute top-6 right-6 text-[0.75rem] font-bold px-3.5 py-1.5 rounded-full shadow-md">{status.label}</span>
+          <span style={{ background: s.bg, color: s.fg }} className="absolute top-6 right-6 text-[0.75rem] font-bold px-3.5 py-1.5 rounded-full shadow-md inline-flex items-center gap-1.5"><IconeNivel level={status.level} size={13} />{status.label}</span>
           {!semFotoUtil(item.foto) ? <img src={item.foto} onError={trocarPorBipi} alt="" className="relative h-64 w-64 object-contain bg-white rounded-[28px] p-4 shadow-2xl shadow-black/30" /> : (
             <div className="relative h-64 w-64 rounded-[28px] overflow-hidden ring-1 ring-white/30 flex items-center justify-center" style={{ background: "rgba(255,255,255,.12)" }}><div aria-hidden className="absolute inset-0 opacity-[.15]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={56} color="#fff" className="relative opacity-90" /></div>
           )}

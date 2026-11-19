@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Package, Plus, Trash2, ChevronRight } from "lucide-react";
 import { FUNDO_MARCA } from "../TelasEntrada";
 import { Thumb, trocarPorBipi } from "./ItemCards";
+import { IconeNivel } from "./IconeNivel";
 import { BIPI_SEM_FOTO, BLUE, BLUE_DARK, BLUE_SOFT, RED, RED_SOFT, semFotoUtil } from "../lib/constantes";
 import { formatarData, formatarMoeda } from "../lib/formatos";
 
@@ -94,7 +95,7 @@ function CartaoGrade({ T, item, idx = 0, onOpenDetail }) {
         {!semFotoUtil(item.foto) ? <img src={item.foto} alt="" onError={trocarPorBipi} className="w-full h-28 object-cover" /> : (
           <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "16px 16px" }} /><img src={BIPI_SEM_FOTO} alt="" className="relative h-24 object-contain" /></div>
         )}
-        <span style={{ background: c.soft, color: c.cor }} className="absolute top-2 left-2 text-[0.6875rem] font-bold rounded-full px-2.5 py-1 shadow-sm">{item.status?.label}</span>
+        <span style={{ background: c.soft, color: c.cor }} className="absolute top-2 left-2 text-[0.6875rem] font-bold rounded-full px-2.5 py-1 shadow-sm inline-flex items-center gap-1"><IconeNivel level={item.status?.level} size={11} />{item.status?.label}</span>
       </div>
       <div className="p-3">
         <p style={{ color: T.text }} className="font-extrabold text-[0.8125rem] leading-tight line-clamp-2 min-h-[32px]">{item.nome}</p>
@@ -124,7 +125,7 @@ function LinhaProduto({ T, item, idx = 0, lotes, totalQuantidade, piorStatus, se
         <button onClick={() => (agrupado ? setAberto((v) => !v) : onOpenDetail(item))} className="flex items-center gap-3 min-w-0 flex-1 text-left">
           <span className="relative shrink-0">
             <Thumb foto={item.foto} size={54} rounded="rounded-[18px]" />
-            {!semValidade && <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2" style={{ background: c.cor, borderColor: T.card }} />}
+            {!semValidade && <span aria-hidden className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2" style={{ background: c.cor, borderColor: T.card }} />}
           </span>
           <span className="min-w-0 flex-1">
             <span style={{ color: T.text }} className="block font-bold text-[0.875rem] leading-tight line-clamp-2">{item.nome}</span>
@@ -145,7 +146,7 @@ function LinhaProduto({ T, item, idx = 0, lotes, totalQuantidade, piorStatus, se
           {semValidade ? (
             <button onClick={() => onOpenDetail(item)} style={{ background: BLUE_DARK, color: "#fff" }} className="text-[0.75rem] font-bold rounded-full px-3 py-1.5 flex items-center gap-1"><Plus size={12} /> Lançar</button>
           ) : (
-            <span style={{ background: c.soft, color: c.cor }} className="text-[0.6562rem] font-bold rounded-full px-2.5 py-1 whitespace-nowrap">{piorStatus?.label}</span>
+            <span style={{ background: c.soft, color: c.cor }} className="text-[0.6562rem] font-bold rounded-full px-2.5 py-1 whitespace-nowrap inline-flex items-center gap-1"><IconeNivel level={piorStatus?.level} size={11} />{piorStatus?.label}</span>
           )}
           {onExcluir && <button onClick={onExcluir} aria-label="Excluir produto" style={{ color: T.subtext }} className="h-7 w-7 rounded-full flex items-center justify-center"><Trash2 size={14} /></button>}
           {agrupado && <ChevronRight size={15} color={T.subtext} style={{ transform: aberto ? "rotate(90deg)" : "none", transition: "transform .2s" }} />}

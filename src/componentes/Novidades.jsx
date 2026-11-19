@@ -23,6 +23,12 @@ const NOVIDADES = [
   { id: "2026-11-17-sem-foto", data: "17/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "Por enquanto, a tela inicial mostra só os produtos que têm foto. Foto que não abre aparece como o Bipi. Os produtos sem foto voltam à tela inicial quando a foto chegar." },
   ] },
+  { id: "2026-11-18-seguranca", data: "18/11/2026", itens: [
+    { tipo: "melhorado", ate: 7, texto: "Os avisos de validade agora trazem um ícone junto do texto (X, alerta, relógio ou check), para você não depender só da cor." },
+    { tipo: "melhorado", ate: 7, texto: "Mais segurança no cadastro e no login: o app pode confirmar que quem entra é uma pessoa, e não um robô." },
+    { tipo: "adicionado", ate: 7, texto: "Em Mais → Sobre o app agora aparece o crédito ao Open Food Facts, de onde vêm parte dos nomes e fotos de produtos." },
+    { tipo: "melhorado", ate: 2, texto: "O assistente de IA não recebe mais os nomes dos funcionários: eles são trocados por códigos antes de o Gemini ler os dados." },
+  ] },
   { id: "2026-11-16-bipi", data: "16/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "O app agora se chama Bipi Validade, com logo nova: o robô Bipi aparece dentro do nome, com antena e olhos verdes. Novo ícone na tela inicial, nos PDFs, nas imagens de compartilhar e nas mensagens do Telegram." },
   ] },

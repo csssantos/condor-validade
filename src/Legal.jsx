@@ -7,10 +7,21 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-11-16";
+export const TERMOS_VERSAO = "2026-11-18";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-18", docs: {
+    privacidade: [
+      "Proteção contra robôs: ao criar conta, entrar, pedir recuperação de senha ou abrir um convite de promotor, o app pode pedir uma verificação do Cloudflare Turnstile (um serviço do Cloudflare que confere se quem acessa é uma pessoa). O Cloudflare recebe dados técnicos do navegador, como endereço IP, e não recebe seu nome nem dados do app.",
+      "Assistente de IA: antes de enviar dados ao Google Gemini, o app troca os nomes de funcionários por códigos (“Pessoa 1”, “Pessoa 2”); o Gemini não recebe os nomes.",
+      "Registro de erros do app: quando o app quebra no seu aparelho, ele envia ao nosso servidor uma linha técnica (mensagem do erro, trecho da pilha, tela, versão do app, navegador resumido, o identificador da sua conta e a loja). Não enviamos o que você digitou, nomes de produtos nem fotos. Esses registros são apagados em 30 dias e só o desenvolvedor pode ler.",
+      "Open Food Facts: parte dos nomes e das fotos de produtos vem do Open Food Facts (dados sob licença ODbL e imagens sob CC BY-SA, de autoria dos voluntários da base); a atribuição aparece em Mais → Sobre o app.",
+    ],
+    armazenamento: [
+      "A verificação do Cloudflare Turnstile pode guardar no navegador um pequeno registro técnico para provar que a verificação foi feita; ele não contém dados pessoais.",
+    ],
+  } },
   { versao: "2026-11-16", docs: {
     termos: [
       "O aplicativo mudou de nome: o que antes se chamava “Condor · Alerta de Validade” agora é “Bipi Validade”, com logo nova. Só o nome e a aparência mudaram; as regras de uso continuam as mesmas, e o app segue avulso e independente, sem vínculo com nenhuma rede de supermercados.",
@@ -219,7 +230,7 @@ export const DOCUMENTOS = [
         { t: "5. Com quem compartilhamos", p: [
           "Dentro da sua loja/empresa: gestores e pessoas autorizadas no app, de acordo com o cargo e a loja. Os valores financeiros podem ser ocultados de alguns cargos.",
           "Fornecedores de tecnologia (operadores), que tratam os dados só para prestar o serviço, sob os termos de uso e de proteção de dados de cada um:",
-          "• Supabase: banco de dados, login, funções do servidor e armazenamento de arquivos (todos os dados do app; as fotos de produto ficam em arquivos com link público, sem lista aberta: por isso não fotografe pessoas nem documentos). • Vercel: hospedagem do site (endereço IP e dados técnicos de acesso) e, quando a rede bloqueia o servidor de dados, repasse do tráfego do app ao Supabase (sem guardar o conteúdo). • Resend: envio dos e-mails de confirmação de cadastro e recuperação de senha (recebe só o seu e-mail, o primeiro nome do cadastro e o link de uso único da mensagem). • Serviço de notificações do seu aparelho (Apple, Google ou Microsoft; no aplicativo Android, o Firebase Cloud Messaging, do Google): só o identificador de inscrição e o texto do aviso, se você ativar. • Telegram: só se você vincular (identificador da conversa e mensagens ao bot). • Open Food Facts: só o código de barras de produto novo. • Google Gemini: as perguntas feitas ao assistente de IA e os dados da loja necessários para responder. • Reconhecimento de voz do seu navegador ou aparelho: o que você fala, só quando usa a voz.",
+          "• Supabase: banco de dados, login, funções do servidor e armazenamento de arquivos (todos os dados do app; as fotos de produto ficam em arquivos com link público, sem lista aberta: por isso não fotografe pessoas nem documentos). • Vercel: hospedagem do site (endereço IP e dados técnicos de acesso) e, quando a rede bloqueia o servidor de dados, repasse do tráfego do app ao Supabase (sem guardar o conteúdo). • Resend: envio dos e-mails de confirmação de cadastro e recuperação de senha (recebe só o seu e-mail, o primeiro nome do cadastro e o link de uso único da mensagem). • Serviço de notificações do seu aparelho (Apple, Google ou Microsoft; no aplicativo Android, o Firebase Cloud Messaging, do Google): só o identificador de inscrição e o texto do aviso, se você ativar. • Telegram: só se você vincular (identificador da conversa e mensagens ao bot). • Open Food Facts: só o código de barras de produto novo (os dados e as fotos de lá são de autoria dos voluntários da base, sob licença ODbL e CC BY-SA). • Google Gemini: as perguntas feitas ao assistente de IA e os dados da loja necessários para responder (nomes de funcionários são trocados por códigos antes do envio). • Cloudflare Turnstile: verificação contra robôs em cadastro, login, recuperação de senha e convite (recebe dados técnicos do navegador, como IP). • Reconhecimento de voz do seu navegador ou aparelho: o que você fala, só quando usa a voz.",
           "Resumo diário (opcional, só se você ligar): o conteúdo do resumo (nomes de produtos, validades, lotes e quantidades do seu setor ou da sua loja) é enviado a você pelo canal que escolher: Telegram, notificação do aparelho ou e-mail (pelo Resend). Nada disso é enviado a outras pessoas.",
           "Autoridades públicas e judiciais, quando houver obrigação legal ou ordem válida.",
           "Não vendemos nem alugamos dados pessoais.",
@@ -231,7 +242,7 @@ export const DOCUMENTOS = [
           "Conta e dados de cadastro: enquanto você tiver conta e acesso ao app. Depois do desligamento ou da exclusão da conta, o acesso é encerrado e os dados de cadastro são eliminados ou anonimizados quando deixarem de ser necessários.",
           "Registros de auditoria, baixas, rondas e perdas: mantidos pelo prazo necessário para controle operacional, contábil e fiscal e para defesa em processos (em regra, até 5 anos), podendo ser anonimizados antes.",
           "Registros de login e aceite dos termos: mantidos por pelo menos 6 meses (Marco Civil da Internet) e enquanto necessários para comprovar o aceite.",
-          "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos; o registro de erros de código (identificador da conversa e contagem) é apagado em até 2 dias; pedidos de produto novo (com decisão e motivo) são apagados 90 dias após a decisão. O valor pedido, o número da campanha e quem fez o pedido de promoção ou preço direto ficam no lote até a baixa dele e na auditoria da loja (até 5 anos); o controle do aviso enviado pelo Telegram some junto com o lote.",
+          "Telegram: o vínculo fica até você ou um gestor removê-lo (ou até o fim do acesso); mensagens do bot e sessões de lançamento são apagadas em até 30 dias; códigos de vínculo vencem em 10 minutos; o registro de erros de código (identificador da conversa e contagem) é apagado em até 2 dias; pedidos de produto novo (com decisão e motivo) são apagados 90 dias após a decisão; o registro de erros do app (mensagem técnica, tela, versão, navegador, conta e loja) é apagado em 30 dias. O valor pedido, o número da campanha e quem fez o pedido de promoção ou preço direto ficam no lote até a baixa dele e na auditoria da loja (até 5 anos); o controle do aviso enviado pelo Telegram some junto com o lote.",
           "Conversas com o assistente de IA: mantidas pelo tempo necessário à operação e ao suporte e eliminadas quando não forem mais úteis.",
           "Resumo diário: a sua escolha de canais fica até você desligar ou o seu acesso acabar; o registro de envio (pessoa, dia e canal) é apagado em 30 dias.",
           "Pedidos de direitos (LGPD) e a resposta dada: 5 anos depois de respondidos, para comprovar o atendimento.",
