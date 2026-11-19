@@ -31,14 +31,14 @@ function BottomNav({ T, tab, setTab, alertCount, onScan }) {
             className="absolute inset-x-1 top-1.5 bottom-1.5 rounded-[22px]" transition={{ type: "spring", stiffness: 500, damping: 35 }} />
         )}
         <Ico className="relative w-[20px] h-[20px]" style={{ color: ativo ? (escuro ? "#fff" : RED_DARK) : T.subtext }} />
-        <span className="relative text-[0.6875rem] font-semibold whitespace-nowrap leading-none" style={{ color: ativo ? (escuro ? "#fff" : RED_DARK) : T.subtext }}>{label}</span>
+        <span className="relative text-[0.6875rem] font-semibold truncate max-w-full px-0.5 leading-none" style={{ color: ativo ? (escuro ? "#fff" : RED_DARK) : T.subtext }}>{label}</span>
       </button>
     );
   };
   return (
     <nav className="lg:hidden fixed inset-x-0 bottom-0 z-20 pointer-events-none px-3 pb-[calc(env(safe-area-inset-bottom)*0.12+4px)]" style={{ transform: "translateZ(0)", willChange: "transform" }}>
       <motion.div initial={{ y: 90, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 26 }}
-        className="pointer-events-auto max-w-none md:max-w-xl mx-auto relative flex items-center rounded-[32px] px-1.5 h-[68px]"
+        className="pointer-events-auto max-w-none md:max-w-xl mx-auto relative flex items-center rounded-[32px] px-1.5 min-h-[4.25rem]"
         style={{
           background: escuro ? "rgba(21,31,48,.88)" : "rgba(255,255,255,.9)", backdropFilter: "blur(20px) saturate(160%)", WebkitBackdropFilter: "blur(20px) saturate(160%)",
           border: `1px solid ${escuro ? "rgba(255,255,255,.1)" : "rgba(15,40,80,.08)"}`, boxShadow: "0 18px 40px -12px rgba(5,20,50,.38), 0 2px 6px rgba(5,20,50,.08)",
@@ -123,7 +123,7 @@ function SideNav({ T, tab, flow, alertCount, nome, cargo, lojaNumero, flags, onT
                 return (
                   <button key={it.flow || it.tab} onClick={() => (it.flow ? onFlow(it.flow) : onTab(it.tab))}
                     style={ativo ? { background: RED_SOFT, color: RED_DARK } : { color: T.text }}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-left transition ${ativo ? "font-bold" : "font-medium hover:opacity-70"}`}>
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[0.8125rem] text-left transition ${ativo ? "font-bold" : "font-medium hover:opacity-70"}`}>
                     <it.Icon size={17} className="shrink-0" style={{ color: ativo ? RED_DARK : T.subtext }} />
                     <span className="flex-1 truncate">{it.label}</span>
                     {it.badge > 0 && <span style={{ background: RED }} className="text-[0.6875rem] text-white font-bold rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center">{it.badge}</span>}

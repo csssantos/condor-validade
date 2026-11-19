@@ -82,10 +82,10 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
     <div role="alert" style={{ background: "#FFF4E0", borderColor: "#F2C879" }} className={`rounded-2xl border flex items-center gap-3 ${grande ? "px-5 py-4" : "px-3.5 py-3 mt-3"}`}>
       <div style={{ background: "#F5A524" }} className={`${grande ? "h-11 w-11" : "h-9 w-9"} rounded-full flex items-center justify-center shrink-0`}><Megaphone size={grande ? 20 : 17} color="#fff" /></div>
       <div className="min-w-0 flex-1">
-        <p style={{ color: "#7A4B00" }} className={`${grande ? "text-[15px]" : "text-[13px]"} font-extrabold leading-tight`}>{status.d === 0 ? "Vence hoje" : `Faltam ${status.d} dia${status.d === 1 ? "" : "s"} para vencer`}: lance uma campanha</p>
-        <p style={{ color: "#8A5A10" }} className={`${grande ? "text-[12.5px]" : "text-[0.75rem]"} mt-0.5 leading-snug`}>Peça promoção ou preço direto e registre aqui o número da campanha. Depois de salvar, o lote fica travado.</p>
+        <p style={{ color: "#7A4B00" }} className={`${grande ? "text-[0.9375rem]" : "text-[0.8125rem]"} font-extrabold leading-tight`}>{status.d === 0 ? "Vence hoje" : `Faltam ${status.d} dia${status.d === 1 ? "" : "s"} para vencer`}: lance uma campanha</p>
+        <p style={{ color: "#8A5A10" }} className={`${grande ? "text-[0.7812rem]" : "text-[0.75rem]"} mt-0.5 leading-snug`}>Peça promoção ou preço direto e registre aqui o número da campanha. Depois de salvar, o lote fica travado.</p>
       </div>
-      {!editandoPedido && <button onClick={lancarCampanha} style={{ background: "#B86E00", color: "#fff" }} className={`shrink-0 font-bold rounded-full ${grande ? "text-[13px] px-5 py-2.5" : "text-[11.5px] px-3.5 py-2"}`}>Lançar campanha</button>}
+      {!editandoPedido && <button onClick={lancarCampanha} style={{ background: "#B86E00", color: "#fff" }} className={`shrink-0 font-bold rounded-full ${grande ? "text-[0.8125rem] px-5 py-2.5" : "text-[0.7188rem] px-3.5 py-2"}`}>Lançar campanha</button>}
     </div>
   );
 
@@ -104,19 +104,19 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
         {item.pedidoTipo && !editandoPedido && (
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p style={{ color: "#1F7A45" }} className="text-[13px] font-bold">{item.pedidoTipo === "preco_direto" ? "Preço direto pedido" : "Promoção pedida"}{item.pedidoCampanha ? ` · campanha ${item.pedidoCampanha}` : ""}{item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")}` : ""}</p>
-              <p style={{ color: T.subtext }} className="text-[10.5px] mt-0.5">{item.pedidoPor || "—"}{item.pedidoEm ? ` · ${formatarDataHoraExtenso(item.pedidoEm)}` : ""}</p>
+              <p style={{ color: "#1F7A45" }} className="text-[0.8125rem] font-bold">{item.pedidoTipo === "preco_direto" ? "Preço direto pedido" : "Promoção pedida"}{item.pedidoCampanha ? ` · campanha ${item.pedidoCampanha}` : ""}{item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")}` : ""}</p>
+              <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-0.5">{item.pedidoPor || "—"}{item.pedidoEm ? ` · ${formatarDataHoraExtenso(item.pedidoEm)}` : ""}</p>
             </div>
             {onPedido && podeGerirPedido && <button onClick={() => setEditandoPedido(true)} style={{ color: BLUE }} className="text-[0.75rem] font-bold shrink-0 px-1">Alterar</button>}
           </div>
         )}
         {item.pedidoTipo && !editandoPedido && (
-          <p style={{ color: T.subtext }} className="text-[10.5px] mt-2 leading-snug">Lote travado: com o pedido registrado não dá para editar, somar quantidade, aplicar promoção nem excluir. {podeGerirPedido ? "Dá para dar baixa, ou remover o pedido (em Alterar) para destravar." : "Peça ao encarregado do setor para dar baixa ou remover o pedido."}</p>
+          <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-2 leading-snug">Lote travado: com o pedido registrado não dá para editar, somar quantidade, aplicar promoção nem excluir. {podeGerirPedido ? "Dá para dar baixa, ou remover o pedido (em Alterar) para destravar." : "Peça ao encarregado do setor para dar baixa ou remover o pedido."}</p>
         )}
         {!item.pedidoTipo && !editandoPedido && (
           <>
-            <p style={{ color: T.subtext }} className="text-[11.5px] mb-2">Ainda sem pedido registrado. Mesmo perto da validade, registre aqui que a promoção ou o preço direto foi pedido.</p>
-            <button onClick={() => setEditandoPedido(true)} style={{ background: BLUE_DARK, color: "#fff" }} className="text-[12px] font-bold rounded-full px-4 py-2">Registrar pedido</button>
+            <p style={{ color: T.subtext }} className="text-[0.7188rem] mb-2">Ainda sem pedido registrado. Mesmo perto da validade, registre aqui que a promoção ou o preço direto foi pedido.</p>
+            <button onClick={() => setEditandoPedido(true)} style={{ background: BLUE_DARK, color: "#fff" }} className="text-[0.75rem] font-bold rounded-full px-4 py-2">Registrar pedido</button>
           </>
         )}
         {editandoPedido && onPedido && (
@@ -125,7 +125,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
               {[["promocao", "Promoção"], ["preco_direto", "Preço direto"]].map(([v, r]) => (
                 <button key={v} onClick={() => setPedidoTipo(v)} aria-pressed={pedidoTipo === v}
                   style={pedidoTipo === v ? { background: BLUE_DARK, color: "#fff" } : { background: T.card, color: T.text }}
-                  className="text-[12px] font-semibold py-2 rounded-xl">{r}</button>
+                  className="text-[0.75rem] font-semibold py-2 rounded-xl">{r}</button>
               ))}
             </div>
             <input value={pedidoCampanha} onChange={(e) => setPedidoCampanha(e.target.value.replace(/\D/g, "").slice(0, 20))}
@@ -135,18 +135,18 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
               placeholder="Valor pedido em R$ (obrigatório)" inputMode="decimal" maxLength={8} aria-label="Valor pedido em reais"
               style={{ background: T.card, color: T.text, borderColor: T.inputBorder }} className="w-full min-w-0 mt-2 border rounded-xl px-3 py-2 text-xs outline-none" />
             {pedidoMudouFora && (
-              <div role="alert" style={{ color: "#7A4B00", background: "#FFF4E0" }} className="text-[10.5px] font-semibold mt-1 rounded-lg px-2 py-1.5">
+              <div role="alert" style={{ color: "#7A4B00", background: "#FFF4E0" }} className="text-[0.6562rem] font-semibold mt-1 rounded-lg px-2 py-1.5">
                 Outra pessoa (ou outro aparelho) alterou este pedido enquanto você editava. {item.pedidoTipo ? `Agora: ${item.pedidoTipo === "preco_direto" ? "preço direto" : "promoção"}${item.pedidoCampanha ? ` · campanha ${item.pedidoCampanha}` : ""}${item.pedidoValor != null ? ` · R$ ${Number(item.pedidoValor).toFixed(2).replace(".", ",")}` : ""}.` : "Agora o lote está sem pedido."}
                 <button onClick={() => { sincronizarPedido(); setPedidoMudouFora(false); }} style={{ color: BLUE }} className="block mt-1 font-bold underline">Usar os valores atuais</button>
               </div>
             )}
-                  {pedidoTipo && !campanhaOk && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o número da campanha (só números).</p>}
-            {pedidoTipo && pedidoValorNum == null && <p role="alert" style={{ color: RED_DARK }} className="text-[10.5px] font-semibold mt-1">Informe o valor pedido (de 0,01 a 5000, com até 2 casas, ex.: 5,90).</p>}
+                  {pedidoTipo && !campanhaOk && <p role="alert" style={{ color: RED_DARK }} className="text-[0.6562rem] font-semibold mt-1">Informe o número da campanha (só números).</p>}
+            {pedidoTipo && pedidoValorNum == null && <p role="alert" style={{ color: RED_DARK }} className="text-[0.6562rem] font-semibold mt-1">Informe o valor pedido (de 0,01 a 5000, com até 2 casas, ex.: 5,90).</p>}
             {!item.pedidoTipo && lotesParaPedido && lotesParaPedido.length > 0 && (
               <div style={{ background: T.card }} className="mt-2 rounded-xl px-3 py-2">
-                <p className="text-[11.5px] font-bold mb-1">Lançar esta campanha também nos outros lotes?</p>
+                <p className="text-[0.7188rem] font-bold mb-1">Lançar esta campanha também nos outros lotes?</p>
                 {lotesParaPedido.map((l) => (
-                  <label key={l.id} className="flex items-center gap-2 py-1 text-[11.5px]">
+                  <label key={l.id} className="flex items-center gap-2 py-1 text-[0.7188rem]">
                     <input type="checkbox" disabled={salvandoPedido} checked={!desmarcados.includes(l.id)} onChange={(e) => setDesmarcados((d) => e.target.checked ? d.filter((x) => x !== l.id) : [...d, l.id])} className="h-4 w-4 shrink-0" />
                     <span className="min-w-0">Validade {formatarData(l.validade)}{l.lote ? ` · Lote ${l.lote}` : ""} · {l.quantidade || 1}{l.porPeso ? "kg" : "un"}</span>
                   </label>
@@ -233,12 +233,12 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
   const bOrientacao = (status.level === "expired" || (!onBaixa && status.d <= 10)) ? (
     <div className="flex flex-col gap-2">
       {status.level === "expired" && (
-        <div role="alert" style={{ background: RED_SOFT, color: RED_DARK }} className="rounded-2xl px-3.5 py-2.5 text-[12px] font-semibold leading-snug">
+        <div role="alert" style={{ background: RED_SOFT, color: RED_DARK }} className="rounded-2xl px-3.5 py-2.5 text-[0.75rem] font-semibold leading-snug">
           Produto vencido: retire da área de venda agora. {onBaixa ? "Depois toque em \"Registrar ação\" e escolha o motivo da baixa." : "Avise o encarregado do setor para registrar a baixa."}
         </div>
       )}
       {!onBaixa && (status.level === "expired" || status.d <= 10) && (
-        <p style={{ background: T.chipBg, color: T.subtext }} className="rounded-2xl px-3.5 py-2.5 text-[11.5px] leading-snug">
+        <p style={{ background: T.chipBg, color: T.subtext }} className="rounded-2xl px-3.5 py-2.5 text-[0.7188rem] leading-snug">
           Baixa, exclusão e pedido de campanha deste produto (setor {item.setor}) são feitos pelo encarregado desse setor ou por cargo acima.
         </p>
       )}
@@ -298,16 +298,16 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           <div style={{ background: T.chipBg }} className="rounded-2xl mt-3.5 p-3.5 grid grid-cols-2 gap-3">
             <div>
               <p style={{ color: T.subtext }} className="text-[0.6875rem] font-bold uppercase tracking-wide mb-0.5">Setor</p>
-              <p className="text-[13px] font-bold truncate">{item.setor}{item.subsetor ? ` · ${item.subsetor}` : ""}</p>
+              <p className="text-[0.8125rem] font-bold truncate">{item.setor}{item.subsetor ? ` · ${item.subsetor}` : ""}</p>
             </div>
             <div className="text-right">
               <p style={{ color: T.subtext }} className="text-[0.6875rem] font-bold uppercase tracking-wide mb-0.5">Validade</p>
-              <p className="text-[13px] font-bold">{formatarData(item.validade)}</p>
-              {(item.lote || item.semLote) && <p style={{ color: T.subtext }} className="text-[10.5px] font-semibold mt-0.5">{item.lote ? `Lote ${item.lote}` : "Sem lote"}</p>}
+              <p className="text-[0.8125rem] font-bold">{formatarData(item.validade)}</p>
+              {(item.lote || item.semLote) && <p style={{ color: T.subtext }} className="text-[0.6562rem] font-semibold mt-0.5">{item.lote ? `Lote ${item.lote}` : "Sem lote"}</p>}
             </div>
             <div className="col-span-2 pt-2.5 border-t" style={{ borderColor: T.border }}>
               <p style={{ color: T.subtext }} className="text-[0.6875rem] font-bold uppercase tracking-wide mb-0.5 flex items-center gap-1"><Barcode size={11} /> Código do produto</p>
-              <p style={{ color: T.text }} className="text-[13px] font-mono font-semibold tracking-wide">{item.barcode}</p>
+              <p style={{ color: T.text }} className="text-[0.8125rem] font-mono font-semibold tracking-wide">{item.barcode}</p>
             </div>
           </div>
 
@@ -405,14 +405,14 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
           <span aria-hidden className="absolute -right-24 -top-20 h-80 w-80 rounded-full bg-white/10" />
           <span aria-hidden className="absolute -left-12 bottom-10 h-32 w-32 rounded-full bg-white/10" />
           <button onClick={onClose} aria-label="Fechar" className="absolute top-5 left-5 h-11 w-11 rounded-full flex items-center justify-center text-white" style={{ background: "rgba(255,255,255,.2)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,.3)" }}><ArrowLeftIcon className="w-4 h-4 text-white" /></button>
-          <span style={{ background: s.bg, color: s.fg }} className="absolute top-6 right-6 text-[12px] font-bold px-3.5 py-1.5 rounded-full shadow-md">{status.label}</span>
+          <span style={{ background: s.bg, color: s.fg }} className="absolute top-6 right-6 text-[0.75rem] font-bold px-3.5 py-1.5 rounded-full shadow-md">{status.label}</span>
           {!semFotoUtil(item.foto) ? <img src={item.foto} onError={trocarPorBipi} alt="" className="relative h-64 w-64 object-contain bg-white rounded-[28px] p-4 shadow-2xl shadow-black/30" /> : (
             <div className="relative h-64 w-64 rounded-[28px] overflow-hidden ring-1 ring-white/30 flex items-center justify-center" style={{ background: "rgba(255,255,255,.12)" }}><div aria-hidden className="absolute inset-0 opacity-[.15]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} /><Package size={56} color="#fff" className="relative opacity-90" /></div>
           )}
-          <h2 className="relative font-extrabold text-[26px] leading-tight text-center mt-7">{item.nome}</h2>
+          <h2 className="relative font-extrabold text-[1.625rem] leading-tight text-center mt-7">{item.nome}</h2>
           <p className="relative text-sm font-semibold mt-1.5 opacity-85 text-center">{item.tamanho ? `${item.tamanho}${item.unidadeMedida || ""}` : ""}</p>
           <div className="relative mt-auto w-full rounded-2xl px-4 py-3.5 flex items-center justify-center gap-2" style={{ background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)" }}>
-            <Barcode size={16} className="opacity-80" /><span className="font-mono text-[15px] font-semibold tracking-wider">{item.barcode}</span>
+            <Barcode size={16} className="opacity-80" /><span className="font-mono text-[0.9375rem] font-semibold tracking-wider">{item.barcode}</span>
           </div>
         </div>
 
@@ -450,7 +450,7 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
               ].map(([Ico, rot, val, cor]) => (
                 <div key={rot} style={{ background: T.chipBg }} className="rounded-2xl px-5 py-4 min-w-0">
                   <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide flex items-center gap-1.5"><Ico size={13} /> {rot}</p>
-                  <p style={cor ? { color: cor } : undefined} className="text-[24px] font-extrabold mt-1.5 leading-tight break-words">{val}</p>
+                  <p style={cor ? { color: cor } : undefined} className="text-[1.5rem] font-extrabold mt-1.5 leading-tight break-words">{val}</p>
                 </div>
               ))}
             </div>
@@ -481,8 +481,8 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
                     ["Editado por", item.atualizadoPor && item.atualizadoPor !== item.cadastradoPor ? item.atualizadoPor : null],
                   ].filter(([, v]) => v).map(([r, v], i) => (
                     <div key={r} style={i ? { borderColor: T.border } : undefined} className={`flex items-baseline justify-between gap-4 py-2.5 ${i ? "border-t" : ""}`}>
-                      <span style={{ color: T.subtext }} className="text-[12.5px] font-medium shrink-0">{r}</span>
-                      <span className={`text-[13.5px] font-bold text-right min-w-0 break-words ${r === "Localização" ? "font-mono" : ""}`}>{v}</span>
+                      <span style={{ color: T.subtext }} className="text-[0.7812rem] font-medium shrink-0">{r}</span>
+                      <span className={`text-[0.8438rem] font-bold text-right min-w-0 break-words ${r === "Localização" ? "font-mono" : ""}`}>{v}</span>
                     </div>
                   ))}
                 </div>
@@ -543,12 +543,12 @@ function ProductDetailModal({ T, item, outrosLotes, onTrocarLote, onClose, onEdi
 
           {subEtapa === "quantidade" && (
             <>
-              <p className="text-[12px] font-semibold mb-1.5">Baixa total do lote</p>
+              <p className="text-[0.75rem] font-semibold mb-1.5">Baixa total do lote</p>
               <div style={{ background: T.chipBg }} className="rounded-xl px-3 py-2.5">
                 <p className="text-sm font-bold">{item.quantidade ? `${item.quantidade}${item.porPeso ? " kg" : " unidade(s)"}` : "Quantidade não informada"} · {motivoPendente}</p>
                 <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5">Validade {formatarData(item.validade)}{item.lote ? ` · lote ${item.lote}` : ""}</p>
               </div>
-              <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 leading-snug">A baixa é sempre do lote inteiro: tudo o que está lançado neste lote sai do estoque e vai para o histórico com este motivo.{item.emPromocao ? " Este lote está em promoção: a baixa registra o lote todo, não só o que sobrou." : ""}</p>
+              <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-1.5 leading-snug">A baixa é sempre do lote inteiro: tudo o que está lançado neste lote sai do estoque e vai para o histórico com este motivo.{item.emPromocao ? " Este lote está em promoção: a baixa registra o lote todo, não só o que sobrou." : ""}</p>
               <div className="flex gap-2 mt-3">
                 <button onClick={() => setSubEtapa(null)} style={{ color: T.subtext }} className="flex-1 text-xs py-2.5">Voltar</button>
                 <button onClick={() => onBaixa(item, motivoPendente)}

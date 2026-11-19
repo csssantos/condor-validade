@@ -54,7 +54,7 @@ export default function TelaBiparCracha({
               <motion.span aria-hidden className="absolute left-3 right-3 h-[3px] rounded-full" style={{ background: VERM, boxShadow: `0 0 18px 4px ${VERM}` }}
                 initial={{ top: "8%" }} animate={{ top: ["8%", "92%", "8%"] }} transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }} />
             )}
-            <p className="absolute -bottom-9 left-0 right-0 text-center text-[13px] font-semibold text-white/90">Aponte para o código de barras do crachá</p>
+            <p className="absolute -bottom-9 left-0 right-0 text-center text-[0.8125rem] font-semibold text-white/90">Aponte para o código de barras do crachá</p>
           </motion.div>
         </div>
       )}
@@ -63,8 +63,8 @@ export default function TelaBiparCracha({
       <div className="absolute top-0 inset-x-0 flex items-center gap-3 px-4 pt-[calc(1rem+env(safe-area-inset-top))]">
         <BotaoRedondo onClick={onVoltar} label="Voltar"><ArrowLeft size={20} /></BotaoRedondo>
         <div className="min-w-0 flex-1">
-          <p className="text-[17px] font-extrabold leading-tight">Bipe seu crachá</p>
-          <p className="text-[12px] text-white/75">Cadastro de primeiro acesso</p>
+          <p className="text-[1.0625rem] font-extrabold leading-tight">Bipe seu crachá</p>
+          <p className="text-[0.75rem] text-white/75">Cadastro de primeiro acesso</p>
         </div>
         {comCamera && !falhou && torchDisponivel && <BotaoRedondo onClick={onTorch} label="Lanterna">{torchOn ? <Flashlight size={18} color="#FFD34D" /> : <FlashlightOff size={18} />}</BotaoRedondo>}
         {comCamera && !falhou && <BotaoRedondo onClick={onTrocarCamera} label="Trocar câmera"><SwitchCamera size={18} /></BotaoRedondo>}
@@ -103,7 +103,7 @@ export default function TelaBiparCracha({
           {[{ id: false, rot: "Câmera", Ico: ScanLine }, { id: true, rot: "Digitar matrícula", Ico: Keyboard }].map((o) => {
             const ativo = manualMode === o.id;
             return (
-              <button key={o.rot} type="button" role="tab" aria-selected={ativo} onClick={() => setManualMode(o.id)} className="relative flex-1 h-10 rounded-xl text-[13px] font-bold flex items-center justify-center gap-1.5">
+              <button key={o.rot} type="button" role="tab" aria-selected={ativo} onClick={() => setManualMode(o.id)} className="relative flex-1 h-10 rounded-xl text-[0.8125rem] font-bold flex items-center justify-center gap-1.5">
                 {ativo && <motion.span layoutId="abaCracha" className="absolute inset-0 rounded-xl bg-white" transition={{ type: "spring", stiffness: 420, damping: 32 }} />}
                 <span className="relative flex items-center gap-1.5" style={{ color: ativo ? "#0B4F9E" : "rgba(255,255,255,.85)" }}><o.Ico size={15} />{o.rot}</span>
               </button>
@@ -115,25 +115,25 @@ export default function TelaBiparCracha({
           {manualMode ? (
             <motion.div key="manual" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }} className="mt-4">
               {falhou && (
-                <div className="rounded-2xl px-3 py-2.5 mb-3 flex items-start gap-2 text-[12px]" style={{ background: "rgba(255,180,92,.16)", border: "1px solid rgba(255,180,92,.4)" }}>
+                <div className="rounded-2xl px-3 py-2.5 mb-3 flex items-start gap-2 text-[0.75rem]" style={{ background: "rgba(255,180,92,.16)", border: "1px solid rgba(255,180,92,.4)" }}>
                   <AlertTriangle size={15} color="#FFB45C" className="mt-0.5 shrink-0" />
                   <div className="flex-1"><p className="font-semibold">{status === "sem-suporte" ? "Este navegador não lê o código pela câmera." : (erroMsg || "Não foi possível abrir a câmera.")}</p>
                     {status === "erro" && <button type="button" onClick={onTentarDeNovo} className="font-bold underline mt-1 inline-flex items-center gap-1"><RotateCcw size={12} /> Tentar a câmera de novo</button>}</div>
                 </div>
               )}
-              <label className="text-[12px] font-semibold text-white/80 block mb-1.5">Matrícula do crachá (só números)</label>
+              <label className="text-[0.75rem] font-semibold text-white/80 block mb-1.5">Matrícula do crachá (só números)</label>
               <input autoFocus inputMode="numeric" pattern="[0-9]*" maxLength={14} value={manualCode} placeholder="Ex.: 123456"
                 onChange={(e) => setManualCode(e.target.value.replace(/\D/g, "").slice(0, 14))}
                 onKeyDown={(e) => { if (e.key === "Enter" && podeConfirmar) onConfirmarManual(); }}
                 className="w-full h-14 rounded-2xl px-4 text-center text-2xl font-extrabold tracking-[.18em] outline-none text-white placeholder:text-white/35 placeholder:tracking-normal placeholder:text-lg placeholder:font-semibold"
                 style={{ background: "rgba(255,255,255,.12)", border: "1.5px solid rgba(255,255,255,.28)" }} />
               <motion.button type="button" onClick={onConfirmarManual} disabled={!podeConfirmar} whileTap={podeConfirmar ? { scale: 0.97 } : undefined}
-                className="w-full h-[52px] mt-3 rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full h-[52px] mt-3 rounded-2xl text-[0.9375rem] font-bold flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: "#fff", color: "#0B4F9E" }}>Continuar <ArrowRight size={17} /></motion.button>
               <p className="text-[0.75rem] text-white/60 text-center mt-2">{manualCode.length > 0 && manualCode.length < 4 ? "Mínimo de 4 dígitos." : "Ela precisa estar pré-cadastrada pelo encarregado ou pelo CPD."}</p>
             </motion.div>
           ) : (
-            <motion.p key="camera" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="mt-4 text-[13px] text-white/80 text-center leading-snug">
+            <motion.p key="camera" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }} className="mt-4 text-[0.8125rem] text-white/80 text-center leading-snug">
               O código fica na frente do crachá. Se estiver sem luz, ligue a lanterna. Na horizontal ou na vertical, tanto faz.
             </motion.p>
           )}

@@ -368,7 +368,7 @@ function AppInner() {
   const T = getTokens(dark);
   // Tamanho das letras (acessibilidade): "normal" segue o celular; "grande"/"maior" aumentam tudo que usa rem.
   useEffect(() => {
-    try { document.documentElement.style.fontSize = ({ grande: "112.5%", maior: "125%" })[prefs.fonte] || ""; } catch { /* sem DOM */ }
+    try { document.documentElement.style.fontSize = prefs.fonte === "grande" ? "112.5%" : prefs.fonte === "maior" ? "125%" : ""; } catch { /* sem DOM */ }
   }, [prefs.fonte]);
   // Faixa branca embaixo (iPhone): pinta html/body/#root com a cor do tema, assim a área da barra inferior nunca fica branca.
   useEffect(() => {
@@ -1770,8 +1770,8 @@ function AvisoModal({ T, aviso, onFechar }) {
           <Icone size={22} color={e.icone} />
         </div>
         <p className="text-base font-bold">{aviso.titulo}</p>
-        <p style={{ color: T.subtext }} className="text-[12.5px] mt-1 whitespace-pre-wrap">{aviso.mensagem}</p>
-        {aviso.criadoPor && <p style={{ color: T.subtext }} className="text-[10.5px] mt-2">Enviado por {aviso.criadoPor} · {formatarDataHoraExtenso(aviso.criadoEm)}</p>}
+        <p style={{ color: T.subtext }} className="text-[0.7812rem] mt-1 whitespace-pre-wrap">{aviso.mensagem}</p>
+        {aviso.criadoPor && <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-2">Enviado por {aviso.criadoPor} · {formatarDataHoraExtenso(aviso.criadoEm)}</p>}
         <button onClick={onFechar} style={{ background: BLUE, color: "#fff" }} className="w-full text-sm font-semibold py-2.5 rounded-2xl mt-4">
           Entendi
         </button>

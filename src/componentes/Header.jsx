@@ -62,7 +62,7 @@ function Header({ T, flow, tab, onBack, dark, setDark, notifPermission, onToggle
             <div style={{ background: "rgba(255,255,255,0.97)" }} className="rounded-xl px-2.5 py-1.5 flex items-center shadow-lg shadow-black/5 lg:hidden">
               <LogoBipi className="h-7 w-auto" />
             </div>
-            <h1 className="text-white font-bold text-[15px] lg:text-lg leading-none">{title}</h1>
+            <h1 className="text-white font-bold text-[0.9375rem] lg:text-lg leading-none">{title}</h1>
           </div>
           {!flow && (
             <div className="flex items-center gap-1.5">

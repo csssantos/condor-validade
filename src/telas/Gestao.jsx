@@ -41,7 +41,7 @@ function GestaoCampo({ T, label, children, hint }) {
     <label className="block">
       <span style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide">{label}</span>
       <div className="mt-1">{children}</div>
-      {hint && <span style={{ color: T.subtext }} className="text-[10.5px] mt-1 block">{hint}</span>}
+      {hint && <span style={{ color: T.subtext }} className="text-[0.6562rem] mt-1 block">{hint}</span>}
     </label>
   );
 }
@@ -53,7 +53,7 @@ function GestaoStat({ T, label, value, Icon, color }) {
         <p className="text-2xl font-extrabold leading-none tabular-nums">{value}</p>
         <div style={{ background: `${color}1F`, color }} className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"><Icon size={15} /></div>
       </div>
-      <p style={{ color: T.subtext }} className="text-[10.5px] mt-2 leading-tight font-medium">{label}</p>
+      <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-2 leading-tight font-medium">{label}</p>
     </div>
   );
 }
@@ -148,7 +148,7 @@ function DiagnosticoBanco({ T }) {
               </li>
             ))}
           </ul>
-          <p style={{ color: T.subtext }} className="text-[10.5px] mt-2">Verificado em {formatarDataHoraExtenso(res.gerado_em)}.</p>
+          <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-2">Verificado em {formatarDataHoraExtenso(res.gerado_em)}.</p>
         </div>
       )}
     </div>
@@ -240,7 +240,7 @@ function GestaoLojas({ T, lojas, lojaAtiva, onTrocarLoja, onRecarregarLojas, sho
               <div key={l.id} style={{ background: T.card, borderColor: emUso ? BLUE : T.border }} className={`rounded-3xl border p-4 flex flex-col gap-3 ${emUso ? "ring-2 ring-[#0B4F9E]/30" : ""}`}>
                 <div className="flex items-start gap-3">
                   <div style={{ background: emUso ? BLUE : BLUE_SOFT, color: emUso ? "#fff" : BLUE_DARK }} className="h-14 w-14 rounded-2xl flex flex-col items-center justify-center shrink-0">
-                    <span className="text-[8px] font-bold uppercase leading-none opacity-70">Loja</span><span className="text-xl font-extrabold leading-tight tabular-nums">{l.numero_loja}</span>
+                    <span className="text-[0.5rem] font-bold uppercase leading-none opacity-70">Loja</span><span className="text-xl font-extrabold leading-tight tabular-nums">{l.numero_loja}</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold truncate">{l.bairro || "Sem bairro"}</p>
@@ -427,7 +427,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
           {subaba === "ativos" && listaAtivos.map((u) => (
             <div key={u.id} style={{ background: T.card, borderColor: T.border }} className="rounded-2xl border p-3.5 flex items-center gap-3">
-              <div style={{ background: u.ativo ? BLUE_SOFT : "#EEF0F3", color: u.ativo ? BLUE_DARK : "#6B7280" }} className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-extrabold shrink-0">{iniciais(u.nome)}</div>
+              <div style={{ background: u.ativo ? BLUE_SOFT : "#EEF0F3", color: u.ativo ? BLUE_DARK : "#566070" }} className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-extrabold shrink-0">{iniciais(u.nome)}</div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold truncate">{u.nome}</p>
                 <p style={{ color: T.subtext }} className="text-[0.75rem] truncate">{u.matricula ? `Mat. ${u.matricula} · ` : ""}{u.cargo_nome_loja || "—"}</p>
@@ -445,7 +445,7 @@ function GestaoFuncionarios({ T, showToast, lojas, lojaAtiva, nivelUsuario }) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold truncate">{p.nome}</p>
                 <p style={{ color: T.subtext }} className="text-[0.75rem] truncate">Mat. {p.matricula} · {p.cargo_nome_loja || "—"}</p>
-                <p style={{ color: "#C2760C" }} className="text-[10.5px] font-semibold mt-0.5">Aguardando 1º acesso</p>
+                <p style={{ color: "#C2760C" }} className="text-[0.6562rem] font-semibold mt-0.5">Aguardando 1º acesso</p>
               </div>
               <button onClick={() => removerPendente(p.matricula)} style={{ background: RED_SOFT, color: RED_DARK }} className="text-[0.75rem] font-bold px-3 py-1.5 rounded-full shrink-0">Remover</button>
             </div>
@@ -612,7 +612,7 @@ function PromotoresLista({ T, convites, termo, onAbrir }) {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold truncate">{c.nome}</p>
               <p style={{ color: T.subtext }} className="text-[0.75rem] truncate">{marcasConvite(c)} · {st.id === "expirado" ? "venceu" : "vale até"} {formatarDataHoraExtenso(c.expira_em)}</p>
-              <p style={{ color: T.subtext }} className="text-[10.5px] mt-0.5">{c.usos ? `${c.usos} abertura(s) · ${tempoDesde(c.ultimo_uso)}` : "ainda não aberto"}</p>
+              <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-0.5">{c.usos ? `${c.usos} abertura(s) · ${tempoDesde(c.ultimo_uso)}` : "ainda não aberto"}</p>
             </div>
             <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>
             <button onClick={() => onAbrir(c)} aria-label={`Ações de ${c.nome}`} style={{ background: T.chipBg, color: T.text }} className="h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-lg font-bold leading-none">⋯</button>
@@ -722,9 +722,9 @@ function EditarConviteSheet({ T, c, nivelUsuario, showToast, onClose, onFeito })
             <option value="data">Escolher uma data…</option>
           </select>
           {modo === "data" && <CampoData T={T} value={dataISO} onChange={setDataISO} style={inputStyle} className={inputCls} />}
-          {modo === "data" && <p style={{ color: T.subtext }} className="text-[10.5px]">O acesso vale até o fim desse dia (23:59).</p>}
+          {modo === "data" && <p style={{ color: T.subtext }} className="text-[0.6562rem]">O acesso vale até o fim desse dia (23:59).</p>}
         </div>
-        <p style={{ color: T.subtext }} className="text-[10.5px]">O código do promotor continua o mesmo e links antigos seguem valendo. A mudança já vale no servidor; a tela de quem está com o app aberto atualiza ao recarregar. Fica registrado na auditoria.</p>
+        <p style={{ color: T.subtext }} className="text-[0.6562rem]">O código do promotor continua o mesmo e links antigos seguem valendo. A mudança já vale no servidor; a tela de quem está com o app aberto atualiza ao recarregar. Fica registrado na auditoria.</p>
         <div className="flex gap-2">
           <button onClick={onClose} disabled={ocupado} style={{ color: T.subtext }} className="flex-1 text-sm py-2.5">Voltar</button>
           <button onClick={salvar} disabled={ocupado} style={{ background: BLUE, color: "#fff" }} className="flex-[2] py-2.5 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2">{ocupado ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Salvar alterações</button>
@@ -837,7 +837,7 @@ function MarcasPicker({ T, lojaId, marcas, setMarcas, acessoTotal, setAcessoTota
               ))}
             </div>
           )}
-          <p style={{ color: T.subtext }} className="text-[10.5px]">De 1 a 5 marcas. O promotor só lança produtos cujo nome tem uma dessas marcas.</p>
+          <p style={{ color: T.subtext }} className="text-[0.6562rem]">De 1 a 5 marcas. O promotor só lança produtos cujo nome tem uma dessas marcas.</p>
         </>
       )}
     </div>

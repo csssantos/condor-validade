@@ -5,8 +5,8 @@
 /* Rolagem presa dentro do #root (e não na janela): no iPhone, puxar a tela de cima/baixo e soltar fazia a página
    "quicar" e a barra fixa de baixo ficava deslocada no meio do app. Assim a janela nunca se mexe e o puxão elástico fica desligado. */
 html, body { background: #0B4F9E; height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
-body { touch-action: manipulation; width: 100%; -webkit-text-size-adjust: 100%; }
-#root { position: fixed; top: 0; right: 0; left: 0; bottom: 0; height: auto; overflow-y: auto; overflow-x: hidden; overscroll-behavior: none; -webkit-overflow-scrolling: touch; }
+body { width: 100%; -webkit-text-size-adjust: 100%; }
+#root { touch-action: manipulation; position: fixed; top: 0; right: 0; left: 0; bottom: 0; height: auto; overflow-y: auto; overflow-x: hidden; overscroll-behavior: none; -webkit-overflow-scrolling: touch; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -43,8 +43,9 @@ input[type="date"]::-webkit-date-and-time-value, input[type="datetime-local"]::-
   .bipi-feixe { transform: translateY(104px); }
 }
 
-/* Acessibilidade: contorno de foco visível para quem navega por teclado/leitor de tela (não aparece no toque). */
-:where(button, a, input, select, textarea, [role="button"], [role="radio"], [tabindex]):focus-visible {
+/* Acessibilidade: contorno de foco visível para teclado/leitor de tela (não aparece no toque). Só em botões, links e itens com papel;
+   campos de texto já têm o próprio destaque. Offset negativo: o contorno fica por dentro e não é cortado por overflow-hidden. */
+:where(button, a, summary, [role="button"], [role="radio"], [role="tab"], [role="switch"]):focus-visible {
   outline: 3px solid #1B6FD1;
-  outline-offset: 2px;
+  outline-offset: -3px;
 }

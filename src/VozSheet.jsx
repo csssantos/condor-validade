@@ -149,16 +149,16 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
               style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 resize-none" />
 
             {busca.tipo === "incompleto" && res.nome && (
-              <div style={{ background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2.5 text-[13px] font-semibold mt-3 flex gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" /> Não achei “{res.nome}” no cadastro. Fale o nome completo do produto (marca + produto), ex.: “Bauducco panetone”.</div>
+              <div style={{ background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2.5 text-[0.8125rem] font-semibold mt-3 flex gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" /> Não achei “{res.nome}” no cadastro. Fale o nome completo do produto (marca + produto), ex.: “Bauducco panetone”.</div>
             )}
             {problemas.length > 0 && (
-              <div style={{ background: "#E31E2415", color: "#B3141A" }} className="rounded-xl px-3 py-2.5 text-[13px] font-semibold mt-3 space-y-1">
+              <div style={{ background: "#E31E2415", color: "#B3141A" }} className="rounded-xl px-3 py-2.5 text-[0.8125rem] font-semibold mt-3 space-y-1">
                 {problemas.map((m) => <p key={m} className="flex gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" /> {m}</p>)}
               </div>
             )}
             {precisaEscolher && (
               <div style={{ background: T.chipBg }} className="rounded-2xl p-3 mt-3">
-                <p style={{ color: T.text }} className="text-[13px] font-bold leading-snug">
+                <p style={{ color: T.text }} className="text-[0.8125rem] font-bold leading-snug">
                   {busca.tipo === "marca"
                     ? <>“{res.nome}” é só uma marca ou termo genérico ({busca.total} produtos). Fale o nome do produto, ou escolha um abaixo.</>
                     : busca.aproximado ? <>Não achei exatamente isso. Algum destes é o seu?</> : <>Achei {busca.total || busca.candidatos.length} produtos parecidos. Qual é?</>}
@@ -166,17 +166,17 @@ export default function VozSheet({ T, accent, accentDark, catalog, onCancel, onC
                 <div className="flex flex-col gap-1.5 mt-2.5" role="radiogroup">
                   {busca.candidatos.map((c) => (
                     <button key={c.chave} role="radio" aria-checked={escolha === c.chave} onClick={() => setEscolha(c.chave)}
-                      style={escolha === c.chave ? { background: accent, color: "#fff" } : { background: T.card, color: T.text }} className="text-left rounded-xl px-3 py-2.5 text-[13px] font-semibold flex items-center gap-2">
+                      style={escolha === c.chave ? { background: accent, color: "#fff" } : { background: T.card, color: T.text }} className="text-left rounded-xl px-3 py-2.5 text-[0.8125rem] font-semibold flex items-center gap-2">
                       <span className="h-4 w-4 rounded-full border-2 shrink-0 flex items-center justify-center" style={{ borderColor: escolha === c.chave ? "#fff" : T.subtext }}>{escolha === c.chave && <span className="h-2 w-2 rounded-full bg-white" />}</span>
                       <span className="min-w-0">{c.entrada.nome}</span>
                     </button>
                   ))}
                   {busca.tipo === "varios" && (
                     <button role="radio" aria-checked={escolha === "novo"} onClick={() => setEscolha("novo")}
-                      style={escolha === "novo" ? { background: accent, color: "#fff" } : { background: T.card, color: T.subtext }} className="text-left rounded-xl px-3 py-2.5 text-[13px] font-semibold">Nenhum desses — cadastrar como produto novo</button>
+                      style={escolha === "novo" ? { background: accent, color: "#fff" } : { background: T.card, color: T.subtext }} className="text-left rounded-xl px-3 py-2.5 text-[0.8125rem] font-semibold">Nenhum desses — cadastrar como produto novo</button>
                   )}
                 </div>
-                {SR && <button onClick={iniciar} style={{ color: accentDark }} className="text-[12.5px] font-bold mt-2.5 flex items-center gap-1.5"><RotateCcw size={13} /> Falar de novo</button>}
+                {SR && <button onClick={iniciar} style={{ color: accentDark }} className="text-[0.7812rem] font-bold mt-2.5 flex items-center gap-1.5"><RotateCcw size={13} /> Falar de novo</button>}
               </div>
             )}
 

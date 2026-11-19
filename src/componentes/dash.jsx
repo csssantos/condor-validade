@@ -28,7 +28,7 @@ function DashTabs({ T, value, onChange, options }) {
 }
 
 function DashBadge({ bg, color, children }) {
-  return <span style={{ background: bg, color }} className="inline-flex items-center text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">{children}</span>;
+  return <span style={{ background: bg, color }} className="inline-flex items-center text-[0.6562rem] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">{children}</span>;
 }
 
 // Tabela: cols=[{key,label,align,render,width}], rows=[obj]; onRow opcional
@@ -40,7 +40,7 @@ function DashTable({ T, cols, rows, onRow, empty = "Nada por aqui." }) {
           <tr style={{ borderColor: T.border }} className="border-y">
             {cols.map((c) => (
               <th key={c.key} style={{ color: T.subtext, width: c.width, textAlign: c.align || "left" }}
-                className="text-[10.5px] font-bold uppercase tracking-wide px-5 py-2.5 whitespace-nowrap">{c.label}</th>
+                className="text-[0.6562rem] font-bold uppercase tracking-wide px-5 py-2.5 whitespace-nowrap">{c.label}</th>
             ))}
           </tr>
         </thead>

@@ -66,7 +66,7 @@ function HistoricoDashboard({ T, filtrado, periodo, setPeriodo, valorPerdido, va
   const dadosSerie = serie.map((d) => ({ label: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
     value: Math.round(filtrado.filter((h) => new Date(h.dataBaixa).toDateString() === d.toDateString()).reduce((a, h) => a + (Number(h.quantidade) || 1) * (Number(h.precoUnitario) || 0), 0)) }));
   const cols = [
-    { key: "nome", label: "Produto", render: (h) => <div><p className="font-semibold truncate max-w-[22rem]">{h.nome}</p>{h.barcode && <p style={{ color: T.subtext }} className="text-[10.5px] font-mono">{h.barcode}</p>}</div> },
+    { key: "nome", label: "Produto", render: (h) => <div><p className="font-semibold truncate max-w-[22rem]">{h.nome}</p>{h.barcode && <p style={{ color: T.subtext }} className="text-[0.6562rem] font-mono">{h.barcode}</p>}</div> },
     { key: "setor", label: "Setor", render: (h) => <span style={{ color: T.subtext }}>{h.setor}</span> },
     { key: "data", label: "Baixa", render: (h) => <span className="text-xs tabular-nums">{formatarDataHora(h.dataBaixa)}</span> },
     { key: "motivo", label: "Ação", render: (h) => <DashBadge bg={h.vencidoAntes ? RED_SOFT : BLUE_SOFT} color={h.vencidoAntes ? RED_DARK : BLUE_DARK}>{h.motivo}</DashBadge> },
@@ -260,8 +260,8 @@ function HistoricoView({ T, historico, items, usuario }) {
       <div className="flex items-center gap-2 mb-3.5">
         <div className="flex-1 min-w-0"><FaixaChips T={T} valor={periodo} onChange={setPeriodo} opcoes={[[7, "7 dias"], [30, "30 dias"], [90, "90 dias"]]} /></div>
         <div className="flex gap-1.5 shrink-0 mb-3.5">
-          <motion.button whileTap={{ scale: 0.92 }} onClick={exportarCSV} aria-label="Exportar CSV" style={{ background: T.card, color: T.text }} className="h-9 px-3 rounded-full text-[11.5px] font-bold flex items-center gap-1 shadow-sm"><Download size={13} /> CSV</motion.button>
-          <motion.button whileTap={{ scale: 0.92 }} onClick={() => exportarPlanilha("ods")} aria-label="Exportar planilha" style={{ background: T.card, color: T.text }} className="h-9 px-3 rounded-full text-[11.5px] font-bold flex items-center gap-1 shadow-sm"><FileSpreadsheet size={13} /> ODS</motion.button>
+          <motion.button whileTap={{ scale: 0.92 }} onClick={exportarCSV} aria-label="Exportar CSV" style={{ background: T.card, color: T.text }} className="h-9 px-3 rounded-full text-[0.7188rem] font-bold flex items-center gap-1 shadow-sm"><Download size={13} /> CSV</motion.button>
+          <motion.button whileTap={{ scale: 0.92 }} onClick={() => exportarPlanilha("ods")} aria-label="Exportar planilha" style={{ background: T.card, color: T.text }} className="h-9 px-3 rounded-full text-[0.7188rem] font-bold flex items-center gap-1 shadow-sm"><FileSpreadsheet size={13} /> ODS</motion.button>
         </div>
       </div>
 
@@ -280,7 +280,7 @@ function HistoricoView({ T, historico, items, usuario }) {
           <div className="flex flex-col gap-2">
             {reincidentes.map((pr) => (
               <div key={pr.nome + pr.datas.length} style={{ background: RED_SOFT }} className="rounded-2xl px-3.5 py-2.5">
-                <p style={{ color: RED_DARK }} className="text-[13px] font-extrabold">{pr.nome}</p>
+                <p style={{ color: RED_DARK }} className="text-[0.8125rem] font-extrabold">{pr.nome}</p>
                 <p style={{ color: RED_DARK }} className="text-[0.75rem] mt-0.5 opacity-80">{pr.setor} · {pr.datas.length} vencimentos · média {(pr.datas.length / 2).toFixed(1)}/mês</p>
               </div>
             ))}
@@ -295,7 +295,7 @@ function HistoricoView({ T, historico, items, usuario }) {
 
       <div style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="rounded-[22px] px-4 py-3.5 mb-4 flex items-start gap-2.5">
         <Info size={15} className="mt-0.5 shrink-0" />
-        <p className="text-[11.5px] leading-relaxed">Referência do setor: o vencimento responde por cerca de 38% das perdas em supermercados brasileiros, geralmente entre 1% e 1,5% do faturamento. O relatório completo em PDF para a gerência é gerado na aba <b>Torre</b>.</p>
+        <p className="text-[0.7188rem] leading-relaxed">Referência do setor: o vencimento responde por cerca de 38% das perdas em supermercados brasileiros, geralmente entre 1% e 1,5% do faturamento. O relatório completo em PDF para a gerência é gerado na aba <b>Torre</b>.</p>
       </div>
 
       <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-[.1em] mb-2.5">Baixas registradas · {filtrado.length}</p>
@@ -308,12 +308,12 @@ function HistoricoView({ T, historico, items, usuario }) {
               style={{ background: T.card }} className="rounded-[22px] shadow-md shadow-black/5 p-3 flex items-center gap-3">
               <Thumb foto={h.foto} size={50} rounded="rounded-[16px]" />
               <div className="flex-1 min-w-0">
-                <p style={{ color: T.text }} className="font-bold text-[13.5px] leading-tight truncate">{h.nome}</p>
-                <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5 truncate">{h.setor} · {formatarDataHora(h.dataBaixa)}</p>
+                <p style={{ color: T.text }} className="font-bold text-[0.8438rem] leading-tight truncate">{h.nome}</p>
+                <p style={{ color: T.subtext }} className="text-[0.7188rem] mt-0.5 truncate">{h.setor} · {formatarDataHora(h.dataBaixa)}</p>
                 {h.registradoPor && <p style={{ color: T.subtext }} className="text-[0.75rem] truncate">Por {h.registradoPor}</p>}
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
-                <span style={h.vencidoAntes ? { background: RED_SOFT, color: RED_DARK } : { background: BLUE_SOFT, color: BLUE_DARK }} className="text-[10.5px] font-bold px-2.5 py-1 rounded-full text-right">{h.motivo}</span>
+                <span style={h.vencidoAntes ? { background: RED_SOFT, color: RED_DARK } : { background: BLUE_SOFT, color: BLUE_DARK }} className="text-[0.6562rem] font-bold px-2.5 py-1 rounded-full text-right">{h.motivo}</span>
                 <span style={{ color: T.subtext }} className="text-[0.75rem] font-semibold tabular-nums">{h.quantidade || 1} un</span>
               </div>
             </motion.div>
@@ -380,9 +380,9 @@ function AuditoriaView({ T, auditoria }) {
                     <motion.div key={a.id || k} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(k * 0.03, 0.25) }} className="relative flex items-start gap-3">
                       <span style={{ background: T.card, border: `2px solid ${BLUE}` }} className="relative z-10 h-[18px] w-[18px] rounded-full shrink-0 mt-3.5 ml-[2px]" />
                       <div style={{ background: T.card }} className="flex-1 min-w-0 rounded-[20px] shadow-md shadow-black/5 px-3.5 py-3">
-                        <p style={{ color: T.text }} className="text-[13px] leading-snug"><strong>{a.usuario || "Alguém"}</strong> {a.acao}</p>
-                        {a.detalhe && <p style={{ color: T.subtext }} className="text-[11.5px] mt-1 leading-snug">{a.detalhe}</p>}
-                        <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 font-mono">{formatarDataHoraExtenso(a.criadoEm)}</p>
+                        <p style={{ color: T.text }} className="text-[0.8125rem] leading-snug"><strong>{a.usuario || "Alguém"}</strong> {a.acao}</p>
+                        {a.detalhe && <p style={{ color: T.subtext }} className="text-[0.7188rem] mt-1 leading-snug">{a.detalhe}</p>}
+                        <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-1.5 font-mono">{formatarDataHoraExtenso(a.criadoEm)}</p>
                       </div>
                     </motion.div>
                   ))}

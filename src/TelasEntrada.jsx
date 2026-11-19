@@ -86,7 +86,7 @@ export function TelaCarregando({ logo, mensagem }) {
       <div className="h-8 mt-6 relative w-full flex justify-center overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
           <motion.p key={texto} initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -16, opacity: 0 }} transition={{ duration: 0.3 }}
-            className="absolute text-[15px] font-semibold tracking-wide">{texto}</motion.p>
+            className="absolute text-[0.9375rem] font-semibold tracking-wide">{texto}</motion.p>
         </AnimatePresence>
       </div>
 
@@ -125,7 +125,7 @@ export function AuthPalco({ logo, compacto }) {
         <motion.div key={c.t} aria-hidden className={`absolute ${c.pos} transition-opacity duration-300 ${compacto ? "opacity-0" : ""}`}
           initial={{ opacity: 0, scale: 0.5, y: 14 }} animate={{ opacity: compacto ? 0 : 1, scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 18, delay: c.d }}>
           <motion.div animate={reduzir ? undefined : { y: [0, -9, 0], rotate: [-1.5, 1.5, -1.5] }} transition={{ duration: c.dur, repeat: Infinity, ease: "easeInOut" }}
-            className="flex items-center gap-2 rounded-full pl-2.5 pr-3.5 py-1.5 text-[11.5px] font-bold border border-white/25 bg-white/15 backdrop-blur-md shadow-lg shadow-black/10">
+            className="flex items-center gap-2 rounded-full pl-2.5 pr-3.5 py-1.5 text-[0.7188rem] font-bold border border-white/25 bg-white/15 backdrop-blur-md shadow-lg shadow-black/10">
             <span className="relative flex h-2.5 w-2.5">
               {!reduzir && <motion.span className="absolute inset-0 rounded-full" style={{ background: c.c }} animate={{ scale: [1, 2.2], opacity: [0.6, 0] }} transition={{ duration: 1.6, repeat: Infinity }} />}
               <span className="relative h-2.5 w-2.5 rounded-full" style={{ background: c.c }} />
@@ -142,12 +142,12 @@ export function AuthPalco({ logo, compacto }) {
           <LogoBipi className={`${compacto ? "h-[38px]" : "h-[52px] lg:h-[84px]"} w-auto transition-all duration-500`} />
         </motion.div>
         <div className={`overflow-hidden transition-all duration-500 ${compacto ? "max-h-0 opacity-0" : "max-h-48 opacity-100 mt-4"}`}>
-          <h2 className="text-[28px] lg:text-5xl font-extrabold leading-tight tracking-tight">
+          <h2 className="text-[1.75rem] lg:text-5xl font-extrabold leading-tight tracking-tight">
             {palavras.map((p, k) => (
               <motion.span key={p} className="inline-block mr-[.28em]" initial={{ y: 26, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.35 + k * 0.1 }}>{p}</motion.span>
             ))}
           </h2>
-          <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="text-[13px] lg:text-base text-white/80 mt-1.5 max-w-[19rem] lg:max-w-sm mx-auto">
+          <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="text-[0.8125rem] lg:text-base text-white/80 mt-1.5 max-w-[19rem] lg:max-w-sm mx-auto">
             Alertas, rondas e baixas da sua loja num só lugar.
           </motion.p>
         </div>
@@ -166,8 +166,8 @@ export const grupoForm = { hidden: {}, show: { transition: { staggerChildren: 0.
 export function AuthTitulo({ T, titulo, sub }) {
   return (
     <motion.div variants={itemForm} className="mb-1">
-      <h1 style={{ color: T.text }} className="text-[22px] font-extrabold tracking-tight">{titulo}</h1>
-      {sub && <p style={{ color: T.subtext }} className="text-[13px] mt-0.5">{sub}</p>}
+      <h1 style={{ color: T.text }} className="text-[1.375rem] font-extrabold tracking-tight">{titulo}</h1>
+      {sub && <p style={{ color: T.subtext }} className="text-[0.8125rem] mt-0.5">{sub}</p>}
     </motion.div>
   );
 }
@@ -182,9 +182,9 @@ export function AuthCampo({ T, rotulo, value, onChange, type = "text", autoCompl
       <input type={senha && ver ? "text" : type} value={value} onChange={onChange} required={required} autoComplete={autoComplete} inputMode={inputMode}
         autoFocus={autoFocus} maxLength={maxLength} onFocus={() => setFoco(true)} onBlur={() => setFoco(false)}
         style={{ background: T.chipBg || T.inputBg, color: T.text, borderColor: foco ? corLink(T) : (T.inputBorder || T.border), boxShadow: foco ? "0 0 0 4px rgba(11,79,158,.16)" : "none", transition: "box-shadow .2s, border-color .2s", boxSizing: "border-box" }}
-        className={`w-full min-w-0 h-[56px] border rounded-2xl px-4 pt-5 pb-1 text-[15px] outline-none ${senha ? "pr-12" : ""}`} />
+        className={`w-full min-w-0 h-[56px] border rounded-2xl px-4 pt-5 pb-1 text-[0.9375rem] outline-none ${senha ? "pr-12" : ""}`} />
       <span style={{ color: foco ? corLink(T) : T.subtext, transform: ativo ? "translateY(-11px) scale(.78)" : "translateY(0) scale(1)", transformOrigin: "left top", transition: "transform .18s ease, color .18s" }}
-        className="pointer-events-none absolute left-4 top-[17px] text-[15px] font-medium">{rotulo}</span>
+        className="pointer-events-none absolute left-4 top-[17px] text-[0.9375rem] font-medium">{rotulo}</span>
       {senha && (
         <button type="button" tabIndex={-1} aria-label={ver ? "Esconder senha" : "Mostrar senha"} onClick={() => setVer((v) => !v)}
           style={{ color: T.subtext }} className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-full">
@@ -213,7 +213,7 @@ export function AuthBotao({ T, carregando, disabled, children, type = "submit", 
     <motion.div variants={itemForm}>
       <motion.button type={type} onClick={onClick} disabled={off} whileTap={off ? undefined : { scale: 0.97 }}
         style={cheio ? { background: `linear-gradient(135deg, ${AZUL} 0%, #1B6FD1 100%)`, color: "#fff", boxShadow: "0 12px 24px -10px rgba(11,79,158,.65)" } : { background: "transparent", color: corLink(T), border: `1.5px solid ${T.inputBorder || T.border}` }}
-        className="relative overflow-hidden w-full h-[52px] rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 disabled:opacity-60">
+        className="relative overflow-hidden w-full h-[52px] rounded-2xl text-[0.9375rem] font-bold flex items-center justify-center gap-2 disabled:opacity-60">
         {cheio && !off && !reduzir && (
           <motion.span aria-hidden className="absolute inset-y-0 w-1/3 -skew-x-12" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent)" }}
             initial={{ left: "-40%" }} animate={{ left: "130%" }} transition={{ duration: 1.3, repeat: Infinity, repeatDelay: 2.6, ease: "easeInOut" }} />
@@ -227,7 +227,7 @@ export function AuthBotao({ T, carregando, disabled, children, type = "submit", 
 export function AuthLink({ T, children, onClick, forte }) {
   return (
     <motion.button variants={itemForm} type="button" onClick={onClick} whileTap={{ scale: 0.96 }}
-      style={{ color: forte ? corLink(T) : T.subtext }} className="text-[13px] font-semibold text-center py-1.5 flex items-center justify-center gap-1.5">{children}</motion.button>
+      style={{ color: forte ? corLink(T) : T.subtext }} className="text-[0.8125rem] font-semibold text-center py-1.5 flex items-center justify-center gap-1.5">{children}</motion.button>
   );
 }
 

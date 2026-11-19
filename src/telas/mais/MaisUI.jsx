@@ -71,8 +71,8 @@ function MaisLinha({ T, dark, icon: Icon, cor = BLUE, titulo, desc, direita, onC
     <>
       <MaisBolha cor={cor} dark={dark} tamanho={40}><Icon size={18} /></MaisBolha>
       <div className="flex-1 min-w-0 text-left">
-        <p style={{ color: T.text }} className="text-[14px] font-semibold leading-tight">{titulo}</p>
-        {desc && <p style={{ color: T.subtext }} className="text-[12px] mt-0.5 leading-snug">{desc}</p>}
+        <p style={{ color: T.text }} className="text-[0.875rem] font-semibold leading-tight">{titulo}</p>
+        {desc && <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5 leading-snug">{desc}</p>}
       </div>
       {direita !== undefined ? direita : onClick ? <ChevronRight size={18} style={{ color: T.subtext }} /> : null}
     </>
@@ -92,7 +92,7 @@ function MaisCampo({ T, label, value, onChange, type = "text", placeholder, auto
         <input value={value} onChange={(e) => onChange(e.target.value)} type={type} placeholder={placeholder} autoComplete={autoComplete}
           maxLength={maxLength} inputMode={inputMode}
           style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder, paddingRight: direita ? 44 : undefined }}
-          className="w-full border rounded-2xl px-4 py-3 text-[15px] outline-none focus:ring-2" />
+          className="w-full border rounded-2xl px-4 py-3 text-[0.9375rem] outline-none focus:ring-2" />
         {direita && <div className="absolute right-1.5 top-1/2 -translate-y-1/2">{direita}</div>}
       </div>
     </label>
@@ -104,7 +104,7 @@ function MaisBotao({ children, onClick, carregando, desabilitado, cor = BLUE, to
   return (
     <motion.button onClick={onClick} disabled={off} whileTap={off ? undefined : { scale: 0.97 }}
       style={tom === "cheio" ? { background: off ? "#9AA5B4" : cor, color: "#fff" } : { background: `${cor}1F`, color: cor }}
-      className="w-full py-3.5 rounded-2xl text-[15px] font-bold flex items-center justify-center gap-2 disabled:cursor-not-allowed">
+      className="w-full py-3.5 rounded-2xl text-[0.9375rem] font-bold flex items-center justify-center gap-2 disabled:cursor-not-allowed">
       {carregando && <Loader2 size={16} className="animate-spin" />}{children}
     </motion.button>
   );
@@ -114,7 +114,7 @@ function MaisAviso({ tipo = "info", children }) {
   const est = tipo === "erro" ? { bg: RED_SOFT, fg: RED_DARK } : tipo === "ok" ? { bg: "#E3F4EA", fg: "#14573A" } : { bg: BLUE_SOFT, fg: BLUE_DARK };
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-      <div style={{ background: est.bg, color: est.fg }} className="rounded-2xl px-3.5 py-3 text-[12.5px] leading-relaxed mt-3">{children}</div>
+      <div style={{ background: est.bg, color: est.fg }} className="rounded-2xl px-3.5 py-3 text-[0.7812rem] leading-relaxed mt-3">{children}</div>
     </motion.div>
   );
 }
@@ -144,10 +144,10 @@ function MaisHero({ T, perfil, usuario, tema, onTema }) {
         animate={{ x: [0, 18, 0], y: [0, -10, 0] }} transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }} />
       <div className="relative flex items-center gap-4">
         <motion.div initial={{ scale: 0, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 280, damping: 13, delay: 0.1 }}
-          className="h-16 w-16 rounded-[22px] bg-white/20 flex items-center justify-center text-[22px] font-extrabold tracking-tight shrink-0">{iniciaisDe(nome)}</motion.div>
+          className="h-16 w-16 rounded-[22px] bg-white/20 flex items-center justify-center text-[1.375rem] font-extrabold tracking-tight shrink-0">{iniciaisDe(nome)}</motion.div>
         <div className="min-w-0">
-          <motion.p initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.18 }} className="text-[19px] font-extrabold leading-tight truncate">{nome}</motion.p>
-          <motion.p initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }} className="text-[12.5px] text-white/85 mt-0.5 truncate">
+          <motion.p initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.18 }} className="text-[1.1875rem] font-extrabold leading-tight truncate">{nome}</motion.p>
+          <motion.p initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }} className="text-[0.7812rem] text-white/85 mt-0.5 truncate">
             {[cargo, loja ? `Loja ${loja}` : null].filter(Boolean).join(" · ")}
           </motion.p>
         </div>
@@ -165,8 +165,8 @@ function MaisTile({ T, dark, i, icon: Icon, cor, titulo, desc, onClick }) {
         style={{ color: cor }} className="absolute -right-3 -bottom-3"><Icon size={84} /></motion.div>
       <MaisBolha cor={cor} dark={dark}><Icon size={21} /></MaisBolha>
       <div className="relative">
-        <p style={{ color: T.text }} className="text-[15px] font-bold leading-tight">{titulo}</p>
-        <p style={{ color: T.subtext }} className="text-[12px] mt-1 leading-snug">{desc}</p>
+        <p style={{ color: T.text }} className="text-[0.9375rem] font-bold leading-tight">{titulo}</p>
+        <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1 leading-snug">{desc}</p>
       </div>
     </motion.button>
   );

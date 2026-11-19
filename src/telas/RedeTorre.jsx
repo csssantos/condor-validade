@@ -160,19 +160,19 @@ function RedeView({ T, showToast }) {
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-white/10 rounded-2xl px-3 py-3">
               <p className="text-white text-lg font-extrabold leading-none">{formatarMoeda(totais.valorEmRisco)}</p>
-              <p className="text-white/70 text-[9.5px] mt-1">Valor em risco (rede)</p>
+              <p className="text-white/70 text-[0.5938rem] mt-1">Valor em risco (rede)</p>
             </div>
             <div className="bg-white/10 rounded-2xl px-3 py-3">
               <p className="text-white text-lg font-extrabold leading-none">{formatarMoeda(totais.perdaMes)}</p>
-              <p className="text-white/70 text-[9.5px] mt-1">Perda confirmada no mês</p>
+              <p className="text-white/70 text-[0.5938rem] mt-1">Perda confirmada no mês</p>
             </div>
             <div className="bg-white/10 rounded-2xl px-3 py-3">
               <p className="text-white text-lg font-extrabold leading-none">{totais.criticos + totais.atencao}</p>
-              <p className="text-white/70 text-[9.5px] mt-1">Produtos críticos/atenção</p>
+              <p className="text-white/70 text-[0.5938rem] mt-1">Produtos críticos/atenção</p>
             </div>
             <div className="bg-white/10 rounded-2xl px-3 py-3">
               <p className="text-white text-lg font-extrabold leading-none">{totais.rondasPendentesHoje}</p>
-              <p className="text-white/70 text-[9.5px] mt-1">Rondas pendentes hoje</p>
+              <p className="text-white/70 text-[0.5938rem] mt-1">Rondas pendentes hoje</p>
             </div>
           </div>
         )}
@@ -188,7 +188,7 @@ function RedeView({ T, showToast }) {
       <div style={{ background: T.chipBg }} className="flex rounded-2xl p-1 mb-4">
         {[["valorEmRisco", "Valor em risco"], ["perdaMes", "Perda no mês"], ["rondasPendentesHoje", "Rondas pendentes"]].map(([id, label]) => (
           <button key={id} onClick={() => setOrdenarPor(id)} style={ordenarPor === id ? { background: T.card, color: T.text } : { color: T.subtext }}
-            className="flex-1 text-[10.5px] font-semibold py-2 rounded-xl transition">
+            className="flex-1 text-[0.6562rem] font-semibold py-2 rounded-xl transition">
             {label}
           </button>
         ))}
@@ -208,7 +208,7 @@ function RedeView({ T, showToast }) {
             <div key={l.lojaNumero} style={{ background: T.card }} className="rounded-2xl p-3.5 shadow-lg shadow-black/5">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-bold">{i + 1}. {l.lojaNome || `Loja ${l.lojaNumero}`}</p>
-                <span style={{ color: T.subtext }} className="text-[9.5px]">{tempoDesde(l.atualizadoEm)}</span>
+                <span style={{ color: T.subtext }} className="text-[0.5938rem]">{tempoDesde(l.atualizadoEm)}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
@@ -282,7 +282,7 @@ function TorreDashboard({ T, criticos, atencao, valorEmRisco, previsaoAmanha, ri
             {ultimasAcoes.map((a, i) => (
               <div key={a.id ?? i} className="flex items-start gap-2.5 text-xs">
                 <span style={{ background: BLUE_SOFT, color: BLUE }} className="h-7 w-7 rounded-full flex items-center justify-center font-bold shrink-0">{(a.usuario || "?").slice(0, 1).toUpperCase()}</span>
-                <div className="min-w-0"><p><b>{a.usuario}</b> {a.acao}</p><p style={{ color: T.subtext }} className="text-[10.5px]">{tempoDesde(a.criadoEm)}</p></div>
+                <div className="min-w-0"><p><b>{a.usuario}</b> {a.acao}</p><p style={{ color: T.subtext }} className="text-[0.6562rem]">{tempoDesde(a.criadoEm)}</p></div>
               </div>))}
           </div>
         </DashCard>
@@ -306,7 +306,7 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
   ].filter(Boolean);
   const cap = (titulo, sub, children, i) => (
     <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 + i * 0.05 }} className="mb-5">
-      <div className="px-1 mb-2"><h3 style={{ color: T.text }} className="text-[15px] font-extrabold leading-tight">{titulo}</h3>{sub && <p style={{ color: T.subtext }} className="text-[11.5px]">{sub}</p>}</div>
+      <div className="px-1 mb-2"><h3 style={{ color: T.text }} className="text-[0.9375rem] font-extrabold leading-tight">{titulo}</h3>{sub && <p style={{ color: T.subtext }} className="text-[0.7188rem]">{sub}</p>}</div>
       {children}
     </motion.section>
   );
@@ -320,17 +320,17 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
             <span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping" style={{ background: situacao.cor }} /><span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: situacao.cor }} /></span>
             <p className="text-[0.75rem] font-bold uppercase tracking-[.16em] text-white/75">Torre de controle · ao vivo</p>
           </div>
-          <h2 className="text-[26px] font-extrabold leading-tight mt-2">{situacao.rot}</h2>
-          <p className="text-[12.5px] text-white/80 mt-0.5">{situacao.sub}</p>
+          <h2 className="text-[1.625rem] font-extrabold leading-tight mt-2">{situacao.rot}</h2>
+          <p className="text-[0.7812rem] text-white/80 mt-0.5">{situacao.sub}</p>
           <div className="grid grid-cols-3 gap-2 mt-4">
             {[["Em risco", formatarMoeda(valorEmRisco), true], ["Vencidos", criticos.length], ["Em atenção", atencao.length]].map(([r, v, grande]) => (
               <div key={r} className="rounded-2xl py-2.5 px-2 text-center min-w-0" style={{ background: "rgba(255,255,255,.13)", border: "1px solid rgba(255,255,255,.2)" }}>
                 <p className="font-extrabold leading-none tabular-nums truncate" style={{ fontSize: grande ? 15 : 22 }}>{v}</p>
-                <p className="text-[10.5px] font-semibold text-white/80 mt-1.5">{r}</p>
+                <p className="text-[0.6562rem] font-semibold text-white/80 mt-1.5">{r}</p>
               </div>
             ))}
           </div>
-          <motion.button whileTap={{ scale: 0.97 }} onClick={onGerarPDF} className="mt-3.5 w-full bg-white rounded-2xl py-3 text-[13px] font-extrabold flex items-center justify-center gap-2" style={{ color: BLUE_DARK }}>
+          <motion.button whileTap={{ scale: 0.97 }} onClick={onGerarPDF} className="mt-3.5 w-full bg-white rounded-2xl py-3 text-[0.8125rem] font-extrabold flex items-center justify-center gap-2" style={{ color: BLUE_DARK }}>
             <FileText size={16} /> Relatório completo para a gerência (PDF)
           </motion.button>
         </div>
@@ -341,8 +341,8 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
           {alertas.map((a) => (
             <div key={a.t} style={{ background: a.bg }} className="snap-start shrink-0 w-[78%] rounded-[24px] p-4">
               <span className="h-9 w-9 rounded-2xl flex items-center justify-center bg-white/70"><a.Icone size={18} color={a.cor} /></span>
-              <p style={{ color: a.cor }} className="text-[14px] font-extrabold mt-2.5">{a.t}</p>
-              <p style={{ color: a.cor }} className="text-[12.5px] leading-snug mt-0.5 opacity-90">{a.d}</p>
+              <p style={{ color: a.cor }} className="text-[0.875rem] font-extrabold mt-2.5">{a.t}</p>
+              <p style={{ color: a.cor }} className="text-[0.7812rem] leading-snug mt-0.5 opacity-90">{a.d}</p>
             </div>
           ))}
         </div>
@@ -356,7 +356,7 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
             return (
               <div key={setor} className={`relative overflow-hidden rounded-[22px] text-white p-3.5 ${i === 0 ? "col-span-2" : ""}`} style={{ background: `linear-gradient(145deg, ${cor[0]}, ${cor[1]})`, minHeight: i === 0 ? 92 : 78 }}>
                 <p className="text-[0.75rem] font-bold uppercase tracking-wide text-white/80 truncate">#{i + 1} · {setor}</p>
-                <p className={`font-extrabold tabular-nums leading-tight mt-1 ${i === 0 ? "text-[24px]" : "text-[17px]"}`}>{formatarMoeda(valor)}</p>
+                <p className={`font-extrabold tabular-nums leading-tight mt-1 ${i === 0 ? "text-[1.5rem]" : "text-[1.0625rem]"}`}>{formatarMoeda(valor)}</p>
                 <div className="h-1.5 rounded-full mt-2 bg-white/25 overflow-hidden"><div className="h-full rounded-full bg-white" style={{ width: `${Math.max(6, f * 100)}%` }} /></div>
               </div>
             );
@@ -368,9 +368,9 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
         <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4">
           <div className="flex items-end gap-5">
             <div className="flex-1">
-              <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Este mês</p>
-              <p style={{ color: T.text }} className="text-[26px] font-extrabold leading-tight tabular-nums">{formatarMoeda(tendenciaPerdas.atual)}</p>
-              {tendenciaPerdas.variacao !== null && <p style={{ color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }} className="text-[12px] font-bold mt-1">{tendenciaPerdas.variacao > 0 ? "▲ +" : "▼ "}{tendenciaPerdas.variacao}% vs anterior</p>}
+              <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Este mês</p>
+              <p style={{ color: T.text }} className="text-[1.625rem] font-extrabold leading-tight tabular-nums">{formatarMoeda(tendenciaPerdas.atual)}</p>
+              {tendenciaPerdas.variacao !== null && <p style={{ color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }} className="text-[0.75rem] font-bold mt-1">{tendenciaPerdas.variacao > 0 ? "▲ +" : "▼ "}{tendenciaPerdas.variacao}% vs anterior</p>}
             </div>
             <div className="flex items-end gap-3 h-20">
               {[["Ant.", tendenciaPerdas.anterior || 0, T.chipBg], ["Atual", tendenciaPerdas.atual, RED]].map(([r, v, c]) => (
@@ -384,7 +384,7 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
       {reincidentes.length > 0 && cap("Produtos que repetem", "Venceram mais de uma vez em 60 dias", (
         <div className="flex flex-wrap gap-2">
           {reincidentes.map((pr) => (
-            <span key={pr.nome + pr.setor} style={{ background: T.card, color: T.text }} className="rounded-full pl-3.5 pr-1.5 py-1.5 text-[12px] font-bold shadow-sm flex items-center gap-2 max-w-full">
+            <span key={pr.nome + pr.setor} style={{ background: T.card, color: T.text }} className="rounded-full pl-3.5 pr-1.5 py-1.5 text-[0.75rem] font-bold shadow-sm flex items-center gap-2 max-w-full">
               <span className="truncate">{pr.nome}</span><span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[0.75rem] font-extrabold rounded-full px-2 py-0.5 shrink-0">{pr.datas.length}x</span>
             </span>
           ))}
@@ -395,8 +395,8 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
         <div className="flex gap-2.5 overflow-x-auto no-scrollbar -mx-4 px-4">
           {rankingResponsaveis.slice(0, 8).map(([nome, qtd], k) => (
             <div key={nome} style={{ background: T.card }} className="shrink-0 w-[104px] rounded-[22px] shadow-md shadow-black/5 p-3 text-center">
-              <span style={{ background: k === 0 ? `linear-gradient(135deg, ${BLUE}, ${BLUE_DARK})` : T.chipBg, color: k === 0 ? "#fff" : T.text }} className="h-11 w-11 rounded-full mx-auto flex items-center justify-center text-[14px] font-extrabold">{iniciaisDe(nome)}</span>
-              <p style={{ color: T.text }} className="text-[12px] font-bold mt-2 truncate">{String(nome).split(" ")[0]}</p>
+              <span style={{ background: k === 0 ? `linear-gradient(135deg, ${BLUE}, ${BLUE_DARK})` : T.chipBg, color: k === 0 ? "#fff" : T.text }} className="h-11 w-11 rounded-full mx-auto flex items-center justify-center text-[0.875rem] font-extrabold">{iniciaisDe(nome)}</span>
+              <p style={{ color: T.text }} className="text-[0.75rem] font-bold mt-2 truncate">{String(nome).split(" ")[0]}</p>
               <p style={{ color: T.subtext }} className="text-[0.75rem] font-semibold tabular-nums">{qtd} ação(ões)</p>
             </div>
           ))}
@@ -410,8 +410,8 @@ function TorreMobile({ T, itensTotal, criticos, atencao, valorEmRisco, previsaoA
             {ultimasAcoes.map((a, k) => (
               <div key={a.id || k} className="relative pb-3.5 last:pb-0">
                 <span className="absolute -left-5 top-1 h-3 w-3 rounded-full border-2" style={{ background: T.card, borderColor: k === 0 ? RED : BLUE }} />
-                <p style={{ color: T.text }} className="text-[12.5px] leading-snug"><strong>{a.usuario || "Alguém"}</strong> {a.acao}</p>
-                {a.detalhe && <p style={{ color: T.subtext }} className="text-[11.5px] leading-snug">{a.detalhe}</p>}
+                <p style={{ color: T.text }} className="text-[0.7812rem] leading-snug"><strong>{a.usuario || "Alguém"}</strong> {a.acao}</p>
+                {a.detalhe && <p style={{ color: T.subtext }} className="text-[0.7188rem] leading-snug">{a.detalhe}</p>}
               </div>
             ))}
           </div>
@@ -431,21 +431,21 @@ function LinhaPrioridade({ T, item, p, pos, podeVerValores, onOpenDetail, aberta
       <button onClick={onToggle} aria-expanded={aberta} className="w-full flex items-center gap-3 p-3 text-left">
         {!semFotoUtil(item.foto) ? <img src={item.foto} onError={trocarPorBipi} alt="" className="h-12 w-12 rounded-2xl object-cover shrink-0" /> : <span style={{ background: soft }} className="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0"><Package size={20} color={cor} /></span>}
         <span className="min-w-0 flex-1">
-          <span style={{ color: T.text }} className="block text-[13.5px] font-extrabold leading-tight line-clamp-2">{item.nome}</span>
-          <span style={{ color: T.subtext }} className="block text-[11.5px] mt-0.5 truncate">{item.setor} · {quando}</span>
+          <span style={{ color: T.text }} className="block text-[0.8438rem] font-extrabold leading-tight line-clamp-2">{item.nome}</span>
+          <span style={{ color: T.subtext }} className="block text-[0.7188rem] mt-0.5 truncate">{item.setor} · {quando}</span>
         </span>
-        <span style={{ background: soft, color: cor }} className="h-11 w-11 rounded-full flex flex-col items-center justify-center shrink-0"><span className="text-[14px] font-extrabold leading-none tabular-nums">{p.score}</span><span className="text-[8px] font-bold uppercase">risco</span></span>
+        <span style={{ background: soft, color: cor }} className="h-11 w-11 rounded-full flex flex-col items-center justify-center shrink-0"><span className="text-[0.875rem] font-extrabold leading-none tabular-nums">{p.score}</span><span className="text-[0.5rem] font-bold uppercase">risco</span></span>
       </button>
       {aberta && (
         <div className="px-3 pb-3 -mt-1">
           <div className="grid grid-cols-3 gap-2">
             {[["Quantidade", `${item.quantidade || 1} un`], ["Valor", podeVerValores && p.valor > 0 ? formatarMoeda(p.valor) : "—"], ["Troca", p.semTroca ? "Sem troca" : p.comTroca ? "Com troca" : "Não definida"]].map(([r, v]) => (
-              <div key={r} style={{ background: T.chipBg }} className="rounded-xl px-2 py-2 text-center min-w-0"><p style={{ color: T.subtext }} className="text-[9.5px] font-bold uppercase">{r}</p><p style={{ color: T.text }} className="text-[12px] font-extrabold truncate">{v}</p></div>
+              <div key={r} style={{ background: T.chipBg }} className="rounded-xl px-2 py-2 text-center min-w-0"><p style={{ color: T.subtext }} className="text-[0.5938rem] font-bold uppercase">{r}</p><p style={{ color: T.text }} className="text-[0.75rem] font-extrabold truncate">{v}</p></div>
             ))}
           </div>
-          <div style={{ background: soft }} className="rounded-2xl px-3 py-2.5 mt-2"><p style={{ color: cor }} className="text-[0.6875rem] font-extrabold uppercase tracking-wide">O que fazer</p><p style={{ color: T.text }} className="text-[12.5px] font-semibold leading-snug">{p.acao}</p></div>
-          {p.reincidencias >= 2 && <p style={{ color: T.subtext }} className="text-[11.5px] mt-2 flex items-center gap-1.5"><Repeat size={12} /> Já foi baixado {p.reincidencias}x nos últimos 60 dias</p>}
-          <button onClick={() => onOpenDetail(item)} style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="w-full mt-2.5 rounded-xl py-2.5 text-[12.5px] font-extrabold text-white">Abrir produto</button>
+          <div style={{ background: soft }} className="rounded-2xl px-3 py-2.5 mt-2"><p style={{ color: cor }} className="text-[0.6875rem] font-extrabold uppercase tracking-wide">O que fazer</p><p style={{ color: T.text }} className="text-[0.7812rem] font-semibold leading-snug">{p.acao}</p></div>
+          {p.reincidencias >= 2 && <p style={{ color: T.subtext }} className="text-[0.7188rem] mt-2 flex items-center gap-1.5"><Repeat size={12} /> Já foi baixado {p.reincidencias}x nos últimos 60 dias</p>}
+          <button onClick={() => onOpenDetail(item)} style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="w-full mt-2.5 rounded-xl py-2.5 text-[0.7812rem] font-extrabold text-white">Abrir produto</button>
         </div>
       )}
     </div>
@@ -470,11 +470,11 @@ function PrioridadeMobile({ T, prioridades, valorEmRisco, urgenteCount, semTroca
         <div className="relative">
           <p className="text-[0.75rem] font-bold uppercase tracking-[.16em] text-white/70">Prioridade de perda</p>
           <p className="font-extrabold leading-tight tabular-nums mt-1" style={{ fontSize: 32 }}>{podeVerValores ? formatarMoeda(valorEmRisco) : "•••"}</p>
-          <p className="text-[12.5px] text-white/80">em {prioridades.length} produto(s) que podem virar perda</p>
+          <p className="text-[0.7812rem] text-white/80">em {prioridades.length} produto(s) que podem virar perda</p>
           <div className="flex h-2.5 rounded-full overflow-hidden mt-3.5" style={{ background: "rgba(255,255,255,.2)" }}>
             <div style={{ width: `${(urgenteCount / Math.max(1, prioridades.length)) * 100}%`, background: "#FF6B6F" }} /><div style={{ width: `${(altoCount / Math.max(1, prioridades.length)) * 100}%`, background: "#FFC24B" }} /><div style={{ flex: 1, background: "#6CB4FF" }} />
           </div>
-          <div className="flex gap-4 mt-2.5 text-[11.5px] font-semibold text-white/85">
+          <div className="flex gap-4 mt-2.5 text-[0.7188rem] font-semibold text-white/85">
             {[["Urgentes", urgenteCount, "#FF6B6F"], ["Alto", altoCount, "#FFC24B"], ["Atenção", Math.max(0, prioridades.length - urgenteCount - altoCount), "#6CB4FF"]].map(([r, v, c]) => <span key={r} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: c }} />{v} {r}</span>)}
           </div>
         </div>
@@ -489,14 +489,14 @@ function PrioridadeMobile({ T, prioridades, valorEmRisco, urgenteCount, semTroca
             <motion.button initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} whileTap={{ scale: 0.985 }} onClick={() => onOpenDetail(topo.item)} style={{ background: T.card }} className="w-full text-left rounded-[28px] shadow-xl shadow-black/10 overflow-hidden mb-5">
               <div className="relative">
                 {!semFotoUtil(topo.item.foto) ? <img src={topo.item.foto} onError={trocarPorBipi} alt="" className="w-full h-40 object-cover" /> : <div style={{ background: FUNDO_MARCA }} className="w-full h-24" />}
-                <span style={{ background: "#D92D33" }} className="absolute top-3 left-3 text-[10.5px] font-extrabold text-white rounded-full px-3 py-1.5 uppercase tracking-wide">Faça isto primeiro</span>
+                <span style={{ background: "#D92D33" }} className="absolute top-3 left-3 text-[0.6562rem] font-extrabold text-white rounded-full px-3 py-1.5 uppercase tracking-wide">Faça isto primeiro</span>
               </div>
               <div className="p-4 flex items-center gap-3.5" style={{ color: T.text }}>
                 <AnelRel partes={[{ v: topo.p.score, cor: topo.p.nivel === "urgente" ? "#D92D33" : "#C2760C" }, { v: 100 - topo.p.score, cor: "transparent" }]} tamanho={70} espessura={8} fundo={T.chipBg} centro={topo.p.score} sub="risco" />
                 <div className="min-w-0 flex-1" style={{ color: T.text }}>
-                  <p className="text-[15px] font-extrabold leading-tight line-clamp-2">{topo.item.nome}</p>
-                  <p style={{ color: T.subtext }} className="text-[12px] mt-0.5">{topo.item.setor} · {topo.item.quantidade || 1} un{podeVerValores && topo.p.valor > 0 ? ` · ${formatarMoeda(topo.p.valor)}` : ""}</p>
-                  <p style={{ color: "#D92D33" }} className="text-[12px] font-bold mt-1 leading-snug">{topo.p.acao}</p>
+                  <p className="text-[0.9375rem] font-extrabold leading-tight line-clamp-2">{topo.item.nome}</p>
+                  <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5">{topo.item.setor} · {topo.item.quantidade || 1} un{podeVerValores && topo.p.valor > 0 ? ` · ${formatarMoeda(topo.p.valor)}` : ""}</p>
+                  <p style={{ color: "#D92D33" }} className="text-[0.75rem] font-bold mt-1 leading-snug">{topo.p.acao}</p>
                 </div>
               </div>
             </motion.button>
@@ -506,8 +506,8 @@ function PrioridadeMobile({ T, prioridades, valorEmRisco, urgenteCount, semTroca
             <section key={g.id} className="mb-5">
               <div className="flex items-center gap-2.5 mb-2 px-1">
                 <span className="h-5 w-1.5 rounded-full" style={{ background: g.cor }} />
-                <h3 style={{ color: T.text }} className="text-[14.5px] font-extrabold">{g.rot}</h3>
-                <span style={{ color: T.subtext }} className="text-[11.5px] font-semibold">{g.sub}</span>
+                <h3 style={{ color: T.text }} className="text-[0.9062rem] font-extrabold">{g.rot}</h3>
+                <span style={{ color: T.subtext }} className="text-[0.7188rem] font-semibold">{g.sub}</span>
                 <span style={{ background: T.chipBg, color: T.subtext }} className="ml-auto text-[0.75rem] font-extrabold rounded-full px-2.5 py-0.5 tabular-nums">{g.itens.length}</span>
               </div>
               <div className="flex flex-col gap-2">

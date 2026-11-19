@@ -28,7 +28,7 @@ function FaixaFila({ online }) {
   if (online && n === 0 && r === 0 && !enviando) return null;
   const tentar = () => { try { window.dispatchEvent(new CustomEvent("condor-sincronizar-fila")); } catch { /* sem janela */ } };
   return (
-    <div role="status" aria-live="polite" style={{ background: online ? "#8A5A00" : "#7A1F23" }} className="text-white text-center text-[12px] font-medium py-2 px-3 flex items-center justify-center gap-2 flex-wrap">
+    <div role="status" aria-live="polite" style={{ background: online ? "#8A5A00" : "#7A1F23" }} className="text-white text-center text-[0.75rem] font-medium py-2 px-3 flex items-center justify-center gap-2 flex-wrap">
       {!online ? <><WifiOff size={13} /> {textoFaixaOffline(n, r)}</>
         : enviando ? <><Loader2 size={13} className="animate-spin" /> Enviando {n === 1 ? "1 registro" : `${n} registros`}…</>
         : <><CloudUpload size={13} /> {textoFaixaPendente(n, r)}

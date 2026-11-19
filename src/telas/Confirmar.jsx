@@ -251,10 +251,10 @@ function ConfirmProductView({ T, barcode, initial, wasKnown, nomesExistentes, on
               <div className="flex rounded-lg overflow-hidden shrink-0" style={{ border: `1px solid ${T.inputBorder}` }}>
                 <button type="button" onClick={() => setPorPeso(true)}
                   style={porPeso ? { background: BLUE, color: "#fff" } : { background: T.inputBg, color: T.subtext }}
-                  className="text-[10.5px] font-semibold px-2.5 py-1.5">Peso (KG)</button>
+                  className="text-[0.6562rem] font-semibold px-2.5 py-1.5">Peso (KG)</button>
                 <button type="button" onClick={() => setPorPeso(false)}
                   style={!porPeso ? { background: BLUE, color: "#fff" } : { background: T.inputBg, color: T.subtext }}
-                  className="text-[10.5px] font-semibold px-2.5 py-1.5">Unidade</button>
+                  className="text-[0.6562rem] font-semibold px-2.5 py-1.5">Unidade</button>
               </div>
             </div>
           )}

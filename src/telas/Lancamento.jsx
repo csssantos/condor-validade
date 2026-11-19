@@ -158,15 +158,15 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
               onChange={(e) => { setLote(e.target.value.replace(/[^A-Za-z0-9./ -]/g, "").toUpperCase().slice(0, 20)); setSemLote(false); }}
               placeholder="Número do lote impresso na embalagem (ex.: L2410A)"
               style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder, opacity: semLote ? 0.5 : 1 }} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 uppercase" />
-            <button type="button" onClick={() => { setSemLote(!semLote); if (!semLote) setLote(""); }} style={{ color: semLote ? BLUE : T.subtext }} className="mt-1.5 flex items-center gap-1.5 text-[12px] font-semibold">
+            <button type="button" onClick={() => { setSemLote(!semLote); if (!semLote) setLote(""); }} style={{ color: semLote ? BLUE : T.subtext }} className="mt-1.5 flex items-center gap-1.5 text-[0.75rem] font-semibold">
               <span style={{ borderColor: semLote ? BLUE : T.inputBorder, background: semLote ? BLUE : "transparent" }} className="h-4 w-4 rounded border flex items-center justify-center">{semLote && <Check size={11} color="#fff" />}</span>
               Esta embalagem não tem lote impresso
             </button>
             {lotesDoProduto.length > 0 && (
               <div style={{ background: T.chipBg }} className="mt-2 rounded-xl p-2.5">
-                <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide mb-1">Já lançados deste produto ({lotesDoProduto.length})</p>
+                <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide mb-1">Já lançados deste produto ({lotesDoProduto.length})</p>
                 {lotesDoProduto.slice(0, 5).map((l) => (
-                  <p key={l.id} style={{ color: T.text }} className="text-[12px]">{l.lote ? `Lote ${l.lote}` : "Sem lote"} · vence {formatarData(l.validade)} · {l.quantidade || 1} {l.porPeso ? "kg" : "un"}</p>
+                  <p key={l.id} style={{ color: T.text }} className="text-[0.75rem]">{l.lote ? `Lote ${l.lote}` : "Sem lote"} · vence {formatarData(l.validade)} · {l.quantidade || 1} {l.porPeso ? "kg" : "un"}</p>
                 ))}
                 <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1">Se o lote da embalagem for diferente, ele entra como um lote novo.</p>
               </div>
@@ -199,22 +199,22 @@ function ExpiryView({ T, product, barcode, editing, items, vozPre, onCancel, onV
                 <span>{diasRestantesAtual <= 0 ? "Esta data já venceu ou vence hoje." : "Data muito próxima."} Não é possível definir uma antecedência de alerta.</span>
               </div>
               {!onBaixaDireta && !editing && jaVencido && (
-                <p className="text-[10.5px] font-semibold px-3 pb-3">Produto vencido: avise o encarregado do setor para registrar a perda.</p>
+                <p className="text-[0.6562rem] font-semibold px-3 pb-3">Produto vencido: avise o encarregado do setor para registrar a perda.</p>
               )}
               {onBaixaDireta && jaVencido && (
                 <div className="px-3 pb-3">
-                  <p className="text-[10.5px] font-semibold mb-1.5">Quantas {porPeso ? "kg" : "unidade(s)"} estão sendo descartadas?</p>
+                  <p className="text-[0.6562rem] font-semibold mb-1.5">Quantas {porPeso ? "kg" : "unidade(s)"} estão sendo descartadas?</p>
                   <input type="number" inputMode="decimal" min={porPeso ? 0.001 : 1} step={porPeso ? "0.001" : "1"}
                     value={quantidade} onChange={(e) => setQuantidade(e.target.value.replace(",", "."))}
                                         placeholder={porPeso ? "Ex: 1,235" : "Ex: 3"}
                     style={{ background: "rgba(255,255,255,0.7)", borderColor: "transparent" }}
                     className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 mb-2.5" />
-                  <p className="text-[10.5px] font-semibold mb-1.5">Motivo do descarte:</p>
+                  <p className="text-[0.6562rem] font-semibold mb-1.5">Motivo do descarte:</p>
                   <div className="grid grid-cols-2 gap-1.5 mb-2.5">
                     {MOTIVOS_BAIXA.filter((m) => m !== "Promoção aplicada").map((m) => (
                       <button key={m} onClick={() => setMotivoBaixaDireta(m)}
                         style={motivoBaixaDireta === m ? { background: RED_DARK, color: "#fff" } : { background: "rgba(255,255,255,0.6)", color: RED_DARK }}
-                        className="text-[10.5px] font-medium py-2 rounded-lg">
+                        className="text-[0.6562rem] font-medium py-2 rounded-lg">
                         {m}
                       </button>
                     ))}

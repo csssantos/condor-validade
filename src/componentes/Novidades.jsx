@@ -11,7 +11,7 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
   { id: "2026-11-18-acessibilidade", data: "18/11/2026", itens: [
-    { tipo: "adicionado", ate: 7, texto: "Novo ajuste em Mais → Aparência: Tamanho das letras (Normal, Grande e Muito grande). No Normal, o app segue o tamanho de letra do seu celular." },
+    { tipo: "adicionado", ate: 7, texto: "Novo ajuste em Mais → Aparência: Tamanho das letras (Normal, Grande e Muito grande). Normal é o tamanho padrão do app." },
     { tipo: "melhorado", ate: 7, texto: "Letras pequenas ficaram maiores e mais fáceis de ler, o texto cinza ficou mais escuro para dar mais contraste e agora dá para dar zoom na tela com os dedos." },
   ] },
   { id: "2026-11-18-tema", data: "18/11/2026", itens: [
@@ -300,13 +300,13 @@ function AtualizacaoModal({ T, novidades, cargoNome, onFechar }) {
           <div style={{ background: BLUE_SOFT }} className="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0"><Sparkles size={22} color={BLUE} /></div>
           <div className="min-w-0">
             <p className="text-base font-bold">App atualizado!</p>
-            <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">Veja o que mudou{cargoNome ? ` para o seu cargo (${cargoNome})` : ""}.</p>
+            <p style={{ color: T.subtext }} className="text-[0.7812rem] mt-0.5">Veja o que mudou{cargoNome ? ` para o seu cargo (${cargoNome})` : ""}.</p>
           </div>
         </div>
         <div className="overflow-y-auto px-5 pb-3 flex flex-col gap-4">
           {novidades.map((v) => (
             <div key={v.id}>
-              <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide mb-2">Versão de {v.data}</p>
+              <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide mb-2">Versão de {v.data}</p>
               <div className="flex flex-col gap-2">
                 {v.itens.map((it, i) => {
                   const t = TIPOS_NOVIDADE[it.tipo] || TIPOS_NOVIDADE.melhorado;
@@ -316,7 +316,7 @@ function AtualizacaoModal({ T, novidades, cargoNome, onFechar }) {
                         <DashBadge bg={t.bg} color={t.cor}>{t.rotulo}</DashBadge>
                         <span style={{ color: T.subtext }} className="text-[0.6875rem] font-semibold">{rotuloPublico(it.ate)}</span>
                       </div>
-                      <p className="text-[12.5px] leading-snug">{it.texto}</p>
+                      <p className="text-[0.7812rem] leading-snug">{it.texto}</p>
                     </div>
                   );
                 })}

@@ -104,7 +104,7 @@ function Kpi({ T, label, valor, sub, cor = T.text }) {
   );
 }
 function Selo({ bg, color, children }) {
-  return <span style={{ background: bg, color }} className="text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">{children}</span>;
+  return <span style={{ background: bg, color }} className="text-[0.6562rem] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">{children}</span>;
 }
 function Abas({ T, valor, onChange, opcoes }) {
   return (
@@ -137,7 +137,7 @@ function Campo({ T, label, hint, children }) {
     <label className="block">
       <span className="text-xs font-semibold">{label}</span>
       <div className="mt-1.5">{children}</div>
-      {hint && <span style={{ color: T.subtext }} className="text-[10.5px] mt-1 block">{hint}</span>}
+      {hint && <span style={{ color: T.subtext }} className="text-[0.6562rem] mt-1 block">{hint}</span>}
     </label>
   );
 }
@@ -146,12 +146,12 @@ function Carregando({ T, texto = "Carregando…" }) {
   return <div className="py-14 flex flex-col items-center gap-2"><Loader2 className="animate-spin" color={T.subtext} /><p style={{ color: T.subtext }} className="text-xs">{texto}</p></div>;
 }
 function Vazio({ T, texto }) {
-  return <p style={{ color: T.subtext }} className="text-[12.5px] text-center py-6">{texto}</p>;
+  return <p style={{ color: T.subtext }} className="text-[0.7812rem] text-center py-6">{texto}</p>;
 }
 function Tendencia({ t }) {
   if (t === "subindo") return <span className="inline-flex items-center gap-1 text-[0.75rem] font-bold" style={{ color: RED_DARK }}><TrendingUp size={13} /> Subindo</span>;
   if (t === "caindo") return <span className="inline-flex items-center gap-1 text-[0.75rem] font-bold" style={{ color: VERDE }}><TrendingDown size={13} /> Caindo</span>;
-  return <span className="inline-flex items-center gap-1 text-[0.75rem] font-bold" style={{ color: "#6B7280" }}><Minus size={13} /> Estável</span>;
+  return <span className="inline-flex items-center gap-1 text-[0.75rem] font-bold" style={{ color: "#566070" }}><Minus size={13} /> Estável</span>;
 }
 function BarraRisco({ score }) {
   const cor = score >= 60 ? RED : score >= 30 ? LARANJA : VERDE;
@@ -192,7 +192,7 @@ class ErroGrafico extends React.Component {
   render() {
     const { T, altura, onTentar } = this.props;
     if (this.state.erro) return (
-      <div style={{ height: altura, color: T.subtext }} className="flex flex-col items-center justify-center gap-2 text-[12px] text-center px-4">
+      <div style={{ height: altura, color: T.subtext }} className="flex flex-col items-center justify-center gap-2 text-[0.75rem] text-center px-4">
         <span>Não foi possível carregar o gráfico. Confira a internet.</span>
         <button type="button" onClick={onTentar} style={{ background: T.chipBg, color: T.text }} className="px-3 py-1.5 rounded-xl font-semibold active:scale-95">Tentar de novo</button>
       </div>
@@ -297,7 +297,7 @@ export function NovaAcaoPreventivaSheet({ T, lojaAtiva, inicial, setores, showTo
         <Campo T={T} label="Ações">
           <div className="flex flex-col gap-1.5">
             {acoes.map((a, i) => (
-              <div key={i} style={{ background: T.chipBg }} className="rounded-xl px-3 py-2 text-[12.5px] flex items-start gap-2">
+              <div key={i} style={{ background: T.chipBg }} className="rounded-xl px-3 py-2 text-[0.7812rem] flex items-start gap-2">
                 <ListChecks size={14} className="mt-0.5 shrink-0" color={BLUE} /><span className="flex-1">{a}</span>
                 <button onClick={() => setAcoes((p) => p.filter((_, j) => j !== i))}><X size={13} /></button>
               </div>
@@ -330,7 +330,7 @@ function ProdutoAnaliseSheet({ T, barcode, lojaAtiva, onClose, onCriarAcao }) {
             <div style={{ background: T.card }} className="rounded-2xl p-3.5">
               <div className="flex items-center justify-between mb-2"><p className="text-xs font-bold">Indicador de risco</p><Selo {...(NIVEL_COR[r.nivel] || NIVEL_COR.baixa)}>{(NIVEL_COR[r.nivel] || NIVEL_COR.baixa).label}</Selo></div>
               <BarraRisco score={r.score} />
-              <p style={{ color: T.subtext }} className="text-[10.5px] mt-2">Risco é uma indicação baseada no histórico — não significa que o produto esteja vencido ou irregular.</p>
+              <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-2">Risco é uma indicação baseada no histórico — não significa que o produto esteja vencido ou irregular.</p>
               <FatoresRisco T={T} f={r.fatores} />
             </div>
           )}
@@ -342,20 +342,20 @@ function ProdutoAnaliseSheet({ T, barcode, lojaAtiva, onClose, onCriarAcao }) {
           <Cartao T={T} titulo="Perdas">
             {d.perdas.length === 0 ? <Vazio T={T} texto="Nenhuma perda registrada para este produto." /> : (
               <div className="flex flex-col gap-1.5">{d.perdas.slice(0, 15).map((p, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 text-[12px]"><span>{dataBR(p.data)} · {MOTIVO_LABEL[p.tipo] || p.tipo}</span><span style={{ color: T.subtext }}>{Number(p.quantidade).toLocaleString("pt-BR")} {p.unidade} · {moeda(p.valor)}</span></div>
+                <div key={i} className="flex items-center justify-between gap-2 text-[0.75rem]"><span>{dataBR(p.data)} · {MOTIVO_LABEL[p.tipo] || p.tipo}</span><span style={{ color: T.subtext }}>{Number(p.quantidade).toLocaleString("pt-BR")} {p.unidade} · {moeda(p.valor)}</span></div>
               ))}</div>
             )}
           </Cartao>
           <Cartao T={T} titulo="Conferências em rondas">
             {d.conferencias.length === 0 ? <Vazio T={T} texto="Este produto ainda não foi conferido em ronda." /> : (
               <div className="flex flex-col gap-1.5">{d.conferencias.slice(0, 15).map((c, i) => (
-                <div key={i} className="flex items-center justify-between gap-2 text-[12px]"><span>{dataBR(c.data)} · {c.ronda}</span>
+                <div key={i} className="flex items-center justify-between gap-2 text-[0.75rem]"><span>{dataBR(c.data)} · {c.ronda}</span>
                   <Selo bg={c.resultado === "irregular" ? RED_SOFT : c.resultado === "atencao" ? LARANJA_SOFT : VERDE_SOFT} color={c.resultado === "irregular" ? RED_DARK : c.resultado === "atencao" ? LARANJA : VERDE}>{c.resultado}</Selo></div>
               ))}</div>
             )}
           </Cartao>
           {d.lotes_ativos?.length > 0 && (
-            <Cartao T={T} titulo="Lotes ativos">{d.lotes_ativos.map((l, i) => <p key={i} className="text-[12px]">Validade {dataBR(l.validade)} · {l.quantidade} un.</p>)}</Cartao>
+            <Cartao T={T} titulo="Lotes ativos">{d.lotes_ativos.map((l, i) => <p key={i} className="text-[0.75rem]">Validade {dataBR(l.validade)} · {l.quantidade} un.</p>)}</Cartao>
           )}
           {onCriarAcao && <button onClick={() => onCriarAcao({ alvo_tipo: "produto", setor: d.setor, codigo: d.barcode, alvo_nome: d.nome, problema: `Ocorrências recorrentes em ${d.nome}`, origem: "produto" })}
             style={{ background: BLUE, color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2"><ShieldCheck size={16} /> Gerar plano de ação para este produto</button>}
@@ -406,8 +406,8 @@ export function PrevisaoOperacionalView({ T, perfil, lojaAtiva, showToast, onCri
       <div style={{ background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)` }} className="rounded-3xl p-5 lg:p-8 text-white lg:!col-span-2">
         <p className="text-[0.75rem] font-bold tracking-[0.16em] text-white/70 flex items-center gap-1.5"><Radar size={14} /> PREVISÃO OPERACIONAL</p>
         <p className="text-lg font-bold mt-1">O que pode dar problema — antes de acontecer</p>
-        <p className="text-[12px] text-white/75 mt-1">Baseado em {base.eventos_120_dias ?? 0} ocorrência(s) dos últimos 120 dias ({base.dias_de_historico ?? 0} dia(s) de histórico). Última análise: {dataHoraBR(dados.gerado_em)}.</p>
-        {!base.suficiente && <p className="mt-2 text-[12px] font-semibold bg-white/15 rounded-xl px-3 py-2">Ainda não existe histórico suficiente para previsões confiáveis em toda a loja. Os cards abaixo só aparecem onde há dados.</p>}
+        <p className="text-[0.75rem] text-white/75 mt-1">Baseado em {base.eventos_120_dias ?? 0} ocorrência(s) dos últimos 120 dias ({base.dias_de_historico ?? 0} dia(s) de histórico). Última análise: {dataHoraBR(dados.gerado_em)}.</p>
+        {!base.suficiente && <p className="mt-2 text-[0.75rem] font-semibold bg-white/15 rounded-xl px-3 py-2">Ainda não existe histórico suficiente para previsões confiáveis em toda a loja. Os cards abaixo só aparecem onde há dados.</p>}
       </div>
       <div className="flex items-center justify-between gap-2">
         <Abas T={T} valor={filtro} onChange={setFiltro} opcoes={[{ id: "todos", label: `Todos (${dados.cards?.length || 0})` }, { id: "alto", label: "Risco alto" }, { id: "setor", label: "Setores" }, { id: "produto", label: "Produtos" }]} />
@@ -421,16 +421,16 @@ export function PrevisaoOperacionalView({ T, perfil, lojaAtiva, showToast, onCri
               <div key={i} style={{ background: T.card, borderLeft: `4px solid ${n.color}` }} className="rounded-2xl shadow-lg shadow-black/5 p-4 flex flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">{c.tipo_alvo === "setor" ? "Setor" : `Produto · ${c.setor}`}</p>
+                    <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">{c.tipo_alvo === "setor" ? "Setor" : `Produto · ${c.setor}`}</p>
                     <p className="text-sm font-bold leading-snug">{c.alvo}</p>
                   </div>
                   <Selo bg={n.bg} color={n.color}>Risco {n.label.toLowerCase()}</Selo>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap"><span className="text-[11.5px] font-semibold">{c.tipo_risco}</span><Tendencia t={c.tendencia} /></div>
-                <p style={{ color: T.subtext }} className="text-[12px]"><b style={{ color: T.text }}>Por quê:</b> {c.justificativa}</p>
-                <p className="text-[12px]"><b>Recomendação:</b> {c.recomendacao}</p>
+                <div className="flex items-center gap-3 flex-wrap"><span className="text-[0.7188rem] font-semibold">{c.tipo_risco}</span><Tendencia t={c.tendencia} /></div>
+                <p style={{ color: T.subtext }} className="text-[0.75rem]"><b style={{ color: T.text }}>Por quê:</b> {c.justificativa}</p>
+                <p className="text-[0.75rem]"><b>Recomendação:</b> {c.recomendacao}</p>
                 <div className="flex items-center justify-between gap-2 mt-1">
-                  <span style={{ color: T.subtext }} className="text-[10.5px] flex items-center gap-1"><Info size={11} /> {CONFIANCA[c.confianca] || "—"}</span>
+                  <span style={{ color: T.subtext }} className="text-[0.6562rem] flex items-center gap-1"><Info size={11} /> {CONFIANCA[c.confianca] || "—"}</span>
                   <div className="flex gap-1.5">
                     {c.barcode && <button onClick={() => setProduto(c.barcode)} style={{ background: T.chipBg }} className="text-[0.75rem] font-semibold px-2.5 py-1.5 rounded-lg">Histórico</button>}
                     <button onClick={() => setAcao({ alvo_tipo: c.tipo_alvo, setor: c.setor, codigo: c.barcode, alvo_nome: c.alvo, problema: `${c.tipo_risco}: ${c.justificativa}`, evidencias: c.dados, origem: "previsao" })}
@@ -454,7 +454,7 @@ export function PrevisaoOperacionalView({ T, perfil, lojaAtiva, showToast, onCri
           <div className="flex flex-col divide-y" style={{ borderColor: T.chipBg }}>
             {risco.map((p) => (
               <button key={p.barcode} onClick={() => setProduto(p.barcode)} className="flex items-center gap-3 py-2 text-left">
-                <div className="min-w-0 flex-1"><p className="text-[12.5px] font-semibold truncate">{p.nome}</p><p style={{ color: T.subtext }} className="text-[10.5px] truncate">{p.setor}{p.validade_lote ? ` · lote ${dataBR(p.validade_lote)}` : ""}</p></div>
+                <div className="min-w-0 flex-1"><p className="text-[0.7812rem] font-semibold truncate">{p.nome}</p><p style={{ color: T.subtext }} className="text-[0.6562rem] truncate">{p.setor}{p.validade_lote ? ` · lote ${dataBR(p.validade_lote)}` : ""}</p></div>
                 <BarraRisco score={p.score} /><ChevronRight size={14} style={{ color: T.subtext }} />
               </button>
             ))}
@@ -547,7 +547,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
                   {!d.por_tipo?.length ? <Vazio T={T} texto="Sem perdas no período." /> : (
                     <div className="flex flex-col gap-2">{d.por_tipo.map((t) => {
                       const max = Math.max(...d.por_tipo.map((x) => x.registros));
-                      return <div key={t.tipo} className="text-[12px]"><div className="flex justify-between mb-1"><span className="font-semibold">{MOTIVO_LABEL[t.tipo] || t.tipo}</span><span style={{ color: T.subtext }}>{t.registros} · {moeda(t.valor)}</span></div>
+                      return <div key={t.tipo} className="text-[0.75rem]"><div className="flex justify-between mb-1"><span className="font-semibold">{MOTIVO_LABEL[t.tipo] || t.tipo}</span><span style={{ color: T.subtext }}>{t.registros} · {moeda(t.valor)}</span></div>
                         <div className="h-2 rounded-full bg-black/10 overflow-hidden"><div style={{ width: `${(t.registros / max) * 100}%`, background: RED }} className="h-full rounded-full" /></div></div>;
                     })}</div>
                   )}
@@ -559,8 +559,8 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
                   <div className="flex flex-col">{d.top_produtos.map((p, i) => (
                     <button key={p.barcode + i} onClick={() => setProduto(p.barcode)} className="flex items-center gap-3 py-2 text-left">
                       <span style={{ background: i < 3 ? RED_SOFT : T.chipBg, color: i < 3 ? RED_DARK : T.subtext }} className="h-7 w-7 rounded-lg text-[0.75rem] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
-                      <div className="min-w-0 flex-1"><p className="text-[12.5px] font-semibold truncate">{p.nome}</p><p style={{ color: T.subtext }} className="text-[10.5px]">{p.setor}</p></div>
-                      <div className="text-right"><p className="text-[12px] font-bold">{p.registros}x</p><p style={{ color: T.subtext }} className="text-[10.5px]">{moeda(p.valor)}</p></div>
+                      <div className="min-w-0 flex-1"><p className="text-[0.7812rem] font-semibold truncate">{p.nome}</p><p style={{ color: T.subtext }} className="text-[0.6562rem]">{p.setor}</p></div>
+                      <div className="text-right"><p className="text-[0.75rem] font-bold">{p.registros}x</p><p style={{ color: T.subtext }} className="text-[0.6562rem]">{moeda(p.valor)}</p></div>
                     </button>
                   ))}</div>
                 )}
@@ -568,7 +568,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
               {d.por_setor?.length > 0 && (
                 <Cartao T={T} titulo="Setores com mais ocorrências">
                   <div className="flex flex-col gap-2">{d.por_setor.map((s) => (
-                    <div key={s.setor} className="flex items-center justify-between gap-2 text-[12.5px]">
+                    <div key={s.setor} className="flex items-center justify-between gap-2 text-[0.7812rem]">
                       <span className="font-semibold">{s.setor}</span>
                       <div className="flex items-center gap-2">
                         <span style={{ color: T.subtext }}>{s.registros} perda(s) · {s.irregularidades} irreg.</span>
@@ -592,7 +592,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
             <div className="flex flex-col">
               {riscoLista.filter((p) => !busca.trim() || p.nome.toLowerCase().includes(busca.toLowerCase()) || p.barcode.includes(busca.trim())).slice(0, 80).map((p) => (
                 <button key={p.barcode} onClick={() => setProduto(p.barcode)} className="flex items-center gap-3 py-2 text-left">
-                  <div className="min-w-0 flex-1"><p className="text-[12.5px] font-semibold truncate">{p.nome}</p><p style={{ color: T.subtext }} className="text-[10.5px] truncate">{p.setor} · {p.eventos} ocorrência(s)</p></div>
+                  <div className="min-w-0 flex-1"><p className="text-[0.7812rem] font-semibold truncate">{p.nome}</p><p style={{ color: T.subtext }} className="text-[0.6562rem] truncate">{p.setor} · {p.eventos} ocorrência(s)</p></div>
                   <BarraRisco score={p.score} />
                 </button>
               ))}
@@ -611,12 +611,12 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
                 return (
                   <div key={a.id} style={{ background: T.card }} className="rounded-2xl shadow-lg shadow-black/5 p-4 flex flex-col gap-2">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0"><p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase">{a.alvo_tipo === "setor" ? "Setor" : `Produto · ${a.setor}`}</p><p className="text-sm font-bold">{a.alvo_nome}</p></div>
+                      <div className="min-w-0"><p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase">{a.alvo_tipo === "setor" ? "Setor" : `Produto · ${a.setor}`}</p><p className="text-sm font-bold">{a.alvo_nome}</p></div>
                       <Selo bg={st.bg} color={st.color}>{st.label}</Selo>
                     </div>
-                    <p className="text-[12px]"><b>Problema:</b> {a.problema}</p>
-                    {Array.isArray(a.acoes) && a.acoes.length > 0 && <ul className="flex flex-col gap-0.5">{a.acoes.map((x, i) => <li key={i} style={{ color: T.subtext }} className="text-[11.5px]">• {x}</li>)}</ul>}
-                    <p style={{ color: T.subtext }} className="text-[10.5px]">Criada por {a.criado_por_nome || "—"} em {dataBR(a.criado_em)}{a.linha_base ? ` · ponto de partida: ${a.linha_base.perdas} perda(s) em 30 dias` : ""}{a.ronda_id ? " · ronda vinculada" : ""}{a.ocorrencia_id ? " · tarefa vinculada" : ""}</p>
+                    <p className="text-[0.75rem]"><b>Problema:</b> {a.problema}</p>
+                    {Array.isArray(a.acoes) && a.acoes.length > 0 && <ul className="flex flex-col gap-0.5">{a.acoes.map((x, i) => <li key={i} style={{ color: T.subtext }} className="text-[0.7188rem]">• {x}</li>)}</ul>}
+                    <p style={{ color: T.subtext }} className="text-[0.6562rem]">Criada por {a.criado_por_nome || "—"} em {dataBR(a.criado_em)}{a.linha_base ? ` · ponto de partida: ${a.linha_base.perdas} perda(s) em 30 dias` : ""}{a.ronda_id ? " · ronda vinculada" : ""}{a.ocorrencia_id ? " · tarefa vinculada" : ""}</p>
                     {["aberta", "em_andamento"].includes(a.status) && (
                       <div className="flex gap-1.5 flex-wrap">
                         {onCriarRonda && <button onClick={() => onCriarRonda(a.alvo_tipo === "produto" && a.barcode ? { setor: a.setor, modo: "manual", barcodes: [a.barcode], acaoId: a.id, nome: `Ronda preventiva · ${a.alvo_nome}`.slice(0, 80) } : { setor: a.setor, modo: "priorizada", acaoId: a.id, nome: `Ronda preventiva · ${a.setor}` })}
@@ -645,7 +645,7 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
           <Cartao T={T} titulo="Antes x depois de cada ação" sub="Só compara quando a ação tem pelo menos 14 dias.">
             {!ind.acoes?.length ? <Vazio T={T} texto="Nenhuma ação preventiva criada ainda." /> : (
               <div className="flex flex-col gap-2.5">{ind.acoes.map((a) => (
-                <div key={a.id} style={{ background: T.chipBg }} className="rounded-xl p-3 text-[12px]">
+                <div key={a.id} style={{ background: T.chipBg }} className="rounded-xl p-3 text-[0.75rem]">
                   <div className="flex justify-between gap-2"><b className="truncate">{a.alvo}</b><Selo {...(STATUS_ACAO[a.status] || STATUS_ACAO.aberta)}>{(STATUS_ACAO[a.status] || STATUS_ACAO.aberta).label}</Selo></div>
                   {a.avaliavel ? (
                     <p className="mt-1">Antes: <b>{a.antes?.perdas}</b> perda(s) em {a.antes?.dias} dias · Depois: <b>{a.depois?.perdas}</b> em {a.depois?.dias} dias
@@ -658,14 +658,14 @@ export function PrevencaoPerdasView({ T, perfil, lojaAtiva, catalog, showToast, 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <Cartao T={T} titulo="Setores: últimos 30 dias x 30 anteriores">
               {!ind.setores?.length ? <Vazio T={T} texto="Sem perdas nos últimos 60 dias." /> : ind.setores.map((s) => (
-                <div key={s.setor} className="flex items-center justify-between py-1.5 text-[12.5px]"><span className="font-semibold">{s.setor}</span>
+                <div key={s.setor} className="flex items-center justify-between py-1.5 text-[0.7812rem]"><span className="font-semibold">{s.setor}</span>
                   <span className="flex items-center gap-2"><span style={{ color: T.subtext }}>{s.anteriores_30} → {s.ultimos_30}</span>
                     <Selo bg={s.situacao === "melhorou" ? VERDE_SOFT : s.situacao === "piorou" ? RED_SOFT : T.chipBg} color={s.situacao === "melhorou" ? VERDE : s.situacao === "piorou" ? RED_DARK : T.subtext}>{s.situacao === "dados_insuficientes" ? "poucos dados" : s.situacao}</Selo></span></div>
               ))}
             </Cartao>
             <Cartao T={T} titulo="Produtos que continuam com problemas" sub="Tiveram perdas nos dois últimos períodos de 30 dias">
               {!ind.produtos_persistentes?.length ? <Vazio T={T} texto="Nenhum produto com perdas repetidas nos dois períodos." /> : ind.produtos_persistentes.map((p) => (
-                <button key={p.barcode} onClick={() => setProduto(p.barcode)} className="w-full flex items-center justify-between py-1.5 text-[12.5px] text-left"><span className="truncate font-semibold">{p.nome}</span><span style={{ color: T.subtext }}>{p.registros_60d}x</span></button>
+                <button key={p.barcode} onClick={() => setProduto(p.barcode)} className="w-full flex items-center justify-between py-1.5 text-[0.7812rem] text-left"><span className="truncate font-semibold">{p.nome}</span><span style={{ color: T.subtext }}>{p.registros_60d}x</span></button>
               ))}
             </Cartao>
           </div>
@@ -702,7 +702,7 @@ function TextoIA({ texto }) {
   const linhas = String(texto || "").split("\n");
   const inline = (s, k) => s.split(/(\*\*[^*]+\*\*)/g).map((p, i) => (p.startsWith("**") && p.endsWith("**") ? <b key={k + "-" + i}>{p.slice(2, -2)}</b> : <React.Fragment key={k + "-" + i}>{p}</React.Fragment>));
   return (
-    <div className="flex flex-col gap-1 text-[13px] leading-relaxed">
+    <div className="flex flex-col gap-1 text-[0.8125rem] leading-relaxed">
       {linhas.map((l, i) => {
         const t = l.trim();
         if (!t) return <div key={i} className="h-1" />;
@@ -774,18 +774,18 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
             <div>
               <p className="text-[0.75rem] font-bold tracking-[0.16em] text-white/70 flex items-center gap-1.5"><Sparkles size={14} /> ASSISTENTE IA — INTELIGÊNCIA OPERACIONAL</p>
               <p className="text-base lg:text-lg font-bold mt-1">Pergunte sobre a operação da loja</p>
-              <p className="hidden lg:block text-[11.5px] text-white/70 mt-1">Responde só com os dados que você tem permissão de ver. Nada é criado sem a sua confirmação.</p>
+              <p className="hidden lg:block text-[0.7188rem] text-white/70 mt-1">Responde só com os dados que você tem permissão de ver. Nada é criado sem a sua confirmação.</p>
             </div>
             {msgs.length > 0 && <button onClick={novaConversa} disabled={pensando} className="bg-white/15 rounded-xl px-2.5 py-2 text-[0.75rem] font-semibold flex items-center gap-1 shrink-0 disabled:opacity-50"><Plus size={14} /> Nova conversa</button>}
           </div>
         </div>
         {aviso === "sem_chave" && (
-          <div style={{ background: LARANJA_SOFT, color: LARANJA }} className="rounded-2xl p-3 text-[12px] font-semibold lg:col-start-1 lg:row-start-2">O assistente ainda não foi ativado no servidor: falta o secret GEMINI_API_KEY nas Edge Functions do Supabase.</div>
+          <div style={{ background: LARANJA_SOFT, color: LARANJA }} className="rounded-2xl p-3 text-[0.75rem] font-semibold lg:col-start-1 lg:row-start-2">O assistente ainda não foi ativado no servidor: falta o secret GEMINI_API_KEY nas Edge Functions do Supabase.</div>
         )}
 
         <div style={{ background: T.card }} className="hidden lg:flex lg:col-start-1 lg:row-start-3 rounded-3xl shadow-lg shadow-black/5 p-5 flex-col gap-3">
           <p className="text-sm font-bold">Como aproveitar</p>
-          <ul style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed flex flex-col gap-2">
+          <ul style={{ color: T.subtext }} className="text-[0.7812rem] leading-relaxed flex flex-col gap-2">
             <li>Peça números, tabelas e gráficos: “os 10 últimos lançamentos de hoje”.</li>
             <li>Use <b style={{ color: T.text }}>Enter</b> para enviar e <b style={{ color: T.text }}>Shift + Enter</b> para pular linha.</li>
             <li>Rondas, tarefas e ações só são criadas depois que você revisa e confirma.</li>
@@ -798,27 +798,27 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
             <div className="flex flex-col gap-2">
               <p style={{ color: T.subtext }} className="text-xs font-semibold flex items-center gap-1.5"><MessageSquare size={13} /> Sugestões de perguntas</p>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-1.5">{SUGESTOES.slice(0, qtdSugestoes).map((s) => (
-                <button key={s} onClick={() => perguntar(s)} style={{ background: T.chipBg }} className="text-left rounded-xl px-3 py-2.5 text-[12.5px] font-medium">{s}</button>
+                <button key={s} onClick={() => perguntar(s)} style={{ background: T.chipBg }} className="text-left rounded-xl px-3 py-2.5 text-[0.7812rem] font-medium">{s}</button>
               ))}</div>
               {qtdSugestoes < SUGESTOES.length && (
-                <button onClick={() => setQtdSugestoes((n) => Math.min(SUGESTOES.length, n + 3))} style={{ color: BLUE }} className="self-start text-[12px] font-bold flex items-center gap-1 px-1 py-1"><Plus size={13} /> Sugerir mais</button>
+                <button onClick={() => setQtdSugestoes((n) => Math.min(SUGESTOES.length, n + 3))} style={{ color: BLUE }} className="self-start text-[0.75rem] font-bold flex items-center gap-1 px-1 py-1"><Plus size={13} /> Sugerir mais</button>
               )}
             </div>
           )}
           {msgs.map((m) => (
             <div key={m.id} className={`flex ${m.papel === "usuario" ? "justify-end" : "justify-start"}`}>
               {m.papel === "usuario" ? (
-                <div style={{ background: BLUE, color: "#fff" }} className="rounded-2xl rounded-br-md px-3.5 py-2.5 text-[13px] max-w-[85%] lg:max-w-[65%] whitespace-pre-wrap">{m.conteudo}</div>
+                <div style={{ background: BLUE, color: "#fff" }} className="rounded-2xl rounded-br-md px-3.5 py-2.5 text-[0.8125rem] max-w-[85%] lg:max-w-[65%] whitespace-pre-wrap">{m.conteudo}</div>
               ) : m.papel === "erro" ? (
-                <div style={{ background: RED_SOFT, color: RED_DARK }} className="rounded-2xl px-3.5 py-2.5 text-[12.5px] font-semibold max-w-[90%] flex items-start gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" />{m.conteudo}</div>
+                <div style={{ background: RED_SOFT, color: RED_DARK }} className="rounded-2xl px-3.5 py-2.5 text-[0.7812rem] font-semibold max-w-[90%] flex items-start gap-2"><AlertTriangle size={15} className="shrink-0 mt-0.5" />{m.conteudo}</div>
               ) : (
                 <div className="max-w-full lg:max-w-[92%] w-full flex flex-col gap-2">
                   <div style={{ background: T.chipBg }} className="rounded-2xl rounded-bl-md px-3.5 py-3"><TextoIA texto={m.conteudo} /></div>
                   {m.tabelas?.map((tb, i) => (
                     <div key={"t" + i} style={{ background: T.bg }} className="rounded-2xl p-3">
-                      <p className="text-[12px] font-bold mb-2">{tb.titulo}</p>
+                      <p className="text-[0.75rem] font-bold mb-2">{tb.titulo}</p>
                       <div className="overflow-x-auto -mx-1 px-1">
-                        <table className="w-full text-[12px] min-w-max">
+                        <table className="w-full text-[0.75rem] min-w-max">
                           <thead><tr>{tb.colunas.map((c) => <th key={c.chave} style={{ color: T.subtext }} className="text-left font-semibold pb-1.5 pr-4 whitespace-nowrap">{c.rotulo}</th>)}</tr></thead>
                           <tbody>{tb.linhas.map((l, j) => (
                             <tr key={j} style={{ borderTop: `1px solid ${T.chipBg}` }}>{tb.colunas.map((c) => <td key={c.chave} className={`py-1.5 pr-4 align-top ${c.chave === "nome" ? "font-semibold min-w-[160px]" : "whitespace-nowrap"} ${c.chave === "codigo" ? "font-mono" : ""}`}>{String(l[c.chave] ?? "") || "—"}</td>)}</tr>
@@ -828,17 +828,17 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
                     </div>
                   ))}
                   {m.graficos?.map((g, i) => (
-                    <div key={i} style={{ background: T.bg }} className="rounded-2xl p-3"><p className="text-[12px] font-bold mb-1 flex items-center gap-1.5"><BarChart3 size={13} /> {g.titulo}</p><GraficoSimples T={T} tipo={g.tipo} formato={g.formato} dados={g.dados} altura={190} /></div>
+                    <div key={i} style={{ background: T.bg }} className="rounded-2xl p-3"><p className="text-[0.75rem] font-bold mb-1 flex items-center gap-1.5"><BarChart3 size={13} /> {g.titulo}</p><GraficoSimples T={T} tipo={g.tipo} formato={g.formato} dados={g.dados} altura={190} /></div>
                   ))}
                   {m.propostas?.length > 0 && (
                     <div className="flex flex-col gap-1.5">{m.propostas.map((p, i) => (
                       <div key={i} style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="rounded-2xl p-3 flex items-center gap-3">
                         <Target size={18} className="shrink-0" />
-                        <div className="flex-1 min-w-0 text-[12px]">
+                        <div className="flex-1 min-w-0 text-[0.75rem]">
                           <p className="font-bold">{p.tipo === "ronda" ? `Ronda ${p.modo} em ${p.setor}${p.quantidade ? ` (${p.quantidade} produtos)` : ""}` : p.tipo === "tarefa" ? `Tarefa em ${p.setor} · prioridade ${p.prioridade}` : `Plano de ação · ${p.alvo_nome || p.setor}`}</p>
                           <p className="opacity-80 line-clamp-2">{p.motivo || p.descricao || p.problema}</p>
                         </div>
-                        <button onClick={() => executarProposta(p)} style={{ background: BLUE, color: "#fff" }} className="text-[11.5px] font-bold px-3 py-2 rounded-xl shrink-0">Revisar e criar</button>
+                        <button onClick={() => executarProposta(p)} style={{ background: BLUE, color: "#fff" }} className="text-[0.7188rem] font-bold px-3 py-2 rounded-xl shrink-0">Revisar e criar</button>
                       </div>
                     ))}</div>
                   )}
@@ -848,7 +848,7 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
               )}
             </div>
           ))}
-          {pensando && <div style={{ color: T.subtext }} className="flex items-center gap-2 text-[12.5px]"><Loader2 size={15} className="animate-spin" /> Consultando os dados da loja… (pode levar até 1 minuto)</div>}
+          {pensando && <div style={{ color: T.subtext }} className="flex items-center gap-2 text-[0.7812rem]"><Loader2 size={15} className="animate-spin" /> Consultando os dados da loja… (pode levar até 1 minuto)</div>}
           <div ref={fim} />
         </div>
         <div style={{ borderTop: `1px solid ${T.chipBg}` }} className="p-2 flex items-end gap-2 shrink-0">
@@ -871,7 +871,7 @@ export function AssistenteIAView({ T, perfil, lojaAtiva, showToast, onCriarRonda
 export function SeloRisco({ risco, nivel }) {
   if (risco == null) return null;
   const n = NIVEL_COR[nivel] || (risco >= 60 ? NIVEL_COR.alta : risco >= 30 ? NIVEL_COR.media : NIVEL_COR.baixa);
-  return <span title="Risco calculado pelo histórico (não significa que está vencido)" style={{ background: n.bg, color: n.color }} className="text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md tabular-nums whitespace-nowrap">RISCO {risco}</span>;
+  return <span title="Risco calculado pelo histórico (não significa que está vencido)" style={{ background: n.bg, color: n.color }} className="text-[0.5938rem] font-extrabold px-1.5 py-0.5 rounded-md tabular-nums whitespace-nowrap">RISCO {risco}</span>;
 }
 export const MODOS_RONDA = [
   { id: "completa", label: "Completa", desc: "Todos os produtos do setor" },
@@ -892,9 +892,9 @@ const tempoAtras = (iso) => {
 };
 const variacao = (atual, ant) => (ant > 0 ? Math.round(((atual - ant) / ant) * 100) : null);
 function Variacao({ v, inverso = true }) {
-  if (v === null || v === undefined) return <span className="text-[10.5px] opacity-70">sem período anterior</span>;
+  if (v === null || v === undefined) return <span className="text-[0.6562rem] opacity-70">sem período anterior</span>;
   const ruim = inverso ? v > 0 : v < 0;
-  return <span style={{ color: ruim ? RED_DARK : VERDE }} className="text-[10.5px] font-bold">{v > 0 ? "+" : ""}{v}% vs período anterior</span>;
+  return <span style={{ color: ruim ? RED_DARK : VERDE }} className="text-[0.6562rem] font-bold">{v > 0 ? "+" : ""}{v}% vs período anterior</span>;
 }
 
 export function PainelRedeView({ T, showToast }) {
@@ -953,7 +953,7 @@ export function PainelRedeView({ T, showToast }) {
           <div className="min-w-0">
             <p className="text-[0.75rem] font-bold tracking-[0.16em] text-white/70">PAINEL DA REDE · {todas.length} LOJA(S) · AO VIVO</p>
             <p className="text-3xl lg:text-4xl font-extrabold mt-2 tabular-nums break-words">{moeda(tot.valor_risco)}</p>
-            <p className="text-[12.5px] text-white/80 mt-1">em risco agora{pctRisco !== null ? ` · ${pctRisco}% do valor monitorado (${moeda(tot.valor_monitorado)})` : ""}</p>
+            <p className="text-[0.7812rem] text-white/80 mt-1">em risco agora{pctRisco !== null ? ` · ${pctRisco}% do valor monitorado (${moeda(tot.valor_monitorado)})` : ""}</p>
             <p className="text-[0.75rem] text-white/60 mt-1">Atualizado {tempoAtras(d.gerado_em)} · calculado direto do banco</p>
           </div>
           <div className="flex flex-col gap-2 lg:items-end">
@@ -982,7 +982,7 @@ export function PainelRedeView({ T, showToast }) {
         <Cartao T={T} titulo="Precisa de atenção" sub="Gerado automaticamente a partir dos números acima">
           <div className="flex flex-col gap-1.5">{alertas.slice(0, 8).map((a, i) => (
             <div key={i} style={{ background: a.nivel === "alto" ? RED_SOFT : a.nivel === "medio" ? LARANJA_SOFT : T.chipBg, color: a.nivel === "alto" ? RED_DARK : a.nivel === "medio" ? LARANJA : T.text }}
-              className="rounded-xl px-3 py-2 text-[12px] font-semibold flex items-start gap-2"><AlertTriangle size={14} className="shrink-0 mt-0.5" /><span>{a.texto}</span></div>
+              className="rounded-xl px-3 py-2 text-[0.75rem] font-semibold flex items-start gap-2"><AlertTriangle size={14} className="shrink-0 mt-0.5" /><span>{a.texto}</span></div>
           ))}</div>
         </Cartao>
       )}
@@ -998,15 +998,15 @@ export function PainelRedeView({ T, showToast }) {
         <Cartao T={T} titulo="Motivos de perda" sub={`Rede · ${d.periodo_dias} dias`}>
           {!d.por_motivo?.length ? <Vazio T={T} texto="Sem perdas no período." /> : d.por_motivo.map((m) => {
             const max = Math.max(...d.por_motivo.map((x) => x.registros));
-            return <div key={m.tipo} className="text-[12px] mb-2"><div className="flex justify-between gap-2 mb-1"><span className="font-semibold">{MOTIVO_LABEL[m.tipo] || m.tipo}</span><span style={{ color: T.subtext }} className="whitespace-nowrap">{m.registros} · {moeda(m.valor)}</span></div>
+            return <div key={m.tipo} className="text-[0.75rem] mb-2"><div className="flex justify-between gap-2 mb-1"><span className="font-semibold">{MOTIVO_LABEL[m.tipo] || m.tipo}</span><span style={{ color: T.subtext }} className="whitespace-nowrap">{m.registros} · {moeda(m.valor)}</span></div>
               <div className="h-2 rounded-full bg-black/10 overflow-hidden"><div style={{ width: `${(m.registros / max) * 100}%`, background: ROXO }} className="h-full rounded-full" /></div></div>;
           })}
         </Cartao>
         <Cartao T={T} titulo="Produtos que mais perdem" sub={lojaSel === "todas" ? "Top de cada loja" : `Loja ${lojaSel}`} className="lg:col-span-2">
           {lojas.every((l) => !l.top_produtos?.length) ? <Vazio T={T} texto="Sem perdas no período." /> : (
             <div className="flex flex-col">{lojas.flatMap((l) => (l.top_produtos || []).map((p) => ({ ...p, loja: l.numero_loja }))).sort((a, b) => b.registros - a.registros || b.valor - a.valor).slice(0, 8).map((p, i) => (
-              <div key={i} className="flex items-center gap-3 py-1.5 text-[12.5px]">
-                <span style={{ background: i < 3 ? RED_SOFT : T.chipBg, color: i < 3 ? RED_DARK : T.subtext }} className="h-6 w-6 rounded-lg text-[10.5px] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
+              <div key={i} className="flex items-center gap-3 py-1.5 text-[0.7812rem]">
+                <span style={{ background: i < 3 ? RED_SOFT : T.chipBg, color: i < 3 ? RED_DARK : T.subtext }} className="h-6 w-6 rounded-lg text-[0.6562rem] font-extrabold flex items-center justify-center shrink-0">{i + 1}</span>
                 <span className="flex-1 min-w-0 truncate font-semibold">{p.nome}</span>
                 <span style={{ color: T.subtext }} className="whitespace-nowrap text-[0.75rem]">L{p.loja} · {p.registros}x · {moeda(p.valor)}</span>
               </div>
@@ -1016,12 +1016,12 @@ export function PainelRedeView({ T, showToast }) {
       </div>
 
       <Cartao T={T} titulo="Ranking de lojas" sub="Toque em uma loja para ver o detalhe"
-        direita={<select value={ordenar} onChange={(e) => setOrdenar(e.target.value)} style={estiloCampo(T)} className="border rounded-xl px-2.5 py-1.5 text-[11.5px] outline-none">
+        direita={<select value={ordenar} onChange={(e) => setOrdenar(e.target.value)} style={estiloCampo(T)} className="border rounded-xl px-2.5 py-1.5 text-[0.7188rem] outline-none">
           <option value="valor_risco">Valor em risco</option><option value="valor_perdas">Perdas no período</option><option value="vencidos">Vencidos</option>
           <option value="tarefas_atrasadas">Tarefas atrasadas</option><option value="rondas">Rondas</option></select>}>
         <div className="overflow-x-auto -mx-1">
-          <table className="w-full text-[12px] min-w-[760px]">
-            <thead><tr style={{ color: T.subtext }} className="text-left text-[10.5px] uppercase tracking-wide">
+          <table className="w-full text-[0.75rem] min-w-[760px]">
+            <thead><tr style={{ color: T.subtext }} className="text-left text-[0.6562rem] uppercase tracking-wide">
               {["#", "Loja", "Em risco", "Perdas", "Variação", "Vencidos", "Atenção", "Rondas", "Conferido", "Tarefas atras.", "Atividade"].map((h) => <th key={h} className="px-2 py-2 font-bold whitespace-nowrap">{h}</th>)}
             </tr></thead>
             <tbody>{ordenadas.map((l, i) => {
@@ -1030,7 +1030,7 @@ export function PainelRedeView({ T, showToast }) {
               return (
                 <tr key={l.id} onClick={() => setDetalhe(l)} style={{ borderTop: `1px solid ${T.chipBg}` }} className="cursor-pointer hover:opacity-80">
                   <td className="px-2 py-2.5 tabular-nums" style={{ color: T.subtext }}>{i + 1}</td>
-                  <td className="px-2 py-2.5 whitespace-nowrap"><b>Loja {l.numero_loja}</b>{l.cidade && <span style={{ color: T.subtext }} className="block text-[10.5px]">{l.cidade}</span>}</td>
+                  <td className="px-2 py-2.5 whitespace-nowrap"><b>Loja {l.numero_loja}</b>{l.cidade && <span style={{ color: T.subtext }} className="block text-[0.6562rem]">{l.cidade}</span>}</td>
                   <td className="px-2 py-2.5 whitespace-nowrap font-bold tabular-nums" style={{ color: RED_DARK }}>{moeda(l.valor_risco)}</td>
                   <td className="px-2 py-2.5 whitespace-nowrap tabular-nums">{moeda(l.valor_perdas)} <span style={{ color: T.subtext }}>({l.perdas})</span></td>
                   <td className="px-2 py-2.5 whitespace-nowrap">{v === null ? "—" : <span style={{ color: v > 0 ? RED_DARK : VERDE }} className="font-bold">{v > 0 ? "+" : ""}{v}%</span>}</td>
@@ -1059,12 +1059,12 @@ export function PainelRedeView({ T, showToast }) {
             <Cartao T={T} titulo="Perdas por semana"><GraficoSimples T={T} tipo="linha" cor={ROXO} altura={170} dados={(d.semanas || []).map((s, i) => ({ rotulo: s, valor: detalhe.serie?.[i] || 0 }))} /></Cartao>
             <Cartao T={T} titulo="Setores com risco">
               {!detalhe.setores_risco?.length ? <Vazio T={T} texto="Nenhum setor com produto vencido ou em atenção." /> : detalhe.setores_risco.map((s) => (
-                <div key={s.setor} className="flex justify-between gap-2 py-1 text-[12.5px]"><span className="font-semibold">{s.setor}</span><span style={{ color: T.subtext }} className="whitespace-nowrap">{s.vencidos} venc. · {s.atencao} atenção · {moeda(s.valor_risco)}</span></div>
+                <div key={s.setor} className="flex justify-between gap-2 py-1 text-[0.7812rem]"><span className="font-semibold">{s.setor}</span><span style={{ color: T.subtext }} className="whitespace-nowrap">{s.vencidos} venc. · {s.atencao} atenção · {moeda(s.valor_risco)}</span></div>
               ))}
             </Cartao>
             <Cartao T={T} titulo="Produtos que mais perdem">
               {!detalhe.top_produtos?.length ? <Vazio T={T} texto="Sem perdas no período." /> : detalhe.top_produtos.map((p, i) => (
-                <div key={i} className="flex justify-between gap-2 py-1 text-[12.5px]"><span className="truncate">{p.nome}</span><span style={{ color: T.subtext }} className="whitespace-nowrap">{p.registros}x · {moeda(p.valor)}</span></div>
+                <div key={i} className="flex justify-between gap-2 py-1 text-[0.7812rem]"><span className="truncate">{p.nome}</span><span style={{ color: T.subtext }} className="whitespace-nowrap">{p.registros}x · {moeda(p.valor)}</span></div>
               ))}
             </Cartao>
             <p style={{ color: T.subtext }} className="text-[0.75rem]">Equipe: {detalhe.equipe} pessoa(s) · Rondas no período: {detalhe.rondas} ({detalhe.rondas_concluidas} concluída(s)) · Planos de ação ativos: {detalhe.acoes_abertas} · Última movimentação {tempoAtras(detalhe.ultima_atividade)}.</p>

@@ -9,7 +9,7 @@ import { useDesktop } from "../lib/tela";
 
 function FichaFiltro({ children, onRemove }) {
   return (
-    <span style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[11.5px] font-bold pl-2.5 pr-1.5 py-1 rounded-full flex items-center gap-1">
+    <span style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[0.7188rem] font-bold pl-2.5 pr-1.5 py-1 rounded-full flex items-center gap-1">
       {children}
       <button onClick={onRemove} aria-label="Remover filtro" className="h-4 w-4 rounded-full flex items-center justify-center" style={{ background: "rgba(11,79,158,.15)" }}><CloseIcon size={9} color={BLUE_DARK} /></button>
     </span>
@@ -23,7 +23,7 @@ function GrupoFiltro({ T, titulo, opcoes, valor, onChange }) {
       <div className="flex gap-1.5 flex-wrap">
         {opcoes.map(([id, rot]) => (
           <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => onChange(id)} aria-pressed={valor === id}
-            style={valor === id ? { background: BLUE_DARK, color: "#fff" } : { background: T.chipBg, color: T.text }} className="text-[12.5px] font-bold px-3.5 py-2 rounded-full">{rot}</motion.button>
+            style={valor === id ? { background: BLUE_DARK, color: "#fff" } : { background: T.chipBg, color: T.text }} className="text-[0.7812rem] font-bold px-3.5 py-2 rounded-full">{rot}</motion.button>
         ))}
       </div>
     </div>

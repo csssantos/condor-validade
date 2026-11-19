@@ -95,18 +95,18 @@ function MaisView(props) {
             <div className="grid grid-cols-2 gap-3 mt-4">
               {PAGINAS.map((p, i) => <MaisTile key={p.id} T={T} dark={dark} i={i} icon={p.Icon} cor={p.cor} titulo={p.titulo} desc={p.desc} onClick={() => setPagina(p.id)} />)}
             </div>
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} style={{ color: T.subtext }} className="text-center text-[11.5px] mt-6">Bipi Validade · v{APP_VERSAO}</motion.p>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} style={{ color: T.subtext }} className="text-center text-[0.7188rem] mt-6">Bipi Validade · v{APP_VERSAO}</motion.p>
           </motion.div>
         ) : (
           <motion.div key={ativa} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 40 }} transition={{ duration: 0.22 }} className="px-4 pt-3 pb-10">
-            <motion.button onClick={() => setPagina(null)} whileTap={{ scale: 0.95 }} style={{ background: T.card, color: T.text }} className="h-10 pl-2.5 pr-4 rounded-full shadow-md shadow-black/5 flex items-center gap-1 text-[13px] font-bold">
+            <motion.button onClick={() => setPagina(null)} whileTap={{ scale: 0.95 }} style={{ background: T.card, color: T.text }} className="h-10 pl-2.5 pr-4 rounded-full shadow-md shadow-black/5 flex items-center gap-1 text-[0.8125rem] font-bold">
               <ArrowLeft size={16} />Mais
             </motion.button>
             <div className="flex items-center gap-3 mt-4 mb-5">
               <motion.div initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 300, damping: 14 }}><MaisBolha cor={meta.cor} dark={dark} tamanho={52}><meta.Icon size={24} /></MaisBolha></motion.div>
               <div className="min-w-0">
-                <h1 style={{ color: T.text }} className="text-[22px] font-extrabold leading-tight tracking-tight">{meta.titulo}</h1>
-                <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">{meta.desc}</p>
+                <h1 style={{ color: T.text }} className="text-[1.375rem] font-extrabold leading-tight tracking-tight">{meta.titulo}</h1>
+                <p style={{ color: T.subtext }} className="text-[0.7812rem] mt-0.5">{meta.desc}</p>
               </div>
             </div>
             {conteudo(ativa)}

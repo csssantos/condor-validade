@@ -67,7 +67,7 @@ function Pilula({ rotulo, valor, cor, atraso }) {
   return (
     <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 22, delay: atraso }}
       style={VIDRO} className="rounded-[22px] py-3 px-2 text-center">
-      <p className="text-[24px] font-extrabold leading-none tabular-nums">{Math.round(n)}</p>
+      <p className="text-[1.5rem] font-extrabold leading-none tabular-nums">{Math.round(n)}</p>
       <p className="text-[0.75rem] font-semibold mt-1.5 flex items-center justify-center gap-1.5 text-white/85">
         <span className="h-2 w-2 rounded-full" style={{ background: cor, boxShadow: `0 0 8px ${cor}` }} />{rotulo}
       </p>
@@ -152,16 +152,16 @@ export function PalcoInicio({
 
         {/* saudação */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mt-5">
-          <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">Olá{primeiroNome ? `, ${primeiroNome}` : ""}</h1>
-          <p className="text-[12.5px] text-white/75 mt-0.5">{hoje}{loja ? ` · Loja ${loja}` : ""}</p>
+          <h1 className="text-[1.75rem] font-extrabold leading-tight tracking-tight">Olá{primeiroNome ? `, ${primeiroNome}` : ""}</h1>
+          <p className="text-[0.7812rem] text-white/75 mt-0.5">{hoje}{loja ? ` · Loja ${loja}` : ""}</p>
         </motion.div>
 
         {/* anel de status com o valor em risco no centro */}
         <div className="mt-3">
           <Anel vencidos={vencidos} alerta={alerta} ok={ok} total={total}>
-            <p className="text-[10.5px] font-bold uppercase tracking-[.14em] text-white/70">{emergencia ? "Risco imediato" : "Valor em risco"}</p>
+            <p className="text-[0.6562rem] font-bold uppercase tracking-[.14em] text-white/70">{emergencia ? "Risco imediato" : "Valor em risco"}</p>
             <p className="font-extrabold leading-tight tabular-nums mt-0.5 whitespace-nowrap" style={{ fontSize: tamanhoValor }}>{textoValor}</p>
-            <p className="text-[11.5px] font-semibold mt-1 text-white/85 flex items-center justify-center gap-1.5 leading-snug">
+            <p className="text-[0.7188rem] font-semibold mt-1 text-white/85 flex items-center justify-center gap-1.5 leading-snug">
               {atencao === 0 && total > 0 && !emergencia && <CheckCircle2 size={13} color={VERDE} />}{recado}
             </p>
           </Anel>
@@ -187,8 +187,8 @@ export function PalcoPagina({ titulo, subtitulo, acao, children, className = "" 
       <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
       <div className="relative flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[22px] font-extrabold leading-tight tracking-tight">{titulo}</h2>
-          {subtitulo && <p className="text-[12.5px] text-white/75 mt-0.5">{subtitulo}</p>}
+          <h2 className="text-[1.375rem] font-extrabold leading-tight tracking-tight">{titulo}</h2>
+          {subtitulo && <p className="text-[0.7812rem] text-white/75 mt-0.5">{subtitulo}</p>}
         </div>
         {acao}
       </div>

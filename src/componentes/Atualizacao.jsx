@@ -113,16 +113,16 @@ function AtualizacaoObrigatoria({ logo, estado, progresso, erro, onAtualizar }) 
     <div role="dialog" aria-modal="true" aria-label="Atualização necessária" className="fixed inset-0 z-[80] flex flex-col items-center justify-center px-8 text-center text-white" style={{ background: FUNDO_MARCA }}>
       <div className="bg-white rounded-2xl px-6 py-4 shadow-xl shadow-black/25"><LogoBipi className="h-12 w-auto" /></div>
       <Sparkles size={30} color="#fff" className="mt-8" />
-      <h1 className="text-[24px] font-extrabold mt-3">Nova versão disponível</h1>
-      <p className="text-[14px] text-white/80 mt-2 max-w-xs">Para entrar no app, atualize primeiro. É rapidinho.</p>
-      {erro && !baixando && <p className="text-[12.5px] mt-3 font-semibold" style={{ color: "#FFD27A" }}>Não deu pra baixar. Confira a internet e tente de novo.</p>}
+      <h1 className="text-[1.5rem] font-extrabold mt-3">Nova versão disponível</h1>
+      <p className="text-[0.875rem] text-white/80 mt-2 max-w-xs">Para entrar no app, atualize primeiro. É rapidinho.</p>
+      {erro && !baixando && <p className="text-[0.7812rem] mt-3 font-semibold" style={{ color: "#FFD27A" }}>Não deu pra baixar. Confira a internet e tente de novo.</p>}
       {baixando ? (
         <div className="w-full max-w-xs mt-7">
-          <p className="text-[13px] font-semibold">{pct >= 100 ? "Pronto! Reiniciando…" : `Baixando… ${pct}%`}</p>
+          <p className="text-[0.8125rem] font-semibold">{pct >= 100 ? "Pronto! Reiniciando…" : `Baixando… ${pct}%`}</p>
           <div className="h-2 rounded-full bg-white/20 mt-2 overflow-hidden"><div className="h-full rounded-full bg-white" style={{ width: `${pct}%`, transition: "width .25s ease" }} /></div>
         </div>
       ) : (
-        <button onClick={onAtualizar} className="mt-7 bg-white font-extrabold text-[15px] px-9 py-3.5 rounded-2xl shadow-lg" style={{ color: BLUE_DARK }}>{erro ? "Tentar de novo" : "Atualizar agora"}</button>
+        <button onClick={onAtualizar} className="mt-7 bg-white font-extrabold text-[0.9375rem] px-9 py-3.5 rounded-2xl shadow-lg" style={{ color: BLUE_DARK }}>{erro ? "Tentar de novo" : "Atualizar agora"}</button>
       )}
     </div>
   );

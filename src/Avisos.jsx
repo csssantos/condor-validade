@@ -110,7 +110,7 @@ export function AvisoToast({ msg, tom, id, elevar, onFechar }) {
               <p style={{ color: t.luz }} className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] leading-none">{t.rotulo}</p>
               <Pontinhos animar={animar && (carregando || tom === "erro" || tom === "aviso")} />
             </div>
-            <p className="text-[13px] font-medium leading-snug break-words" style={{ display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{msg}</p>
+            <p className="text-[0.8125rem] font-medium leading-snug break-words" style={{ display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{msg}</p>
           </div>
         </div>
         <BotaoFechar onClick={fechar} />
@@ -134,7 +134,7 @@ export function AvisoDesfazer({ mensagem, onDesfazer, onFechar }) {
         {!reduzir && <Bolhas cor={t.cor} />}
         <div className="relative flex items-center gap-3 pl-3.5 pr-12 py-3">
           <Orbe tom="aviso" cor={t.cor} animar={!reduzir} />
-          <p className="text-[13px] font-medium flex-1 min-w-0 leading-snug break-words" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{mensagem}</p>
+          <p className="text-[0.8125rem] font-medium flex-1 min-w-0 leading-snug break-words" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{mensagem}</p>
           <button onClick={onDesfazer} style={{ color: "#FFFFFF", background: "rgba(255,255,255,0.2)" }} className="text-xs font-bold shrink-0 rounded-full px-4 py-2.5">Desfazer</button>
         </div>
         {onFechar && <BotaoFechar onClick={onFechar} />}

@@ -73,7 +73,7 @@ function TelegramVinculo({ T, showToast }) {
               <span style={{ background: "#1F9D55" }} className="h-10 w-10 rounded-full flex items-center justify-center shrink-0"><Check size={20} color="#fff" strokeWidth={3} /></span>
               <span className="min-w-0">
                 <span style={{ color: "#1F9D55" }} className="block text-sm font-extrabold">Telegram vinculado</span>
-                <span style={{ color: T.subtext }} className="block text-[11.5px]">{st.vinculado_em ? `Desde ${formatarDataHora(st.vinculado_em)}. ` : ""}Já pode lançar validade pelo bot.</span>
+                <span style={{ color: T.subtext }} className="block text-[0.7188rem]">{st.vinculado_em ? `Desde ${formatarDataHora(st.vinculado_em)}. ` : ""}Já pode lançar validade pelo bot.</span>
               </span>
             </motion.div>
             <button onClick={remover} disabled={busy} style={{ background: T.chipBg, color: T.text }} className="py-2.5 rounded-xl text-xs font-bold disabled:opacity-60">Desvincular este Telegram</button>
@@ -176,7 +176,7 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
                 <div style={{ background: T.chipBg }} className="h-1.5 rounded-full overflow-hidden">
                   <motion.div animate={{ width: `${Math.max(forca, 1) * 25}%`, background: CORES_FORCA[forca] }} transition={MOLA} className="h-full rounded-full" />
                 </div>
-                <p style={{ color: CORES_FORCA[forca] }} className="text-[11.5px] font-semibold mt-1">Senha {ROTULOS_FORCA[forca].toLowerCase()}</p>
+                <p style={{ color: CORES_FORCA[forca] }} className="text-[0.7188rem] font-semibold mt-1">Senha {ROTULOS_FORCA[forca].toLowerCase()}</p>
               </div>
             )}
             <MaisCampo T={T} label="Repita a nova senha" value={sConf} onChange={setSConf} type={ver ? "text" : "password"} autoComplete="new-password" />
@@ -192,7 +192,7 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
           <div className="flex flex-col items-center gap-2 py-3 text-center">
             <MaisCheck />
             <p style={{ color: T.text }} className="text-sm font-bold">Pedido enviado</p>
-            <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">
+            <p style={{ color: T.subtext }} className="text-[0.7812rem] leading-relaxed">
               Mandamos links de confirmação. Abra o e-mail <strong>atual</strong> ({emailAtual}) e confirme a troca; se o novo e-mail também receber um link, confirme nele também.
               Até concluir, você continua entrando com o e-mail atual.
             </p>
@@ -220,14 +220,14 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
               <div className="h-20 w-20 rounded-[26px] flex items-center justify-center text-2xl font-extrabold shrink-0" style={{ background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.28)" }}>{iniciaisDe(perfil?.nome || usuario)}</div>
               <div className="min-w-0">
                 <p className="text-xl font-extrabold leading-tight truncate">{perfil?.nome || usuario || "—"}</p>
-                <p className="text-[13px] text-white/75 mt-0.5 truncate">{emailAtual || "—"}</p>
+                <p className="text-[0.8125rem] text-white/75 mt-0.5 truncate">{emailAtual || "—"}</p>
               </div>
             </div>
             <div className="relative grid grid-cols-2 gap-2.5 mt-5">
               {dadosConta.map(([r, v]) => (
                 <div key={r} className="rounded-2xl px-3.5 py-2.5" style={{ background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.2)" }}>
-                  <p className="text-[10.5px] font-bold uppercase tracking-wide text-white/70">{r}</p>
-                  <p className="text-[14px] font-semibold mt-0.5 truncate">{v}</p>
+                  <p className="text-[0.6562rem] font-bold uppercase tracking-wide text-white/70">{r}</p>
+                  <p className="text-[0.875rem] font-semibold mt-0.5 truncate">{v}</p>
                 </div>
               ))}
             </div>
@@ -265,15 +265,15 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
             {iniciaisDe(perfil?.nome || usuario)}
           </motion.div>
           <div className="min-w-0">
-            <p style={{ color: T.text }} className="text-[17px] font-extrabold leading-tight truncate">{perfil?.nome || usuario || "—"}</p>
-            <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5 truncate">{emailAtual || "—"}</p>
+            <p style={{ color: T.text }} className="text-[1.0625rem] font-extrabold leading-tight truncate">{perfil?.nome || usuario || "—"}</p>
+            <p style={{ color: T.subtext }} className="text-[0.7812rem] mt-0.5 truncate">{emailAtual || "—"}</p>
           </div>
         </div>
         <div style={{ borderTop: `1px solid ${T.chipBg}` }} className="grid grid-cols-2">
           {[["Cargo", cargo], ["Loja", perfil?.lojas?.numero_loja ? `Loja ${perfil.lojas.numero_loja}` : "—"], ["Setor", perfil?.setor || "—"], ["Matrícula", perfil?.matricula || "—"]].map(([r, v], k) => (
             <div key={r} style={{ borderBottom: k < 2 ? `1px solid ${T.chipBg}` : "none", borderRight: k % 2 === 0 ? `1px solid ${T.chipBg}` : "none" }} className="px-4 py-3">
-              <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">{r}</p>
-              <p style={{ color: T.text }} className="text-[14px] font-semibold mt-0.5 truncate">{v}</p>
+              <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">{r}</p>
+              <p style={{ color: T.text }} className="text-[0.875rem] font-semibold mt-0.5 truncate">{v}</p>
             </div>
           ))}
         </div>
@@ -310,7 +310,7 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
             </motion.div>
           ) : (
             <motion.div key="sair2" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="p-4">
-              <p style={{ color: T.text }} className="text-[14px] font-bold">Sair deste aparelho?</p>
+              <p style={{ color: T.text }} className="text-[0.875rem] font-bold">Sair deste aparelho?</p>
               <div className="flex gap-2 mt-3">
                 <button onClick={() => setConfirmaSair(false)} style={{ background: T.chipBg, color: T.text }} className="flex-1 py-3 rounded-2xl text-sm font-semibold">Cancelar</button>
                 <button onClick={onSair} style={{ background: RED_DARK, color: "#fff" }} className="flex-1 py-3 rounded-2xl text-sm font-bold">Sair</button>

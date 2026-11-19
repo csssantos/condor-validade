@@ -279,19 +279,19 @@ function RondaAvisosHost({ T, usuarioId, onIrParaRondas, showToast }) {
       <motion.div initial={{ scale: 0.94, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ background: T.card, color: T.text }} className="w-full max-w-md rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <div style={{ background: encerrada ? RED_DARK : "#C2760C" }} className="px-5 py-4 rounded-t-3xl flex items-center gap-3">
           <AlertTriangle size={22} color="#fff" />
-          <div><p className="text-white font-extrabold text-base tracking-wide">{titulo}</p><p className="text-white/85 text-[12px]">{subtitulo}</p></div>
+          <div><p className="text-white font-extrabold text-base tracking-wide">{titulo}</p><p className="text-white/85 text-[0.75rem]">{subtitulo}</p></div>
         </div>
         <div className="p-5">
           <div className="flex flex-col gap-1.5">
             {linhas.filter(([, v]) => v != null && v !== "").map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-3 text-[13px]"><span style={{ color: T.subtext }}>{k}</span><span className="font-semibold text-right">{String(v)}</span></div>
+              <div key={k} className="flex justify-between gap-3 text-[0.8125rem]"><span style={{ color: T.subtext }}>{k}</span><span className="font-semibold text-right">{String(v)}</span></div>
             ))}
           </div>
           {motivo && (
             <div style={{ background: T.chipBg }} className="rounded-2xl p-3 mt-4">
-              <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide mb-1">{atual.tipo === "tarefa_reprovada" ? "Justificativa" : "Motivo do encerramento"}</p>
+              <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide mb-1">{atual.tipo === "tarefa_reprovada" ? "Justificativa" : "Motivo do encerramento"}</p>
               <p className="text-sm font-semibold">{motivo}</p>
-              {d.obs && <p style={{ color: T.subtext }} className="text-[12px] mt-1">{d.obs}</p>}
+              {d.obs && <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1">{d.obs}</p>}
             </div>
           )}
           <button onClick={confirmar} style={{ background: BLUE, color: "#fff" }} className="w-full mt-5 py-3 rounded-2xl text-sm font-bold">ENTENDI</button>
@@ -322,7 +322,7 @@ function ContagemRonda({ T, itens }) {
       {["ok", "atencao", "irregular", "pendente"].map((k) => (
         <div key={k} style={{ background: RONDA_RESULTADO[k].bg, color: RONDA_RESULTADO[k].color }} className="rounded-xl py-2 text-center">
           <p className="text-lg font-extrabold leading-none tabular-nums">{c[k]}</p>
-          <p className="text-[9.5px] font-bold mt-1">{RONDA_RESULTADO[k].label}</p>
+          <p className="text-[0.5938rem] font-bold mt-1">{RONDA_RESULTADO[k].label}</p>
         </div>
       ))}
     </div>
@@ -370,7 +370,7 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
       <div className="flex flex-col gap-3.5">
         <div className="flex items-center gap-3">
           <Thumb foto={item.foto} size={52} />
-          <div className="text-[12px]" style={{ color: T.subtext }}>
+          <div className="text-[0.75rem]" style={{ color: T.subtext }}>
             <p>Validade no cadastro: <b style={{ color: T.text }}>{item.validade_cadastrada ? formatarData(item.validade_cadastrada) : "não informada"}</b></p>
             {cadastrados.length > 0 && <p className="mt-0.5">No cadastro: <b style={{ color: T.text }}>{cadastrados.slice(0, 4).map((c) => `${c.lote ? "Lote " + c.lote : "Sem lote"} (${formatarData(c.validade)} · ${c.quantidade} un)`).join(" · ")}{cadastrados.length > 4 ? " …" : ""}</b></p>}
             {corrigir && <p style={{ color: "#C2760C" }} className="font-semibold mt-0.5">Correção: a conferência anterior fica guardada no histórico.</p>}
@@ -406,11 +406,11 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
               const r = RONDA_RESULTADO[k]; const desab = (k !== "irregular") && !podeOk; const sel = resultado === k;
               return (
                 <button key={k} disabled={desab} onClick={() => setResultado(k)} style={sel ? { background: r.color, color: "#fff" } : { background: r.bg, color: r.color }}
-                  className="rounded-xl py-3 text-[12.5px] font-bold disabled:opacity-40">{r.emoji} {r.label}</button>
+                  className="rounded-xl py-3 text-[0.7812rem] font-bold disabled:opacity-40">{r.emoji} {r.label}</button>
               );
             })}
           </div>
-          <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5">OK = validade conferida e dentro do padrão · Atenção = perto de vencer · Irregular = vencido ou com problema.</p>
+          <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-1.5">OK = validade conferida e dentro do padrão · Atenção = perto de vencer · Irregular = vencido ou com problema.</p>
         </GestaoCampo>
         <GestaoCampo T={T} label={resultado === "irregular" ? "Observação (obrigatória se não houver foto)" : "Observação (opcional)"}>
           <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} maxLength={300} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" />
@@ -422,7 +422,7 @@ function ConferenciaSheet({ T, item, corrigir, onConfirmar, onClose }) {
           </label>
           {foto && <img src={foto} alt="" className="h-12 w-12 rounded-lg object-cover" />}
         </div>
-        {(linhaIncompleta || anoRuim) && <p style={{ color: RED_DARK }} className="text-[11.5px] font-semibold">{linhaIncompleta ? "Tem um lote sem data completa (dd/mm/aaaa). Complete a data ou apague o lote." : "Confira o ano da validade (precisa ser de 4 dígitos, perto do ano atual)."}</p>}
+        {(linhaIncompleta || anoRuim) && <p style={{ color: RED_DARK }} className="text-[0.7188rem] font-semibold">{linhaIncompleta ? "Tem um lote sem data completa (dd/mm/aaaa). Complete a data ou apague o lote." : "Confira o ano da validade (precisa ser de 4 dígitos, perto do ano atual)."}</p>}
         <button onClick={confirmar} disabled={!pronto || enviando} style={{ background: pronto ? BLUE : "#C7CEDA", color: "#fff" }} className="py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
           {enviando ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Confirmar conferência
         </button>
@@ -527,8 +527,8 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
           <div className="h-2.5 rounded-full bg-white/20 overflow-hidden mt-2"><div style={{ background: "#fff", width: `${pctDe(conf, total)}%`, transition: "width .5s" }} className="h-full rounded-full" /></div>
         </div>
         <div className="flex items-center gap-2 mt-2.5 lg:mt-3 flex-wrap lg:col-start-2 lg:row-start-2">
-          <span style={{ background: conectado ? "rgba(31,157,85,.25)" : "rgba(224,146,28,.35)" }} className="text-white text-[10.5px] font-bold px-2.5 py-1 rounded-full">{conectado ? "● Ao vivo" : "● Sem conexão — reconectando"}</span>
-          {naFila > 0 && <span className="text-white text-[10.5px] font-bold px-2.5 py-1 rounded-full bg-white/20">{naFila} aguardando envio</span>}
+          <span style={{ background: conectado ? "rgba(31,157,85,.25)" : "rgba(224,146,28,.35)" }} className="text-white text-[0.6562rem] font-bold px-2.5 py-1 rounded-full">{conectado ? "● Ao vivo" : "● Sem conexão — reconectando"}</span>
+          {naFila > 0 && <span className="text-white text-[0.6562rem] font-bold px-2.5 py-1 rounded-full bg-white/20">{naFila} aguardando envio</span>}
         </div>
       </div>
 
@@ -545,7 +545,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
         {["agendada", "aguardando_inicio"].includes(ronda.status) && !podeComecar && (
           <div style={{ background: "#FCF0DD", color: "#C2760C" }} className="rounded-2xl p-3 text-xs font-semibold mb-4">Esta ronda começa em {formatarDataHoraExtenso(ronda.inicio_previsto)}.</div>
         )}
-        {ronda.observacoes && <div style={{ background: T.chipBg }} className="rounded-2xl p-3 text-[12.5px] mb-4"><b>Instruções:</b> {ronda.observacoes}</div>}
+        {ronda.observacoes && <div style={{ background: T.chipBg }} className="rounded-2xl p-3 text-[0.7812rem] mb-4"><b>Instruções:</b> {ronda.observacoes}</div>}
 
         {aberta && (
           <div className="flex gap-2 mb-3">
@@ -558,7 +558,7 @@ function RondaExecucao({ T, rondaId, perfil, catalog, showToast, onFechar }) {
           </div>
         )}
         {aviso && (
-          <div style={{ background: aviso.tipo === "fora" ? RED_SOFT : "#FCF0DD", color: aviso.tipo === "fora" ? RED_DARK : "#C2760C" }} className="rounded-2xl p-3 text-[12.5px] font-semibold mb-3 flex items-start gap-2">
+          <div style={{ background: aviso.tipo === "fora" ? RED_SOFT : "#FCF0DD", color: aviso.tipo === "fora" ? RED_DARK : "#C2760C" }} className="rounded-2xl p-3 text-[0.7812rem] font-semibold mb-3 flex items-start gap-2">
             <AlertTriangle size={15} className="shrink-0 mt-0.5" />
             <div className="flex-1">
               {aviso.tipo === "fora" ? aviso.texto : <>
@@ -665,13 +665,13 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
           <div className="min-w-0">
             <p className="text-white/70 text-[0.75rem] font-medium">{ativa ? "RONDA ATIVA" : "RONDA"} · {ronda.setor}</p>
             <h2 className="text-white font-bold text-lg lg:text-3xl leading-tight">{ronda.titulo}</h2>
-            <p className="text-white/75 text-[11.5px] mt-0.5">Responsável: {ronda.usuario || "—"}</p>
+            <p className="text-white/75 text-[0.7188rem] mt-0.5">Responsável: {ronda.usuario || "—"}</p>
           </div>
           <button onClick={onFechar} className="h-9 w-9 rounded-full bg-white/15 flex items-center justify-center shrink-0"><X size={18} color="#fff" /></button>
         </div>
         <div className="flex items-center gap-2 mt-2.5 flex-wrap">
           <DashBadge bg={st.bg} color={st.color}>{st.label}</DashBadge>
-          {ativa && <span style={{ background: conectado ? "rgba(31,157,85,.3)" : "rgba(224,146,28,.4)" }} className="text-white text-[10.5px] font-bold px-2.5 py-1 rounded-full">{conectado ? "● Tempo real" : "● Reconectando…"}</span>}
+          {ativa && <span style={{ background: conectado ? "rgba(31,157,85,.3)" : "rgba(224,146,28,.4)" }} className="text-white text-[0.6562rem] font-bold px-2.5 py-1 rounded-full">{conectado ? "● Tempo real" : "● Reconectando…"}</span>}
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8 lg:px-8 lg:py-7 lg:items-start lg:content-start">
@@ -683,7 +683,7 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
           </div>
           <BarraProgressoRonda T={T} conf={conf} total={total} cor={ativa ? BLUE : st.color} />
           <div className="mt-3"><ContagemRonda T={T} itens={itens} /></div>
-          <div style={{ color: T.subtext }} className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11.5px] mt-3">
+          <div style={{ color: T.subtext }} className="grid grid-cols-2 gap-x-4 gap-y-1 text-[0.7188rem] mt-3">
             <span>Início: <b style={{ color: T.text }}>{ronda.iniciado_em ? formatarHora(ronda.iniciado_em) : naoComecou ? `previsto ${formatarDataHoraExtenso(ronda.inicio_previsto)}` : "—"}</b></span>
             <span>{ronda.finalizado_em ? "Duração" : "Tempo decorrido"}: <b style={{ color: T.text }}>{fmtDuracao(decorrido)}</b></span>
             <span className="col-span-2">Último produto: <b style={{ color: T.text }}>{ultimo ? `${ultimo.nome} (${RONDA_RESULTADO[ultimo.resultado].label}, ${formatarHora(ultimo.conferido_em)})` : "nenhum ainda"}</b></span>
@@ -700,7 +700,7 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
         {!ativa && !naoComecou && (
           <div style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-4">
             <p className="text-sm font-bold mb-2">Relatório da ronda</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[12.5px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[0.7812rem]">
               {[["Criada por", `${ronda.criado_por_nome || "—"}${ronda.criado_por_cargo ? ` (${ronda.criado_por_cargo})` : ""}`], ["Designados", (ronda.ronda_participantes || []).map((p) => p.nome).join(", ") || "—"],
                 ["Setor", ronda.setor], ["Início", ronda.iniciado_em ? formatarDataHoraExtenso(ronda.iniciado_em) : "não iniciada"], ["Encerramento", ronda.finalizado_em ? formatarDataHoraExtenso(ronda.finalizado_em) : "—"],
                 ["Tempo de execução", fmtDuracao(decorrido)], ["Total de produtos", total], ["Conferidos", conf], ["Pendentes", total - conf],
@@ -723,7 +723,7 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
           <div style={{ background: T.card, borderColor: T.border }} className="border rounded-2xl p-4">
             <p className="text-sm font-bold mb-2">Atividade recente</p>
             <div className="flex flex-col gap-1.5">
-              {recentes.slice(0, 8).map((x) => <p key={x.id} className="text-[12.5px]"><span style={{ color: T.subtext }} className="tabular-nums">{formatarHora(x.conferido_em)}</span> — {x.nome} — <b style={{ color: RONDA_RESULTADO[x.resultado].color }}>{RONDA_RESULTADO[x.resultado].label.toUpperCase()}</b>{x.conferido_por ? <span style={{ color: T.subtext }}> · {x.conferido_por}</span> : null}</p>)}
+              {recentes.slice(0, 8).map((x) => <p key={x.id} className="text-[0.7812rem]"><span style={{ color: T.subtext }} className="tabular-nums">{formatarHora(x.conferido_em)}</span> — {x.nome} — <b style={{ color: RONDA_RESULTADO[x.resultado].color }}>{RONDA_RESULTADO[x.resultado].label.toUpperCase()}</b>{x.conferido_por ? <span style={{ color: T.subtext }}> · {x.conferido_por}</span> : null}</p>)}
             </div>
           </div>
         )}
@@ -751,7 +751,7 @@ function RondaPainel({ T, rondaId, perfil, showToast, onFechar, onExecutar }) {
       )}
       {item && (
         <GestaoSheet T={T} title={item.nome} subtitle={item.barcode} onClose={() => setItem(null)}>
-          <div className="flex flex-col gap-2 text-[13px]">
+          <div className="flex flex-col gap-2 text-[0.8125rem]">
             <div className="flex items-center gap-3"><Thumb foto={item.foto} size={56} /><DashBadge bg={RONDA_RESULTADO[item.resultado].bg} color={RONDA_RESULTADO[item.resultado].color}>{RONDA_RESULTADO[item.resultado].label}</DashBadge></div>
             <p>Validade no cadastro: <b>{item.validade_cadastrada ? formatarData(item.validade_cadastrada) : "—"}</b></p>
             <p>Validade encontrada: <b>{item.validade_encontrada ? formatarData(item.validade_encontrada) : "—"}</b></p>
@@ -875,7 +875,7 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
             <div className="grid grid-cols-2 gap-2">
               {MODOS_RONDA.map((m) => (
                 <button key={m.id} onClick={() => setModo(m.id)} style={modo === m.id ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }} className="rounded-xl px-3 py-2 text-left">
-                  <p className="text-xs font-bold">{m.label}</p><p className="text-[10.5px] opacity-75 leading-tight">{m.desc}</p>
+                  <p className="text-xs font-bold">{m.label}</p><p className="text-[0.6562rem] opacity-75 leading-tight">{m.desc}</p>
                 </button>
               ))}
             </div>
@@ -887,11 +887,11 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
             {modo === "manual" && (
               <div className="mt-2 flex flex-col gap-1.5">
                 <input value={buscaProd} onChange={(e) => setBuscaProd(e.target.value)} placeholder="Buscar produto" style={campo} className="w-full border rounded-xl px-3 py-2 text-sm outline-none" />
-                <p style={{ color: T.subtext }} className="text-[10.5px]">{escolhidos.length} selecionado(s) · ordenados do maior para o menor risco</p>
+                <p style={{ color: T.subtext }} className="text-[0.6562rem]">{escolhidos.length} selecionado(s) · ordenados do maior para o menor risco</p>
                 <div className="max-h-56 overflow-y-auto flex flex-col gap-1">
                   {produtosDoSetor.filter((p) => !buscaProd.trim() || p.nome.toLowerCase().includes(buscaProd.toLowerCase()) || (p.barcode || "").includes(buscaProd.trim())).slice(0, 150).map((p) => {
                     const on = escolhidos.includes(p.barcode);
-                    return <label key={p.barcode} style={{ background: on ? BLUE_SOFT : T.chipBg }} className="rounded-xl px-3 py-2 flex items-center gap-2 text-[12.5px] cursor-pointer">
+                    return <label key={p.barcode} style={{ background: on ? BLUE_SOFT : T.chipBg }} className="rounded-xl px-3 py-2 flex items-center gap-2 text-[0.7812rem] cursor-pointer">
                       <input type="checkbox" checked={on} onChange={() => setEscolhidos((x) => (on ? x.filter((b) => b !== p.barcode) : [...x, p.barcode]))} />
                       <span className="flex-1 min-w-0 truncate">{p.nome}</span><SeloRisco risco={p.risco} nivel={p.nivel} /></label>;
                   })}
@@ -908,7 +908,7 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
             {setores.length > 0 && candidatos.length > 0 && <button onClick={() => setSel(sel.length === candidatos.length ? [] : candidatos.map((u) => u.id))} style={{ color: BLUE }} className="text-xs font-semibold text-left">{sel.length === candidatos.length ? "Desmarcar todos" : "Selecionar equipe inteira"}</button>}
             {candidatos.map((u) => {
               const on = sel.includes(u.id);
-              return <label key={u.id} style={{ background: on ? BLUE_SOFT : T.chipBg }} className="rounded-xl px-3 py-2.5 flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" checked={on} onChange={() => setSel((p) => (on ? p.filter((x) => x !== u.id) : [...p, u.id]))} /><span className="flex-1 min-w-0 truncate font-medium">{u.nome}</span><span style={{ color: T.subtext }} className="text-[10.5px]">{u.setor || "sem setor"}</span></label>;
+              return <label key={u.id} style={{ background: on ? BLUE_SOFT : T.chipBg }} className="rounded-xl px-3 py-2.5 flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" checked={on} onChange={() => setSel((p) => (on ? p.filter((x) => x !== u.id) : [...p, u.id]))} /><span className="flex-1 min-w-0 truncate font-medium">{u.nome}</span><span style={{ color: T.subtext }} className="text-[0.6562rem]">{u.setor || "sem setor"}</span></label>;
             })}
             {setores.length > 0 && candidatos.length === 0 && <p style={{ color: "#C2760C" }} className="text-xs font-semibold">Nenhum funcionário vinculado a esse setor. Defina o setor dele em Funcionários.</p>}
             {nivel <= 4 && setores.length > 0 && <label className="text-[0.75rem] flex items-center gap-2" style={{ color: T.subtext }}><input type="checkbox" checked={outrosSetores} onChange={(e) => setOutrosSetores(e.target.checked)} /> Mostrar funcionários de outros setores (gerência)</label>}
@@ -920,7 +920,7 @@ function NovaRondaSheet({ T, perfil, lojaAtiva, catalog, equipe, showToast, preS
         </div>
         <GestaoCampo T={T} label="Instruções (opcional)"><textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} maxLength={300} style={campo} className="w-full border rounded-xl px-3 py-2.5 text-sm outline-none resize-none" /></GestaoCampo>
         </div>
-        {setores.length > 0 && <p style={{ color: T.subtext }} className="text-[11.5px] lg:col-span-2">{setores.length === 1 && modo === "amostragem" ? `${Math.min(parseInt(quantidade, 10) || 0, totalProdutos)} de ${totalProdutos} produto(s) entram na amostra` : setores.length === 1 && modo === "manual" ? `${escolhidos.length} produto(s) escolhido(s)` : `${totalProdutos} produto(s) cadastrado(s) serão carregados${setores.length > 1 ? " (somando os setores)" : ""}`}{setores.length === 1 && modo !== "completa" ? " — os de maior risco aparecem primeiro para o funcionário" : ""}. Produtos cadastrados depois não entram nesta ronda.</p>}
+        {setores.length > 0 && <p style={{ color: T.subtext }} className="text-[0.7188rem] lg:col-span-2">{setores.length === 1 && modo === "amostragem" ? `${Math.min(parseInt(quantidade, 10) || 0, totalProdutos)} de ${totalProdutos} produto(s) entram na amostra` : setores.length === 1 && modo === "manual" ? `${escolhidos.length} produto(s) escolhido(s)` : `${totalProdutos} produto(s) cadastrado(s) serão carregados${setores.length > 1 ? " (somando os setores)" : ""}`}{setores.length === 1 && modo !== "completa" ? " — os de maior risco aparecem primeiro para o funcionário" : ""}. Produtos cadastrados depois não entram nesta ronda.</p>}
         <button onClick={criar} disabled={!pronto || ocupado} style={{ background: pronto ? "#1F9D55" : "#C7CEDA", color: "#fff" }} className="lg:col-span-2 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2">
           {ocupado ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Criar ronda
         </button>
@@ -1073,11 +1073,11 @@ function OcorrenciaDetalhe({ T, id, perfil, equipe, showToast, onClose, onMudou 
   const candidatos = (equipe || []).filter((u) => nivel <= 4 || (u.setor || "").toLowerCase() === (o.setor || "").toLowerCase());
   return (
     <GestaoSheet T={T} title="Ocorrência" subtitle={`${o.setor} · ${CAT[o.categoria]}`} onClose={onClose}>
-      <div className="flex flex-col gap-3 text-[13px]">
+      <div className="flex flex-col gap-3 text-[0.8125rem]">
         <div className="flex gap-2 flex-wrap"><BadgeOcorrencia o={o} /><DashBadge bg={PRIO[o.prioridade].bg} color={PRIO[o.prioridade].color}>{PRIO[o.prioridade].label}</DashBadge></div>
         <p className="text-sm font-semibold">{o.descricao}</p>
         {o.foto && <img src={o.foto} alt="" className="rounded-xl max-h-56 object-contain" />}
-        <div style={{ color: T.subtext }} className="grid grid-cols-2 gap-y-1 text-[12px]">
+        <div style={{ color: T.subtext }} className="grid grid-cols-2 gap-y-1 text-[0.75rem]">
           <span>Responsável: <b style={{ color: T.text }}>{o.responsavel_nome || "—"}</b></span><span>Prazo: <b style={{ color: T.text }}>{o.prazo ? formatarDataHoraExtenso(o.prazo) : "—"}</b></span>
           <span>Criada por: <b style={{ color: T.text }}>{o.criado_por_nome}</b></span><span>Reprovações: <b style={{ color: T.text }}>{o.reprovacoes}</b></span>
         </div>
@@ -1106,9 +1106,9 @@ function OcorrenciaDetalhe({ T, id, perfil, equipe, showToast, onClose, onMudou 
           <p className="text-xs font-bold mb-2">Histórico</p>
           <div style={{ borderColor: T.border }} className="border-l-2 pl-3 flex flex-col gap-2.5">
             {eventos.map((e) => (
-              <div key={e.id} className="text-[12px]">
+              <div key={e.id} className="text-[0.75rem]">
                 <p><b>{EVENTO_TEXTO[e.tipo] || e.tipo}</b>{e.dados?.responsavel ? ` → ${e.dados.responsavel}` : ""}{e.dados?.para ? ` → ${e.dados.para}` : ""}{e.dados?.justificativa ? `: ${e.dados.justificativa}` : ""}</p>
-                <p style={{ color: T.subtext }} className="text-[10.5px]">{e.usuario_nome || "—"} · {formatarDataHoraExtenso(e.criado_em)}</p>
+                <p style={{ color: T.subtext }} className="text-[0.6562rem]">{e.usuario_nome || "—"} · {formatarDataHoraExtenso(e.criado_em)}</p>
               </div>
             ))}
           </div>
@@ -1283,7 +1283,7 @@ function RondasView({ T, perfil, lojaAtiva, catalog, showToast, intent, onIntent
         <div className="grid grid-cols-3 gap-2">
           {[["Em curso", lista.filter(emCurso).length], ["Minhas", minhasRondas.length], ["Encerradas", lista.length - lista.filter(emCurso).length]].map(([r, n]) => (
             <div key={r} className="rounded-2xl py-2 text-center" style={{ background: "rgba(255,255,255,.13)", border: "1px solid rgba(255,255,255,.2)" }}>
-              <p className="text-[20px] font-extrabold leading-none tabular-nums">{n}</p><p className="text-[10.5px] font-semibold text-white/80 mt-1">{r}</p>
+              <p className="text-[1.25rem] font-extrabold leading-none tabular-nums">{n}</p><p className="text-[0.6562rem] font-semibold text-white/80 mt-1">{r}</p>
             </div>
           ))}
         </div>

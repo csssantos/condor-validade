@@ -92,17 +92,17 @@ function PaginaAprovacoes({ T, dark, perfil, showToast, subsetoresExtra = [] }) 
     <div className="lg:grid lg:grid-cols-2 lg:gap-x-6 lg:items-start">
       <MaisBloco T={T} i={0} className="lg:col-span-2">
         <div className="p-4">
-          <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">Produto novo lançado pelo Telegram só entra no catálogo depois da sua aprovação. Você corrige nome, setor e imagem e informa subcategoria, gramagem e preço (obrigatórios). A validade e a quantidade lançadas não mudam. Se recusar, o motivo volta para quem lançou.</p>
+          <p style={{ color: T.subtext }} className="text-[0.7812rem] leading-relaxed">Produto novo lançado pelo Telegram só entra no catálogo depois da sua aprovação. Você corrige nome, setor e imagem e informa subcategoria, gramagem e preço (obrigatórios). A validade e a quantidade lançadas não mudam. Se recusar, o motivo volta para quem lançou.</p>
           <div className="flex gap-2 mt-3">
             {[["pendente", `Pendentes (${pend.length})`], ["historico", "Decididos"]].map(([k, t]) => (
-              <button key={k} onClick={() => setAba(k)} style={{ background: aba === k ? BLUE : T.chipBg, color: aba === k ? "#fff" : T.subtext }} className="px-3.5 py-1.5 rounded-full text-[12.5px] font-bold">{t}</button>
+              <button key={k} onClick={() => setAba(k)} style={{ background: aba === k ? BLUE : T.chipBg, color: aba === k ? "#fff" : T.subtext }} className="px-3.5 py-1.5 rounded-full text-[0.7812rem] font-bold">{t}</button>
             ))}
           </div>
         </div>
       </MaisBloco>
       {lista === null && <div className="flex justify-center py-8 lg:col-span-2"><Loader2 size={22} className="animate-spin" style={{ color: T.subtext }} /></div>}
       {lista !== null && itens.length === 0 && (
-        <MaisBloco T={T} i={1} className="lg:col-span-2"><p style={{ color: T.subtext }} className="text-[13px] text-center py-8 px-4">{aba === "pendente" ? "Nenhum produto novo aguardando aprovação." : "Nada decidido ainda."}</p></MaisBloco>
+        <MaisBloco T={T} i={1} className="lg:col-span-2"><p style={{ color: T.subtext }} className="text-[0.8125rem] text-center py-8 px-4">{aba === "pendente" ? "Nenhum produto novo aguardando aprovação." : "Nada decidido ainda."}</p></MaisBloco>
       )}
       {itens.map((a, k) => (
         <MaisBloco T={T} key={a.id} i={k + 1}>
@@ -111,11 +111,11 @@ function PaginaAprovacoes({ T, dark, perfil, showToast, subsetoresExtra = [] }) 
               <Package size={22} style={{ color: T.subtext }} />
             </div>
             <div className="min-w-0 flex-1">
-              <p style={{ color: T.text }} className="text-[13.5px] font-bold leading-tight break-words">{a.nome}</p>
-              <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5">{a.setor} · {a.barcode}</p>
-              <p style={{ color: T.subtext }} className="text-[11.5px]">Validade {fmt(a.validade)} · {a.sem_lote || !a.lote ? "sem lote" : `lote ${a.lote}`} · {a.quantidade} un · por {a.solicitante}</p>
+              <p style={{ color: T.text }} className="text-[0.8438rem] font-bold leading-tight break-words">{a.nome}</p>
+              <p style={{ color: T.subtext }} className="text-[0.7188rem] mt-0.5">{a.setor} · {a.barcode}</p>
+              <p style={{ color: T.subtext }} className="text-[0.7188rem]">Validade {fmt(a.validade)} · {a.sem_lote || !a.lote ? "sem lote" : `lote ${a.lote}`} · {a.quantidade} un · por {a.solicitante}</p>
               {a.status !== "pendente" && (
-                <p style={{ color: a.status === "aprovado" ? "#1F7A4D" : RED }} className="text-[11.5px] font-bold mt-1">{a.status === "aprovado" ? "Aprovado" : "Recusado"} por {a.decidido_por}{a.status === "recusado" && a.motivo ? ` · ${a.motivo}` : ""}</p>
+                <p style={{ color: a.status === "aprovado" ? "#1F7A4D" : RED }} className="text-[0.7188rem] font-bold mt-1">{a.status === "aprovado" ? "Aprovado" : "Recusado"} por {a.decidido_por}{a.status === "recusado" && a.motivo ? ` · ${a.motivo}` : ""}</p>
               )}
             </div>
             {a.status === "pendente" && <ChevronRight size={16} style={{ color: T.subtext }} />}
@@ -125,52 +125,52 @@ function PaginaAprovacoes({ T, dark, perfil, showToast, subsetoresExtra = [] }) 
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={MOLA_SUAVE} className="overflow-hidden">
                 <div className="px-3.5 pb-4 flex flex-col gap-3" style={{ borderTop: `1px solid ${T.chipBg}` }}>
                   <label className="pt-3 text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Nome do produto
-                    <input value={ed.nome || ""} maxLength={80} onChange={(e) => setEd({ ...ed, nome: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal uppercase" />
+                    <input value={ed.nome || ""} maxLength={80} onChange={(e) => setEd({ ...ed, nome: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[0.875rem] font-semibold normal-case tracking-normal uppercase" />
                   </label>
                   <label className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Setor
-                    <select value={ed.setor || ""} onChange={(e) => { const ns = e.target.value; const manter = opcoesSub(ns).includes(ed.sub); if (ed.sub && !manter) showToast?.("Setor mudou: escolha a subcategoria de novo", "aviso"); setEd({ ...ed, setor: ns, sub: manter ? ed.sub : "" }); }} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
+                    <select value={ed.setor || ""} onChange={(e) => { const ns = e.target.value; const manter = opcoesSub(ns).includes(ed.sub); if (ed.sub && !manter) showToast?.("Setor mudou: escolha a subcategoria de novo", "aviso"); setEd({ ...ed, setor: ns, sub: manter ? ed.sub : "" }); }} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[0.875rem] font-semibold normal-case tracking-normal">
                       {SETORES_APROVACAO.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </label>
                   <label className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Subcategoria (obrigatória)
-                    <select value={ed.sub || ""} onChange={(e) => setEd({ ...ed, sub: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
+                    <select value={ed.sub || ""} onChange={(e) => setEd({ ...ed, sub: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[0.875rem] font-semibold normal-case tracking-normal">
                       <option value="">Escolha…</option>
                       {opcoesSub(ed.setor).map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </label>
                   <div className="flex gap-2">
                     <label className="flex-1 text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Gramagem (obrigatória)
-                      <input inputMode="decimal" value={ed.tam || ""} maxLength={10} placeholder="500" onChange={(e) => setEd({ ...ed, tam: e.target.value.replace(/[^0-9.,]/g, "") })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal" />
+                      <input inputMode="decimal" value={ed.tam || ""} maxLength={10} placeholder="500" onChange={(e) => setEd({ ...ed, tam: e.target.value.replace(/[^0-9.,]/g, "") })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[0.875rem] font-semibold normal-case tracking-normal" />
                     </label>
                     <label className="w-24 text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Unidade
-                      <select value={ed.uni || "G"} onChange={(e) => setEd({ ...ed, uni: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal">
+                      <select value={ed.uni || "G"} onChange={(e) => setEd({ ...ed, uni: e.target.value })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[0.875rem] font-semibold normal-case tracking-normal">
                         {["G", "KG", "ML", "L"].map((u) => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </label>
                   </div>
                   <label className="text-[0.75rem] font-bold uppercase tracking-wide" style={{ color: T.subtext }}>Preço (obrigatório)
-                    <input inputMode="decimal" value={ed.preco || ""} maxLength={9} placeholder="8,99" onChange={(e) => setEd({ ...ed, preco: e.target.value.replace(/[^0-9.,]/g, "") })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[14px] font-semibold normal-case tracking-normal" />
+                    <input inputMode="decimal" value={ed.preco || ""} maxLength={9} placeholder="8,99" onChange={(e) => setEd({ ...ed, preco: e.target.value.replace(/[^0-9.,]/g, "") })} style={campo} className="mt-1 w-full rounded-xl px-3 py-2.5 text-[0.875rem] font-semibold normal-case tracking-normal" />
                   </label>
                   <div className="flex items-center gap-2">
-                    <label style={{ background: T.chipBg, color: BLUE }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-bold cursor-pointer"><ImagePlus size={15} />Trocar imagem
+                    <label style={{ background: T.chipBg, color: BLUE }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[0.7812rem] font-bold cursor-pointer"><ImagePlus size={15} />Trocar imagem
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => { trocarFoto(e.target.files?.[0]); e.target.value = ""; }} />
                     </label>
-                    {ed.foto && <button onClick={() => setEd({ ...ed, foto: null, trocouFoto: true })} style={{ background: T.chipBg, color: T.subtext }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-bold"><ImageOff size={15} />Sem imagem</button>}
+                    {ed.foto && <button onClick={() => setEd({ ...ed, foto: null, trocouFoto: true })} style={{ background: T.chipBg, color: T.subtext }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[0.7812rem] font-bold"><ImageOff size={15} />Sem imagem</button>}
                     {ed.foto && <img src={ed.foto} alt="" className="h-10 w-10 rounded-lg object-cover ml-auto" />}
                   </div>
                   {recusando === a.id ? (
                     <div className="flex flex-col gap-2">
-                      <textarea value={motivo} maxLength={300} rows={3} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo da recusa (volta para quem lançou)" style={campo} className="w-full rounded-xl px-3 py-2.5 text-[14px]" />
+                      <textarea value={motivo} maxLength={300} rows={3} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo da recusa (volta para quem lançou)" style={campo} className="w-full rounded-xl px-3 py-2.5 text-[0.875rem]" />
                       <div className="flex gap-2">
-                        <button disabled={ocupado || motivo.trim().length < 5} onClick={() => recusar(a)} style={{ background: RED }} className="flex-1 py-2.5 rounded-xl text-white text-[13.5px] font-bold disabled:opacity-40">{ocupado ? "Enviando…" : "Confirmar recusa"}</button>
-                        <button onClick={() => { setRecusando(null); setMotivo(""); }} style={{ background: T.chipBg, color: T.text }} className="px-4 py-2.5 rounded-xl text-[13.5px] font-bold">Voltar</button>
+                        <button disabled={ocupado || motivo.trim().length < 5} onClick={() => recusar(a)} style={{ background: RED }} className="flex-1 py-2.5 rounded-xl text-white text-[0.8438rem] font-bold disabled:opacity-40">{ocupado ? "Enviando…" : "Confirmar recusa"}</button>
+                        <button onClick={() => { setRecusando(null); setMotivo(""); }} style={{ background: T.chipBg, color: T.text }} className="px-4 py-2.5 rounded-xl text-[0.8438rem] font-bold">Voltar</button>
                       </div>
                     </div>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      {faltas().length > 0 && <p className="w-full text-[12px] font-semibold" style={{ color: RED }}>Falta: {faltas().join(", ")}</p>}
-                      <button disabled={ocupado || !camposOk()} onClick={() => aprovar(a)} style={{ background: "#1F7A4D" }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-[13.5px] font-bold disabled:opacity-40"><Check size={16} />{ocupado ? "Aprovando…" : "Aprovar e lançar"}</button>
-                      <button disabled={ocupado} onClick={() => setRecusando(a.id)} style={{ background: RED_SOFT, color: RED }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13.5px] font-bold"><X size={16} />Recusar</button>
+                      {faltas().length > 0 && <p className="w-full text-[0.75rem] font-semibold" style={{ color: RED }}>Falta: {faltas().join(", ")}</p>}
+                      <button disabled={ocupado || !camposOk()} onClick={() => aprovar(a)} style={{ background: "#1F7A4D" }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-[0.8438rem] font-bold disabled:opacity-40"><Check size={16} />{ocupado ? "Aprovando…" : "Aprovar e lançar"}</button>
+                      <button disabled={ocupado} onClick={() => setRecusando(a.id)} style={{ background: RED_SOFT, color: RED }} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[0.8438rem] font-bold"><X size={16} />Recusar</button>
                     </div>
                   )}
                 </div>

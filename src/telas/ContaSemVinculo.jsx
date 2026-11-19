@@ -51,7 +51,7 @@ function ContaSemVinculo({ T, onVinculado, onSair }) {
               {passos.map(([n, t, d]) => (
                 <li key={n} className="flex gap-4">
                   <span style={{ background: "rgba(255,255,255,0.16)" }} className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-sm font-bold">{n}</span>
-                  <span><span className="block text-[15px] font-bold">{t}</span><span className="block text-[13px] opacity-75 leading-relaxed">{d}</span></span>
+                  <span><span className="block text-[0.9375rem] font-bold">{t}</span><span className="block text-[0.8125rem] opacity-75 leading-relaxed">{d}</span></span>
                 </li>
               ))}
             </ol>
@@ -66,7 +66,7 @@ function ContaSemVinculo({ T, onVinculado, onSair }) {
               style={inputStyle} className="w-full border rounded-2xl px-4 py-4 text-2xl font-bold tracking-widest outline-none text-center" />
             {erro && <p style={{ color: RED_DARK, background: RED_SOFT }} className="text-sm font-medium rounded-xl px-3 py-2.5 mt-4">{erro}</p>}
             <button onClick={() => vincular()} disabled={carregando || !matricula} style={{ background: BLUE, color: "#fff" }}
-              className="w-full mt-5 py-3.5 rounded-2xl text-[15px] font-bold disabled:opacity-50 flex items-center justify-center gap-2">
+              className="w-full mt-5 py-3.5 rounded-2xl text-[0.9375rem] font-bold disabled:opacity-50 flex items-center justify-center gap-2">
               {carregando && <Loader2 size={18} className="animate-spin" />} Vincular conta
             </button>
             <button onClick={onSair} style={{ color: T.subtext }} className="w-full text-sm font-semibold mt-4">Sair e entrar com outra conta</button>

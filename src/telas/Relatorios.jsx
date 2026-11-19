@@ -191,8 +191,8 @@ function CapituloRel({ T, id, n, titulo, sub, children }) {
       <div className="flex items-end gap-3 mb-3 px-1">
         <span className="font-extrabold leading-none tabular-nums" style={{ fontSize: 44, color: T.chipBg, WebkitTextStroke: `1.5px ${T.inputBorder}` }}>{String(n).padStart(2, "0")}</span>
         <div className="pb-0.5 min-w-0">
-          <h3 style={{ color: T.text }} className="text-[17px] font-extrabold leading-tight">{titulo}</h3>
-          {sub && <p style={{ color: T.subtext }} className="text-[12px] leading-snug">{sub}</p>}
+          <h3 style={{ color: T.text }} className="text-[1.0625rem] font-extrabold leading-tight">{titulo}</h3>
+          {sub && <p style={{ color: T.subtext }} className="text-[0.75rem] leading-snug">{sub}</p>}
         </div>
       </div>
       {children}
@@ -203,10 +203,10 @@ function CapituloRel({ T, id, n, titulo, sub, children }) {
 function ExportarCapitulo({ T, titulo, itens }) {
   return (
     <div style={{ background: T.card }} className="rounded-[22px] shadow-md shadow-black/5 p-3 mt-3">
-      <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wider mb-2 px-0.5">{titulo}</p>
+      <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wider mb-2 px-0.5">{titulo}</p>
       <div className="flex flex-wrap gap-2">
         {itens.map(([rot, Icone, fn, forte]) => (
-          <motion.button key={rot} whileTap={{ scale: 0.95 }} onClick={fn} className="rounded-full px-3.5 py-2.5 text-[12px] font-extrabold flex items-center gap-1.5"
+          <motion.button key={rot} whileTap={{ scale: 0.95 }} onClick={fn} className="rounded-full px-3.5 py-2.5 text-[0.75rem] font-extrabold flex items-center gap-1.5"
             style={forte ? { background: `linear-gradient(135deg, ${BLUE} 0%, ${BLUE_DARK} 100%)`, color: "#fff" } : { background: T.chipBg, color: T.text }}><Icone size={14} />{rot}</motion.button>
         ))}
       </div>
@@ -233,7 +233,7 @@ function RelatoriosMobile(p) {
   const maxPessoa = Math.max(...porUsuarioAuditoria.map(([, q]) => q), 1);
   const sub = lojaNumero != null ? `Loja ${lojaNumero}` : "Sua loja";
   const botaoExp = (rot, Icone, fn, destaque) => (
-    <motion.button whileTap={{ scale: 0.96 }} onClick={fn} className="rounded-2xl py-3 px-3 text-[12.5px] font-extrabold flex items-center justify-center gap-2"
+    <motion.button whileTap={{ scale: 0.96 }} onClick={fn} className="rounded-2xl py-3 px-3 text-[0.7812rem] font-extrabold flex items-center justify-center gap-2"
       style={destaque ? { background: `linear-gradient(135deg, ${RED} 0%, ${RED_DARK} 100%)`, color: "#fff" } : { background: T.chipBg, color: T.text }}><Icone size={15} />{rot}</motion.button>
   );
   const chips = [["rel-saude", "Saúde"], ["rel-dinheiro", "Dinheiro"], ["rel-perdas", "Perdas"], ["rel-setores", "Setores"], ["rel-equipe", "Equipe"], ["rel-riscos", "Maiores riscos"]];
@@ -249,13 +249,13 @@ function RelatoriosMobile(p) {
             <div className="min-w-0">
               <p className="text-[0.75rem] font-bold uppercase tracking-wide text-white/70">Em risco agora</p>
               <p className="font-extrabold leading-tight tabular-nums whitespace-nowrap mt-0.5" style={{ fontSize: Math.max(22, Math.min(34, Math.floor(150 / (formatarMoeda(valorEmRisco).length * 0.6)))) }}>{formatarMoeda(valorEmRisco)}</p>
-              <p className="text-[12px] text-white/75 mt-1">de {formatarMoeda(valorTotalMonitorado)} monitorados</p>
+              <p className="text-[0.75rem] text-white/75 mt-1">de {formatarMoeda(valorTotalMonitorado)} monitorados</p>
             </div>
             <AnelRel partes={[{ v: criticos.length, cor: "#FF5A5F" }, { v: atencao.length, cor: "#FFC24B" }, { v: ok, cor: "#34C77B" }]} tamanho={118} espessura={13} centro={`${pctOk}%`} sub="em dia" />
           </div>
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar mt-4 -mx-1 px-1">
             {chips.map(([id, rot]) => (
-              <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => ir(id)} className="shrink-0 rounded-full px-3.5 py-2 text-[12px] font-bold" style={{ background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)" }}>{rot}</motion.button>
+              <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => ir(id)} className="shrink-0 rounded-full px-3.5 py-2 text-[0.75rem] font-bold" style={{ background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.22)" }}>{rot}</motion.button>
             ))}
           </div>
         </div>
@@ -265,7 +265,7 @@ function RelatoriosMobile(p) {
         <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4 flex flex-col gap-3">
           {[["Vencidos", criticos.length, "#E31E24"], ["Em atenção", atencao.length, "#F5A524"], ["Em dia", ok, "#1F9D55"]].map(([rot, n, cor]) => (
             <div key={rot}>
-              <div className="flex items-center justify-between"><span style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: cor }} />{rot}</span><span style={{ color: T.text }} className="text-[13px] font-extrabold tabular-nums">{n}<span style={{ color: T.subtext }} className="font-semibold"> · {items.length ? Math.round((n / items.length) * 100) : 0}%</span></span></div>
+              <div className="flex items-center justify-between"><span style={{ color: T.text }} className="text-[0.8125rem] font-bold flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: cor }} />{rot}</span><span style={{ color: T.text }} className="text-[0.8125rem] font-extrabold tabular-nums">{n}<span style={{ color: T.subtext }} className="font-semibold"> · {items.length ? Math.round((n / items.length) * 100) : 0}%</span></span></div>
               <div style={{ background: T.chipBg }} className="h-2.5 rounded-full overflow-hidden mt-1.5"><motion.div initial={{ width: 0 }} animate={{ width: `${items.length ? (n / items.length) * 100 : 0}%` }} transition={{ duration: 0.8 }} className="h-full rounded-full" style={{ background: cor }} /></div>
             </div>
           ))}
@@ -289,16 +289,16 @@ function RelatoriosMobile(p) {
             {faixasRisco.map((f, i) => (
               <div key={f.label} className="flex items-center gap-2.5">
                 <span className="h-3 w-3 rounded-md shrink-0" style={{ background: cores[i] }} />
-                <span style={{ color: T.text }} className="text-[12.5px] font-bold flex-1">{f.label} <span style={{ color: T.subtext }} className="font-medium">· {f.qtd} item(ns)</span></span>
-                <span style={{ color: T.text }} className="text-[12.5px] font-extrabold tabular-nums">{formatarMoeda(f.valor)}</span>
+                <span style={{ color: T.text }} className="text-[0.7812rem] font-bold flex-1">{f.label} <span style={{ color: T.subtext }} className="font-medium">· {f.qtd} item(ns)</span></span>
+                <span style={{ color: T.text }} className="text-[0.7812rem] font-extrabold tabular-nums">{formatarMoeda(f.valor)}</span>
               </div>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2 mt-4">
             {[["Com troca", porPoliticaTroca.com_troca, "#1F9D55"], ["Sem troca", porPoliticaTroca.sem_troca, RED]].map(([rot, d, cor]) => (
               <div key={rot} style={{ background: T.chipBg }} className="rounded-2xl p-3">
-                <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">{rot}</p>
-                <p style={{ color: cor }} className="text-[15px] font-extrabold tabular-nums mt-0.5">{formatarMoeda(d.valor)}</p>
+                <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">{rot}</p>
+                <p style={{ color: cor }} className="text-[0.9375rem] font-extrabold tabular-nums mt-0.5">{formatarMoeda(d.valor)}</p>
                 <p style={{ color: T.subtext }} className="text-[0.75rem]">{d.qtd} item(ns)</p>
               </div>
             ))}
@@ -313,11 +313,11 @@ function RelatoriosMobile(p) {
         <div style={{ background: T.card }} className="rounded-[26px] shadow-lg shadow-black/5 p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Este mês</p>
-              <p style={{ color: T.text }} className="text-[24px] font-extrabold leading-tight tabular-nums">{formatarMoeda(tendenciaPerdas.atual)}</p>
+              <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Este mês</p>
+              <p style={{ color: T.text }} className="text-[1.5rem] font-extrabold leading-tight tabular-nums">{formatarMoeda(tendenciaPerdas.atual)}</p>
             </div>
             {tendenciaPerdas.variacao !== null && (
-              <span className="rounded-full px-3 py-1.5 text-[11.5px] font-extrabold" style={{ background: tendenciaPerdas.variacao <= 0 ? "#E4F7EC" : RED_SOFT, color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }}>
+              <span className="rounded-full px-3 py-1.5 text-[0.7188rem] font-extrabold" style={{ background: tendenciaPerdas.variacao <= 0 ? "#E4F7EC" : RED_SOFT, color: tendenciaPerdas.variacao <= 0 ? "#1F9D55" : RED_DARK }}>
                 {tendenciaPerdas.variacao > 0 ? "▲ +" : "▼ "}{tendenciaPerdas.variacao}% vs mês anterior
               </span>
             )}
@@ -330,16 +330,16 @@ function RelatoriosMobile(p) {
             {perdaUltimos6Meses.map((m, i) => <text key={i} x={i * passo} y={H + 13} fontSize="10" fontWeight="600" fill={T.subtext} textAnchor={i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle"} style={{ textTransform: "capitalize" }}>{m.label}</text>)}
           </svg>
           <div style={{ background: T.chipBg }} className="rounded-2xl p-3 mt-3">
-            <p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Índice de perda (perda ÷ faturamento)</p>
+            <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Índice de perda (perda ÷ faturamento)</p>
             {indicePerda != null ? (
-              <p style={{ color: T.text }} className="text-[20px] font-extrabold tabular-nums">{indicePerda.toFixed(2)}% <span style={{ color: T.subtext }} className="text-[0.75rem] font-semibold">de {formatarMoeda(faturamentoMensal)}/mês</span></p>
-            ) : <p style={{ color: T.subtext }} className="text-[12px] mt-0.5">Informe o faturamento mensal para calcular.</p>}
+              <p style={{ color: T.text }} className="text-[1.25rem] font-extrabold tabular-nums">{indicePerda.toFixed(2)}% <span style={{ color: T.subtext }} className="text-[0.75rem] font-semibold">de {formatarMoeda(faturamentoMensal)}/mês</span></p>
+            ) : <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5">Informe o faturamento mensal para calcular.</p>}
             {!editFat ? (
-              <button onClick={() => setEditFat(true)} style={{ color: BLUE }} className="text-[12px] font-bold mt-1.5">{faturamentoMensal ? "Atualizar faturamento" : "+ Informar faturamento"}</button>
+              <button onClick={() => setEditFat(true)} style={{ color: BLUE }} className="text-[0.75rem] font-bold mt-1.5">{faturamentoMensal ? "Atualizar faturamento" : "+ Informar faturamento"}</button>
             ) : (
               <div className="flex gap-2 mt-2">
                 <input type="number" inputMode="decimal" autoFocus value={faturamentoInput} onChange={(e) => setFaturamentoInput(e.target.value)} placeholder="R$ por mês" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="flex-1 min-w-0 border rounded-xl px-3 py-2 text-sm outline-none" />
-                <button onClick={() => { salvarFaturamento(); setEditFat(false); }} style={{ background: BLUE_DARK }} className="text-white text-[12px] font-bold px-4 rounded-xl">Salvar</button>
+                <button onClick={() => { salvarFaturamento(); setEditFat(false); }} style={{ background: BLUE_DARK }} className="text-white text-[0.75rem] font-bold px-4 rounded-xl">Salvar</button>
               </div>
             )}
           </div>
@@ -360,9 +360,9 @@ function RelatoriosMobile(p) {
           <div className="flex items-center gap-4" style={{ color: T.text }}>
             <AnelRel partes={[{ v: rondasResumo.concluidas, cor: "#1F9D55" }, { v: rondasResumo.parciais, cor: "#F5A524" }]} tamanho={96} espessura={11} fundo={T.chipBg} centro={taxaExecucaoRonda != null ? `${taxaExecucaoRonda}%` : "—"} sub="rondas" />
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-extrabold">Execução de rondas</p>
-              <p style={{ color: T.subtext }} className="text-[12px] mt-0.5">{rondasResumo.concluidas} concluída(s) · {rondasResumo.parciais} parcial(is)</p>
-              <p style={{ color: T.subtext }} className="text-[12px]">{porUsuarioAuditoria.reduce((a, [, q]) => a + q, 0)} ações registradas</p>
+              <p className="text-[0.8125rem] font-extrabold">Execução de rondas</p>
+              <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5">{rondasResumo.concluidas} concluída(s) · {rondasResumo.parciais} parcial(is)</p>
+              <p style={{ color: T.subtext }} className="text-[0.75rem]">{porUsuarioAuditoria.reduce((a, [, q]) => a + q, 0)} ações registradas</p>
             </div>
           </div>
           {porUsuarioAuditoria.length > 0 && <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${T.chipBg}` }}>
@@ -381,9 +381,9 @@ function RelatoriosMobile(p) {
             const c = corDoNivel(getStatus(i).level);
             return (
               <motion.button key={i.id} whileTap={{ scale: 0.98 }} onClick={() => onOpenDetail(i)} style={{ background: T.card }} className="rounded-[20px] shadow-md shadow-black/5 p-3 flex items-center gap-3 text-left">
-                <span style={{ background: c.soft, color: c.cor }} className="h-9 w-9 rounded-full text-[13px] font-extrabold flex items-center justify-center shrink-0">{k + 1}</span>
-                <span className="min-w-0 flex-1"><span style={{ color: T.text }} className="block text-[13px] font-extrabold truncate">{i.nome}</span><span style={{ color: T.subtext }} className="block text-[11.5px] truncate">{i.setor} · vence {formatarData(i.validade)}</span></span>
-                <span style={{ color: RED_DARK }} className="text-[13px] font-extrabold tabular-nums shrink-0">{formatarMoeda(i.valorRisco)}</span>
+                <span style={{ background: c.soft, color: c.cor }} className="h-9 w-9 rounded-full text-[0.8125rem] font-extrabold flex items-center justify-center shrink-0">{k + 1}</span>
+                <span className="min-w-0 flex-1"><span style={{ color: T.text }} className="block text-[0.8125rem] font-extrabold truncate">{i.nome}</span><span style={{ color: T.subtext }} className="block text-[0.7188rem] truncate">{i.setor} · vence {formatarData(i.validade)}</span></span>
+                <span style={{ color: RED_DARK }} className="text-[0.8125rem] font-extrabold tabular-nums shrink-0">{formatarMoeda(i.valorRisco)}</span>
               </motion.button>
             );
           })}

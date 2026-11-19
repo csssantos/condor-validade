@@ -132,13 +132,13 @@ export function TutorialBipi({ etapas: etapasIniciais, onFechar }) {
         <div className="relative px-5 lg:px-7 pt-4">
           <div className="flex items-center justify-between">
             <span className="text-[0.75rem] font-bold tracking-[.2em] text-white/70">TUTORIAL · {i + 1} DE {etapas.length}</span>
-            <button type="button" onClick={() => onFechar(false)} className="h-9 px-3 rounded-full bg-white/15 text-[12.5px] font-bold flex items-center gap-1" aria-label="Pular tutorial"><X size={14} />Pular</button>
+            <button type="button" onClick={() => onFechar(false)} className="h-9 px-3 rounded-full bg-white/15 text-[0.7812rem] font-bold flex items-center gap-1" aria-label="Pular tutorial"><X size={14} />Pular</button>
           </div>
           <div className="flex items-end gap-2 mt-3">
             <Bipi falando={n < etapa.fala.length} reduzir={reduzir} />
             <div className="relative flex-1 min-w-0 bg-white text-[#0B2A55] rounded-[22px] rounded-bl-md px-4 py-3 mb-6 shadow-lg">
               <p className="sr-only" aria-live="polite">{etapa.titulo}. {etapa.fala}</p>
-              <p className="text-[14.5px] lg:text-[15.5px] font-semibold leading-snug min-h-[3.9em]" aria-hidden="true">
+              <p className="text-[0.9062rem] lg:text-[0.9688rem] font-semibold leading-snug min-h-[3.9em]" aria-hidden="true">
                 {etapa.fala.slice(0, n)}<span className="invisible">{etapa.fala.slice(n)}</span>
               </p>
             </div>
@@ -147,13 +147,13 @@ export function TutorialBipi({ etapas: etapasIniciais, onFechar }) {
             <motion.div key={etapa.id} custom={dir} initial={{ x: reduzir ? 0 : 40 * dir, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: reduzir ? 0 : -40 * dir, opacity: 0 }} transition={{ duration: 0.22 }}>
               <div className="flex items-center gap-3">
                 <span className="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,.14)" }}><etapa.Icone size={24} color={etapa.cor} /></span>
-                <h2 className="text-[22px] lg:text-[24px] font-extrabold leading-tight tracking-tight">{etapa.titulo}</h2>
+                <h2 className="text-[1.375rem] lg:text-[1.5rem] font-extrabold leading-tight tracking-tight">{etapa.titulo}</h2>
               </div>
               <ul className="mt-3.5 flex flex-col gap-2">
                 {etapa.itens.map(([t, Ic], k) => (
                   <motion.li key={t} initial={{ opacity: 0, y: reduzir ? 0 : 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduzir ? 0 : 0.12 + k * 0.07 }}
                     className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5" style={{ background: "rgba(255,255,255,.10)" }}>
-                    <Ic size={17} className="shrink-0 text-white/85" /><span className="text-[13.5px] font-semibold leading-snug">{t}</span>
+                    <Ic size={17} className="shrink-0 text-white/85" /><span className="text-[0.8438rem] font-semibold leading-snug">{t}</span>
                   </motion.li>
                 ))}
               </ul>
@@ -164,7 +164,7 @@ export function TutorialBipi({ etapas: etapasIniciais, onFechar }) {
           </div>
           <div className="flex gap-2 mt-4">
             <button type="button" onClick={() => ir(-1)} disabled={i === 0} className="h-12 w-14 rounded-2xl bg-white/15 flex items-center justify-center disabled:opacity-30" aria-label="Etapa anterior"><ChevronLeft size={20} /></button>
-            <button ref={botaoRef} type="button" onClick={() => ir(1)} className="h-12 flex-1 rounded-2xl bg-white text-[#0B2A55] text-[15px] font-extrabold flex items-center justify-center gap-1.5 shadow-lg">
+            <button ref={botaoRef} type="button" onClick={() => ir(1)} className="h-12 flex-1 rounded-2xl bg-white text-[#0B2A55] text-[0.9375rem] font-extrabold flex items-center justify-center gap-1.5 shadow-lg">
               {ultima ? <><Check size={18} />Começar a usar</> : <>Próximo<ChevronRight size={18} /></>}
             </button>
           </div>

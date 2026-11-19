@@ -14,7 +14,7 @@ class ErrorBoundary extends React.Component {
         <div style={{ background: "#fff", color: "#111" }} className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center">
           <AlertTriangle size={32} color="#E31E24" />
           <p className="text-sm font-bold">Ops, alguma coisa quebrou.</p>
-          <p style={{ color: "#6B7280" }} className="text-xs max-w-sm">Manda esse texto pra quem tá mexendo no app corrigir:</p>
+          <p style={{ color: "#566070" }} className="text-xs max-w-sm">Manda esse texto pra quem tá mexendo no app corrigir:</p>
           <pre style={{ background: "#F4F5F9", color: "#E31E24" }} className="text-[0.6875rem] p-3 rounded-xl max-w-sm overflow-auto text-left whitespace-pre-wrap">
             {String(this.state.erro?.message || this.state.erro)}
             {"\n"}{this.state.erro?.stack ? String(this.state.erro.stack).split("\n").slice(0, 6).join("\n") : ""}

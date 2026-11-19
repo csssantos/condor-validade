@@ -114,7 +114,7 @@ function DashboardView({ T, items, historico, rondas, auditoria, nome, lojaNumer
         </svg>
         <div className="relative max-w-2xl">
           <p className="text-white/70 text-xs font-semibold">{dataHoje}{lojaNumero ? ` · Loja ${lojaNumero}` : ""}</p>
-          <h2 className="text-[26px] font-extrabold leading-tight mt-1">{saudacaoDoDia()}{nomeCurto ? `, ${nomeCurto}` : ""}! 👋</h2>
+          <h2 className="text-[1.625rem] font-extrabold leading-tight mt-1">{saudacaoDoDia()}{nomeCurto ? `, ${nomeCurto}` : ""}! 👋</h2>
           <p className="text-white/85 text-sm mt-2 leading-relaxed">
             {total === 0
               ? "Ainda não há produtos monitorados nesta loja."

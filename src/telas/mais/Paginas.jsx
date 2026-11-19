@@ -48,8 +48,8 @@ function SeletorTema({ T, dark, tema, onTema }) {
               <div className="h-44 w-full rounded-xl overflow-hidden ring-1 ring-black/10">{previa(id)}</div>
               <div className="flex items-start justify-between gap-3 mt-4">
                 <div className="min-w-0">
-                  <p style={{ color: T.text }} className="text-[15px] font-bold flex items-center gap-1.5"><Icone size={16} />{nome}</p>
-                  <p style={{ color: T.subtext }} className="text-[12.5px] mt-1 leading-snug">{desc}</p>
+                  <p style={{ color: T.text }} className="text-[0.9375rem] font-bold flex items-center gap-1.5"><Icone size={16} />{nome}</p>
+                  <p style={{ color: T.subtext }} className="text-[0.7812rem] mt-1 leading-snug">{desc}</p>
                 </div>
                 {sel && <span style={{ background: BLUE }} className="h-7 w-7 rounded-full flex items-center justify-center text-white shrink-0"><Check size={16} /></span>}
               </div>
@@ -70,8 +70,8 @@ function SeletorTema({ T, dark, tema, onTema }) {
               style={{ background: sel ? `${BLUE}14` : T.chipBg, borderColor: sel ? BLUE : "transparent" }} className="relative border-2 rounded-3xl p-3 flex items-center gap-4 text-left">
               <div className="h-[86px] w-[64px] rounded-2xl overflow-hidden shrink-0 ring-1 ring-black/10">{previa(id)}</div>
               <div className="flex-1 min-w-0">
-                <p style={{ color: T.text }} className="text-[15px] font-bold flex items-center gap-1.5"><Icone size={15} />{nome}</p>
-                <p style={{ color: T.subtext }} className="text-[12px] mt-1 leading-snug">{desc}</p>
+                <p style={{ color: T.text }} className="text-[0.9375rem] font-bold flex items-center gap-1.5"><Icone size={15} />{nome}</p>
+                <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1 leading-snug">{desc}</p>
               </div>
               <AnimatePresence>
                 {sel && (
@@ -87,14 +87,14 @@ function SeletorTema({ T, dark, tema, onTema }) {
   );
 }
 
-const FONTES = [["normal", "Normal", "Segue o tamanho de letra do seu celular", "100%"], ["grande", "Grande", "Letras um pouco maiores em todo o app", "112.5%"], ["maior", "Muito grande", "Letras bem maiores, mais fáceis de ler", "125%"]];
+const FONTES = [["normal", "Normal", "Tamanho padrão do app (no Android segue a letra do celular)"], ["grande", "Grande", "Letras um pouco maiores"], ["maior", "Muito grande", "Letras bem maiores, mais fáceis de ler"]];
 
 function SeletorFonte({ T, fonte, onFonte }) {
   return (
     <MaisBloco T={T} i={1}>
       <div className="p-4">
-        <p style={{ color: T.text }} className="text-[15px] font-bold">Tamanho das letras</p>
-        <p style={{ color: T.subtext }} className="text-[13px] mt-0.5">Vale só neste aparelho.</p>
+        <p style={{ color: T.text }} className="text-[0.9375rem] font-bold">Tamanho das letras</p>
+        <p style={{ color: T.subtext }} className="text-[0.8125rem] mt-0.5">Vale só neste aparelho. Para voltar ao tamanho padrão, escolha Normal.</p>
         <div role="radiogroup" aria-label="Tamanho das letras" className="mt-3 flex flex-col gap-2">
           {FONTES.map(([id, nome, desc]) => {
             const sel = (fonte || "normal") === id;
@@ -102,8 +102,8 @@ function SeletorFonte({ T, fonte, onFonte }) {
               <button key={id} type="button" role="radio" aria-checked={sel} onClick={() => onFonte(id)}
                 style={{ background: sel ? `${BLUE}14` : T.chipBg, borderColor: sel ? BLUE : "transparent" }} className="border-2 rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
                 <div className="flex-1 min-w-0">
-                  <p style={{ color: T.text }} className="text-[15px] font-bold">{nome}</p>
-                  <p style={{ color: T.subtext }} className="text-[13px] mt-0.5 leading-snug">{desc}</p>
+                  <p style={{ color: T.text }} className="text-[0.9375rem] font-bold">{nome}</p>
+                  <p style={{ color: T.subtext }} className="text-[0.8125rem] mt-0.5 leading-snug">{desc}</p>
                 </div>
                 {sel && <span style={{ background: BLUE }} className="h-6 w-6 rounded-full flex items-center justify-center text-white shrink-0"><Check size={14} /></span>}
               </button>
@@ -136,10 +136,10 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
             ativa ? (
               <div className="flex items-center gap-2">
                 <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400, damping: 14 }} className="text-[0.75rem] font-bold px-2.5 py-1 rounded-full" style={{ background: "#E3F4EA", color: "#14573A" }}>Ligadas</motion.span>
-                {onDesativarNotif && <motion.button whileTap={{ scale: 0.94 }} onClick={onDesativarNotif} style={{ background: T.chipBg, color: T.text }} className="text-[12px] font-bold px-3.5 py-2 rounded-full">Desativar</motion.button>}
+                {onDesativarNotif && <motion.button whileTap={{ scale: 0.94 }} onClick={onDesativarNotif} style={{ background: T.chipBg, color: T.text }} className="text-[0.75rem] font-bold px-3.5 py-2 rounded-full">Desativar</motion.button>}
               </div>
             )
-            : suportada && !bloqueada && !iosSemInstalar ? <motion.button whileTap={{ scale: 0.94 }} onClick={onToggleNotif} style={{ background: BLUE, color: "#fff" }} className="text-[12px] font-bold px-4 py-2 rounded-full">Ativar</motion.button> : null
+            : suportada && !bloqueada && !iosSemInstalar ? <motion.button whileTap={{ scale: 0.94 }} onClick={onToggleNotif} style={{ background: BLUE, color: "#fff" }} className="text-[0.75rem] font-bold px-4 py-2 rounded-full">Ativar</motion.button> : null
   );
   const descNotif = ativa ? "Ativadas neste aparelho" : desligada ? "Desligadas neste aparelho" : bloqueada ? (ehNativo() ? "Bloqueadas no Android" : "Bloqueadas no navegador") : !suportada ? "Este aparelho não suporta" : "Avise quando um produto entrar em alerta";
   const resumo = ehEncarregado && usuarioId ? <ResumoDiarioControles T={T} dark={dark} usuarioId={usuarioId} showToast={showToast} notifAtiva={ativa} temEmail={!!emailConta} /> : null;
@@ -150,8 +150,8 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
           <div className="flex items-center gap-4">
             <MaisBolha cor={COR_MAIS.notificacoes} dark={dark} tamanho={52}>{ativa ? <Bell size={22} /> : <BellOff size={22} />}</MaisBolha>
             <div className="flex-1 min-w-0">
-              <p style={{ color: T.text }} className="text-[15px] font-bold">Notificações do app</p>
-              <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">{descNotif}</p>
+              <p style={{ color: T.text }} className="text-[0.9375rem] font-bold">Notificações do app</p>
+              <p style={{ color: T.subtext }} className="text-[0.7812rem] mt-0.5">{descNotif}</p>
             </div>
             {controleNotif}
           </div>
@@ -165,8 +165,8 @@ function PaginaNotificacoes({ T, dark, som, setSom, notifPermission, onToggleNot
           <div className="flex items-center gap-4">
             <MaisBolha cor="#C2570C" dark={dark} tamanho={52}>{som ? <Volume2 size={22} /> : <VolumeX size={22} />}</MaisBolha>
             <div className="flex-1 min-w-0">
-              <p style={{ color: T.text }} className="text-[15px] font-bold">Som ao bipar</p>
-              <p style={{ color: T.subtext }} className="text-[12.5px] mt-0.5">Toca um beep e vibra ao escanear</p>
+              <p style={{ color: T.text }} className="text-[0.9375rem] font-bold">Som ao bipar</p>
+              <p style={{ color: T.subtext }} className="text-[0.7812rem] mt-0.5">Toca um beep e vibra ao escanear</p>
             </div>
             <MaisSwitch ativo={som} onClick={() => setSom(!som)} label="Som ao bipar" />
           </div>
@@ -292,7 +292,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
   const segmento = ({ valor, onChange, opcoes, id }) => (
     <div style={{ background: T.chipBg }} className="flex p-1 rounded-2xl">
       {opcoes.map(([v, r]) => (
-        <button key={v} onClick={() => onChange(v)} className="relative flex-1 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ color: valor === v ? "#fff" : T.subtext }}>
+        <button key={v} onClick={() => onChange(v)} className="relative flex-1 py-2.5 rounded-xl text-[0.7812rem] font-bold" style={{ color: valor === v ? "#fff" : T.subtext }}>
           {valor === v && <motion.span layoutId={id} transition={MOLA} className="absolute inset-0 rounded-xl" style={{ background: BLUE }} />}
           <span className="relative">{r}</span>
         </button>
@@ -305,14 +305,14 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
         <div className="p-4 flex flex-col gap-3">
           <div className="flex gap-2">
             {TIPOS_AVISO.map((t) => (
-              <motion.button key={t.id} whileTap={{ scale: 0.95 }} onClick={() => setTipo(t.id)} style={tipo === t.id ? { background: t.cor, color: "#fff" } : { background: T.chipBg, color: T.text }} className="flex-1 py-2.5 rounded-2xl text-[12.5px] font-bold">{t.rotulo}</motion.button>
+              <motion.button key={t.id} whileTap={{ scale: 0.95 }} onClick={() => setTipo(t.id)} style={tipo === t.id ? { background: t.cor, color: "#fff" } : { background: T.chipBg, color: T.text }} className="flex-1 py-2.5 rounded-2xl text-[0.7812rem] font-bold">{t.rotulo}</motion.button>
             ))}
           </div>
           <MaisCampo T={T} label="Título" value={titulo} onChange={(v) => setTitulo(v.slice(0, 60))} placeholder="Ex.: Reunião às 15h no CPD" maxLength={60} />
           <label className="block">
             <span style={{ color: T.subtext }} className="text-[0.75rem] font-semibold mb-1 flex justify-between"><span>Mensagem</span><span>{mensagem.length}/300</span></span>
             <textarea value={mensagem} onChange={(e) => setMensagem(e.target.value.slice(0, 300))} rows={4} placeholder="Escreva o aviso…"
-              style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-2xl px-4 py-3 text-[15px] outline-none focus:ring-2 resize-none" />
+              style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-2xl px-4 py-3 text-[0.9375rem] outline-none focus:ring-2 resize-none" />
           </label>
         </div>
       </MaisBloco>
@@ -323,7 +323,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
           <AnimatePresence initial={false}>
             {onde === "loja" && (
               <motion.div key="loja" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <select value={lojaSel} onChange={(e) => setLojaSel(e.target.value)} aria-label="Loja" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-2xl px-4 py-3 text-[15px] outline-none">
+                <select value={lojaSel} onChange={(e) => setLojaSel(e.target.value)} aria-label="Loja" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-2xl px-4 py-3 text-[0.9375rem] outline-none">
                   <option value="">Escolha a loja…</option>
                   {lojas.map((l) => <option key={l.id} value={l.id}>Loja {l.numero_loja}</option>)}
                 </select>
@@ -334,7 +334,7 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
           <AnimatePresence initial={false}>
             {quem === "setor" && (
               <motion.div key="setor" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <select value={setor} onChange={(e) => setSetor(e.target.value)} aria-label="Setor" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-2xl px-4 py-3 text-[15px] outline-none">
+                <select value={setor} onChange={(e) => setSetor(e.target.value)} aria-label="Setor" style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full border rounded-2xl px-4 py-3 text-[0.9375rem] outline-none">
                   <option value="">Escolha o setor…</option>
                   {SETORES.filter((s) => s !== "Outro").map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -350,13 +350,13 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
                       const sel = pessoas.includes(f.matricula);
                       return (
                         <motion.button key={f.id} whileTap={{ scale: 0.98 }} onClick={() => alternar(f.matricula)} aria-pressed={sel}
-                          style={sel ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }} className="w-full text-left px-3.5 py-2.5 rounded-2xl text-[13px] font-semibold flex items-center justify-between">
+                          style={sel ? { background: BLUE, color: "#fff" } : { background: T.chipBg, color: T.text }} className="w-full text-left px-3.5 py-2.5 rounded-2xl text-[0.8125rem] font-semibold flex items-center justify-between">
                           <span className="truncate">{f.nome}</span>{sel && <Check size={15} />}
                         </motion.button>
                       );
                     })}
                 </div>
-                {pessoas.length > 0 && <p style={{ color: T.subtext }} className="text-[12px] mt-2">{pessoas.length} pessoa(s) escolhida(s)</p>}
+                {pessoas.length > 0 && <p style={{ color: T.subtext }} className="text-[0.75rem] mt-2">{pessoas.length} pessoa(s) escolhida(s)</p>}
               </motion.div>
             )}
           </AnimatePresence>
@@ -378,8 +378,8 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
         <div className="p-4">
           <motion.div layout style={{ background: `${tipoAtual.cor}1A`, borderColor: tipoAtual.cor }} className="rounded-2xl border-l-4 p-4">
             <p style={{ color: dark ? clarearCor(tipoAtual.cor, 0.5) : tipoAtual.cor }} className="text-[0.75rem] font-extrabold uppercase tracking-wide">{tipoAtual.rotulo}</p>
-            <p style={{ color: T.text }} className="text-[15px] font-bold mt-1 break-words">{titulo || "Título do aviso"}</p>
-            <p style={{ color: T.subtext }} className="text-[13px] mt-1 leading-snug break-words whitespace-pre-line">{mensagem || "A mensagem aparece aqui para quem receber."}</p>
+            <p style={{ color: T.text }} className="text-[0.9375rem] font-bold mt-1 break-words">{titulo || "Título do aviso"}</p>
+            <p style={{ color: T.subtext }} className="text-[0.8125rem] mt-1 leading-snug break-words whitespace-pre-line">{mensagem || "A mensagem aparece aqui para quem receber."}</p>
           </motion.div>
         </div>
       </MaisBloco>
@@ -394,9 +394,9 @@ function PaginaAvisos({ T, dark, perfil, showToast }) {
                 style={{ borderBottom: k < recentes.length - 1 ? `1px solid ${T.chipBg}` : "none" }} className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   <span style={{ background: t.cor }} className="h-2 w-2 rounded-full shrink-0" />
-                  <p style={{ color: T.text }} className="text-[13.5px] font-bold truncate">{a.titulo}</p>
+                  <p style={{ color: T.text }} className="text-[0.8438rem] font-bold truncate">{a.titulo}</p>
                 </div>
-                <p style={{ color: T.subtext }} className="text-[11.5px] mt-0.5">{resumoAlvoAviso(a, lojasPorId)} · {new Date(a.criado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</p>
+                <p style={{ color: T.subtext }} className="text-[0.7188rem] mt-0.5">{resumoAlvoAviso(a, lojasPorId)} · {new Date(a.criado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</p>
               </motion.div>
             );
           })}
@@ -445,10 +445,10 @@ function PaginaBalanca({ T, dark, perfil, configBalanca, onSalvou, showToast }) 
     <div className="lg:grid lg:grid-cols-2 lg:gap-x-6 lg:items-start">
       <MaisBloco T={T} titulo="O que o código embute" i={0}>
         <div className="p-4 flex flex-col gap-3">
-          <p style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed">Em etiquetas de balança (açougue, padaria, hortifruti), os 5 dígitos do meio podem ser o <strong>peso</strong> ou o <strong>preço</strong>. Escolha o que a balança da rede imprime.</p>
+          <p style={{ color: T.subtext }} className="text-[0.7812rem] leading-relaxed">Em etiquetas de balança (açougue, padaria, hortifruti), os 5 dígitos do meio podem ser o <strong>peso</strong> ou o <strong>preço</strong>. Escolha o que a balança da rede imprime.</p>
           <div style={{ background: T.chipBg }} className="flex p-1 rounded-2xl">
             {[["peso", "Peso (kg)"], ["preco", "Preço (R$)"]].map(([v, r]) => (
-              <button key={v} onClick={() => setTipo(v)} className="relative flex-1 py-2.5 rounded-xl text-[13px] font-bold" style={{ color: tipo === v ? "#fff" : T.subtext }}>
+              <button key={v} onClick={() => setTipo(v)} className="relative flex-1 py-2.5 rounded-xl text-[0.8125rem] font-bold" style={{ color: tipo === v ? "#fff" : T.subtext }}>
                 {tipo === v && <motion.span layoutId="bal-tipo" transition={MOLA} className="absolute inset-0 rounded-xl" style={{ background: COR_MAIS.balanca }} />}
                 <span className="relative">{r}</span>
               </button>
@@ -461,8 +461,8 @@ function PaginaBalanca({ T, dark, perfil, configBalanca, onSalvou, showToast }) 
           <MaisCampo T={T} label="Os 2 primeiros dígitos (separe por vírgula)" value={texto} onChange={setTexto} placeholder="20, 21, 22…" />
           <div className="flex flex-wrap gap-1.5" aria-label="Prefixos">
             <AnimatePresence>
-              {validos.map((p) => <motion.span key={p} layout initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={MOLA} style={{ background: `${COR_MAIS.balanca}26`, color: dark ? clarearCor(COR_MAIS.balanca, 0.5) : COR_MAIS.balanca }} className="px-3 py-1 rounded-full text-[13px] font-bold font-mono">{p}</motion.span>)}
-              {invalidos.map((p, k) => <motion.span key={`i${p}${k}`} layout initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} style={{ background: RED_SOFT, color: RED_DARK }} className="px-3 py-1 rounded-full text-[13px] font-bold font-mono">{p} ✕</motion.span>)}
+              {validos.map((p) => <motion.span key={p} layout initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={MOLA} style={{ background: `${COR_MAIS.balanca}26`, color: dark ? clarearCor(COR_MAIS.balanca, 0.5) : COR_MAIS.balanca }} className="px-3 py-1 rounded-full text-[0.8125rem] font-bold font-mono">{p}</motion.span>)}
+              {invalidos.map((p, k) => <motion.span key={`i${p}${k}`} layout initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} style={{ background: RED_SOFT, color: RED_DARK }} className="px-3 py-1 rounded-full text-[0.8125rem] font-bold font-mono">{p} ✕</motion.span>)}
             </AnimatePresence>
           </div>
         </div>
@@ -485,7 +485,7 @@ function PaginaBalanca({ T, dark, perfil, configBalanca, onSalvou, showToast }) 
         <div className="p-4 flex flex-col gap-3">
           <div style={{ background: T.chipBg }} className="flex p-1 rounded-2xl">
             {[["loja", lojaNum ? `Só a Loja ${lojaNum}` : "Só esta loja"], ["todas", "Todas as lojas"]].map(([v, r]) => (
-              <button key={v} onClick={() => setEscopo(v)} className="relative flex-1 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ color: escopo === v ? "#fff" : T.subtext }}>
+              <button key={v} onClick={() => setEscopo(v)} className="relative flex-1 py-2.5 rounded-xl text-[0.7812rem] font-bold" style={{ color: escopo === v ? "#fff" : T.subtext }}>
                 {escopo === v && <motion.span layoutId="bal-escopo" transition={MOLA} className="absolute inset-0 rounded-xl" style={{ background: BLUE }} />}
                 <span className="relative">{r}</span>
               </button>
@@ -518,15 +518,15 @@ function PaginaSobre({ T, dark, perfil }) {
             <div className="relative flex flex-col items-center">
               <div className="bg-white rounded-2xl h-14 px-5 flex items-center shadow-lg shadow-black/20"><img src={LOGO_SRC} alt="Bipi Validade" className="h-8 w-auto" /></div>
               <p className="text-2xl font-extrabold mt-5">Bipi Validade</p>
-              <span className="text-[12px] font-bold px-3 py-1 rounded-full mt-2" style={{ background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.28)" }}>Versão {APP_VERSAO}{loja ? ` · Loja ${loja}` : ""}</span>
-              <p className="text-[13px] text-white/80 mt-4 leading-relaxed">Controle de validade, rondas e prevenção de perdas para lojas de supermercado — com câmera, alertas, histórico de baixas e análise por setor.</p>
-              <button type="button" onClick={abrirTutorial} className="mt-4 h-10 px-4 rounded-full bg-white text-[#0B2A55] text-[13px] font-extrabold flex items-center gap-2"><img src="/bipi-acenando.png" alt="" className="h-7 w-7 -ml-1" />Ver o tutorial do Bipi</button>
+              <span className="text-[0.75rem] font-bold px-3 py-1 rounded-full mt-2" style={{ background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.28)" }}>Versão {APP_VERSAO}{loja ? ` · Loja ${loja}` : ""}</span>
+              <p className="text-[0.8125rem] text-white/80 mt-4 leading-relaxed">Controle de validade, rondas e prevenção de perdas para lojas de supermercado — com câmera, alertas, histórico de baixas e análise por setor.</p>
+              <button type="button" onClick={abrirTutorial} className="mt-4 h-10 px-4 rounded-full bg-white text-[#0B2A55] text-[0.8125rem] font-extrabold flex items-center gap-2"><img src="/bipi-acenando.png" alt="" className="h-7 w-7 -ml-1" />Ver o tutorial do Bipi</button>
             </div>
           </section>
           <DashCard T={T} title="Créditos">
             <div className="flex flex-col gap-3.5">
-              <div><p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Idealizadora</p><p style={{ color: T.text }} className="text-[14px] font-semibold">Francisca Gisleuda</p><p style={{ color: T.subtext }} className="text-[12px]">Encarregada de Reposição · Loja 79</p></div>
-              <div><p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Desenvolvimento e idealização</p><p style={{ color: T.text }} className="text-[14px] font-semibold">Cauã Silva</p><p style={{ color: T.subtext }} className="text-[12px]">CPD · Loja 79</p></div>
+              <div><p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Idealizadora</p><p style={{ color: T.text }} className="text-[0.875rem] font-semibold">Francisca Gisleuda</p><p style={{ color: T.subtext }} className="text-[0.75rem]">Encarregada de Reposição · Loja 79</p></div>
+              <div><p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Desenvolvimento e idealização</p><p style={{ color: T.text }} className="text-[0.875rem] font-semibold">Cauã Silva</p><p style={{ color: T.subtext }} className="text-[0.75rem]">CPD · Loja 79</p></div>
             </div>
           </DashCard>
         </aside>
@@ -536,8 +536,8 @@ function PaginaSobre({ T, dark, perfil }) {
               <li key={v.id} className="flex gap-4">
                 <div className="flex flex-col items-center shrink-0"><span style={{ background: BLUE }} className="h-3 w-3 rounded-full mt-1.5" />{k < todas.length - 1 && <span style={{ background: T.chipBg }} className="w-0.5 flex-1 mt-1" />}</div>
                 <div className="pb-5 min-w-0">
-                  <p style={{ color: T.text }} className="text-[13.5px] font-bold">{v.data}</p>
-                  <ul className="mt-1.5 flex flex-col gap-1.5">{v.itens.map((it, j) => <li key={j} style={{ color: T.subtext }} className="text-[13px] leading-relaxed">{it.texto}</li>)}</ul>
+                  <p style={{ color: T.text }} className="text-[0.8438rem] font-bold">{v.data}</p>
+                  <ul className="mt-1.5 flex flex-col gap-1.5">{v.itens.map((it, j) => <li key={j} style={{ color: T.subtext }} className="text-[0.8125rem] leading-relaxed">{it.texto}</li>)}</ul>
                 </div>
               </li>
             ))}
@@ -551,24 +551,24 @@ function PaginaSobre({ T, dark, perfil }) {
       <MaisBloco T={T} i={0}>
         <div className="p-6 flex flex-col items-center text-center">
           <motion.img src={LOGO_SRC} alt="Bipi Validade" initial={{ scale: 0.4, opacity: 0, rotate: -8 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 220, damping: 14 }} className="h-12 w-auto" />
-          <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} style={{ color: T.text }} className="text-[19px] font-extrabold mt-4">Bipi Validade</motion.p>
-          <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} style={{ background: T.chipBg, color: T.subtext }} className="text-[12px] font-bold px-3 py-1 rounded-full mt-2">Versão {APP_VERSAO}{loja ? ` · Loja ${loja}` : ""}</motion.span>
-          <p style={{ color: T.subtext }} className="text-[13px] mt-4 leading-relaxed">Controle de validade, rondas e prevenção de perdas para lojas de supermercado — com câmera, alertas, histórico de baixas e análise por setor.</p>
-          <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={abrirTutorial} style={{ background: BLUE }} className="mt-4 h-11 px-5 rounded-full text-white text-[13.5px] font-extrabold flex items-center gap-2"><img src="/bipi-acenando.png" alt="" className="h-7 w-7 -ml-1" />Ver o tutorial do Bipi</motion.button>
+          <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} style={{ color: T.text }} className="text-[1.1875rem] font-extrabold mt-4">Bipi Validade</motion.p>
+          <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} style={{ background: T.chipBg, color: T.subtext }} className="text-[0.75rem] font-bold px-3 py-1 rounded-full mt-2">Versão {APP_VERSAO}{loja ? ` · Loja ${loja}` : ""}</motion.span>
+          <p style={{ color: T.subtext }} className="text-[0.8125rem] mt-4 leading-relaxed">Controle de validade, rondas e prevenção de perdas para lojas de supermercado — com câmera, alertas, histórico de baixas e análise por setor.</p>
+          <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={abrirTutorial} style={{ background: BLUE }} className="mt-4 h-11 px-5 rounded-full text-white text-[0.8438rem] font-extrabold flex items-center gap-2"><img src="/bipi-acenando.png" alt="" className="h-7 w-7 -ml-1" />Ver o tutorial do Bipi</motion.button>
         </div>
       </MaisBloco>
       <MaisBloco T={T} titulo="Novidades" i={1}>
         {versoes.map((v, k) => (
           <div key={v.id} style={{ borderBottom: k < versoes.length - 1 ? `1px solid ${T.chipBg}` : "none" }}>
             <button onClick={() => setAberto(aberto === v.id ? null : v.id)} aria-expanded={aberto === v.id} className="w-full flex items-center justify-between px-4 py-3.5">
-              <span style={{ color: T.text }} className="text-[14px] font-semibold">{v.data}</span>
-              <span className="flex items-center gap-2"><span style={{ color: T.subtext }} className="text-[12px]">{v.itens.length} item(ns)</span>
+              <span style={{ color: T.text }} className="text-[0.875rem] font-semibold">{v.data}</span>
+              <span className="flex items-center gap-2"><span style={{ color: T.subtext }} className="text-[0.75rem]">{v.itens.length} item(ns)</span>
                 <motion.span animate={{ rotate: aberto === v.id ? 90 : 0 }} transition={MOLA}><ChevronRight size={16} style={{ color: T.subtext }} /></motion.span></span>
             </button>
             <AnimatePresence initial={false}>
               {aberto === v.id && (
                 <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={MOLA_SUAVE} className="overflow-hidden px-4">
-                  {v.itens.map((it, j) => <li key={j} style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed pb-2.5 pl-3 relative"><span style={{ background: BLUE }} className="absolute left-0 top-2 h-1.5 w-1.5 rounded-full" />{it.texto}</li>)}
+                  {v.itens.map((it, j) => <li key={j} style={{ color: T.subtext }} className="text-[0.7812rem] leading-relaxed pb-2.5 pl-3 relative"><span style={{ background: BLUE }} className="absolute left-0 top-2 h-1.5 w-1.5 rounded-full" />{it.texto}</li>)}
                 </motion.ul>
               )}
             </AnimatePresence>
@@ -577,8 +577,8 @@ function PaginaSobre({ T, dark, perfil }) {
       </MaisBloco>
       <MaisBloco T={T} titulo="Créditos" i={2}>
         <div className="p-4 flex flex-col gap-3">
-          <div><p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Idealizadora</p><p style={{ color: T.text }} className="text-[14px] font-semibold">Francisca Gisleuda</p><p style={{ color: T.subtext }} className="text-[12px]">Encarregada de Reposição · Loja 79</p></div>
-          <div><p style={{ color: T.subtext }} className="text-[10.5px] font-bold uppercase tracking-wide">Desenvolvimento e idealização</p><p style={{ color: T.text }} className="text-[14px] font-semibold">Cauã Silva</p><p style={{ color: T.subtext }} className="text-[12px]">CPD · Loja 79</p></div>
+          <div><p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Idealizadora</p><p style={{ color: T.text }} className="text-[0.875rem] font-semibold">Francisca Gisleuda</p><p style={{ color: T.subtext }} className="text-[0.75rem]">Encarregada de Reposição · Loja 79</p></div>
+          <div><p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Desenvolvimento e idealização</p><p style={{ color: T.text }} className="text-[0.875rem] font-semibold">Cauã Silva</p><p style={{ color: T.subtext }} className="text-[0.75rem]">CPD · Loja 79</p></div>
         </div>
       </MaisBloco>
     </>

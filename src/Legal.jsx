@@ -336,11 +336,11 @@ function LegalTexto({ T, docId }) {
     <div>
       {secoes.map((sc) => (
         <section key={sc.t} className="mb-5 last:mb-0">
-          <h3 style={{ color: T.text }} className="text-[14.5px] font-extrabold mb-1.5">{sc.t}</h3>
-          <div className="flex flex-col gap-2">{sc.p.map((par, k) => <p key={k} style={{ color: T.subtext }} className="text-[13.5px] leading-relaxed">{par}</p>)}</div>
+          <h3 style={{ color: T.text }} className="text-[0.9062rem] font-extrabold mb-1.5">{sc.t}</h3>
+          <div className="flex flex-col gap-2">{sc.p.map((par, k) => <p key={k} style={{ color: T.subtext }} className="text-[0.8438rem] leading-relaxed">{par}</p>)}</div>
         </section>
       ))}
-      <p style={{ color: T.subtext, borderTop: `1px solid ${T.chipBg}` }} className="text-[11.5px] mt-6 pt-4">Texto de referência para o uso do app. Em caso de dúvida, fale com o responsável pelo próprio app.</p>
+      <p style={{ color: T.subtext, borderTop: `1px solid ${T.chipBg}` }} className="text-[0.7188rem] mt-6 pt-4">Texto de referência para o uso do app. Em caso de dúvida, fale com o responsável pelo próprio app.</p>
     </div>
   );
 }
@@ -361,8 +361,8 @@ export function LegalLeitor({ T, docId, onFechar }) {
         <div className="relative flex items-center gap-3">
           <motion.button whileTap={{ scale: 0.9 }} onClick={onFechar} aria-label="Voltar" className="h-10 w-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,.18)", border: "1px solid rgba(255,255,255,.28)" }}><ArrowLeft size={18} /></motion.button>
           <div className="min-w-0">
-            <h2 className="text-[19px] font-extrabold leading-tight truncate">{doc.titulo}</h2>
-            <p className="text-[12px] text-white/75">Versão {TERMOS_VERSAO}</p>
+            <h2 className="text-[1.1875rem] font-extrabold leading-tight truncate">{doc.titulo}</h2>
+            <p className="text-[0.75rem] text-white/75">Versão {TERMOS_VERSAO}</p>
           </div>
         </div>
       </div>
@@ -371,9 +371,9 @@ export function LegalLeitor({ T, docId, onFechar }) {
           {secoes.map((s, i) => (
             <motion.section key={s.t} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.03, 0.25) }}
               style={{ background: T.card }} className="rounded-[22px] shadow-md shadow-black/5 p-4 mb-3">
-              <h3 style={{ color: T.text }} className="text-[14px] font-extrabold mb-2">{s.t}</h3>
+              <h3 style={{ color: T.text }} className="text-[0.875rem] font-extrabold mb-2">{s.t}</h3>
               <div className="flex flex-col gap-2">
-                {s.p.map((par, k) => <p key={k} style={{ color: T.subtext }} className="text-[13px] leading-relaxed">{par}</p>)}
+                {s.p.map((par, k) => <p key={k} style={{ color: T.subtext }} className="text-[0.8125rem] leading-relaxed">{par}</p>)}
               </div>
             </motion.section>
           ))}
@@ -394,14 +394,14 @@ export function AceiteCampo({ T, aceito, onChange, onAbrir, erro }) {
         <span className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition" style={{ background: aceito ? "#1F9D55" : "transparent", border: `2px solid ${aceito ? "#1F9D55" : T.subtext}` }}>
           {aceito && <Check size={15} color="#fff" strokeWidth={3} />}
         </span>
-        <span style={{ color: T.text }} className="text-[13px] leading-snug">
+        <span style={{ color: T.text }} className="text-[0.8125rem] leading-snug">
           Li e concordo com os{" "}
           <span role="link" tabIndex={0} onClick={(e) => { e.stopPropagation(); onAbrir("termos"); }} onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onAbrir("termos"); } }} style={{ color: AZUL }} className="font-bold underline">Termos de Uso</span>,{" "}
           a <span role="link" tabIndex={0} onClick={(e) => { e.stopPropagation(); onAbrir("privacidade"); }} onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onAbrir("privacidade"); } }} style={{ color: AZUL }} className="font-bold underline">Política de Privacidade</span>{" "}
           e o tratamento dos meus dados conforme a LGPD.
         </span>
       </button>
-      {erro && !aceito && <p className="text-[12px] font-semibold mt-1.5 px-1" style={{ color: VERM }}>Para continuar, aceite os termos.</p>}
+      {erro && !aceito && <p className="text-[0.75rem] font-semibold mt-1.5 px-1" style={{ color: VERM }}>Para continuar, aceite os termos.</p>}
     </div>
   );
 }
@@ -409,7 +409,7 @@ export function AceiteCampo({ T, aceito, onChange, onAbrir, erro }) {
 // Links discretos (rodapé do login)
 export function LinksLegais({ T, onAbrir }) {
   return (
-    <p style={{ color: T.subtext }} className="text-[11.5px] text-center leading-relaxed">
+    <p style={{ color: T.subtext }} className="text-[0.7188rem] text-center leading-relaxed">
       <button type="button" onClick={() => onAbrir("termos")} className="font-semibold underline">Termos de Uso</button>{" · "}
       <button type="button" onClick={() => onAbrir("privacidade")} className="font-semibold underline">Privacidade</button>{" · "}
       <button type="button" onClick={() => onAbrir("direitos")} className="font-semibold underline">Seus direitos (LGPD)</button>
@@ -444,8 +444,8 @@ export function AceiteObrigatorio({ T, nome, onAceitar, onSair }) {
       <div style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative shrink-0 text-white px-5 pb-8 pt-[calc(env(safe-area-inset-top)+2rem)] rounded-b-[32px] shadow-lg shadow-black/15 text-center">
         <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "22px 22px" }} />
         <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 18 }} className="relative mx-auto h-16 w-16 rounded-[22px] bg-white flex items-center justify-center shadow-xl shadow-black/25"><Lock size={28} color={AZUL} /></motion.div>
-        <h1 className="relative text-[24px] font-extrabold mt-4 leading-tight">Antes de continuar{nome ? `, ${String(nome).trim().split(/\s+/)[0]}` : ""}</h1>
-        <p className="relative text-[13.5px] text-white/80 mt-1.5 max-w-xs mx-auto">{mudancas?.length ? "Atualizamos os Termos e a Privacidade. Veja só o que mudou e aceite para continuar." : "Atualizamos os Termos de Uso e a Política de Privacidade (LGPD). Leia e aceite para usar o app."}</p>
+        <h1 className="relative text-[1.5rem] font-extrabold mt-4 leading-tight">Antes de continuar{nome ? `, ${String(nome).trim().split(/\s+/)[0]}` : ""}</h1>
+        <p className="relative text-[0.8438rem] text-white/80 mt-1.5 max-w-xs mx-auto">{mudancas?.length ? "Atualizamos os Termos e a Privacidade. Veja só o que mudou e aceite para continuar." : "Atualizamos os Termos de Uso e a Política de Privacidade (LGPD). Leia e aceite para usar o app."}</p>
       </div>
       <div className="flex-1 px-4 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] max-w-md w-full mx-auto">
         {mudancas?.length ? (
@@ -454,13 +454,13 @@ export function AceiteObrigatorio({ T, nome, onAceitar, onSair }) {
               <div key={d.id} style={{ background: T.card }} className="rounded-[20px] shadow-md shadow-black/5 p-3.5">
                 <div className="flex items-center gap-2.5 mb-2">
                   <span className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${d.cor}1F` }}><d.Icone size={16} color={d.cor} /></span>
-                  <span className="text-[14px] font-extrabold" style={{ color: T.text }}>{d.titulo}</span>
-                  <span style={{ background: "#E4F7EC", color: "#1F9D55" }} className="ml-auto text-[10.5px] font-bold px-2 py-0.5 rounded-full">Novo</span>
+                  <span className="text-[0.875rem] font-extrabold" style={{ color: T.text }}>{d.titulo}</span>
+                  <span style={{ background: "#E4F7EC", color: "#1F9D55" }} className="ml-auto text-[0.6562rem] font-bold px-2 py-0.5 rounded-full">Novo</span>
                 </div>
                 <ul className="flex flex-col gap-1.5">
-                  {itens.map((t, i) => <li key={i} style={{ color: T.subtext }} className="text-[12.5px] leading-relaxed pl-3 relative"><span style={{ background: AZUL }} className="absolute left-0 top-[7px] h-1.5 w-1.5 rounded-full" />{t}</li>)}
+                  {itens.map((t, i) => <li key={i} style={{ color: T.subtext }} className="text-[0.7812rem] leading-relaxed pl-3 relative"><span style={{ background: AZUL }} className="absolute left-0 top-[7px] h-1.5 w-1.5 rounded-full" />{t}</li>)}
                 </ul>
-                <button onClick={() => setLeitor(d.id)} style={{ color: AZUL }} className="text-[12px] font-bold mt-2.5">Ler o documento completo</button>
+                <button onClick={() => setLeitor(d.id)} style={{ color: AZUL }} className="text-[0.75rem] font-bold mt-2.5">Ler o documento completo</button>
               </div>
             ))}
           </div>
@@ -469,18 +469,18 @@ export function AceiteObrigatorio({ T, nome, onAceitar, onSair }) {
           {DOCUMENTOS.map((d) => (
             <motion.button key={d.id} whileTap={{ scale: 0.98 }} onClick={() => setLeitor(d.id)} style={{ background: T.card }} className="rounded-[20px] shadow-md shadow-black/5 p-3.5 flex items-center gap-3 text-left">
               <span className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${d.cor}1F` }}><d.Icone size={19} color={d.cor} /></span>
-              <span className="min-w-0 flex-1"><span className="block text-[14px] font-extrabold" style={{ color: T.text }}>{d.titulo}</span><span className="block text-[12px]" style={{ color: T.subtext }}>{d.resumo}</span></span>
+              <span className="min-w-0 flex-1"><span className="block text-[0.875rem] font-extrabold" style={{ color: T.text }}>{d.titulo}</span><span className="block text-[0.75rem]" style={{ color: T.subtext }}>{d.resumo}</span></span>
               <ChevronRight size={16} color={T.subtext} />
             </motion.button>
           ))}
         </div>
         )}
         <AceiteCampo T={T} aceito={aceito} onChange={setAceito} onAbrir={setLeitor} erro={tentou} />
-        <motion.button whileTap={{ scale: 0.98 }} onClick={confirmar} disabled={ocupado} className="w-full mt-4 rounded-2xl py-3.5 text-[15px] font-extrabold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+        <motion.button whileTap={{ scale: 0.98 }} onClick={confirmar} disabled={ocupado} className="w-full mt-4 rounded-2xl py-3.5 text-[0.9375rem] font-extrabold text-white flex items-center justify-center gap-2 disabled:opacity-60"
           style={{ background: aceito ? `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` : "#8A97A8" }}>
           {ocupado ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />} Aceitar e continuar
         </motion.button>
-        <button onClick={onSair} style={{ color: T.subtext }} className="w-full text-[13px] font-semibold py-3 mt-1">Não aceito — sair</button>
+        <button onClick={onSair} style={{ color: T.subtext }} className="w-full text-[0.8125rem] font-semibold py-3 mt-1">Não aceito — sair</button>
       </div>
       <AnimatePresence>{leitor && <LegalLeitor T={T} docId={leitor} onFechar={() => setLeitor(null)} />}</AnimatePresence>
     </div>
@@ -572,7 +572,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
         {DOCUMENTOS.map((d) => (
           <motion.button key={d.id} whileTap={{ scale: 0.98 }} onClick={() => setLeitor(d.id)} className="w-full flex items-center gap-3 text-left p-2.5 rounded-2xl">
             <span className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${d.cor}1F` }}><d.Icone size={19} color={d.cor} /></span>
-            <span className="min-w-0 flex-1"><span className="block text-[14px] font-extrabold" style={{ color: T.text }}>{d.titulo}</span><span className="block text-[12px]" style={{ color: T.subtext }}>{d.resumo}</span></span>
+            <span className="min-w-0 flex-1"><span className="block text-[0.875rem] font-extrabold" style={{ color: T.text }}>{d.titulo}</span><span className="block text-[0.75rem]" style={{ color: T.subtext }}>{d.resumo}</span></span>
             <ChevronRight size={16} color={T.subtext} />
           </motion.button>
         ))}
@@ -580,13 +580,13 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
   );
   const blocoAceites = (
       <section style={cartao} className="rounded-[24px] shadow-lg shadow-black/5 p-4">
-        <p style={{ color: T.text }} className="text-[14px] font-extrabold">Seus aceites</p>
+        <p style={{ color: T.text }} className="text-[0.875rem] font-extrabold">Seus aceites</p>
         {aceites === null ? <Loader2 size={16} className="animate-spin mt-2" color={T.subtext} /> : aceites.length === 0 ? (
-          <p style={{ color: T.subtext }} className="text-[12.5px] mt-1.5">Versão atual: {TERMOS_VERSAO}. {lerAceiteLocal() ? "Aceite registrado neste aparelho." : "Ainda sem aceite registrado."}</p>
+          <p style={{ color: T.subtext }} className="text-[0.7812rem] mt-1.5">Versão atual: {TERMOS_VERSAO}. {lerAceiteLocal() ? "Aceite registrado neste aparelho." : "Ainda sem aceite registrado."}</p>
         ) : (
           <div className="mt-2 flex flex-col gap-1.5">
             {aceites.map((a, i) => (
-              <p key={i} style={{ color: T.subtext }} className="text-[12.5px] flex items-center gap-1.5"><Check size={13} color="#1F9D55" /> Termos e Privacidade · versão {a.versao} · {fmt(a.aceito_em)}</p>
+              <p key={i} style={{ color: T.subtext }} className="text-[0.7812rem] flex items-center gap-1.5"><Check size={13} color="#1F9D55" /> Termos e Privacidade · versão {a.versao} · {fmt(a.aceito_em)}</p>
             ))}
           </div>
         )}
@@ -594,26 +594,26 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
   );
   const blocoDados = (
       <section style={cartao} className="rounded-[24px] shadow-lg shadow-black/5 p-4">
-        <p style={{ color: T.text }} className="text-[14px] font-extrabold">Meus dados</p>
-        <p style={{ color: T.subtext }} className="text-[12.5px] mt-1 leading-snug">Baixe uma cópia dos dados que temos sobre você (cadastro, aceites, logins, registros e pedidos), em JSON.</p>
-        <motion.button whileTap={{ scale: 0.97 }} onClick={baixarDados} disabled={baixando} className="mt-3 rounded-2xl py-3 px-4 text-[13.5px] font-extrabold text-white flex items-center justify-center gap-2 w-full disabled:opacity-60" style={{ background: `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` }}>
+        <p style={{ color: T.text }} className="text-[0.875rem] font-extrabold">Meus dados</p>
+        <p style={{ color: T.subtext }} className="text-[0.7812rem] mt-1 leading-snug">Baixe uma cópia dos dados que temos sobre você (cadastro, aceites, logins, registros e pedidos), em JSON.</p>
+        <motion.button whileTap={{ scale: 0.97 }} onClick={baixarDados} disabled={baixando} className="mt-3 rounded-2xl py-3 px-4 text-[0.8438rem] font-extrabold text-white flex items-center justify-center gap-2 w-full disabled:opacity-60" style={{ background: `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` }}>
           {baixando ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Baixar meus dados
         </motion.button>
       </section>
   );
   const blocoDireito = (
       <section style={cartao} className="rounded-[24px] shadow-lg shadow-black/5 p-4">
-        <p style={{ color: T.text }} className="text-[14px] font-extrabold">Solicitar um direito</p>
-        <p style={{ color: T.subtext }} className="text-[12.5px] mt-1 leading-snug">Corrigir, eliminar, revogar consentimento ou falar com o responsável. Respondemos em até 15 dias.</p>
+        <p style={{ color: T.text }} className="text-[0.875rem] font-extrabold">Solicitar um direito</p>
+        <p style={{ color: T.subtext }} className="text-[0.7812rem] mt-1 leading-snug">Corrigir, eliminar, revogar consentimento ou falar com o responsável. Respondemos em até 15 dias.</p>
         <div className="flex flex-wrap gap-1.5 mt-3">
           {TIPOS_PEDIDO.map(([id, rot]) => (
-            <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => setTipo(id)} aria-pressed={tipo === id} className="text-[12px] font-bold rounded-full px-3 py-2"
+            <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => setTipo(id)} aria-pressed={tipo === id} className="text-[0.75rem] font-bold rounded-full px-3 py-2"
               style={tipo === id ? { background: AZUL_ESC, color: "#fff" } : { background: T.chipBg, color: T.text }}>{rot}</motion.button>
           ))}
         </div>
         <textarea value={detalhe} onChange={(e) => setDetalhe(e.target.value)} rows={3} maxLength={1000} placeholder="Descreva o que você precisa…"
           style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full mt-3 border rounded-2xl px-3.5 py-3 text-sm outline-none focus:ring-2 resize-none" />
-        <motion.button whileTap={{ scale: 0.97 }} onClick={enviarPedido} disabled={enviando} className="mt-3 rounded-2xl py-3 px-4 text-[13.5px] font-extrabold text-white flex items-center justify-center gap-2 w-full disabled:opacity-60" style={{ background: `linear-gradient(135deg, ${VERM} 0%, #A81419 100%)` }}>
+        <motion.button whileTap={{ scale: 0.97 }} onClick={enviarPedido} disabled={enviando} className="mt-3 rounded-2xl py-3 px-4 text-[0.8438rem] font-extrabold text-white flex items-center justify-center gap-2 w-full disabled:opacity-60" style={{ background: `linear-gradient(135deg, ${VERM} 0%, #A81419 100%)` }}>
           {enviando ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Enviar pedido
         </motion.button>
       </section>
@@ -621,16 +621,16 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
   const blocoPedidos = (
       pedidos && pedidos.length > 0 && (
         <section style={cartao} className="rounded-[24px] shadow-lg shadow-black/5 p-4">
-          <p style={{ color: T.text }} className="text-[14px] font-extrabold mb-2">Meus pedidos</p>
+          <p style={{ color: T.text }} className="text-[0.875rem] font-extrabold mb-2">Meus pedidos</p>
           <div className="flex flex-col gap-2">
             {pedidos.map((p) => {
               const [rot, cor, bg] = STATUS_PEDIDO[p.status] || STATUS_PEDIDO.aberta;
               return (
                 <div key={p.id} style={{ background: T.chipBg }} className="rounded-2xl px-3.5 py-3">
-                  <div className="flex items-center justify-between gap-2"><span style={{ color: T.text }} className="text-[13px] font-bold">{(TIPOS_PEDIDO.find((t) => t[0] === p.tipo) || [0, p.tipo])[1]}</span><span style={{ background: bg, color: cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1">{rot}</span></div>
-                  <p style={{ color: T.subtext }} className="text-[12px] mt-1 leading-snug">{p.detalhe}</p>
-                  {p.resposta && (p.status === "respondida" || p.status === "negada") && <p style={{ color: T.text }} className="text-[12px] mt-1.5 leading-snug whitespace-pre-line break-words"><b>Resposta:</b> {p.resposta}</p>}
-                  <p style={{ color: T.subtext }} className="text-[10.5px] mt-1 font-mono">Enviado {fmt(p.criado_em)}{p.respondido_em ? ` · respondido ${fmt(p.respondido_em)}` : ""}</p>
+                  <div className="flex items-center justify-between gap-2"><span style={{ color: T.text }} className="text-[0.8125rem] font-bold">{(TIPOS_PEDIDO.find((t) => t[0] === p.tipo) || [0, p.tipo])[1]}</span><span style={{ background: bg, color: cor }} className="text-[0.6562rem] font-bold rounded-full px-2.5 py-1">{rot}</span></div>
+                  <p style={{ color: T.subtext }} className="text-[0.75rem] mt-1 leading-snug">{p.detalhe}</p>
+                  {p.resposta && (p.status === "respondida" || p.status === "negada") && <p style={{ color: T.text }} className="text-[0.75rem] mt-1.5 leading-snug whitespace-pre-line break-words"><b>Resposta:</b> {p.resposta}</p>}
+                  <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-1 font-mono">Enviado {fmt(p.criado_em)}{p.respondido_em ? ` · respondido ${fmt(p.respondido_em)}` : ""}</p>
                 </div>
               );
             })}
@@ -650,7 +650,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
                 <button key={d.id} type="button" onClick={() => setDocPc(d.id)} aria-pressed={sel} className="w-full flex items-center gap-3 text-left p-2.5 rounded-xl transition-colors"
                   style={{ background: sel ? `${d.cor}14` : "transparent", boxShadow: sel ? `inset 3px 0 0 ${d.cor}` : "none" }}>
                   <span className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${d.cor}1F` }}><d.Icone size={19} color={d.cor} /></span>
-                  <span className="min-w-0 flex-1"><span className="block text-[14px] font-extrabold" style={{ color: T.text }}>{d.titulo}</span><span className="block text-[12px]" style={{ color: T.subtext }}>{d.resumo}</span></span>
+                  <span className="min-w-0 flex-1"><span className="block text-[0.875rem] font-extrabold" style={{ color: T.text }}>{d.titulo}</span><span className="block text-[0.75rem]" style={{ color: T.subtext }}>{d.resumo}</span></span>
                 </button>
               );
             })}
@@ -662,7 +662,7 @@ export function PaginaPrivacidade({ T, dark, perfil, showToast }) {
           <section style={cartao} className="rounded-2xl shadow-sm overflow-hidden" aria-label={docSel.titulo}>
             <header style={{ background: FUNDO_MARCA, isolation: "isolate" }} className="relative text-white px-6 py-4">
               <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
-              <div className="relative"><h2 className="text-lg font-extrabold leading-tight">{docSel.titulo}</h2><p className="text-[12px] text-white/75">Versão {TERMOS_VERSAO}</p></div>
+              <div className="relative"><h2 className="text-lg font-extrabold leading-tight">{docSel.titulo}</h2><p className="text-[0.75rem] text-white/75">Versão {TERMOS_VERSAO}</p></div>
             </header>
             <div key={docPc} className="px-6 py-5 max-h-[62vh] overflow-y-auto"><LegalTexto T={T} docId={docPc} /></div>
           </section>
@@ -773,35 +773,35 @@ export function PaginaPedidosLGPD({ T, showToast }) {
       <div key={p.id} style={cartao} className="rounded-[22px] shadow-lg shadow-black/5 p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p style={{ color: T.text }} className="text-[14px] font-extrabold leading-tight">{(TIPOS_PEDIDO.find((t) => t[0] === p.tipo) || [0, p.tipo])[1]}</p>
-            <p style={{ color: T.subtext }} className="text-[12px] mt-0.5 truncate">{p.nome || "Conta removida"}{p.matricula ? ` · matr. ${p.matricula}` : ""}{p.loja ? ` · loja ${p.loja}` : ""}</p>
+            <p style={{ color: T.text }} className="text-[0.875rem] font-extrabold leading-tight">{(TIPOS_PEDIDO.find((t) => t[0] === p.tipo) || [0, p.tipo])[1]}</p>
+            <p style={{ color: T.subtext }} className="text-[0.75rem] mt-0.5 truncate">{p.nome || "Conta removida"}{p.matricula ? ` · matr. ${p.matricula}` : ""}{p.loja ? ` · loja ${p.loja}` : ""}</p>
           </div>
-          <span style={{ background: bg, color: cor }} className="text-[10.5px] font-bold rounded-full px-2.5 py-1 shrink-0">{rot}</span>
+          <span style={{ background: bg, color: cor }} className="text-[0.6562rem] font-bold rounded-full px-2.5 py-1 shrink-0">{rot}</span>
         </div>
-        <p style={{ color: T.text }} className="text-[13px] mt-2.5 leading-snug whitespace-pre-line break-words">{p.detalhe}</p>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[11.5px]" style={{ color: T.subtext }}>
+        <p style={{ color: T.text }} className="text-[0.8125rem] mt-2.5 leading-snug whitespace-pre-line break-words">{p.detalhe}</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[0.7188rem]" style={{ color: T.subtext }}>
           <span>Enviado {fmt(p.criado_em)}</span>
           {!fim && dias != null && <span style={{ color: corPrazo }} className="font-bold flex items-center gap-1"><Clock size={12} />{dias < 0 ? `prazo vencido há ${-dias} dia(s)` : dias === 0 ? "prazo vence hoje" : `prazo em ${dias} dia(s)`}</span>}
           {fim && p.respondido_em && <span>{p.status === "negada" ? "Negado" : "Respondido"} {fmt(p.respondido_em)}{p.respondido_por_nome ? ` por ${p.respondido_por_nome}` : ""}</span>}
         </div>
-        {fim && p.resposta && <p style={{ background: T.chipBg, color: T.text }} className="text-[12.5px] mt-2.5 leading-snug rounded-2xl px-3 py-2.5 whitespace-pre-line break-words"><b>{p.status === "negada" ? "Motivo:" : "Resposta:"}</b> {p.resposta}</p>}
-        {!fim && p.eh_meu && <p style={{ background: T.chipBg, color: T.subtext }} className="text-[12px] mt-3 rounded-2xl px-3 py-2 leading-snug">Este pedido é seu: outra pessoa com cargo de Regional ou o desenvolvedor precisa responder.</p>}
+        {fim && p.resposta && <p style={{ background: T.chipBg, color: T.text }} className="text-[0.7812rem] mt-2.5 leading-snug rounded-2xl px-3 py-2.5 whitespace-pre-line break-words"><b>{p.status === "negada" ? "Motivo:" : "Resposta:"}</b> {p.resposta}</p>}
+        {!fim && p.eh_meu && <p style={{ background: T.chipBg, color: T.subtext }} className="text-[0.75rem] mt-3 rounded-2xl px-3 py-2 leading-snug">Este pedido é seu: outra pessoa com cargo de Regional ou o desenvolvedor precisa responder.</p>}
         {!fim && !p.eh_meu && !ab && (
-          <motion.button whileTap={{ scale: 0.97 }} onClick={() => setAberto(p.id)} className="mt-3 w-full rounded-2xl py-2.5 text-[13px] font-extrabold text-white" style={{ background: `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` }}>{temRascunho ? "Continuar atendimento" : "Atender"}</motion.button>
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => setAberto(p.id)} className="mt-3 w-full rounded-2xl py-2.5 text-[0.8125rem] font-extrabold text-white" style={{ background: `linear-gradient(135deg, ${AZUL} 0%, ${AZUL_ESC} 100%)` }}>{temRascunho ? "Continuar atendimento" : "Atender"}</motion.button>
         )}
         {!fim && !p.eh_meu && ab && (
           <div className="mt-3">
-            {DICA_PEDIDO[p.tipo] && <p style={{ background: "#E6F0FF", color: "#1F4F9E" }} className="text-[12px] rounded-2xl px-3 py-2 leading-snug"><b>Como atender:</b> {DICA_PEDIDO[p.tipo]}</p>}
+            {DICA_PEDIDO[p.tipo] && <p style={{ background: "#E6F0FF", color: "#1F4F9E" }} className="text-[0.75rem] rounded-2xl px-3 py-2 leading-snug"><b>Como atender:</b> {DICA_PEDIDO[p.tipo]}</p>}
             <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={4} maxLength={2000} autoFocus placeholder="Resposta para a pessoa (ela só vê quando você tocar em Enviar resposta ou Negar)…"
               style={{ background: T.inputBg, color: T.text, borderColor: T.inputBorder }} className="w-full mt-2 border rounded-2xl px-3.5 py-3 text-sm outline-none focus:ring-2 resize-none" />
-            <p style={{ color: T.subtext }} className="text-[10.5px] text-right">{[...texto.trim()].length}/2000</p>
-            <button type="button" disabled={salvando || p.status === "em_analise"} onClick={() => responder(p, "em_analise")} style={{ background: T.chipBg, color: T.text }} className="w-full rounded-2xl py-2.5 text-[12.5px] font-bold disabled:opacity-50">{p.status === "em_analise" ? "Já está em análise" : "Marcar em análise (sem enviar texto)"}</button>
+            <p style={{ color: T.subtext }} className="text-[0.6562rem] text-right">{[...texto.trim()].length}/2000</p>
+            <button type="button" disabled={salvando || p.status === "em_analise"} onClick={() => responder(p, "em_analise")} style={{ background: T.chipBg, color: T.text }} className="w-full rounded-2xl py-2.5 text-[0.7812rem] font-bold disabled:opacity-50">{p.status === "em_analise" ? "Já está em análise" : "Marcar em análise (sem enviar texto)"}</button>
             <div className="grid grid-cols-2 gap-2 mt-2">
-              <button type="button" disabled={salvando} onClick={() => responder(p, "negada")} style={{ background: "#FDECEE", color: "#A81419" }} className="rounded-2xl py-2.5 text-[12.5px] font-bold disabled:opacity-50">Negar (com motivo)</button>
-              <button type="button" disabled={salvando} onClick={() => responder(p, "respondida")} style={{ background: "#1F9D55", color: "#fff" }} className="rounded-2xl py-2.5 text-[12.5px] font-extrabold disabled:opacity-50 flex items-center justify-center gap-1">{salvando ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}Enviar resposta</button>
+              <button type="button" disabled={salvando} onClick={() => responder(p, "negada")} style={{ background: "#FDECEE", color: "#A81419" }} className="rounded-2xl py-2.5 text-[0.7812rem] font-bold disabled:opacity-50">Negar (com motivo)</button>
+              <button type="button" disabled={salvando} onClick={() => responder(p, "respondida")} style={{ background: "#1F9D55", color: "#fff" }} className="rounded-2xl py-2.5 text-[0.7812rem] font-extrabold disabled:opacity-50 flex items-center justify-center gap-1">{salvando ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}Enviar resposta</button>
             </div>
-            <button type="button" onClick={fecharCartao} style={{ color: T.subtext }} className="w-full mt-2 text-[12px] font-semibold flex items-center justify-center gap-1"><X size={13} />Fechar</button>
-            <p style={{ color: T.subtext }} className="text-[10.5px] mt-1.5 leading-snug">Depois de enviada ou negada, a resposta não pode ser alterada.</p>
+            <button type="button" onClick={fecharCartao} style={{ color: T.subtext }} className="w-full mt-2 text-[0.75rem] font-semibold flex items-center justify-center gap-1"><X size={13} />Fechar</button>
+            <p style={{ color: T.subtext }} className="text-[0.6562rem] mt-1.5 leading-snug">Depois de enviada ou negada, a resposta não pode ser alterada.</p>
           </div>
         )}
       </div>
@@ -814,20 +814,20 @@ export function PaginaPedidosLGPD({ T, showToast }) {
         <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
         <div className="relative">
           <p className="text-[0.75rem] font-bold tracking-[.18em] text-white/70">PEDIDOS LGPD</p>
-          <p className="text-[30px] font-extrabold leading-none mt-1">{lista === null ? "…" : abertos.length}<span className="text-[14px] font-bold text-white/75"> em aberto</span></p>
-          <p className="text-[12.5px] text-white/80 mt-1.5 leading-snug">Prazo de resposta: 15 dias. {atrasados > 0 ? `${atrasados} pedido(s) com prazo vencido.` : "Nenhum pedido atrasado."} Gerente e encarregados das lojas não veem esta tela.</p>
+          <p className="text-[1.875rem] font-extrabold leading-none mt-1">{lista === null ? "…" : abertos.length}<span className="text-[0.875rem] font-bold text-white/75"> em aberto</span></p>
+          <p className="text-[0.7812rem] text-white/80 mt-1.5 leading-snug">Prazo de resposta: 15 dias. {atrasados > 0 ? `${atrasados} pedido(s) com prazo vencido.` : "Nenhum pedido atrasado."} Gerente e encarregados das lojas não veem esta tela.</p>
         </div>
       </section>
       <div className="flex gap-1.5">
         {[["abertos", `Em aberto (${abertos.length})`], ["fechados", "Fechados"]].map(([id, r]) => (
-          <button key={id} type="button" onClick={() => setFiltro(id)} aria-pressed={filtro === id} className="text-[12.5px] font-bold rounded-full px-3.5 py-2" style={filtro === id ? { background: AZUL_ESC, color: "#fff" } : { background: T.chipBg, color: T.text }}>{r}</button>
+          <button key={id} type="button" onClick={() => setFiltro(id)} aria-pressed={filtro === id} className="text-[0.7812rem] font-bold rounded-full px-3.5 py-2" style={filtro === id ? { background: AZUL_ESC, color: "#fff" } : { background: T.chipBg, color: T.text }}>{r}</button>
         ))}
       </div>
-      {erro && <p style={{ background: "#FDECEE", color: "#A81419" }} className="text-[12.5px] rounded-2xl px-3.5 py-2.5 font-semibold">{erro}</p>}
+      {erro && <p style={{ background: "#FDECEE", color: "#A81419" }} className="text-[0.7812rem] rounded-2xl px-3.5 py-2.5 font-semibold">{erro}</p>}
     </div>
   );
   const corpo = lista === null ? <Loader2 size={18} className="animate-spin mx-auto mt-6" color={T.subtext} /> : mostrar.length === 0 ? (
-    <div style={cartao} className="rounded-[22px] p-6 text-center"><Inbox size={26} color={T.subtext} className="mx-auto" /><p style={{ color: T.subtext }} className="text-[13px] mt-2">{filtro === "abertos" ? "Nenhum pedido aguardando resposta." : "Nenhum pedido fechado ainda."}</p></div>
+    <div style={cartao} className="rounded-[22px] p-6 text-center"><Inbox size={26} color={T.subtext} className="mx-auto" /><p style={{ color: T.subtext }} className="text-[0.8125rem] mt-2">{filtro === "abertos" ? "Nenhum pedido aguardando resposta." : "Nenhum pedido fechado ainda."}</p></div>
   ) : (
     <div className={larga ? "grid grid-cols-2 xl:grid-cols-3 gap-4 items-start" : "flex flex-col gap-3"}>{mostrar.map(cartaoPedido)}</div>
   );
@@ -850,13 +850,13 @@ export function AvisoArmazenamento() {
             <div className="flex gap-3">
               <span className="h-10 w-10 rounded-2xl bg-white/15 flex items-center justify-center shrink-0"><Smartphone size={19} /></span>
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold leading-tight">Sem cookies de propaganda</p>
-                <p className="text-[12.5px] text-white/85 mt-1 leading-snug">O app guarda neste aparelho só o necessário para funcionar: login, preferências e o que você fizer sem internet. Nada de rastreadores.</p>
+                <p className="text-[0.875rem] font-extrabold leading-tight">Sem cookies de propaganda</p>
+                <p className="text-[0.7812rem] text-white/85 mt-1 leading-snug">O app guarda neste aparelho só o necessário para funcionar: login, preferências e o que você fizer sem internet. Nada de rastreadores.</p>
               </div>
             </div>
             <div className="flex gap-2 mt-3">
-              <button type="button" onClick={() => setLeitor(true)} className="flex-1 rounded-2xl py-2.5 text-[12.5px] font-bold bg-white/15">Ver detalhes</button>
-              <button type="button" onClick={fechar} className="flex-1 rounded-2xl py-2.5 text-[12.5px] font-extrabold bg-white text-[#0B2A55]">Entendi</button>
+              <button type="button" onClick={() => setLeitor(true)} className="flex-1 rounded-2xl py-2.5 text-[0.7812rem] font-bold bg-white/15">Ver detalhes</button>
+              <button type="button" onClick={fechar} className="flex-1 rounded-2xl py-2.5 text-[0.7812rem] font-extrabold bg-white text-[#0B2A55]">Entendi</button>
             </div>
           </motion.div>
         )}

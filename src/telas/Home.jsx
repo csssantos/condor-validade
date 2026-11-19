@@ -50,7 +50,7 @@ function TabelaProdutos({ T, itens, onOpenDetail, limite = 60, mostrarSetor = tr
     { key: "nome", label: "Produto", render: (i) => (
       <div className="flex items-center gap-3 min-w-0">
         <Thumb foto={i.foto} size={36} />
-        <div className="min-w-0"><p className="font-semibold truncate max-w-[22rem]">{i.nome}</p>{i.barcode && <p style={{ color: T.subtext }} className="text-[10.5px] font-mono">{i.barcode}</p>}</div>
+        <div className="min-w-0"><p className="font-semibold truncate max-w-[22rem]">{i.nome}</p>{i.barcode && <p style={{ color: T.subtext }} className="text-[0.6562rem] font-mono">{i.barcode}</p>}</div>
       </div>) },
     ...(mostrarSetor ? [{ key: "setor", label: "Setor", render: (i) => <span style={{ color: T.subtext }}>{i.setor}</span> }] : []),
     { key: "validade", label: "Validade", render: (i) => <span className="tabular-nums">{formatarData(i.validade)}</span> },
@@ -237,11 +237,11 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
                 <ChevronRightIcon className="w-4 h-4" style={{ color: T.subtext }} />
               </div>
               <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide mt-3">Prioridade de perda</p>
-              <p style={{ color: T.text }} className="text-[26px] font-extrabold leading-tight tabular-nums">{resumoPrioridade.total}</p>
-              <p style={{ color: T.subtext }} className="text-[11.5px] leading-snug">{resumoPrioridade.semTroca > 0 ? `${resumoPrioridade.semTroca} sem troca` : "precisam de atenção"}</p>
+              <p style={{ color: T.text }} className="text-[1.625rem] font-extrabold leading-tight tabular-nums">{resumoPrioridade.total}</p>
+              <p style={{ color: T.subtext }} className="text-[0.7188rem] leading-snug">{resumoPrioridade.semTroca > 0 ? `${resumoPrioridade.semTroca} sem troca` : "precisam de atenção"}</p>
               <div className="flex flex-col gap-1 mt-2.5">
                 {resumoPrioridade.topSetores.slice(0, 3).map(([setor, n]) => (
-                  <p key={setor} style={{ color: T.text }} className="text-[12px] font-semibold flex items-center justify-between gap-2"><span className="truncate">{setor}</span><span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[10.5px] font-bold rounded-full px-2 py-0.5 tabular-nums shrink-0">{n}</span></p>
+                  <p key={setor} style={{ color: T.text }} className="text-[0.75rem] font-semibold flex items-center justify-between gap-2"><span className="truncate">{setor}</span><span style={{ background: RED_SOFT, color: RED_DARK }} className="text-[0.6562rem] font-bold rounded-full px-2 py-0.5 tabular-nums shrink-0">{n}</span></p>
                 ))}
               </div>
             </motion.button>
@@ -252,9 +252,9 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
               <span style={{ background: BLUE_SOFT }} className="h-9 w-9 rounded-2xl flex items-center justify-center"><ShieldCheckIcon className="w-[18px] h-[18px]" style={{ color: BLUE }} /></span>
               <p style={{ color: T.subtext }} className="text-[0.75rem] font-bold uppercase tracking-wide mt-3">Troca com fornecedor</p>
               <div className="flex flex-col gap-1.5 mt-1.5">
-                <p style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2 tabular-nums">{pontoTroca(RED_DARK)}{comparativoTroca.semTroca}<span style={{ color: T.subtext }} className="font-medium text-[11.5px]">sem troca</span></p>
-                <p style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2 tabular-nums">{pontoTroca("#1F9D55")}{comparativoTroca.comTroca}<span style={{ color: T.subtext }} className="font-medium text-[11.5px]">com troca</span></p>
-                <p style={{ color: T.text }} className="text-[13px] font-bold flex items-center gap-2 tabular-nums">{pontoTroca("#9AA3B2")}{comparativoTroca.naoInformado}<span style={{ color: T.subtext }} className="font-medium text-[11.5px]">não informado</span></p>
+                <p style={{ color: T.text }} className="text-[0.8125rem] font-bold flex items-center gap-2 tabular-nums">{pontoTroca(RED_DARK)}{comparativoTroca.semTroca}<span style={{ color: T.subtext }} className="font-medium text-[0.7188rem]">sem troca</span></p>
+                <p style={{ color: T.text }} className="text-[0.8125rem] font-bold flex items-center gap-2 tabular-nums">{pontoTroca("#1F9D55")}{comparativoTroca.comTroca}<span style={{ color: T.subtext }} className="font-medium text-[0.7188rem]">com troca</span></p>
+                <p style={{ color: T.text }} className="text-[0.8125rem] font-bold flex items-center gap-2 tabular-nums">{pontoTroca("#9AA3B2")}{comparativoTroca.naoInformado}<span style={{ color: T.subtext }} className="font-medium text-[0.7188rem]">não informado</span></p>
               </div>
               {comparativoTroca.valorSemTroca > 0 && <p style={{ color: RED_DARK }} className="text-[0.75rem] font-bold mt-2">{formatarMoeda(comparativoTroca.valorSemTroca)} sem troca</p>}
             </motion.div>
@@ -289,7 +289,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
             <motion.button key={id} whileTap={{ scale: 0.94 }} onClick={() => setStatusFiltro(id)} aria-pressed={ativo}
               style={ativo ? { background: BLUE_DARK, color: "#fff" } : { background: T.card, color: T.text }} className="shrink-0 rounded-full pl-3 pr-2.5 py-2 text-xs font-bold flex items-center gap-1.5 shadow-sm">
               {id !== "todos" && <span className="h-2 w-2 rounded-full" style={{ background: cor }} />}{rot}
-              <span style={ativo ? { background: "rgba(255,255,255,.22)", color: "#fff" } : { background: T.chipBg, color: T.subtext }} className="text-[10.5px] font-bold rounded-full px-1.5 min-w-[20px] text-center tabular-nums">{contagemStatus[id]}</span>
+              <span style={ativo ? { background: "rgba(255,255,255,.22)", color: "#fff" } : { background: T.chipBg, color: T.subtext }} className="text-[0.6562rem] font-bold rounded-full px-1.5 min-w-[20px] text-center tabular-nums">{contagemStatus[id]}</span>
             </motion.button>
           );
         })}
@@ -301,7 +301,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
           {filtroSetor !== "Todos" && <FichaFiltro onRemove={() => setFiltroSetor("Todos")}>{filtroSetor}</FichaFiltro>}
           {trocaFiltro !== "todas" && <FichaFiltro onRemove={() => setTrocaFiltro("todas")}>{trocaFiltro === "sem_troca" ? "Sem troca" : trocaFiltro === "com_troca" ? "Com troca" : "Troca não informada"}</FichaFiltro>}
           {ordenarPor !== "urgencia" && <FichaFiltro onRemove={() => setOrdenarPor("urgencia")}>Ordem: {{ nome: "nome", setor: "setor", validade: "validade distante" }[ordenarPor]}</FichaFiltro>}
-          <button onClick={limparFiltros} style={{ color: T.subtext }} className="text-[11.5px] font-bold underline px-1">Limpar tudo</button>
+          <button onClick={limparFiltros} style={{ color: T.subtext }} className="text-[0.7188rem] font-bold underline px-1">Limpar tudo</button>
         </div>
       )}
 
@@ -315,7 +315,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
                 <div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "20px 20px" }} />
                 <div className="relative mx-auto h-1 w-10 rounded-full bg-white/40 mb-3" />
                 <div className="relative flex items-center justify-between">
-                  <div><h3 className="font-extrabold text-[18px] leading-tight">Filtros</h3><p className="text-[12px] text-white/75">{filtrados.length} produto{filtrados.length !== 1 ? "s" : ""} com a seleção atual</p></div>
+                  <div><h3 className="font-extrabold text-[1.125rem] leading-tight">Filtros</h3><p className="text-[0.75rem] text-white/75">{filtrados.length} produto{filtrados.length !== 1 ? "s" : ""} com a seleção atual</p></div>
                   <button onClick={() => setFiltrosAbertos(false)} aria-label="Fechar" className="h-9 w-9 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,.18)" }}><CloseIcon size={16} color="#fff" /></button>
                 </div>
               </div>
@@ -339,7 +339,7 @@ function HomeView({ T, items, historico, search, setSearch, filtroSetor, setFilt
       ) : (
         <>
           <div className="flex items-center justify-between mb-2.5">
-            <p style={{ color: T.text }} className="text-[15px] font-extrabold">Produtos monitorados <span style={{ background: T.chipBg, color: T.subtext }} className="ml-1 text-[0.75rem] font-bold rounded-full px-2 py-0.5 tabular-nums align-middle">{filtrados.length}</span></p>
+            <p style={{ color: T.text }} className="text-[0.9375rem] font-extrabold">Produtos monitorados <span style={{ background: T.chipBg, color: T.subtext }} className="ml-1 text-[0.75rem] font-bold rounded-full px-2 py-0.5 tabular-nums align-middle">{filtrados.length}</span></p>
           </div>
           {modoVisual === "lista" ? (
             <div className="flex flex-col gap-2.5 xl:grid xl:grid-cols-2 2xl:grid-cols-3 xl:items-start">
