@@ -13,4 +13,4 @@ Página estática (HTML + CSS + JS, sem build, sem biblioteca externa). CSP estr
 - Só afirmar o que o produto já faz; o resto fica marcado "Em planejamento" ou "Ideia".
 - Sem número de clientes, métricas ou depoimentos inventados.
 - Sem script/estilo inline (a CSP bloqueia). Fonte do sistema, sem rastreadores, sem cookies.
-- Página de privacidade pública do site: ainda a fazer (hoje a Privacidade está dentro do app).
+- `privacidade.html` = resumo público da Política de Privacidade (mesma base do `src/Legal.jsx`). Ao trocar `TERMOS_VERSAO` no app, atualizar a data e o texto desta página também.

@@ -124,3 +124,18 @@ h3{margin:.4rem 0 .4rem;font-size:1.2rem}
   *{animation:none!important;transition:none!important}
   html{scroll-behavior:auto}
 }
+
+/* página de texto (privacidade) */
+.texto{padding-block:3.5rem;background:var(--branco)}
+.estreita{max-width:46rem}
+.h1-texto{font-size:clamp(1.7rem,4vw,2.4rem);color:var(--marinho);margin:0 0 1rem}
+.texto h2{font-size:1.35rem;color:var(--marinho);margin:2.2rem 0 .6rem}
+.texto p,.texto li{color:#2B3B52}
+.texto ul{padding-left:1.2rem}
+.texto li{margin:.4rem 0}
+.nota-escura{background:var(--claro);border-left:4px solid var(--azul);padding:.8rem 1rem;border-radius:.5rem;font-size:.95rem}
+.indice{display:flex;flex-wrap:wrap;gap:.5rem;margin:1.5rem 0}
+.indice a{background:var(--claro);color:var(--marinho);text-decoration:none;font-size:.85rem;padding:.35rem .8rem;border-radius:999px}
+.indice a:hover{background:var(--borda)}
+.topo nav.menu-fixo{display:flex!important;flex-direction:row;width:auto;padding-bottom:0;align-items:center}
+.link-claro{color:#C5D8F0}
