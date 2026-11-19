@@ -128,7 +128,7 @@ function ItemCardAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onOpenD
               <span style={{ color: T.subtext }} className="inline-flex items-center gap-1 text-[0.75rem] font-mono"><Barcode size={11} /> {base.barcode}</span>
             </div>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span style={{ background: s.bg, color: s.fg }} className="text-[0.6875rem] font-bold px-2 py-1 rounded-md tracking-wide">{piorStatus.label}</span>
+              <span style={{ background: s.bg, color: s.fg }} className="text-[0.6875rem] font-bold px-2 py-1 rounded-md tracking-wide inline-flex items-center gap-1"><IconeNivel level={piorStatus.level} size={11} />{piorStatus.label}</span>
               <span style={{ background: BLUE_SOFT, color: BLUE_DARK }} className="text-[0.6875rem] font-bold px-2 py-1 rounded-md">{lotes.length} datas diferentes</span>
             </div>
             <p style={{ color: T.subtext }} className="text-[0.6875rem] mt-1.5">Total {totalQuantidade} unidade{totalQuantidade !== 1 ? "s" : ""} nesse produto</p>
@@ -169,7 +169,7 @@ function ItemCardGrid({ T, item, onOpenDetail }) {
         {!semFotoUtil(item.foto) ? <img src={item.foto} alt="" onError={trocarPorBipi} className="w-full h-24 object-cover" /> : (
           <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><img src={BIPI_SEM_FOTO} alt="" className="h-20 object-contain" /></div>
         )}
-        <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded-md inline-flex items-center gap-1"><IconeNivel level={item.status.level} size={11} />{item.status.label}</span>
+        <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 max-w-[calc(100%-0.75rem)]"><IconeNivel level={item.status.level} size={11} />{item.status.label}</span>
       </div>
       <div className="p-2.5">
         <p className="font-semibold text-xs truncate">{item.nome}</p>

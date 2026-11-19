@@ -10,6 +10,7 @@ import { formatarDataHoraExtenso } from "../lib/formatos";
 import { removerTelegramComAviso } from "../lib/produto";
 import { CampoData } from "../componentes/CampoData";
 import { tempoDesde } from "./Setores";
+import { pedirCaptcha, mensagemCaptcha } from "../lib/captcha";
 
 // ============ Painel da Rede (item 1) — visão corporativa somando todas as lojas ============
 // Pressupõe uma tabela compartilhada "resumo_lojas_rede" (ver supaEnviarResumoRede/supaFetchResumoRede)
@@ -498,6 +499,7 @@ function erroAcao(error) {
     m.includes("convite_revogado") ? "Esse convite está bloqueado e não pode ser editado." :
     m.includes("atualizar_convite") && (m.includes("PGRST202") || m.includes("schema cache") || m.includes("does not exist")) ? "Falta rodar o SQL supabase-convite-editar.sql no Supabase." :
     m.includes("function") && m.includes("does not exist") ? "Falta rodar o SQL supabase-funcionarios-acoes.sql no Supabase." :
+    /verificação de segurança|não é um robô|verificação demorou/.test(m) ? m : // mensagens do captcha já são para a pessoa ler
     "Não foi possível concluir. Tente de novo.";
 }
 
@@ -537,7 +539,11 @@ function AcoesFuncionarioSheet({ T, u, nivelUsuario, cargos, showToast, onClose,
   const pedirExclusao = () => executar(() => supabase.rpc("solicitar_exclusao", { p_id: u.id }), "Pedido enviado. Um gerente, um Regional ou o dev precisa aprovar.");
   const redefinir = () => {
     if (!u.email) { showToast("Essa conta não tem e-mail cadastrado.", "warn"); return Promise.resolve(); }
-    return executar(() => supabase.auth.resetPasswordForEmail(u.email, { redirectTo: SITE_URL }), `Link de nova senha enviado para ${u.email}.`);
+    return executar(async () => {
+      let captchaToken;
+      try { captchaToken = await pedirCaptcha(); } catch (e) { return { error: { message: mensagemCaptcha(e) } }; }
+      return supabase.auth.resetPasswordForEmail(u.email, { redirectTo: SITE_URL, captchaToken });
+    }, `Link de nova senha enviado para ${u.email}.`);
   };
   const salvar = () => {
     if (!f.nome.trim() || !f.cargoId) { showToast("Preencha nome e cargo.", "warn"); return Promise.resolve(); }

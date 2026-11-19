@@ -8,7 +8,7 @@ import { grupoForm, AuthTitulo, AuthCampo, AuthAviso, AuthBotao, AuthLink, itemF
 import { BLUE, BLUE_SOFT, LOGO_SRC, SITE_URL } from "../lib/constantes";
 import { useDesktop } from "../lib/tela";
 import { ScanView } from "./Scan";
-import { pedirCaptcha, MENSAGEM_CAPTCHA } from "../lib/captcha";
+import { pedirCaptcha, mensagemCaptcha } from "../lib/captcha";
 
 // ============ Tela de login / recuperação de senha (Supabase Auth) ============
 function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null, erroInicial = "", emailConta = "" }) {
@@ -78,7 +78,7 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
     // usado NA HORA do signUp, mesmo sem sessão aberta. Antes o app tentava inserir em "usuarios" pelo navegador
     // e o banco barrava (sem sessão não há permissão) — daí o "chame o CPD".
     let captchaToken;
-    try { captchaToken = await pedirCaptcha(); } catch { setCarregando(false); setErro(MENSAGEM_CAPTCHA); return; }
+    try { captchaToken = await pedirCaptcha(); } catch (e) { setCarregando(false); setErro(mensagemCaptcha(e)); return; }
     const { data: signUpData, error } = await supabase.auth.signUp({
       email: emailLimpo, password: cadSenha,
       options: { captchaToken, emailRedirectTo: SITE_URL, data: { matricula: funcionarioEncontrado.matricula, nome: funcionarioEncontrado.nome, termos_versao: TERMOS_VERSAO, termos_aceitos_em: new Date().toISOString() } }
@@ -94,16 +94,10 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
     }
     // Confirmação de e-mail desligada no Supabase => já vem com sessão e o app entra sozinho.
     if (signUpData?.session) { setCarregando(false); return; }
-    // Sem sessão: tenta entrar direto (só funciona se o e-mail não exigir confirmação).
-    let tokenLogin;
-    try { tokenLogin = await pedirCaptcha(); } catch { /* sem token o login automático falha e a pessoa entra à mão */ }
-    const { error: erroLogin } = await supabase.auth.signInWithPassword({ email: emailLimpo, password: cadSenha, options: { captchaToken: tokenLogin } });
+    // Sem sessão = o Supabase exige confirmar o e-mail: não adianta tentar entrar (gastaria outro captcha à toa).
     setCarregando(false);
-    if (!erroLogin) return;
     setEmail(emailLimpo);
-    setMensagem(/not confirmed/i.test(erroLogin.message)
-      ? "Conta criada! Enviamos um e-mail de confirmação — abra o link e depois entre."
-      : "Conta criada! Entre com seu e-mail e senha.");
+    setMensagem("Conta criada! Enviamos um e-mail de confirmação — abra o link e depois entre.");
     setModo("login");
   }
 
@@ -120,7 +114,7 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
     setErro(""); setCarregando(true);
     if (antesDeEntrar && (await antesDeEntrar())) { setCarregando(false); return; } // tem versão nova: a tela de atualização assume
     let captchaToken;
-    try { captchaToken = await pedirCaptcha(); } catch { setCarregando(false); setErro(MENSAGEM_CAPTCHA); return; }
+    try { captchaToken = await pedirCaptcha(); } catch (e) { setCarregando(false); setErro(mensagemCaptcha(e)); return; }
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha, options: { captchaToken } });
     setCarregando(false);
     if (error) {
@@ -138,7 +132,7 @@ function AuthScreen({ T, antesDeEntrar, modoInicial = "login", aoConcluir = null
     e.preventDefault();
     setErro(""); setMensagem(""); setCarregando(true);
     let captchaToken;
-    try { captchaToken = await pedirCaptcha(); } catch { setCarregando(false); setErro(MENSAGEM_CAPTCHA); return; }
+    try { captchaToken = await pedirCaptcha(); } catch (e) { setCarregando(false); setErro(mensagemCaptcha(e)); return; }
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: SITE_URL, captchaToken });
     setCarregando(false);
     if (error) { setErro(error.status === 429 ? "Espere um minuto antes de pedir outro e-mail." : "Não foi possível enviar o e-mail de recuperação."); return; }

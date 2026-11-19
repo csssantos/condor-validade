@@ -9,6 +9,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 import { enviarFcm, fcmAtivo } from "../_compartilhado/fcm.ts";
+import { inscricaoWebPush } from "../_compartilhado/pushhost.ts";
 import { modeloAviso, REMETENTE } from "../auth-email/templates.ts";
 import { normalizar, temConteudo, textoTelegram, corpoPush, mensagemEmail, detalhesEmail } from "./formato.ts";
 
@@ -49,7 +50,7 @@ async function enviarPush(usuarioId: string, payload: string) {
   const rs = await Promise.allSettled(subs.map((s: any) => (s.subscription?.fcm
     ? enviarFcm(String(s.subscription.fcm), payload).then(async (r) => { if (r.invalido) await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint); if (!r.ok) throw new Error("fcm"); })
     : !vapidOk ? Promise.reject(new Error("sem-vapid"))
-    : webpush.sendNotification(s.subscription, payload, { TTL: 6 * 3600, urgency: "normal", timeout: 8000 })).catch(async (e: any) => {
+    : (() => { const ins = inscricaoWebPush(s.endpoint, s.subscription); return ins ? webpush.sendNotification(ins, payload, { TTL: 6 * 3600, urgency: "normal", timeout: 8000 }) : Promise.reject(Object.assign(new Error("endpoint_invalido"), { statusCode: 410 })); })()).catch(async (e: any) => {
     if (e?.statusCode === 404 || e?.statusCode === 410) await sb.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
     throw e;
   })));

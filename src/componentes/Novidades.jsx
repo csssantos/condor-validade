@@ -25,7 +25,7 @@ const NOVIDADES = [
   ] },
   { id: "2026-11-18-seguranca", data: "18/11/2026", itens: [
     { tipo: "melhorado", ate: 7, texto: "Os avisos de validade agora trazem um ícone junto do texto (X, alerta, relógio ou check), para você não depender só da cor." },
-    { tipo: "melhorado", ate: 7, texto: "Mais segurança no cadastro e no login: o app pode confirmar que quem entra é uma pessoa, e não um robô." },
+    { tipo: "melhorado", ate: 7, texto: "Mais segurança no cadastro e no login: às vezes o app vai pedir um toque numa caixa de verificação. É normal: serve para barrar robôs." },
     { tipo: "adicionado", ate: 7, texto: "Em Mais → Sobre o app agora aparece o crédito ao Open Food Facts, de onde vêm parte dos nomes e fotos de produtos." },
     { tipo: "melhorado", ate: 2, texto: "O assistente de IA não recebe mais os nomes dos funcionários: eles são trocados por códigos antes de o Gemini ler os dados." },
   ] },

@@ -95,7 +95,7 @@ function CartaoGrade({ T, item, idx = 0, onOpenDetail }) {
         {!semFotoUtil(item.foto) ? <img src={item.foto} alt="" onError={trocarPorBipi} className="w-full h-28 object-cover" /> : (
           <div style={{ background: FUNDO_MARCA }} className="relative w-full h-28 flex items-center justify-center"><div aria-hidden className="absolute inset-0 opacity-[.13]" style={{ backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "16px 16px" }} /><img src={BIPI_SEM_FOTO} alt="" className="relative h-24 object-contain" /></div>
         )}
-        <span style={{ background: c.soft, color: c.cor }} className="absolute top-2 left-2 text-[0.6875rem] font-bold rounded-full px-2.5 py-1 shadow-sm inline-flex items-center gap-1"><IconeNivel level={item.status?.level} size={11} />{item.status?.label}</span>
+        <span style={{ background: c.soft, color: c.cor }} className="absolute top-2 left-2 text-[0.6875rem] font-bold rounded-full px-2.5 py-1 shadow-sm inline-flex items-center gap-1 max-w-[calc(100%-1rem)]"><IconeNivel level={item.status?.level} size={11} />{item.status?.label}</span>
       </div>
       <div className="p-3">
         <p style={{ color: T.text }} className="font-extrabold text-[0.8125rem] leading-tight line-clamp-2 min-h-[32px]">{item.nome}</p>

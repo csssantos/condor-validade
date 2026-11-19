@@ -137,22 +137,72 @@ const FERRAMENTAS = [
       problema: S("STRING"), acoes: S("ARRAY", undefined, { items: S("STRING") }) }, required: ["alvo_tipo", "setor", "problema", "acoes"] }) },
 ];
 
-type Ctx = { sb: ReturnType<typeof createClient>; loja: number | null; graficos: any[]; propostas: any[]; usadas: string[]; tabelas: any[] };
+type Ctx = { nomes?: Array<{ re: RegExp; cod: string }>; sb: ReturnType<typeof createClient>; loja: number | null; graficos: any[]; propostas: any[]; usadas: string[]; tabelas: any[] };
 const dias = (n: unknown, pad = 30) => Math.max(1, Math.min(365, Number(n) || pad));
 const iso = (d: number) => new Date(Date.now() - d * 86400000).toISOString();
 const corta = (s: unknown, n = 300) => String(s ?? "").slice(0, n);
 
-// Privacidade: o modelo (Gemini) NUNCA recebe nome de funcionário. Cada pessoa vira "Pessoa 1", "Pessoa 2"...
-// (código estável só dentro desta conversa). A tabela mostrada ao usuário continua com o nome real: ela é montada aqui no servidor.
-const pessoasPorCtx = new WeakMap<object, Map<string, string>>();
+// Privacidade: o modelo (Gemini) NUNCA recebe nome de funcionário. Cada pessoa vira "Pessoa X7K2": código ESTÁVEL
+// (hash do nome normalizado + loja), igual em todas as perguntas da conversa e nas vezes em que o app reenvia o histórico.
+// A tabela mostrada ao usuário continua com o nome real: ela é montada aqui no servidor e não passa pelo modelo.
+const semAcento = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+function normalizarNome(n: unknown): string {
+  return semAcento(String(n ?? "")).toLowerCase()
+    .replace(/\(.*?\)/g, " ")                  // "(Marca)" de promotor
+    .replace(/^\s*promotor\s+/, "")             // "Promotor João (Marca)"
+    .replace(/\s+-\s+[^-]*$/, " ")             // "Maria Souza - REPOSITOR"
+    .replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
 function codigoPessoa(c: Ctx, nome: unknown): string {
-  const n = String(nome ?? "").trim();
-  if (!n) return "";
-  let m = pessoasPorCtx.get(c);
-  if (!m) { m = new Map(); pessoasPorCtx.set(c, m); }
-  const k = n.toLowerCase();
-  if (!m.has(k)) m.set(k, "Pessoa " + (m.size + 1));
-  return m.get(k)!;
+  const k = normalizarNome(nome);
+  if (!k) return "";
+  let h = 0x811c9dc5;
+  const entrada = String(c.loja ?? "") + "|" + k;
+  for (let i = 0; i < entrada.length; i++) { h ^= entrada.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return "Pessoa " + h.toString(36).toUpperCase().padStart(4, "0").slice(-4);
+}
+// Texto livre (observação, descrição, título): troca nomes conhecidos da loja por códigos antes de ir ao modelo.
+const CLASSES: Record<string, string> = { a: "aáàâãä", e: "eéèêë", i: "iíìîï", o: "oóòôõö", u: "uúùûü", c: "cç", n: "nñ" };
+const reEscapar = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+async function carregarNomes(c: Ctx): Promise<Array<{ re: RegExp; cod: string }>> {
+  if (c.nomes) return c.nomes;
+  const lista: Array<{ re: RegExp; cod: string }> = [];
+  try {
+    const { data } = await c.sb.from("usuarios").select("nome").limit(400);
+    const vistos = new Set<string>();
+    for (const u of (data as any[]) || []) {
+      const nome = String(u?.nome ?? "").trim();
+      if (nome.length < 3) continue;
+      const cod = codigoPessoa(c, nome);
+      const partes = [nome, ...nome.split(/\s+/).filter((p) => semAcento(p).length >= 3)];
+      for (const parte of partes) {
+        const chave = semAcento(parte).toLowerCase();
+        if (vistos.has(chave)) continue; vistos.add(chave);
+        const padrao = [...semAcento(parte).toLowerCase()].map((ch) => (ch === " " ? "\\s+" : CLASSES[ch] ? "[" + CLASSES[ch] + "]" : reEscapar(ch))).join("");
+        lista.push({ re: new RegExp("(?<![\\p{L}\\p{N}])" + padrao + "(?![\\p{L}\\p{N}])", "giu"), cod });
+      }
+    }
+    lista.sort((x, y) => y.re.source.length - x.re.source.length);   // nome inteiro antes do primeiro nome
+  } catch { /* sem lista: só os códigos por campo de nome */ }
+  c.nomes = lista; return lista;
+}
+async function mascarar(c: Ctx, texto: unknown): Promise<string> {
+  let t = String(texto ?? "");
+  if (!t) return t;
+  for (const { re, cod } of await carregarNomes(c)) t = t.replace(re, cod);
+  return t;
+}
+const CAMPOS_NOME = new Set(["registrado_por", "por", "conferido_por", "criado_por_nome", "responsavel_nome", "cadastrado_por", "lancado_por", "autor", "usuario", "criado_por"]);
+async function protegerPessoas(c: Ctx, v: any, nivel = 0): Promise<any> {
+  if (nivel > 6 || v == null) return v;
+  if (typeof v === "string") return await mascarar(c, v);
+  if (Array.isArray(v)) { const r = []; for (const x of v.slice(0, 200)) r.push(await protegerPessoas(c, x, nivel + 1)); return r; }
+  if (typeof v === "object") {
+    const r: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v)) r[k] = CAMPOS_NOME.has(k) && typeof x === "string" ? codigoPessoa(c, x) : await protegerPessoas(c, x, nivel + 1);
+    return r;
+  }
+  return v;
 }
 
 async function executar(nome: string, args: any, c: Ctx): Promise<unknown> {
@@ -190,7 +240,7 @@ async function executar(nome: string, args: any, c: Ctx): Promise<unknown> {
     }
     case "historico_produto": {
       const { data, error } = await c.sb.rpc("analise_produto", { p_barcode: corta(args?.codigo_barras, 30), p_loja: c.loja });
-      return error ? err(error) : data;
+      return error ? err(error) : await protegerPessoas(c, data);
     }
     case "irregularidades_rondas": {
       const { data, error } = await c.sb.from("ronda_itens")
@@ -201,14 +251,14 @@ async function executar(nome: string, args: any, c: Ctx): Promise<unknown> {
       const porSetor: Record<string, number> = {};
       linhas.forEach((x) => { if (x.resultado === "irregular") porSetor[x.rondas.setor] = (porSetor[x.rondas.setor] || 0) + 1; });
       if (Object.keys(porSetor).length) c.graficos.push({ titulo: "Irregularidades em rondas por setor", tipo: "barras", dados: Object.entries(porSetor).map(([k, v]) => ({ rotulo: k, valor: v })) });
-      return { total: linhas.length, por_setor_irregular: porSetor, itens: linhas.slice(0, 40).map((x) => ({ produto: x.nome, codigo: x.barcode, resultado: x.resultado, setor: x.rondas.setor, ronda: x.rondas.titulo, quando: x.conferido_em, por: codigoPessoa(c, x.conferido_por), obs: corta(x.observacao, 120) })) };
+      return await protegerPessoas(c, { total: linhas.length, por_setor_irregular: porSetor, itens: linhas.slice(0, 40).map((x) => ({ produto: x.nome, codigo: x.barcode, resultado: x.resultado, setor: x.rondas.setor, ronda: x.rondas.titulo, quando: x.conferido_em, por: codigoPessoa(c, x.conferido_por), obs: corta(x.observacao, 120) })) });
     }
     case "rondas_recentes": {
       let q = c.sb.from("rondas").select("titulo, setor, status, modo, criado_por_nome, criado_em, prazo, total_itens, total_verificado, ok_count, proximo_count, vencido_count")
         .gte("criado_em", iso(dias(args?.dias))).order("criado_em", { ascending: false }).limit(30);
       if (c.loja) q = q.eq("loja_id", c.loja);
       const { data, error } = await q;
-      return error ? err(error) : { rondas: ((data as any[]) || []).map((r) => ({ ...r, criado_por_nome: codigoPessoa(c, r.criado_por_nome) })) };
+      return error ? err(error) : await protegerPessoas(c, { rondas: data });
     }
     case "tarefas": {
       let q = c.sb.from("ocorrencias").select("setor, categoria, descricao, prioridade, status, responsavel_nome, prazo, criado_em, concluido_em")
@@ -217,7 +267,7 @@ async function executar(nome: string, args: any, c: Ctx): Promise<unknown> {
       if (args?.somente_atrasadas) q = q.lt("prazo", new Date().toISOString());
       const { data, error } = await q;
       if (error) return err(error);
-      return { total: (data as any[])?.length || 0, tarefas: ((data as any[]) || []).map((t) => ({ ...t, responsavel_nome: codigoPessoa(c, t.responsavel_nome), descricao: corta(t.descricao, 160), atrasada: !!t.prazo && new Date(t.prazo) < new Date() })) };
+      return await protegerPessoas(c, { total: (data as any[])?.length || 0, tarefas: ((data as any[]) || []).map((t) => ({ ...t, descricao: corta(t.descricao, 160), atrasada: !!t.prazo && new Date(t.prazo) < new Date() })) });
     }
     case "comparar_semanas": {
       const { data, error } = await c.sb.rpc("analise_perdas", { p_loja: c.loja, p_dias: 21, p_setor: args?.setor || null });
@@ -282,7 +332,7 @@ async function executar(nome: string, args: any, c: Ctx): Promise<unknown> {
       if (!linhas.length && setorTxt) avisos.push("Nenhum lançamento com esse texto no setor; o nome do setor pode estar diferente. Diga isso em vez de afirmar que não há lançamentos.");
       if (dias != null && linhas.length === n) avisos.push("Pode haver mais lançamentos no período do que os mostrados.");
       const paraModelo = linhas.map((l: any) => (Object.hasOwn(l, "lancado_por") ? { ...l, lancado_por: codigoPessoa(c, l.lancado_por) } : l));
-      if (chaves.includes("lancado_por")) avisos.push("Os nomes de quem lançou foram trocados por códigos (Pessoa 1, 2...) por privacidade; o usuário vê os nomes reais na tabela. Nunca tente adivinhar nomes.");
+      if (chaves.includes("lancado_por")) avisos.push("Os nomes de quem lançou foram trocados por códigos (por exemplo, Pessoa X7K2) por privacidade; o usuário vê os nomes reais na tabela. Nunca tente adivinhar nomes.");
       return { pedidos: n, encontrados: linhas.length, periodo_dias: dias, campos: chaves, lancamentos: paraModelo, aviso: avisos.join(" ") };
     }
     case "propor_ronda": {

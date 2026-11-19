@@ -503,12 +503,13 @@ function PaginaBalanca({ T, dark, perfil, configBalanca, onSalvou, showToast }) 
 }
 
 // Atribuição exigida pela licença dos dados e imagens do Open Food Facts (ODbL / CC BY-SA).
-function CreditoOFF({ T }) {
+function CreditoOFF({ T, dark }) {
+  const link = dark ? "#7DB4F0" : BLUE;
   return (
     <div>
       <p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Dados e fotos de produtos</p>
       <p style={{ color: T.text }} className="text-[0.8125rem] leading-relaxed mt-0.5">
-        Parte dos nomes e das fotos de produtos vem do <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" style={{ color: T.accent || BLUE }} className="font-semibold underline">Open Food Facts</a>, base aberta e colaborativa feita por voluntários. Os dados estão sob a licença <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer" style={{ color: T.accent || BLUE }} className="underline">ODbL</a> e as imagens sob <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer" style={{ color: T.accent || BLUE }} className="underline">CC BY-SA</a>. Copiamos a foto para o nosso armazenamento para o app abrir mais rápido; a autoria continua sendo dos colaboradores do Open Food Facts.
+        Parte dos nomes e das fotos de produtos vem do <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" style={{ color: link }} className="font-semibold underline">Open Food Facts</a>, base aberta e colaborativa feita por voluntários. Pode ser usado e copiado desde que se dê o crédito, e é isso que fazemos aqui. Os dados estão sob a licença <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer" style={{ color: link }} className="underline">ODbL</a> e as imagens sob <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer" style={{ color: link }} className="underline">CC BY-SA</a>. Copiamos a foto para o nosso armazenamento para o app abrir mais rápido; a autoria continua sendo dos colaboradores do Open Food Facts.
       </p>
     </div>
   );
@@ -539,7 +540,7 @@ function PaginaSobre({ T, dark, perfil }) {
             <div className="flex flex-col gap-3.5">
               <div><p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Idealizadora</p><p style={{ color: T.text }} className="text-[0.875rem] font-semibold">Francisca Gisleuda</p><p style={{ color: T.subtext }} className="text-[0.75rem]">Encarregada de Reposição · Loja 79</p></div>
               <div><p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Desenvolvimento e idealização</p><p style={{ color: T.text }} className="text-[0.875rem] font-semibold">Cauã Silva</p><p style={{ color: T.subtext }} className="text-[0.75rem]">CPD · Loja 79</p></div>
-              <CreditoOFF T={T} />
+              <CreditoOFF T={T} dark={dark} />
             </div>
           </DashCard>
         </aside>
@@ -592,7 +593,7 @@ function PaginaSobre({ T, dark, perfil }) {
         <div className="p-4 flex flex-col gap-3">
           <div><p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Idealizadora</p><p style={{ color: T.text }} className="text-[0.875rem] font-semibold">Francisca Gisleuda</p><p style={{ color: T.subtext }} className="text-[0.75rem]">Encarregada de Reposição · Loja 79</p></div>
           <div><p style={{ color: T.subtext }} className="text-[0.6562rem] font-bold uppercase tracking-wide">Desenvolvimento e idealização</p><p style={{ color: T.text }} className="text-[0.875rem] font-semibold">Cauã Silva</p><p style={{ color: T.subtext }} className="text-[0.75rem]">CPD · Loja 79</p></div>
-          <CreditoOFF T={T} />
+          <CreditoOFF T={T} dark={dark} />
         </div>
       </MaisBloco>
     </>

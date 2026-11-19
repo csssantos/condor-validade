@@ -7,7 +7,7 @@ import { FUNDO_MARCA } from "../../TelasEntrada";
 import { DashCard } from "../../componentes/dash";
 import { BLUE, BLUE_DARK, RED_DARK, RED_SOFT, SITE_URL } from "../../lib/constantes";
 import { formatarDataHora } from "../../lib/formatos";
-import { pedirCaptcha, MENSAGEM_CAPTCHA } from "../../lib/captcha";
+import { pedirCaptcha, mensagemCaptcha } from "../../lib/captcha";
 import { removerTelegramComAviso } from "../../lib/produto";
 import { useTelaLarga } from "../../lib/tela";
 import { CORES_FORCA, COR_MAIS, MOLA, MOLA_SUAVE, MaisAviso, MaisBloco, MaisBotao, MaisCampo, MaisCheck, MaisLinha, ROTULOS_FORCA, clarearCor, forcaSenha, iniciaisDe } from "./MaisUI";
@@ -114,7 +114,7 @@ function PaginaConta({ T, dark, perfil, usuario, showToast, onSair }) {
   async function reautenticar(senha) {
     if (!emailAtual) return "Não consegui confirmar sua conta agora. Tente de novo.";
     let captchaToken;
-    try { captchaToken = await pedirCaptcha(); } catch { return MENSAGEM_CAPTCHA; }
+    try { captchaToken = await pedirCaptcha(); } catch (e) { return mensagemCaptcha(e); }
     const { error } = await supabase.auth.signInWithPassword({ email: emailAtual, password: senha, options: { captchaToken } });
     if (error) return error.message === "Invalid login credentials" ? "A senha atual está incorreta." : "Não consegui confirmar sua senha agora. Tente de novo.";
     return "";

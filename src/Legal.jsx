@@ -13,9 +13,9 @@ export const TERMOS_VERSAO = "2026-11-18";
 export const TERMOS_ALTERACOES = [
   { versao: "2026-11-18", docs: {
     privacidade: [
-      "Proteção contra robôs: ao criar conta, entrar, pedir recuperação de senha ou abrir um convite de promotor, o app pode pedir uma verificação do Cloudflare Turnstile (um serviço do Cloudflare que confere se quem acessa é uma pessoa). O Cloudflare recebe dados técnicos do navegador, como endereço IP, e não recebe seu nome nem dados do app.",
-      "Assistente de IA: antes de enviar dados ao Google Gemini, o app troca os nomes de funcionários por códigos (“Pessoa 1”, “Pessoa 2”); o Gemini não recebe os nomes.",
-      "Registro de erros do app: quando o app quebra no seu aparelho, ele envia ao nosso servidor uma linha técnica (mensagem do erro, trecho da pilha, tela, versão do app, navegador resumido, o identificador da sua conta e a loja). Não enviamos o que você digitou, nomes de produtos nem fotos. Esses registros são apagados em 30 dias e só o desenvolvedor pode ler.",
+      "Proteção contra robôs: ao criar conta, entrar, pedir recuperação de senha, confirmar a senha atual na tela Conta, redefinir a senha de outra pessoa (gestão) ou abrir um convite de promotor, o app pode pedir uma verificação do Cloudflare (um serviço que confere se quem acessa é uma pessoa e não um robô). O Cloudflare recebe dados técnicos do navegador, como endereço IP, e não recebe seu nome nem dados do app.",
+      "Assistente de IA: antes de enviar dados ao Google Gemini, o app troca os nomes de funcionários por códigos (por exemplo, “Pessoa A7K2”), inclusive quando o nome aparece escrito em observações e descrições; o Gemini não recebe os nomes.",
+      "Registro de erros do app: quando o app quebra no seu aparelho, ele envia ao nosso servidor uma linha técnica (mensagem do erro, trecho técnico do erro, o nome da tela, a versão do app, o navegador resumido, o código da sua conta e a loja; e-mails e números longos são apagados da mensagem antes do envio). Não enviamos o que você digitou, nomes de produtos nem fotos. Esses registros são apagados em 30 dias e só o desenvolvedor pode ler.",
       "Open Food Facts: parte dos nomes e das fotos de produtos vem do Open Food Facts (dados sob licença ODbL e imagens sob CC BY-SA, de autoria dos voluntários da base); a atribuição aparece em Mais → Sobre o app.",
     ],
     armazenamento: [

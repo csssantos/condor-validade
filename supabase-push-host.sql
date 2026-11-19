@@ -26,6 +26,14 @@ begin
   if auth.uid() is null or public.nivel_do_usuario() is null then raise exception 'sem_permissao'; end if;
   if length(coalesce(p_endpoint, '')) not between 10 and 1000 or length(p_subscription::text) > 4000 then raise exception 'dados_invalidos'; end if;
   if not public._push_endpoint_ok(p_endpoint) then raise exception 'endpoint_invalido'; end if;
+  -- O web-push envia para o endereço de DENTRO do JSON: ele precisa ser idêntico ao validado (ou o token FCM do app Android)
+  if p_endpoint like 'fcm:%' then
+    if coalesce(p_subscription->>'fcm', '') <> substr(p_endpoint, 5) then raise exception 'endpoint_invalido'; end if;
+  else
+    if coalesce(p_subscription->>'endpoint', '') <> p_endpoint then raise exception 'endpoint_invalido'; end if;
+    if coalesce(p_subscription->'keys'->>'p256dh', '') !~ '^[A-Za-z0-9_-]{60,120}={0,2}$'
+       or coalesce(p_subscription->'keys'->>'auth', '') !~ '^[A-Za-z0-9_-]{12,40}={0,2}$' then raise exception 'endpoint_invalido'; end if;
+  end if;
   perform public.rl_checar('push', 20);
   insert into public.push_subscriptions(endpoint, subscription, usuario, loja_id, usuario_id)
   values (p_endpoint, p_subscription, left(p_usuario, 120), public.loja_do_usuario(), auth.uid())
@@ -34,6 +42,11 @@ begin
 end $$;
 revoke all on function public.salvar_push(text, jsonb, text, bigint) from public, anon;
 grant execute on function public.salvar_push(text, jsonb, text, bigint) to authenticated;
+
+-- Limpeza: apaga inscrições já gravadas fora do padrão (endereço fora da lista, ou JSON com endereço diferente da coluna)
+delete from public.push_subscriptions
+ where not public._push_endpoint_ok(endpoint)
+    or (endpoint not like 'fcm:%' and coalesce(subscription->>'endpoint', '') <> endpoint);
 
 -- AUTO-TESTE (sem escrever nada): se falhar, desfaz tudo
 do $$

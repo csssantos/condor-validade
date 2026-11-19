@@ -6,6 +6,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 import { enviarFcm } from "../_compartilhado/fcm.ts";
+import { inscricaoWebPush } from "../_compartilhado/pushhost.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -100,7 +101,7 @@ Deno.serve(async (req) => {
               if (r.invalido) await supabase.from("push_subscriptions").delete().eq("endpoint", linha.endpoint);
               if (!r.ok) throw new Error("fcm");
             })
-          : webpush.sendNotification(linha.subscription, payload)
+          : (() => { const ins = inscricaoWebPush(linha.endpoint, linha.subscription); return ins ? webpush.sendNotification(ins, payload) : Promise.reject(Object.assign(new Error("endpoint_invalido"), { statusCode: 410 })); })()
         ).catch(async (err) => {
           if (err.statusCode === 404 || err.statusCode === 410) {
             await supabase.from("push_subscriptions").delete().eq("endpoint", linha.endpoint);

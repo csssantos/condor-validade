@@ -351,7 +351,7 @@ function ItemCardGridAgrupado({ T, base, lotes, totalQuantidade, piorStatus, onO
           {!semFotoUtil(base.foto) ? <img src={base.foto} onError={trocarPorBipi} alt="" className="w-full h-24 object-cover" /> : (
             <div style={{ background: BLUE_SOFT }} className="w-full h-24 flex items-center justify-center"><Package size={24} color={BLUE} /></div>
           )}
-          <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded">{piorStatus.label}</span>
+          <span style={{ background: s.bg, color: s.fg }} className="absolute top-1.5 left-1.5 text-[0.6875rem] font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1 max-w-[calc(100%-0.75rem)]"><IconeNivel level={piorStatus.level} size={11} />{piorStatus.label}</span>
           <span style={{ background: "rgba(11,79,158,0.85)", color: "#fff" }} className="absolute top-1.5 right-1.5 text-[0.5rem] font-bold px-1.5 py-0.5 rounded">{lotes.length}x datas</span>
         </div>
         <div className="p-2.5">
