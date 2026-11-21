@@ -23,7 +23,7 @@ function Cartao({ T, icone, titulo, children, rodape }) {
   return createPortal(
     <div style={{ background: "rgba(6,28,58,0.55)" }} className="fixed inset-0 z-[90] flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-label={titulo}>
       <motion.div initial={reduzir ? false : { opacity: 0, y: 14, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.2 }}
-        style={{ background: T.card, color: T.text }} className="w-full max-w-sm rounded-3xl p-5 shadow-2xl">
+        style={{ background: T.card, color: T.text }} className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-3xl p-5 shadow-2xl">
         <div className="flex items-center gap-3 mb-3">
           <div style={{ background: BLUE }} className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shrink-0">{icone}</div>
           <h2 className="text-[1.0625rem] font-bold leading-tight">{titulo}</h2>
@@ -45,7 +45,7 @@ function PacoteOfflineModal({ T, nome, estado, onSegundoPlano, onFechar }) {
       rodape={<button onClick={pronto ? onFechar : onSegundoPlano} style={{ background: pronto ? BLUE : T.chipBg, color: pronto ? "#fff" : T.text }} className="mt-4 w-full py-3 rounded-2xl font-bold text-[0.9375rem] active:opacity-80">{pronto ? "Começar" : "Continuar em segundo plano"}</button>}>
       <p style={{ color: T.subtext }} className="text-[0.875rem] mb-3">
         {pronto ? `${nome ? nome + ", o" : "O"} app já tem o que precisa guardado neste aparelho. Sem internet, você abre o app, vê os produtos e registra; tudo é enviado quando a internet voltar.`
-          : `${nome ? nome + ", estamos" : "Estamos"} baixando o programa, as fotos e os dados da sua loja para o app funcionar sem internet. Leva pouco tempo e só acontece uma vez.`}
+          : `${nome ? nome + ", estamos" : "Estamos"} baixando o programa, as fotos e os dados da sua loja para o app funcionar sem internet. Use o Wi-Fi se puder: podem ser várias fotos. Só acontece uma vez.`}
       </p>
       {!pronto && <><div style={{ color: T.text }} className="text-[0.8125rem] font-semibold mb-1.5">{FASES[estado?.fase] || "Começando…"}{total > 1 ? ` · ${feitos} de ${total}` : ""}</div>
         <Barra T={T} pct={pct} rotulo="Progresso do pacote offline" /></>}
@@ -54,11 +54,12 @@ function PacoteOfflineModal({ T, nome, estado, onSegundoPlano, onFechar }) {
   );
 }
 
-function ImportandoDadosModal({ T, nome, feitos, total }) {
+function ImportandoDadosModal({ T, nome, feitos, total, onOcultar }) {
   const pct = total > 0 ? (feitos / total) * 100 : 0;
   return (
-    <Cartao T={T} icone={<CloudUpload size={22} />} titulo={nome ? `${nome}, importando seus dados` : "Importando seus dados"}>
-      <p style={{ color: T.subtext }} className="text-[0.875rem] mb-3">A internet voltou. Estamos enviando o que você registrou sem conexão. Não feche o app.</p>
+    <Cartao T={T} icone={<CloudUpload size={22} />} titulo={nome ? `${nome}, importando seus dados` : "Importando seus dados"}
+      rodape={<button onClick={onOcultar} style={{ background: T.chipBg, color: T.text }} className="mt-4 w-full py-3 rounded-2xl font-bold text-[0.9375rem] active:opacity-80">Continuar usando o app</button>}>
+      <p style={{ color: T.subtext }} className="text-[0.875rem] mb-3">A internet voltou. Estamos enviando o que você registrou sem conexão. O envio segue em segundo plano se você continuar.</p>
       <div style={{ color: T.text }} className="text-[0.8125rem] font-semibold mb-1.5">{feitos} de {total} {total === 1 ? "registro enviado" : "registros enviados"}</div>
       <Barra T={T} pct={pct} rotulo="Envio dos registros feitos offline" />
     </Cartao>

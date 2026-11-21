@@ -16,6 +16,7 @@ import { Header } from "./componentes/Header";
 import { BottomNav, SideNav } from "./componentes/Navegacao";
 import { FaixaFila } from "./componentes/FaixaFila";
 import { PacoteOfflineModal, ImportandoDadosModal } from "./componentes/PacoteOffline";
+import { CACHE_FOTOS_NOME } from "./lib/constantes";
 import { baixarPacote, esquecerPacote, pacoteBaixado } from "./lib/pacoteOffline";
 import { Gestos } from "./componentes/Gestos";
 import { profundidade, passoVoltar, reconciliar, guardaVoltar } from "./lib/gestos";
@@ -176,7 +177,8 @@ function AppInner() {
         limparNotifDaPessoa(sessaoRef.current);
         if (ehNativo()) desinscreverPushNativo(); // APK: o aparelho deixa de receber os avisos da pessoa que saiu
         setLojaAtivaOverride(null); setFlow(null); setTab("home"); setDetalheItem(null); // a próxima pessoa não herda a loja trocada nem a tela aberta
-        esquecerPacote(sessaoRef.current); // a próxima entrada neste aparelho baixa o pacote de novo
+        esquecerPacote(sessaoRef.current); pacoteRodouRef.current = null; setPacote(null);
+        try { caches.delete(CACHE_FOTOS_NOME); } catch { /* sem cache */ } // a próxima entrada neste aparelho baixa o pacote de novo
         try { localStorage.removeItem(SNAPSHOT_KEY); } catch { /* sem armazenamento */ }
       }
       if (event === "PASSWORD_RECOVERY") setRecuperandoSenha(true); // link de "esqueci minha senha": pede a nova senha antes de entrar
@@ -441,7 +443,7 @@ function AppInner() {
         if (!fila.length) return;
         setSincroniza({ feitos: 0, total: fila.length });
         try {
-          await processarFila((feitos, total) => setSincroniza({ feitos, total }));
+          await processarFila((feitos, total) => setSincroniza((a) => ({ feitos, total, oculto: !!(a && a.oculto) })));
           const [cat, its, hist] = await Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]);
           setCatalog(cat); setItems(its); setHistorico(hist);
           if (sessaoRef.current) saveLocal(SNAPSHOT_KEY, { uid: sessaoRef.current, cat, its, hist });
@@ -465,27 +467,36 @@ function AppInner() {
   // Pacote offline: com os dados da loja já carregados DO SERVIDOR e com internet, baixa o programa, as fotos e deixa os dados guardados
   // para abrir sem internet. 1ª vez da pessoa neste aparelho: tela com barra de progresso; depois: em silêncio (só busca fotos novas).
   const pacoteRodouRef = useRef(null);
+  const pacoteSinalRef = useRef(null);
+  useEffect(() => () => { if (pacoteSinalRef.current) pacoteSinalRef.current.cancelado = true; }, [idDoUsuario]); // trocou de conta/saiu: para o download da pessoa anterior
   useEffect(() => {
     const uid = idDoUsuario;
     if (!uid || dadosDoUid !== uid || !online || pacoteRodouRef.current === uid) return undefined;
     if (sessao?.user?.is_anonymous) return undefined; // promotor (link) não monta pacote: usa o app só com internet
+    if (typeof navigator !== "undefined" && navigator.serviceWorker && !navigator.serviceWorker.controller) return undefined; // o service worker ainda não controla a página: nada seria guardado (tenta na próxima abertura)
     pacoteRodouRef.current = uid;
     const primeira = !pacoteBaixado(uid);
-    const sinal = { cancelado: false };
+    const sinal = { cancelado: false }; pacoteSinalRef.current = sinal;
     if (primeira) setPacote({ fase: "programa", feitos: 0, total: 0, visivel: true });
     baixarPacote({ uid, catalogo: catalog, itens: items, historico, sinal,
-      onProgresso: primeira ? (p) => setPacote((a) => (a && !a.pronto ? { ...a, ...p } : a)) : undefined })
+      onProgresso: primeira ? (p) => { if (!sinal.cancelado) setPacote((a) => (a && !a.pronto ? { ...a, ...p } : a)); } : undefined })
       .then((r) => {
         if (!primeira) return;
-        if (!r.completo) { setPacote(null); pacoteRodouRef.current = null; return; } // faltou arquivo: tenta de novo na próxima vez que abrir
+        if (!r.completo) { // faltou arquivo: tenta de novo na próxima abertura (ou quando a internet voltar)
+          if (pacoteSinalRef.current === sinal) { setPacote(null); pacoteRodouRef.current = null; }
+          if (!sinal.cancelado) showToast("Não foi possível preparar o modo offline agora. O app tenta de novo na próxima vez.", "aviso");
+          return;
+        }
+        if (pacoteSinalRef.current !== sinal) return;
         setPacote((a) => {
-          const resumo = `${r.fotos} de ${r.fotosTotal} foto(s) e ${items.length} lote(s) guardados.`;
-          if (a && !a.visivel) { setTimeout(() => showToast("Pronto: o app já funciona sem internet.", "ok"), 0); return null; }
+          const resumo = r.poucoDados ? "A economia de dados do celular está ligada: baixamos só o programa e os dados. As fotos ficam para quando você estiver no Wi-Fi."
+            : `${r.fotos} de ${r.fotosTotal} foto(s) guardadas e ${items.length} lote(s) da loja.`;
+          if (a && !a.visivel) return null;
           return { ...(a || {}), pronto: true, visivel: true, resumo };
         });
+        setTimeout(() => { if (pacoteSinalRef.current === sinal && !sinal.cancelado) setPacote((a) => { if (!a) showToast("Pronto: o app já funciona sem internet.", "ok"); return a; }); }, 0);
       })
-      .catch(() => { if (primeira) setPacote(null); pacoteRodouRef.current = null; });
-    return () => { sinal.cancelado = true; };
+      .catch(() => { if (pacoteSinalRef.current !== sinal) return; if (primeira) { setPacote(null); if (!sinal.cancelado) showToast("Não foi possível preparar o modo offline agora. O app tenta de novo na próxima vez.", "aviso"); } pacoteRodouRef.current = null; });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idDoUsuario, dadosDoUid, online]);
 
@@ -1775,7 +1786,7 @@ function AppInner() {
       {toast && <AvisoToast msg={toast.msg} tom={toast.tone} id={toast.id} elevar={!!desfazer} onFechar={() => { if (toastIdRef.current === toast.id) { clearTimeout(toastTimerRef.current); setToast(null); } }} />}
       {desfazer && <AvisoDesfazer key={desfazer.id} mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} onFechar={() => setDesfazer(null)} />}
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
-      {sincroniza && <ImportandoDadosModal T={T} nome={(perfil?.nome || "").trim().split(/\s+/)[0] || ""} feitos={sincroniza.feitos} total={sincroniza.total} />}
+      {sincroniza && !sincroniza.oculto && <ImportandoDadosModal T={T} onOcultar={() => setSincroniza((a) => (a ? { ...a, oculto: true } : a))} nome={(perfil?.nome || "").trim().split(/\s+/)[0] || ""} feitos={sincroniza.feitos} total={sincroniza.total} />}
       {pacote && pacote.visivel && !sincroniza && aceiteOk === true && !outroModal && !tutorialAberto &&
         <PacoteOfflineModal T={T} nome={(perfil?.nome || "").trim().split(/\s+/)[0] || ""} estado={pacote}
           onSegundoPlano={() => setPacote((a) => (a ? { ...a, visivel: false } : a))} onFechar={() => setPacote(null)} />}

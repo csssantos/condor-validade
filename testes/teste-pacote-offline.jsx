@@ -15,7 +15,8 @@ t("fotos: teto de 600", fotosDoPacote([muitas]).length === 600);
 
 // arquivos citados
 const a = arquivosCitados('<script src="/assets/index-AbC123.js"></script><link href="/assets/index-x.css"> import("./jspdf-9x.js") "assets/xlsx-Q1.js" "assets/a.png"');
-t("arquivos: js e css, com barra inicial e sem duplicar", a.includes("/assets/index-AbC123.js") && a.includes("/assets/index-x.css") && a.includes("/assets/xlsx-Q1.js") && !a.some((x) => x.endsWith(".png")) && new Set(a).size === a.length);
+t("arquivos: js e css entre aspas, com barra inicial e sem duplicar", a.includes("/assets/index-AbC123.js") && a.includes("/assets/index-x.css") && a.includes("/assets/xlsx-Q1.js") && !a.some((x) => x.endsWith(".png")) && new Set(a).size === a.length);
+t("arquivos: texto solto sem aspas não vira download (evita 404 que apagaria a casca)", arquivosCitados("// veja assets/solto.js e /assets/outro.css aqui").length === 0);
 
 // marca por pessoa
 t("sem marca: não baixado", pacoteBaixado("u1") === false && pacoteBaixado(null) === false);
@@ -32,6 +33,8 @@ const nomeSW = /const CACHE_FOTOS = "([^"]+)"/.exec(sw)?.[1], nomeApp = /CACHE_F
 t("nome do cache de fotos igual no sw.js e no app", !!nomeSW && nomeSW === nomeApp);
 t("sw não apaga o cache de fotos na ativação", /n !== CACHE_FOTOS/.test(sw));
 t("sw guarda só resposta ok e nunca /supa", /resp\.ok/.test(sw) && /guardarFoto\(url, r\)/.test(sw) && /startsWith\("\/supa\/"\)\) return/.test(sw));
+t("sw pede a foto como CORS para poder guardar", /mode: "cors", credentials: "omit"/.test(sw));
+t("sw só guarda resposta de imagem", /image\\\//.test(sw));
 t("sw tem teto de fotos", /MAX_FOTOS/.test(sw) && /c\.delete\(k\)/.test(sw));
 
 // APK: página offline e caminho de erro
@@ -42,8 +45,9 @@ t("workflow copia offline.html", /android-config\/offline\.html" www\/offline\.h
 
 // App: tela de progresso, nome do titular, e a marca some ao sair
 const app = fs.readFileSync("src/App.jsx", "utf8");
-t("app: modal de importação recebe o nome", /<ImportandoDadosModal T=\{T\} nome=/.test(app) && /processarFila\(\(feitos, total\) => setSincroniza/.test(app));
+t("app: modal de importação recebe o nome", /<ImportandoDadosModal T=\{T\} onOcultar=/.test(app) && /processarFila\(\(feitos, total\) => setSincroniza/.test(app));
 t("app: sincronização limpa o modal no fim", /finally \{ setSincroniza\(null\); \}/.test(app));
+t("sair apaga as fotos guardadas", /caches\.delete\(CACHE_FOTOS_NOME\)/.test(app));
 t("app: sair esquece o pacote", /esquecerPacote\(sessaoRef\.current\)/.test(app));
 t("app: promotor (anônimo) não monta pacote", /is_anonymous\) return undefined; \/\/ promotor/.test(app));
 

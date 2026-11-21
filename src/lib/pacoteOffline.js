@@ -10,6 +10,8 @@ const HOST_FOTOS = "fbovltxucooeoldjfckk.supabase.co";
 const CAMINHO_FOTOS = "/storage/v1/object/public/";
 const MAX_ARQUIVOS_PROGRAMA = 120;
 const MAX_FOTOS = 600;
+const PRAZO_MS = 20000;
+const buscar = (u, opc) => fetch(u, { ...(opc || {}), signal: AbortSignal.timeout(PRAZO_MS) });
 
 const lerMarca = (uid) => { try { return JSON.parse(localStorage.getItem(CHAVE_PREFIXO + uid) || "null"); } catch { return null; } };
 export function pacoteBaixado(uid) { return !!uid && !!lerMarca(uid)?.em; }
@@ -34,22 +36,23 @@ export function fotosDoPacote(listas) {
 // arquivos citados por um texto de página ou de script do app (/assets/nome-hash.js|css)
 export function arquivosCitados(texto) {
   const achados = new Set();
-  const re = /\/?assets\/[A-Za-z0-9_.\-]+\.(?:js|css)/g;
+  // só nomes entre aspas ("assets/x.js" na lista de dependências do Vite ou src/href do HTML): evita pegar texto solto de bibliotecas
+  const re = /["'(]\/?(assets\/[A-Za-z0-9_.\-]+\.(?:js|css))["')]/g;
   let m;
-  while ((m = re.exec(String(texto || "")))) achados.add("/" + m[0].replace(/^\//, ""));
+  while ((m = re.exec(String(texto || "")))) achados.add("/" + m[1]);
   return [...achados];
 }
 
 async function listarPrograma() {
   const fila = []; const vistos = new Set();
-  const r = await fetch("/index.html", { cache: "no-store" });
+  const r = await buscar("/index.html", { cache: "no-store" });
   if (!r.ok) throw new Error("programa_indisponivel");
   const html = await r.text();
   for (const u of arquivosCitados(html)) { if (!vistos.has(u)) { vistos.add(u); fila.push(u); } }
   // os pedaços carregados sob demanda aparecem dentro do arquivo principal (lista de dependências do Vite): 1 nível basta
   for (const u of fila.filter((x) => x.endsWith(".js")).slice(0, 6)) {
     try {
-      const t = await (await fetch(u)).text();
+      const t = await (await buscar(u)).text();
       for (const v of arquivosCitados(t)) { if (!vistos.has(v) && vistos.size < MAX_ARQUIVOS_PROGRAMA) { vistos.add(v); fila.push(v); } }
     } catch { /* arquivo some: segue */ }
   }
@@ -79,30 +82,34 @@ export async function jaTemFoto(url) {
   try { const c = await caches.open(CACHE_FOTOS_NOME); return !!(await c.match(url)); } catch { return false; }
 }
 
-// onProgresso({ fase: "programa"|"fotos"|"dados", feitos, total })
-// Devolve { programa, fotos, fotosTotal }; só marca o pacote como baixado se o PROGRAMA veio inteiro.
+// onProgresso({ fase: "programa"|"fotos"|"dados", feitos, total })  (feitos/total = andamento GERAL: programa + fotos que faltam)
+// Devolve { programa, fotos, fotosTotal, completo }; só marca o pacote como baixado se o PROGRAMA veio inteiro.
 export async function baixarPacote({ uid, catalogo, itens, historico, onProgresso, sinal }) {
   if (!uid) throw new Error("sem_sessao");
-  const avisar = (fase, feitos, total) => { try { onProgresso && onProgresso({ fase, feitos, total }); } catch { /* tela fechou */ } };
-  let programaOk = 0; let programaTotal = 0;
+  const cancelado = () => !!(sinal && sinal.cancelado);
   const fila = await listarPrograma();
-  programaTotal = fila.length; avisar("programa", 0, programaTotal);
-  await emLotes(fila, 4, async (u) => {
-    if (sinal && sinal.cancelado) return;
-    try { const r = await fetch(u); if (r.ok) programaOk++; } catch { /* um arquivo a menos */ }
-    avisar("programa", programaOk, programaTotal);
-  });
   const todas = fotosDoPacote([catalogo, itens, historico]);
+  const poucoDados = !!(typeof navigator !== "undefined" && navigator.connection && navigator.connection.saveData); // "economia de dados" ligada: só o programa
   const faltam = [];
-  for (const u of todas) { if (!(await jaTemFoto(u))) faltam.push(u); }
-  let fotosOk = todas.length - faltam.length; avisar("fotos", fotosOk, todas.length);
-  await emLotes(faltam, 4, async (u) => {
-    if (sinal && sinal.cancelado) return;
-    if (await carregarFoto(u)) fotosOk++;
-    avisar("fotos", fotosOk, todas.length);
+  if (!poucoDados) for (const u of todas) { if (!(await jaTemFoto(u))) faltam.push(u); }
+  const total = fila.length + faltam.length; let feitos = 0;
+  const avisar = (fase) => { try { onProgresso && onProgresso({ fase, feitos, total }); } catch { /* tela fechou */ } };
+  avisar("programa");
+  let programaOk = 0;
+  await emLotes(fila, 4, async (u) => {
+    if (cancelado()) return;
+    try { const r = await buscar(u); if (r.ok) programaOk++; } catch { /* um arquivo a menos */ }
+    feitos++; avisar("programa");
   });
-  avisar("dados", 1, 1);
-  const completo = programaTotal > 0 && programaOk >= programaTotal;
-  if (completo && !(sinal && sinal.cancelado)) gravarMarca(uid, { programa: programaOk, fotos: fotosOk, fotosTotal: todas.length });
-  return { programa: programaOk, programaTotal, fotos: fotosOk, fotosTotal: todas.length, completo };
+  let fotosNovas = 0;
+  await emLotes(faltam, 4, async (u) => {
+    if (cancelado()) return;
+    if (await carregarFoto(u) && await jaTemFoto(u)) fotosNovas++; // só conta se a foto realmente ficou guardada
+    feitos++; avisar("fotos");
+  });
+  avisar("dados");
+  const fotos = (todas.length - faltam.length) + fotosNovas;
+  const completo = fila.length > 0 && programaOk >= fila.length && !cancelado();
+  if (completo) gravarMarca(uid, { programa: programaOk, fotos, fotosTotal: todas.length });
+  return { programa: programaOk, programaTotal: fila.length, fotos, fotosTotal: todas.length, completo, poucoDados };
 }

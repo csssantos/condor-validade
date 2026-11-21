@@ -75,6 +75,7 @@ let diretoBloqueadoAte = 0; // depois de uma falha, as próximas fotos vão dire
 async function guardarFoto(url, resp) {
   try {
     if (!resp || !resp.ok || resp.type === "opaque") return;
+    if (!/^image\//i.test(resp.headers.get("content-type") || "")) return; // página de bloqueio da rede (HTML com status 200) nunca vira "foto"
     const c = await caches.open(CACHE_FOTOS);
     await c.put(url.origin + url.pathname, resp.clone());
     const chaves = await c.keys();
@@ -90,8 +91,10 @@ async function buscarFoto(request, url) {
   const pelaCasa = () => fetch(`${self.location.origin}/supa${url.pathname}${url.search}`, { mode: request.mode === "cors" ? "cors" : "same-origin" });
   if (Date.now() < diretoBloqueadoAte) { try { const r = await pelaCasa(); guardarFoto(url, r); return r; } catch { /* tenta o direto abaixo */ } }
   try {
+    // <img> sem crossOrigin pede em "no-cors" (resposta opaca, que não dá para guardar): refaz como CORS (o Storage público libera) e devolve a resposta normal
+    const pedido = new Request(url.href, { mode: "cors", credentials: "omit" });
     const r = await Promise.race([
-      fetch(request),
+      fetch(pedido),
       new Promise((_, rej) => setTimeout(() => rej(new Error("sem_resposta")), 6000)),
     ]);
     guardarFoto(url, r);
