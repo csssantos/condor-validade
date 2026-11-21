@@ -5,6 +5,10 @@
 // Este arquivo NUNCA troca a versão sozinho.
 const CACHE_SHELL = "condor-shell-v10";
 const CACHE_ASSETS = "condor-assets-v10";
+// Fotos de produto (nome de arquivo = hash do conteúdo, nunca muda): guardadas para abrir offline. Cache à parte e SEM versão de casca:
+// trocar CACHE_SHELL/CACHE_ASSETS não apaga as fotos. O app (lib/pacoteOffline.js) usa o MESMO nome.
+const CACHE_FOTOS = "condor-fotos-v1";
+const MAX_FOTOS = 800;
 // Versões antigas do APP gravavam a atualização em caches "v7" (nome diferente do deste arquivo), então o botão
 // "Atualizar" baixava e recarregava na versão velha, em loop. Aqui o SW passa a adotar o que o app antigo gravou.
 const LEGADO_SHELL = "condor-shell-v7";
@@ -61,24 +65,40 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     adotarAtualizacaoLegada().then(() => caches.keys()).then((nomes) =>
-      Promise.all(nomes.filter((n) => n !== CACHE_SHELL && n !== CACHE_ASSETS).map((n) => caches.delete(n)))
+      Promise.all(nomes.filter((n) => n !== CACHE_SHELL && n !== CACHE_ASSETS && n !== CACHE_FOTOS).map((n) => caches.delete(n)))
     ).then(() => self.clients.claim())
   );
 });
 
 const HOST_SUPABASE = "fbovltxucooeoldjfckk.supabase.co";
 let diretoBloqueadoAte = 0; // depois de uma falha, as próximas fotos vão direto pelo caminho do app por 10 min
-async function buscarFoto(request, url) {
-  const pelaCasa = () => fetch(`${self.location.origin}/supa${url.pathname}${url.search}`, { mode: request.mode === "cors" ? "cors" : "same-origin" });
-  if (Date.now() < diretoBloqueadoAte) { try { return await pelaCasa(); } catch { /* tenta o direto abaixo */ } }
+async function guardarFoto(url, resp) {
   try {
-    return await Promise.race([
+    if (!resp || !resp.ok || resp.type === "opaque") return;
+    const c = await caches.open(CACHE_FOTOS);
+    await c.put(url.origin + url.pathname, resp.clone());
+    const chaves = await c.keys();
+    if (chaves.length > MAX_FOTOS) for (const k of chaves.slice(0, chaves.length - MAX_FOTOS)) await c.delete(k);
+  } catch { /* sem espaço: a foto só não fica guardada */ }
+}
+async function buscarFoto(request, url) {
+  try { // já guardada (pacote offline ou visita anterior): abre na hora, com ou sem internet
+    const c = await caches.open(CACHE_FOTOS);
+    const g = await c.match(url.origin + url.pathname);
+    if (g) return g;
+  } catch { /* segue para a rede */ }
+  const pelaCasa = () => fetch(`${self.location.origin}/supa${url.pathname}${url.search}`, { mode: request.mode === "cors" ? "cors" : "same-origin" });
+  if (Date.now() < diretoBloqueadoAte) { try { const r = await pelaCasa(); guardarFoto(url, r); return r; } catch { /* tenta o direto abaixo */ } }
+  try {
+    const r = await Promise.race([
       fetch(request),
       new Promise((_, rej) => setTimeout(() => rej(new Error("sem_resposta")), 6000)),
     ]);
+    guardarFoto(url, r);
+    return r;
   } catch {
     diretoBloqueadoAte = Date.now() + 10 * 60 * 1000;
-    try { return await pelaCasa(); } catch { return new Response("", { status: 504 }); }
+    try { const r = await pelaCasa(); guardarFoto(url, r); return r; } catch { return new Response("", { status: 504 }); }
   }
 }
 

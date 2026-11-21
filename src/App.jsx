@@ -15,6 +15,8 @@ import { ErrorBoundary } from "./componentes/ErrorBoundary";
 import { Header } from "./componentes/Header";
 import { BottomNav, SideNav } from "./componentes/Navegacao";
 import { FaixaFila } from "./componentes/FaixaFila";
+import { PacoteOfflineModal, ImportandoDadosModal } from "./componentes/PacoteOffline";
+import { baixarPacote, esquecerPacote, pacoteBaixado } from "./lib/pacoteOffline";
 import { Gestos } from "./componentes/Gestos";
 import { profundidade, passoVoltar, reconciliar, guardaVoltar } from "./lib/gestos";
 import { AtualizacaoModal, NOVIDADES, gravarNovidadeVista, lerNovidadeVista, novidadesParaCargo } from "./componentes/Novidades";
@@ -174,6 +176,7 @@ function AppInner() {
         limparNotifDaPessoa(sessaoRef.current);
         if (ehNativo()) desinscreverPushNativo(); // APK: o aparelho deixa de receber os avisos da pessoa que saiu
         setLojaAtivaOverride(null); setFlow(null); setTab("home"); setDetalheItem(null); // a próxima pessoa não herda a loja trocada nem a tela aberta
+        esquecerPacote(sessaoRef.current); // a próxima entrada neste aparelho baixa o pacote de novo
         try { localStorage.removeItem(SNAPSHOT_KEY); } catch { /* sem armazenamento */ }
       }
       if (event === "PASSWORD_RECOVERY") setRecuperandoSenha(true); // link de "esqueci minha senha": pede a nova senha antes de entrar
@@ -386,6 +389,8 @@ function AppInner() {
 
   // Dados da loja só carregam depois que sabemos QUAL loja (login concluído, perfil carregado —
   // ou o dev trocou de loja em Gestão do Aplicativo). Sem isso, todo mundo lia sempre a loja 79.
+  const [sincroniza, setSincroniza] = useState(null); // {feitos,total} enquanto os registros feitos offline sobem
+  const [pacote, setPacote] = useState(null); // {fase,feitos,total,pronto,resumo,visivel} do pacote offline
   const [dadosProntos, setDadosProntos] = useState(false);
   const [dadosDoUid, setDadosDoUid] = useState(null); // dono dos dados carregados PELO SERVIDOR (nunca cache/offline): só então as notificações locais podem avaliar
   useEffect(() => {
@@ -434,9 +439,9 @@ function AppInner() {
         const minhas = () => lerFila().filter((op) => op.uid && op.uid === usuarioFila()); // só as ações da pessoa logada (igual à contagem da faixa)
         const fila = minhas();
         if (!fila.length) return;
-        showToast(`Sincronizando ${fila.length} registro(s)…`, "carregando");
+        setSincroniza({ feitos: 0, total: fila.length });
         try {
-          await processarFila();
+          await processarFila((feitos, total) => setSincroniza({ feitos, total }));
           const [cat, its, hist] = await Promise.all([supaFetchCatalogo(), supaFetchProdutos(), supaFetchHistorico()]);
           setCatalog(cat); setItems(its); setHistorico(hist);
           if (sessaoRef.current) saveLocal(SNAPSHOT_KEY, { uid: sessaoRef.current, cat, its, hist });
@@ -444,6 +449,7 @@ function AppInner() {
           if (restam > 0) showToast(`${restam} registro(s) ainda não foram enviados e continuam guardados no aparelho.`, "aviso");
           else showToast("Tudo sincronizado.");
         } catch { showToast("Não foi possível sincronizar agora. Os registros continuam guardados no aparelho.", "erro"); }
+        finally { setSincroniza(null); }
       })();
     }
     function aoFicarOffline() { setOnline(false); }
@@ -455,6 +461,33 @@ function AppInner() {
     return () => { window.removeEventListener("online", aoFicarOnline); window.removeEventListener("offline", aoFicarOffline); window.removeEventListener("condor-sincronizar-fila", aoFicarOnline); document.removeEventListener("visibilitychange", aoVoltar); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Pacote offline: com os dados da loja já carregados DO SERVIDOR e com internet, baixa o programa, as fotos e deixa os dados guardados
+  // para abrir sem internet. 1ª vez da pessoa neste aparelho: tela com barra de progresso; depois: em silêncio (só busca fotos novas).
+  const pacoteRodouRef = useRef(null);
+  useEffect(() => {
+    const uid = idDoUsuario;
+    if (!uid || dadosDoUid !== uid || !online || pacoteRodouRef.current === uid) return undefined;
+    if (sessao?.user?.is_anonymous) return undefined; // promotor (link) não monta pacote: usa o app só com internet
+    pacoteRodouRef.current = uid;
+    const primeira = !pacoteBaixado(uid);
+    const sinal = { cancelado: false };
+    if (primeira) setPacote({ fase: "programa", feitos: 0, total: 0, visivel: true });
+    baixarPacote({ uid, catalogo: catalog, itens: items, historico, sinal,
+      onProgresso: primeira ? (p) => setPacote((a) => (a && !a.pronto ? { ...a, ...p } : a)) : undefined })
+      .then((r) => {
+        if (!primeira) return;
+        if (!r.completo) { setPacote(null); pacoteRodouRef.current = null; return; } // faltou arquivo: tenta de novo na próxima vez que abrir
+        setPacote((a) => {
+          const resumo = `${r.fotos} de ${r.fotosTotal} foto(s) e ${items.length} lote(s) guardados.`;
+          if (a && !a.visivel) { setTimeout(() => showToast("Pronto: o app já funciona sem internet.", "ok"), 0); return null; }
+          return { ...(a || {}), pronto: true, visivel: true, resumo };
+        });
+      })
+      .catch(() => { if (primeira) setPacote(null); pacoteRodouRef.current = null; });
+    return () => { sinal.cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idDoUsuario, dadosDoUid, online]);
 
   // Fotos fora das tabelas: pede ao servidor para mover as fotos que ainda estão como texto (base64) para o
   // armazenamento de arquivos. O servidor decide tudo (o app não manda dado nenhum); se a função ou o SQL ainda
@@ -1742,6 +1775,10 @@ function AppInner() {
       {toast && <AvisoToast msg={toast.msg} tom={toast.tone} id={toast.id} elevar={!!desfazer} onFechar={() => { if (toastIdRef.current === toast.id) { clearTimeout(toastTimerRef.current); setToast(null); } }} />}
       {desfazer && <AvisoDesfazer key={desfazer.id} mensagem={desfazer.mensagem} onDesfazer={desfazer.onDesfazer} onFechar={() => setDesfazer(null)} />}
       {mostrarBannerVersao && <NovaVersaoBanner T={T} estado={estadoAtualizacao} progresso={progressoAtualizacao} erro={erroAtualizacao} onAtualizar={aplicarAtualizacao} onFechar={() => setVersaoDispensada(novaVersao?.assinatura)} />}
+      {sincroniza && <ImportandoDadosModal T={T} nome={(perfil?.nome || "").trim().split(/\s+/)[0] || ""} feitos={sincroniza.feitos} total={sincroniza.total} />}
+      {pacote && pacote.visivel && !sincroniza && aceiteOk === true && !outroModal && !tutorialAberto &&
+        <PacoteOfflineModal T={T} nome={(perfil?.nome || "").trim().split(/\s+/)[0] || ""} estado={pacote}
+          onSegundoPlano={() => setPacote((a) => (a ? { ...a, visivel: false } : a))} onFechar={() => setPacote(null)} />}
       <AnimatePresence>
         {avisoAtual && <AvisoModal T={T} aviso={avisoAtual} onFechar={() => marcarAvisoVisto(avisoAtual.id)} />}
         {tutorialAberto && !outroModal && <TutorialBipi key="tutorial" etapas={etapasTutorial} onFechar={(concluiu) => { marcarTutorialVisto(uidTutorial, sessao?.user, supabase); setTutorialAberto(false); if (!concluiu) showToast(`Para rever o tutorial: ${ehDesktop ? "Configurações" : "Mais"} → Sobre o app → Ver o tutorial do Bipi.`, "info"); }} />}

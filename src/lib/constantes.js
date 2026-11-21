@@ -141,6 +141,7 @@ const NOTIF_KEY = "condor-validade:notificados";
 
 const USER_KEY = "condor-validade:usuario";
 
+const CACHE_FOTOS_NOME = "condor-fotos-v1"; // igual a CACHE_FOTOS do public/sw.js
 const SNAPSHOT_KEY = "condor-validade:instantaneo-offline";
 
 // URL pública do app usada nos links dos e-mails (confirmação / recuperação). Defina VITE_SITE_URL no deploy
@@ -155,4 +156,4 @@ function semFotoUtil(foto) { const f = String(foto ?? "").trim(); return !f || (
 // Sempre pela foto atual (a coluna invisivel do banco é igual, mas pode ficar velha na memória depois de editar).
 function invisivelNoInicio(item) { return ESCONDER_SEM_FOTO && semFotoUtil(item?.foto); }
 
-export { ESCONDER_SEM_FOTO, BIPI_SEM_FOTO, semFotoUtil, invisivelNoInicio, BG, BLUE, BLUE_DARK, BLUE_SOFT, CATALOG_KEY, CATEGORIAS_GIRO, DIAS_ALERTA_BASE, HIST_KEY, INK, ITEMS_KEY, LOGO_BIPI_PROPORCAO, LOGO_SRC, MOTIVOS_BAIXA, MOTIVOS_EXCLUSAO, NOTIF_KEY, POLITICAS_TROCA, PREFS_KEY, RED, RED_DARK, RED_SOFT, SETORES, SETORES_PERECIVEIS, SETORES_PERECIVEIS_EXTRA, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, USER_KEY, agruparItensPorProduto, definirSetoresPereciveisExtra, ehPerecivel, gerarCodigoLocalizacao, setorPrincipal, subsetorEfetivo };
+export { CACHE_FOTOS_NOME, ESCONDER_SEM_FOTO, BIPI_SEM_FOTO, semFotoUtil, invisivelNoInicio, BG, BLUE, BLUE_DARK, BLUE_SOFT, CATALOG_KEY, CATEGORIAS_GIRO, DIAS_ALERTA_BASE, HIST_KEY, INK, ITEMS_KEY, LOGO_BIPI_PROPORCAO, LOGO_SRC, MOTIVOS_BAIXA, MOTIVOS_EXCLUSAO, NOTIF_KEY, POLITICAS_TROCA, PREFS_KEY, RED, RED_DARK, RED_SOFT, SETORES, SETORES_PERECIVEIS, SETORES_PERECIVEIS_EXTRA, SITE_URL, SNAPSHOT_KEY, SUBSETORES_PADRAO, USER_KEY, agruparItensPorProduto, definirSetoresPereciveisExtra, ehPerecivel, gerarCodigoLocalizacao, setorPrincipal, subsetorEfetivo };

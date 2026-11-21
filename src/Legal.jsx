@@ -7,10 +7,19 @@ import { ArrowLeft, Check, FileText, ShieldCheck, Lock, Smartphone, Download, Se
 import { supabase } from "./supabaseClient";
 import { FUNDO_MARCA } from "./TelasEntrada";
 
-export const TERMOS_VERSAO = "2026-11-16";
+export const TERMOS_VERSAO = "2026-11-21";
 // A CADA VEZ que trocar TERMOS_VERSAO: adicione uma entrada NO TOPO aqui, com SÓ o que foi adicionado/alterado em cada documento
 // (ids: termos, privacidade, direitos, armazenamento). Quem já aceitou antes vê só esse resumo, não os textos completos.
 export const TERMOS_ALTERACOES = [
+  { versao: "2026-11-21", docs: {
+    armazenamento: [
+      "Pacote offline: no primeiro acesso de cada pessoa em um aparelho, o app baixa e guarda o programa, as fotos dos produtos da loja e uma cópia dos dados da loja para abrir e funcionar sem internet. As fotos ficam no armazenamento do aparelho (condor-fotos-v1) e a marca “pacote baixado” (condor-validade:pacote-offline:<id>) some ao sair da conta; a cópia dos dados continua sendo apagada ao sair.",
+      "Ao voltar a internet, o app mostra uma tela com o seu nome e o andamento do envio dos registros feitos sem conexão.",
+    ],
+    privacidade: [
+      "Nenhum dado novo é coletado: o pacote offline só guarda no seu aparelho informações que você já pode ver no app (produtos, fotos e histórico da sua loja).",
+    ],
+  } },
   { versao: "2026-11-16", docs: {
     termos: [
       "O aplicativo mudou de nome: o que antes se chamava “Condor · Alerta de Validade” agora é “Bipi Validade”, com logo nova. Só o nome e a aparência mudaram; as regras de uso continuam as mesmas, e o app segue avulso e independente, sem vínculo com nenhuma rede de supermercados.",
@@ -291,6 +300,7 @@ export const DOCUMENTOS = [
       { t: "O que fica guardado neste aparelho", p: [
         "Sessão de login (sb-…-auth-token): mantém você conectado. Fica até você sair ou a sessão expirar.",
         "Cópia offline (condor-validade:instantaneo-offline): produtos, catálogo e histórico da loja para o app abrir sem internet. Atualizada a cada sincronização e apagada ao sair da conta.",
+        "Pacote offline (condor-validade:pacote-offline:<id> e o cache condor-fotos-v1): marca de que o pacote já foi baixado e as fotos dos produtos da loja guardadas no aparelho. A marca é apagada ao sair; as fotos são imagens de produto, sem dado pessoal, e ficam até você limpar os dados do site.",
         "Ações sem internet (condor-validade:fila-offline e avdc_ronda_fila): lançamentos, baixas e conferências feitas sem conexão. Apagadas assim que enviadas; só são enviadas com a conta de quem as fez.",
         "Preferências (condor-validade:preferencias): tema, som e opções de tela. Ficam até você limpar os dados do site.",
         "Alertas já avisados (condor-validade:notificados:<id> e condor-validade:notif-base:<id>, um par por pessoa; apagados ao sair): evita repetir a mesma notificação e garante que só avisos novos cheguem.",

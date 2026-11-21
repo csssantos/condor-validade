@@ -10,6 +10,10 @@ import { BLUE, BLUE_DARK, BLUE_SOFT, RED_DARK, RED_SOFT } from "../lib/constante
 //  - ate: nível máximo do cargo que vê o item (7 = todos, 5 = encarregado e acima, 4 = gerência e acima, 2 = regional e dev, 1 = só dev)
 // Quem tem cargo abaixo do exigido não vê o item; quem tem cargo igual ou acima vê, com a etiqueta do público.
 const NOVIDADES = [
+  { id: "2026-11-21-offline", data: "21/11/2026", itens: [
+    { tipo: "adicionado", ate: 7, texto: "Pacote offline: no primeiro acesso o app baixa o programa, as fotos dos produtos e os dados da sua loja (com barra de progresso) e passa a abrir e funcionar sem internet." },
+    { tipo: "adicionado", ate: 7, texto: "Quando a internet volta, uma tela mostra o seu nome e o envio dos registros que você fez offline." },
+  ] },
   { id: "2026-11-18-acessibilidade", data: "18/11/2026", itens: [
     { tipo: "adicionado", ate: 7, texto: "Novo ajuste em Mais → Aparência: Tamanho das letras (Normal, Grande e Muito grande). Normal é o tamanho padrão do app." },
     { tipo: "melhorado", ate: 7, texto: "Letras pequenas ficaram maiores e mais fáceis de ler, o texto cinza ficou mais escuro para dar mais contraste e agora dá para dar zoom na tela com os dedos." },

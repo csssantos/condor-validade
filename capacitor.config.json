@@ -5,7 +5,12 @@
   "server": {
     "url": "https://app.usebipi.com",
     "cleartext": false,
-    "allowNavigation": ["app.usebipi.com"]
+    "allowNavigation": [
+      "app.usebipi.com"
+    ],
+    "errorPath": "offline.html"
   },
-  "android": { "allowMixedContent": false }
+  "android": {
+    "allowMixedContent": false
+  }
 }

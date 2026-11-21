@@ -21,6 +21,7 @@ jobs:
           mkdir -p /tmp/apk/www && cd /tmp/apk
           printf '<!doctype html><meta charset="utf-8"><title>Bipi</title>' > www/index.html
           cp "$GITHUB_WORKSPACE/capacitor.config.json" .
+          cp "$GITHUB_WORKSPACE/android-config/offline.html" www/offline.html
           cp -r "$GITHUB_WORKSPACE/android-icones" "$GITHUB_WORKSPACE/android-config" .
           npm init -y >/dev/null
           npm install --no-audit --no-fund @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/push-notifications@6
