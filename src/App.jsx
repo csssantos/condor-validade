@@ -468,6 +468,8 @@ function AppInner() {
   // para abrir sem internet. 1ª vez da pessoa neste aparelho: tela com barra de progresso; depois: em silêncio (só busca fotos novas).
   const pacoteRodouRef = useRef(null);
   const pacoteSinalRef = useRef(null);
+  const pacoteRef = useRef(null);
+  pacoteRef.current = pacote;
   useEffect(() => () => { if (pacoteSinalRef.current) pacoteSinalRef.current.cancelado = true; }, [idDoUsuario]); // trocou de conta/saiu: para o download da pessoa anterior
   useEffect(() => {
     const uid = idDoUsuario;
@@ -488,13 +490,14 @@ function AppInner() {
           return;
         }
         if (pacoteSinalRef.current !== sinal) return;
+        const oculto = !!(pacoteRef.current && !pacoteRef.current.visivel);
         setPacote((a) => {
           const resumo = r.poucoDados ? "A economia de dados do celular está ligada: baixamos só o programa e os dados. As fotos ficam para quando você estiver no Wi-Fi."
             : `${r.fotos} de ${r.fotosTotal} foto(s) guardadas e ${items.length} lote(s) da loja.`;
-          if (a && !a.visivel) return null;
+          if (oculto) return null;
           return { ...(a || {}), pronto: true, visivel: true, resumo };
         });
-        setTimeout(() => { if (pacoteSinalRef.current === sinal && !sinal.cancelado) setPacote((a) => { if (!a) showToast("Pronto: o app já funciona sem internet.", "ok"); return a; }); }, 0);
+        if (oculto) showToast("Pronto: o app já funciona sem internet.", "ok");
       })
       .catch(() => { if (pacoteSinalRef.current !== sinal) return; if (primeira) { setPacote(null); if (!sinal.cancelado) showToast("Não foi possível preparar o modo offline agora. O app tenta de novo na próxima vez.", "aviso"); } pacoteRodouRef.current = null; });
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -72,24 +72,28 @@ self.addEventListener("activate", (event) => {
 
 const HOST_SUPABASE = "fbovltxucooeoldjfckk.supabase.co";
 let diretoBloqueadoAte = 0; // depois de uma falha, as próximas fotos vão direto pelo caminho do app por 10 min
+// a cópia da resposta é feita AGORA (antes de devolver o corpo à página) e o service worker é mantido vivo até gravar
+function guardarEmSegundoPlano(event, url, r) {
+  try { const p = guardarFoto(url, r.clone()); if (event && event.waitUntil) event.waitUntil(p); } catch { /* corpo já usado: só não guarda */ }
+}
 async function guardarFoto(url, resp) {
   try {
     if (!resp || !resp.ok || resp.type === "opaque") return;
     if (!/^image\//i.test(resp.headers.get("content-type") || "")) return; // página de bloqueio da rede (HTML com status 200) nunca vira "foto"
     const c = await caches.open(CACHE_FOTOS);
-    await c.put(url.origin + url.pathname, resp.clone());
+    await c.put(url.origin + url.pathname, resp);
     const chaves = await c.keys();
     if (chaves.length > MAX_FOTOS) for (const k of chaves.slice(0, chaves.length - MAX_FOTOS)) await c.delete(k);
   } catch { /* sem espaço: a foto só não fica guardada */ }
 }
-async function buscarFoto(request, url) {
+async function buscarFoto(request, url, event) {
   try { // já guardada (pacote offline ou visita anterior): abre na hora, com ou sem internet
     const c = await caches.open(CACHE_FOTOS);
     const g = await c.match(url.origin + url.pathname);
     if (g) return g;
   } catch { /* segue para a rede */ }
   const pelaCasa = () => fetch(`${self.location.origin}/supa${url.pathname}${url.search}`, { mode: request.mode === "cors" ? "cors" : "same-origin" });
-  if (Date.now() < diretoBloqueadoAte) { try { const r = await pelaCasa(); guardarFoto(url, r); return r; } catch { /* tenta o direto abaixo */ } }
+  if (Date.now() < diretoBloqueadoAte) { try { const r = await pelaCasa(); guardarEmSegundoPlano(event, url, r); return r; } catch { /* tenta o direto abaixo */ } }
   try {
     // <img> sem crossOrigin pede em "no-cors" (resposta opaca, que não dá para guardar): refaz como CORS (o Storage público libera) e devolve a resposta normal
     const pedido = new Request(url.href, { mode: "cors", credentials: "omit" });
@@ -97,11 +101,11 @@ async function buscarFoto(request, url) {
       fetch(pedido),
       new Promise((_, rej) => setTimeout(() => rej(new Error("sem_resposta")), 6000)),
     ]);
-    guardarFoto(url, r);
+    guardarEmSegundoPlano(event, url, r);
     return r;
   } catch {
     diretoBloqueadoAte = Date.now() + 10 * 60 * 1000;
-    try { const r = await pelaCasa(); guardarFoto(url, r); return r; } catch { return new Response("", { status: 504 }); }
+    try { const r = await pelaCasa(); guardarEmSegundoPlano(event, url, r); return r; } catch { return new Response("", { status: 504 }); }
   }
 }
 
@@ -112,7 +116,7 @@ self.addEventListener("fetch", (event) => {
   // Fotos de produto (Storage do Supabase): em rede que bloqueia o Supabase (ex.: rede da empresa) pedem pelo caminho /supa do próprio app
   // (a Vercel repassa; ver vercel.json). Se o direto funciona, nada muda; se falhar ou não responder em 6 s, usa o caminho do app.
   if (url.hostname === HOST_SUPABASE && request.destination === "image" && url.pathname.startsWith("/storage/v1/object/public/")) {
-    event.respondWith(buscarFoto(request, url));
+    event.respondWith(buscarFoto(request, url, event));
     return;
   }
   if (url.origin !== self.location.origin) return; // Supabase, fontes etc.: direto na rede

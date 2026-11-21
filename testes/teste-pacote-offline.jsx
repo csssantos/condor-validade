@@ -32,7 +32,7 @@ const cst = fs.readFileSync("src/lib/constantes.js", "utf8");
 const nomeSW = /const CACHE_FOTOS = "([^"]+)"/.exec(sw)?.[1], nomeApp = /CACHE_FOTOS_NOME = "([^"]+)"/.exec(cst)?.[1];
 t("nome do cache de fotos igual no sw.js e no app", !!nomeSW && nomeSW === nomeApp);
 t("sw não apaga o cache de fotos na ativação", /n !== CACHE_FOTOS/.test(sw));
-t("sw guarda só resposta ok e nunca /supa", /resp\.ok/.test(sw) && /guardarFoto\(url, r\)/.test(sw) && /startsWith\("\/supa\/"\)\) return/.test(sw));
+t("sw guarda só resposta ok e nunca /supa", /resp\.ok/.test(sw) && /guardarEmSegundoPlano\(event, url, r\)/.test(sw) && /startsWith\("\/supa\/"\)\) return/.test(sw));
 t("sw pede a foto como CORS para poder guardar", /mode: "cors", credentials: "omit"/.test(sw));
 t("sw só guarda resposta de imagem", /image\\\//.test(sw));
 t("sw tem teto de fotos", /MAX_FOTOS/.test(sw) && /c\.delete\(k\)/.test(sw));
